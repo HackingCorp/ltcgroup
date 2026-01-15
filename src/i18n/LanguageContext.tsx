@@ -19,31 +19,62 @@ const LanguageContext = createContext<LanguageContextType | undefined>(
   undefined
 );
 
+// Detect browser language
+function detectBrowserLanguage(): Language {
+  if (typeof window === "undefined") return "fr";
+
+  // Check localStorage first
+  const savedLang = localStorage.getItem("ltc-language");
+  if (savedLang === "fr" || savedLang === "en") {
+    return savedLang;
+  }
+
+  // Check navigator.languages (array of preferred languages)
+  const browserLanguages = navigator.languages || [navigator.language];
+
+  for (const lang of browserLanguages) {
+    const langCode = lang.toLowerCase().slice(0, 2);
+    if (langCode === "en") return "en";
+    if (langCode === "fr") return "fr";
+  }
+
+  // Default to French for Cameroon and other French-speaking countries
+  return "fr";
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("fr");
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Check localStorage for saved language preference
-    const savedLang = localStorage.getItem("ltc-language") as Language;
-    if (savedLang && (savedLang === "fr" || savedLang === "en")) {
-      setLanguageState(savedLang);
-    } else {
-      // Detect browser language
-      const browserLang = navigator.language.slice(0, 2);
-      if (browserLang === "en") {
-        setLanguageState("en");
-      }
-    }
+    // Detect and set language on mount
+    const detectedLang = detectBrowserLanguage();
+    setLanguageState(detectedLang);
+    document.documentElement.lang = detectedLang;
+    setIsInitialized(true);
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem("ltc-language", lang);
-    // Update html lang attribute
     document.documentElement.lang = lang;
   };
 
   const t = translations[language];
+
+  // Prevent flash of wrong language
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background-light flex items-center justify-center">
+        <div className="animate-pulse">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded"></div>
+            <span className="text-xl font-black text-slate-900">LTC GROUP</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
