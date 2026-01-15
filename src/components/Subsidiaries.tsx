@@ -10,34 +10,42 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.emarket,
       icon: "shopping_cart",
+      href: "#", // TODO: /services/emarket-237
     },
     {
       ...t.subsidiaries.cargo,
       icon: "local_shipping",
+      href: "/services/global-cargo",
     },
     {
       ...t.subsidiaries.panda,
       icon: "storefront",
+      href: "#", // TODO: /services/panda-market
     },
     {
       ...t.subsidiaries.btp,
       icon: "engineering",
+      href: "#", // TODO: /services/lnd-btp
     },
     {
       ...t.subsidiaries.delivery,
       icon: "two_wheeler",
+      href: "#", // TODO: /services/go-livraison
     },
     {
       ...t.subsidiaries.host,
       icon: "dns",
+      href: "#", // TODO: /services/ltc-host
     },
     {
       ...t.subsidiaries.finance,
       icon: "credit_card",
+      href: "#", // TODO: /services/solutions-financieres
     },
     {
       ...t.subsidiaries.immo,
       icon: "apartment",
+      href: "#", // TODO: /services/ltc-immo
     },
   ];
 
@@ -83,7 +91,7 @@ export default function Subsidiaries() {
                 </p>
               </div>
               <Link
-                href="#"
+                href={subsidiary.href}
                 className="mt-6 flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
               >
                 {subsidiary.link}{" "}
