@@ -25,7 +25,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.btp,
       icon: "engineering",
-      href: "#", // TODO: /services/lnd-btp
+      href: "/services/lnd-btp",
     },
     {
       ...t.subsidiaries.delivery,
