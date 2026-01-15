@@ -55,7 +55,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${publicSans.variable} font-sans antialiased`}>
+      <body className={`${publicSans.variable} font-sans antialiased`} suppressHydrationWarning>
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
