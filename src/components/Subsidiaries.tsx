@@ -40,7 +40,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.finance,
       icon: "credit_card",
-      href: "#", // TODO: /services/solutions-financieres
+      href: "/services/solutions-financieres",
     },
     {
       ...t.subsidiaries.immo,
