@@ -1,8 +1,7 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     const body = await request.json();
     const { name, email, phone, subject, message } = body;
@@ -28,10 +27,21 @@ export async function POST(request: Request) {
 
     const subjectText = subjectMap[subject] || subject;
 
-    // Send email to LTC Group
-    const { error } = await resend.emails.send({
-      from: "LTC Group <contact@ltcgroup.site>",
-      to: [process.env.CONTACT_EMAIL || "contact@ltcgroup.site"],
+    // Configure SMTP transporter
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    // Send email
+    await transporter.sendMail({
+      from: `"LTC Group" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: process.env.CONTACT_EMAIL || process.env.SMTP_USER,
       replyTo: email,
       subject: `[LTC Group] Nouveau message: ${subjectText}`,
       html: `
@@ -63,22 +73,14 @@ export async function POST(request: Request) {
       `,
     });
 
-    if (error) {
-      console.error("Resend error:", error);
-      return NextResponse.json(
-        { error: "Erreur lors de l'envoi du message. Veuillez réessayer." },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json(
       { message: "Message envoyé avec succès!" },
       { status: 200 }
     );
   } catch (error) {
-    console.error("API error:", error);
+    console.error("Email error:", error);
     return NextResponse.json(
-      { error: "Une erreur est survenue. Veuillez réessayer." },
+      { error: "Erreur lors de l'envoi du message. Veuillez réessayer." },
       { status: 500 }
     );
   }
