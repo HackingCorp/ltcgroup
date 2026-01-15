@@ -35,7 +35,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.host,
       icon: "dns",
-      href: "#", // TODO: /services/ltc-host
+      href: "/services/ltc-host",
     },
     {
       ...t.subsidiaries.finance,
