@@ -430,6 +430,38 @@ export default function SolutionsFinancieresPage() {
               {t.pricing.rechargeNote}
             </div>
           </div>
+
+          {/* Documents Required */}
+          <div className="mt-16 max-w-2xl mx-auto">
+            <div className="bg-[#1B2233] rounded-2xl p-8 border border-white/10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-full bg-[#cea427]/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#cea427] text-2xl">folder_open</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">{t.documents.title}</h3>
+              </div>
+              <p className="text-gray-400 text-sm mb-6">{t.documents.subtitle}</p>
+              <ul className="space-y-4">
+                {t.documents.items.map((doc, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-[#cea427] text-[20px] mt-0.5">check_circle</span>
+                    <div>
+                      <span className="text-white font-medium">{doc.name}</span>
+                      {doc.description && (
+                        <p className="text-gray-400 text-sm mt-1">{doc.description}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-sm text-gray-400 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#cea427] text-[18px]">schedule</span>
+                  {t.documents.processingTime}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -684,6 +716,17 @@ const translations = {
         "Validité 2-3 ans",
       ],
     },
+    documents: {
+      title: "Documents Requis",
+      subtitle: "Pour obtenir votre carte prépayée, veuillez fournir les documents suivants:",
+      processingTime: "Traitement sous 24-48h après réception des documents",
+      items: [
+        { name: "Une photo d'identité", description: "Format demi-carte (4x4 cm)" },
+        { name: "Attestation d'immatriculation", description: "Document officiel d'enregistrement" },
+        { name: "Photocopie de la CNI", description: "Carte Nationale d'Identité en cours de validité" },
+        { name: "Plan de localisation", description: "Croquis ou capture Google Maps de votre domicile" },
+      ],
+    },
     business: {
       tag: "LTC Business",
       title: "Gérez les dépenses de votre entreprise",
@@ -812,6 +855,17 @@ const translations = {
         "Zero maintenance fees",
         "Enhanced security",
         "2-3 years validity",
+      ],
+    },
+    documents: {
+      title: "Required Documents",
+      subtitle: "To obtain your prepaid card, please provide the following documents:",
+      processingTime: "Processing within 24-48h after document receipt",
+      items: [
+        { name: "Passport photo", description: "Half-card format (4x4 cm)" },
+        { name: "Registration certificate", description: "Official registration document" },
+        { name: "Copy of National ID", description: "Valid National Identity Card" },
+        { name: "Location map", description: "Sketch or Google Maps screenshot of your home" },
       ],
     },
     business: {
