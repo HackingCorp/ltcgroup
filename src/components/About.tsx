@@ -1,24 +1,24 @@
+"use client";
+
 import Image from "next/image";
+import { useLanguage } from "@/i18n";
 
 export default function About() {
+  const { t } = useLanguage();
+
   return (
     <section className="py-20 bg-background-light" id="about">
       <div className="px-6 lg:px-40 mx-auto">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           <div className="flex flex-col gap-6 flex-1">
             <span className="text-primary font-bold tracking-widest uppercase text-sm">
-              À propos de LTC Group
+              {t.about.tag}
             </span>
             <h2 className="text-4xl font-black text-slate-900 leading-tight">
-              Construire l&apos;avenir de l&apos;industrie africaine grâce à des
-              solutions intégrées.
+              {t.about.title}
             </h2>
             <p className="text-slate-600 text-lg leading-relaxed">
-              LTC GROUP SARL est un conglomérat multisectoriel dédié à stimuler
-              la croissance au Cameroun et en Afrique. Nous comblons les lacunes
-              en logistique, immobilier et commerce avec intégrité et excellence.
-              Notre approche combine l&apos;expertise locale avec les standards
-              internationaux.
+              {t.about.description}
             </p>
 
             <div className="grid gap-6 mt-4">
@@ -29,12 +29,10 @@ export default function About() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
-                    Notre Vision
+                    {t.about.vision}
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed">
-                    Être le pont principal connectant les marchés africains aux
-                    opportunités mondiales grâce à des infrastructures et
-                    services durables.
+                    {t.about.visionText}
                   </p>
                 </div>
               </div>
@@ -46,12 +44,10 @@ export default function About() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
-                    Notre Mission
+                    {t.about.mission}
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed">
-                    Fournir des solutions de classe mondiale en BTP, Logistique
-                    et E-commerce qui autonomisent les communautés et entreprises
-                    locales.
+                    {t.about.missionText}
                   </p>
                 </div>
               </div>
@@ -63,11 +59,10 @@ export default function About() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
-                    Nos Valeurs
+                    {t.about.values}
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed">
-                    Fiabilité, Innovation, Performance et Transparence guident
-                    chacune de nos actions et décisions.
+                    {t.about.valuesText}
                   </p>
                 </div>
               </div>
@@ -77,7 +72,7 @@ export default function About() {
           <div className="flex-1 w-full relative">
             <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                alt="Équipe LTC Group"
+                alt="LTC Group Team"
                 className="object-cover w-full h-full"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-S7QJOK4Cz18t0D8Dr5PB3Olpq4IrUurxSeqFl4gWBTVq8WSNFsyV7g9cQiWMhrBkI-lUvQYTotF3NlG-yn7dBGvzr4JGnIITzSiVc7m9UAiV8TM9EckLgrfkqB41cI4sXQsLn0x99V16u-asQy4g2WTe4HtdMVdsYNxH19c3DBZEV4cdyIZx5onUlLVZBJZoAcGgbC3KE2mGSV23FB0jcuuYijDvNxNjgshRQgRHl22i4Wp5ACgicrcynPyMBly8SlIN4wBoCz5s"
                 fill
@@ -87,7 +82,7 @@ export default function About() {
               <div className="absolute bottom-6 left-6 right-6">
                 <div className="bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-lg border-l-4 border-primary">
                   <p className="text-slate-900 font-bold italic">
-                    &quot;L&apos;excellence n&apos;est pas un acte, mais une habitude.&quot;
+                    &quot;{t.about.quote}&quot;
                   </p>
                 </div>
               </div>

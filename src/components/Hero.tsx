@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useLanguage } from "@/i18n";
 
 export default function Hero() {
+  const { t } = useLanguage();
+
   return (
     <section className="relative flex min-h-[600px] flex-col justify-center items-center overflow-hidden">
       {/* Background Image with Overlay */}
@@ -17,17 +22,16 @@ export default function Hero() {
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-md">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
             <span className="text-xs font-bold uppercase tracking-widest text-white">
-              Excellence Multisectorielle
+              {t.hero.badge}
             </span>
           </div>
 
           <h1 className="text-white text-4xl sm:text-5xl md:text-6xl font-black leading-[1.1] tracking-tight">
-            Un groupe, plusieurs solutions pour connecter l&apos;Afrique au monde
+            {t.hero.title}
           </h1>
 
           <p className="text-slate-200 text-lg md:text-xl font-medium leading-relaxed max-w-[600px]">
-            Leader de l&apos;innovation en Logistique, Construction et Commerce au
-            Cameroun et sur les marchés internationaux.
+            {t.hero.subtitle}
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">
@@ -35,13 +39,13 @@ export default function Hero() {
               href="#subsidiaries"
               className="flex items-center justify-center rounded-lg h-12 px-8 bg-primary hover:bg-primary-dark text-white text-base font-bold transition-all shadow-lg hover:shadow-primary/50"
             >
-              Nos Activités
+              {t.hero.cta1}
             </Link>
             <Link
               href="#contact"
               className="flex items-center justify-center rounded-lg h-12 px-8 bg-white/10 hover:bg-white/20 border border-white/30 text-white text-base font-bold transition-all backdrop-blur-sm"
             >
-              Nous Contacter
+              {t.hero.cta2}
             </Link>
           </div>
         </div>

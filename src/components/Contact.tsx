@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "@/i18n";
 
 export default function Contact() {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -53,14 +55,13 @@ export default function Contact() {
       <div className="px-6 lg:px-40 mx-auto">
         <div className="text-center mb-12">
           <span className="text-primary font-bold tracking-widest uppercase text-sm">
-            Contactez-Nous
+            {t.contact.tag}
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-slate-900 mt-2">
-            Restons en Contact
+            {t.contact.title}
           </h2>
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
-            Une question, un projet ou une demande de partenariat ? Notre équipe
-            est à votre écoute.
+            {t.contact.subtitle}
           </p>
         </div>
 
@@ -74,13 +75,11 @@ export default function Contact() {
                   <span className="material-symbols-outlined">location_on</span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Yaoundé – Mvan
+                  {t.contact.yaounde}
                 </h3>
               </div>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Mvan, descente entrée Complexe BEAC.<br />
-                En venant du Carrefour Mvan, juste avant le ravin, à droite.<br />
-                Immeuble carrelé avec la plaque LTC Group au balcon.
+                {t.contact.yaoundeAddress}
               </p>
               <div className="flex gap-4 mt-3 text-sm">
                 <a href="tel:+237691371922" className="text-primary font-semibold hover:underline">691 371 922</a>
@@ -95,12 +94,11 @@ export default function Contact() {
                   <span className="material-symbols-outlined">location_city</span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Douala – Ndokotti
+                  {t.contact.douala}
                 </h3>
               </div>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Immeuble Saker CCC, deuxième étage.<br />
-                Vous verrez la plaque LTC Group.
+                {t.contact.doualaAddress}
               </p>
               <div className="mt-3 text-sm">
                 <a href="tel:+237694562409" className="text-primary font-semibold hover:underline">694 562 409</a>
@@ -110,7 +108,7 @@ export default function Contact() {
             {/* Contact Details */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
               <h3 className="text-lg font-bold text-slate-900 mb-4">
-                Coordonnées
+                {t.contact.coordinates}
               </h3>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-3">
@@ -144,14 +142,14 @@ export default function Contact() {
           {/* Contact Form */}
           <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
             <h3 className="text-xl font-bold text-slate-900 mb-6">
-              Envoyez-nous un Message
+              {t.contact.form.title}
             </h3>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
                   name="name"
-                  placeholder="Votre nom"
+                  placeholder={t.contact.form.name}
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -160,7 +158,7 @@ export default function Contact() {
                 <input
                   type="email"
                   name="email"
-                  placeholder="Votre email"
+                  placeholder={t.contact.form.email}
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -171,7 +169,7 @@ export default function Contact() {
                 <input
                   type="tel"
                   name="phone"
-                  placeholder="Téléphone"
+                  placeholder={t.contact.form.phone}
                   value={formData.phone}
                   onChange={handleChange}
                   className="w-full h-12 px-4 rounded-lg bg-background-light border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-primary text-sm"
@@ -183,19 +181,19 @@ export default function Contact() {
                   required
                   className="w-full h-12 px-4 rounded-lg bg-background-light border border-slate-200 text-slate-900 focus:outline-none focus:border-primary text-sm"
                 >
-                  <option value="">Sujet</option>
-                  <option value="logistics">Logistique / Import-Export</option>
-                  <option value="btp">BTP / Construction</option>
-                  <option value="ecommerce">E-commerce</option>
-                  <option value="digital">Services Digitaux</option>
-                  <option value="finance">Solutions Financières</option>
-                  <option value="partnership">Partenariat</option>
-                  <option value="other">Autre</option>
+                  <option value="">{t.contact.form.subject}</option>
+                  <option value="logistics">{t.contact.form.subjects.logistics}</option>
+                  <option value="btp">{t.contact.form.subjects.btp}</option>
+                  <option value="ecommerce">{t.contact.form.subjects.ecommerce}</option>
+                  <option value="digital">{t.contact.form.subjects.digital}</option>
+                  <option value="finance">{t.contact.form.subjects.finance}</option>
+                  <option value="partnership">{t.contact.form.subjects.partnership}</option>
+                  <option value="other">{t.contact.form.subjects.other}</option>
                 </select>
               </div>
               <textarea
                 name="message"
-                placeholder="Votre message"
+                placeholder={t.contact.form.message}
                 value={formData.message}
                 onChange={handleChange}
                 required
@@ -210,17 +208,17 @@ export default function Contact() {
                 {status === "loading" ? (
                   <>
                     <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
-                    Envoi en cours...
+                    {t.contact.form.sending}
                   </>
                 ) : (
-                  "Envoyer le Message"
+                  t.contact.form.submit
                 )}
               </button>
 
               {status === "success" && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
                   <span className="material-symbols-outlined text-green-600">check_circle</span>
-                  Merci ! Votre message a été envoyé avec succès. Nous vous répondrons bientôt.
+                  {t.contact.form.success}
                 </div>
               )}
 

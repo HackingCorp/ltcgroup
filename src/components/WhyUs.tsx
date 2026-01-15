@@ -1,28 +1,26 @@
+"use client";
+
+import { useLanguage } from "@/i18n";
+
 export default function WhyUs() {
+  const { t } = useLanguage();
+
   const reasons = [
     {
       icon: "hub",
-      title: "Expertise Multisectorielle",
-      description:
-        "Une maîtrise complète de plusieurs secteurs clés: logistique, BTP, e-commerce, services digitaux et financiers.",
+      ...t.whyUs.expertise,
     },
     {
       icon: "public",
-      title: "Présence Internationale",
-      description:
-        "Des opérations établies au Cameroun, en Afrique et en Chine pour servir nos clients à l'échelle mondiale.",
+      ...t.whyUs.presence,
     },
     {
       icon: "groups",
-      title: "Équipe Professionnelle",
-      description:
-        "Des experts qualifiés et dévoués qui mettent leur savoir-faire au service de votre réussite.",
+      ...t.whyUs.team,
     },
     {
       icon: "integration_instructions",
-      title: "Solutions Intégrées",
-      description:
-        "Un écosystème complet où chaque filiale travaille en synergie pour offrir des solutions bout-en-bout.",
+      ...t.whyUs.solutions,
     },
   ];
 
@@ -31,14 +29,13 @@ export default function WhyUs() {
       <div className="px-6 lg:px-40 mx-auto">
         <div className="text-center mb-12">
           <span className="text-primary font-bold tracking-widest uppercase text-sm">
-            Nos Avantages
+            {t.whyUs.tag}
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-slate-900 mt-2">
-            Pourquoi Choisir LTC Group ?
+            {t.whyUs.title}
           </h2>
           <p className="text-slate-600 mt-4 max-w-2xl mx-auto">
-            Des raisons concrètes qui font de nous le partenaire idéal pour vos
-            projets en Afrique et à l&apos;international.
+            {t.whyUs.subtitle}
           </p>
         </div>
 

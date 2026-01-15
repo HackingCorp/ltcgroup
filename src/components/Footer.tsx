@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useLanguage } from "@/i18n";
 
 export default function Footer() {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -16,9 +20,7 @@ export default function Footer() {
               <h3 className="text-xl font-black">LTC GROUP</h3>
             </div>
             <p className="text-sm leading-relaxed text-slate-400">
-              Un conglomérat multisectoriel qui stimule l&apos;innovation et la
-              croissance au Cameroun et au-delà. Nous nous engageons pour
-              l&apos;excellence dans chaque entreprise.
+              {t.footer.description}
             </p>
             <div className="flex gap-4 mt-2">
               <a
@@ -40,7 +42,7 @@ export default function Footer() {
                 </span>
               </a>
               <a
-                href="mailto:contact@ltc-group.com"
+                href="mailto:contact@ltcgroup.site"
                 className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center hover:bg-primary transition-colors text-white"
                 aria-label="Email"
               >
@@ -53,36 +55,36 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div className="flex flex-col gap-4">
-            <h4 className="text-white font-bold text-lg">Liens Rapides</h4>
+            <h4 className="text-white font-bold text-lg">{t.footer.quickLinks}</h4>
             <ul className="flex flex-col gap-2 text-sm">
               <li>
                 <Link href="#about" className="hover:text-primary transition-colors">
-                  À Propos
+                  {t.nav.about}
                 </Link>
               </li>
               <li>
                 <Link href="#subsidiaries" className="hover:text-primary transition-colors">
-                  Nos Filiales
+                  {t.nav.subsidiaries}
                 </Link>
               </li>
               <li>
                 <Link href="#why-us" className="hover:text-primary transition-colors">
-                  Pourquoi Nous
+                  {t.nav.whyUs}
                 </Link>
               </li>
               <li>
                 <Link href="#testimonials" className="hover:text-primary transition-colors">
-                  Témoignages
+                  {t.testimonials.title}
                 </Link>
               </li>
               <li>
                 <Link href="#contact" className="hover:text-primary transition-colors">
-                  Contact
+                  {t.nav.contact}
                 </Link>
               </li>
               <li>
                 <Link href="#" className="hover:text-primary transition-colors">
-                  Carrières
+                  {t.footer.careers}
                 </Link>
               </li>
             </ul>
@@ -90,14 +92,14 @@ export default function Footer() {
 
           {/* Contact Info */}
           <div className="flex flex-col gap-4">
-            <h4 className="text-white font-bold text-lg">Nous Contacter</h4>
+            <h4 className="text-white font-bold text-lg">{t.footer.contactUs}</h4>
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex gap-3 items-start">
                 <span className="material-symbols-outlined text-primary shrink-0">
                   location_on
                 </span>
                 <div>
-                  <strong className="text-white block">Yaoundé – Mvan</strong>
+                  <strong className="text-white block">{t.contact.yaounde}</strong>
                   <span className="text-slate-400">
                     Descente entrée Complexe BEAC
                   </span>
@@ -108,7 +110,7 @@ export default function Footer() {
                   location_city
                 </span>
                 <div>
-                  <strong className="text-white block">Douala – Ndokotti</strong>
+                  <strong className="text-white block">{t.contact.douala}</strong>
                   <span className="text-slate-400">
                     Immeuble Saker CCC, 2e étage
                   </span>
@@ -135,35 +137,34 @@ export default function Footer() {
 
           {/* Newsletter */}
           <div className="flex flex-col gap-4">
-            <h4 className="text-white font-bold text-lg">Newsletter</h4>
+            <h4 className="text-white font-bold text-lg">{t.footer.newsletter}</h4>
             <p className="text-sm text-slate-400">
-              Abonnez-vous pour recevoir nos dernières actualités et mises à
-              jour.
+              {t.footer.newsletterText}
             </p>
             <form className="flex flex-col gap-2">
               <input
                 className="w-full h-10 px-3 rounded bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary text-sm"
-                placeholder="Votre adresse email"
+                placeholder={t.footer.emailPlaceholder}
                 type="email"
               />
               <button
                 className="w-full h-10 rounded bg-primary hover:bg-primary-dark text-white font-bold text-sm transition-colors"
                 type="submit"
               >
-                S&apos;abonner
+                {t.footer.subscribe}
               </button>
             </form>
           </div>
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-800 text-center text-sm text-slate-500 flex flex-col md:flex-row justify-between items-center">
-          <p>© {currentYear} LTC GROUP SARL. Tous droits réservés.</p>
+          <p>© {currentYear} LTC GROUP SARL. {t.footer.rights}</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <Link href="#" className="hover:text-primary transition-colors">
-              Mentions Légales
+              {t.footer.legal}
             </Link>
             <Link href="#" className="hover:text-primary transition-colors">
-              Politique de Confidentialité
+              {t.footer.privacy}
             </Link>
           </div>
         </div>

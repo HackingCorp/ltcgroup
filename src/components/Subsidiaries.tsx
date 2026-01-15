@@ -1,96 +1,60 @@
+"use client";
+
 import Link from "next/link";
-
-interface Subsidiary {
-  name: string;
-  description: string;
-  icon: string;
-  link: string;
-  linkText: string;
-}
-
-const subsidiaries: Subsidiary[] = [
-  {
-    name: "E-Market 237",
-    description:
-      "Plateforme e-commerce leader proposant produits électroniques, accessoires, maison et tech. Une expérience d'achat en ligne fluide et sécurisée.",
-    icon: "shopping_cart",
-    link: "#",
-    linkText: "Visiter la Boutique",
-  },
-  {
-    name: "Global Cargo Logistics",
-    description:
-      "Solutions logistiques internationales Chine-Cameroun. Fret aérien & maritime, sourcing et paiement fournisseurs pour vos importations.",
-    icon: "local_shipping",
-    link: "#",
-    linkText: "Solutions Logistiques",
-  },
-  {
-    name: "Panda Market / SinoSourcing",
-    description:
-      "Plateforme de sourcing en Chine. Trouvez les meilleurs fournisseurs, négociez les prix et sécurisez vos approvisionnements.",
-    icon: "storefront",
-    link: "#",
-    linkText: "Découvrir le Sourcing",
-  },
-  {
-    name: "LND BTP",
-    description:
-      "Construction et BTP de qualité. Réalisation d'immeubles, études techniques et projets clé en main pour particuliers et entreprises.",
-    icon: "engineering",
-    link: "#",
-    linkText: "Voir nos Projets",
-  },
-  {
-    name: "Go Livraison",
-    description:
-      "Service de livraison locale rapide. Le dernier kilomètre assuré avec efficacité et ponctualité dans tout le Cameroun.",
-    icon: "two_wheeler",
-    link: "#",
-    linkText: "Commander une Livraison",
-  },
-  {
-    name: "LTC Host / Services Digitaux",
-    description:
-      "Hébergement web, solutions IT et automatisation. Propulsez votre présence digitale avec nos services technologiques de pointe.",
-    icon: "dns",
-    link: "#",
-    linkText: "Services IT",
-  },
-  {
-    name: "Solutions Financières",
-    description:
-      "Cartes Visa prépayées et services de paiement innovants. Facilitez vos transactions locales et internationales.",
-    icon: "credit_card",
-    link: "#",
-    linkText: "En Savoir Plus",
-  },
-  {
-    name: "LTC Immo",
-    description:
-      "Gestion immobilière complète, développement de propriétés et consultation pour actifs de haute valeur.",
-    icon: "apartment",
-    link: "#",
-    linkText: "Voir les Propriétés",
-  },
-];
+import { useLanguage } from "@/i18n";
 
 export default function Subsidiaries() {
+  const { t } = useLanguage();
+
+  const subsidiaries = [
+    {
+      ...t.subsidiaries.emarket,
+      icon: "shopping_cart",
+    },
+    {
+      ...t.subsidiaries.cargo,
+      icon: "local_shipping",
+    },
+    {
+      ...t.subsidiaries.panda,
+      icon: "storefront",
+    },
+    {
+      ...t.subsidiaries.btp,
+      icon: "engineering",
+    },
+    {
+      ...t.subsidiaries.delivery,
+      icon: "two_wheeler",
+    },
+    {
+      ...t.subsidiaries.host,
+      icon: "dns",
+    },
+    {
+      ...t.subsidiaries.finance,
+      icon: "credit_card",
+    },
+    {
+      ...t.subsidiaries.immo,
+      icon: "apartment",
+    },
+  ];
+
   return (
     <section className="py-20 bg-white" id="subsidiaries">
       <div className="px-6 lg:px-40 mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
           <div>
             <span className="text-primary font-bold tracking-widest uppercase text-sm">
-              Notre Écosystème
+              {t.subsidiaries.tag}
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 mt-2">
-              Nos Filiales
+              {t.subsidiaries.title}
             </h2>
           </div>
           <p className="text-slate-600 max-w-md text-right md:text-left">
-            Découvrez les branches spécialisées de LTC GROUP offrant une
-            expertise ciblée dans chaque secteur.
+            {t.subsidiaries.subtitle}
           </p>
         </div>
 
@@ -119,10 +83,10 @@ export default function Subsidiaries() {
                 </p>
               </div>
               <Link
-                href={subsidiary.link}
+                href="#"
                 className="mt-6 flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
               >
-                {subsidiary.linkText}{" "}
+                {subsidiary.link}{" "}
                 <span className="material-symbols-outlined text-sm">
                   arrow_forward
                 </span>

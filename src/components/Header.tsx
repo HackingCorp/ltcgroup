@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "@/i18n";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between border-b border-solid border-slate-200 bg-white/95 backdrop-blur-sm px-6 py-4 lg:px-20">
@@ -24,38 +26,63 @@ export default function Header() {
             href="/"
             className="text-slate-600 hover:text-primary text-sm font-bold transition-colors"
           >
-            Accueil
+            {t.nav.home}
           </Link>
           <Link
             href="#about"
             className="text-slate-600 hover:text-primary text-sm font-bold transition-colors"
           >
-            À propos
+            {t.nav.about}
           </Link>
           <Link
             href="#subsidiaries"
             className="text-slate-600 hover:text-primary text-sm font-bold transition-colors"
           >
-            Nos Filiales
+            {t.nav.subsidiaries}
           </Link>
           <Link
             href="#why-us"
             className="text-slate-600 hover:text-primary text-sm font-bold transition-colors"
           >
-            Pourquoi Nous
+            {t.nav.whyUs}
           </Link>
           <Link
             href="#contact"
             className="text-slate-600 hover:text-primary text-sm font-bold transition-colors"
           >
-            Contact
+            {t.nav.contact}
           </Link>
         </nav>
+
+        {/* Language Selector */}
+        <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setLanguage("fr")}
+            className={`px-3 py-1.5 text-sm font-bold transition-colors ${
+              language === "fr"
+                ? "bg-primary text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            FR
+          </button>
+          <button
+            onClick={() => setLanguage("en")}
+            className={`px-3 py-1.5 text-sm font-bold transition-colors ${
+              language === "en"
+                ? "bg-primary text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            EN
+          </button>
+        </div>
+
         <Link
           href="#contact"
           className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-primary hover:bg-primary-dark text-white text-sm font-bold leading-normal tracking-wide transition-all shadow-md hover:shadow-lg"
         >
-          <span>Nous Contacter</span>
+          <span>{t.nav.contactUs}</span>
         </Link>
       </div>
 
@@ -79,42 +106,68 @@ export default function Header() {
               className="text-slate-600 hover:text-primary text-sm font-bold transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Accueil
+              {t.nav.home}
             </Link>
             <Link
               href="#about"
               className="text-slate-600 hover:text-primary text-sm font-bold transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              À propos
+              {t.nav.about}
             </Link>
             <Link
               href="#subsidiaries"
               className="text-slate-600 hover:text-primary text-sm font-bold transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Nos Filiales
+              {t.nav.subsidiaries}
             </Link>
             <Link
               href="#why-us"
               className="text-slate-600 hover:text-primary text-sm font-bold transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Pourquoi Nous
+              {t.nav.whyUs}
             </Link>
             <Link
               href="#contact"
               className="text-slate-600 hover:text-primary text-sm font-bold transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Contact
+              {t.nav.contact}
             </Link>
+
+            {/* Mobile Language Selector */}
+            <div className="flex items-center gap-2 py-2">
+              <span className="text-sm text-slate-500">Langue:</span>
+              <button
+                onClick={() => setLanguage("fr")}
+                className={`px-3 py-1 text-sm font-bold rounded ${
+                  language === "fr"
+                    ? "bg-primary text-white"
+                    : "text-slate-600 bg-slate-100"
+                }`}
+              >
+                FR
+              </button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={`px-3 py-1 text-sm font-bold rounded ${
+                  language === "en"
+                    ? "bg-primary text-white"
+                    : "text-slate-600 bg-slate-100"
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
             <Link
               href="#contact"
               className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-primary hover:bg-primary-dark text-white text-sm font-bold leading-normal tracking-wide transition-all shadow-md hover:shadow-lg mt-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <span>Nous Contacter</span>
+              <span>{t.nav.contactUs}</span>
             </Link>
           </nav>
         </div>

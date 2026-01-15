@@ -1,9 +1,15 @@
+"use client";
+
+import { useLanguage } from "@/i18n";
+
 export default function KeyFigures() {
+  const { t } = useLanguage();
+
   const figures = [
-    { value: "10+", label: "Années d'Expérience" },
-    { value: "5000+", label: "Tonnes Transportées" },
-    { value: "500+", label: "Projets Réalisés" },
-    { value: "2000+", label: "Clients Servis" },
+    { value: "10+", label: t.figures.years },
+    { value: "5000+", label: t.figures.tons },
+    { value: "500+", label: t.figures.projects },
+    { value: "2000+", label: t.figures.clients },
   ];
 
   return (
