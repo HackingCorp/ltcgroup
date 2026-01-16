@@ -1443,39 +1443,38 @@ export default function SolutionsFinancieresPage() {
             <div>
               <h4 className="text-white font-bold mb-6">{t.footer.products}</h4>
               <ul className="space-y-3 text-sm text-gray-400">
-                {t.footer.productLinks.map((link, index) => (
-                  <li key={index}>
-                    <a className="hover:text-[#cea427] transition-colors" href="#">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                <li><a className="hover:text-[#cea427] transition-colors" href="#pricing">{t.footer.productLinks[0]}</a></li>
+                <li><a className="hover:text-[#cea427] transition-colors" href="#pricing">{t.footer.productLinks[1]}</a></li>
+                <li><a className="hover:text-[#cea427] transition-colors" href="#pricing">{t.footer.productLinks[2]}</a></li>
+                <li><a className="hover:text-[#cea427] transition-colors" href="#resellers">{t.footer.productLinks[3]}</a></li>
               </ul>
             </div>
 
             <div>
               <h4 className="text-white font-bold mb-6">{t.footer.support}</h4>
               <ul className="space-y-3 text-sm text-gray-400">
-                {t.footer.supportLinks.map((link, index) => (
-                  <li key={index}>
-                    <a className="hover:text-[#cea427] transition-colors" href="#">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                <li><a className="hover:text-[#cea427] transition-colors" href="#faq">{t.footer.supportLinks[0]}</a></li>
+                <li><a className="hover:text-[#cea427] transition-colors" href="#faq">{t.footer.supportLinks[1]}</a></li>
+                <li><a className="hover:text-[#cea427] transition-colors" href="#pricing">{t.footer.supportLinks[2]}</a></li>
+                <li>
+                  <a
+                    className="hover:text-[#cea427] transition-colors"
+                    href="https://wa.me/237673209375?text=Bonjour%2C%20j'ai%20une%20question."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t.footer.supportLinks[3]}
+                  </a>
+                </li>
               </ul>
             </div>
 
             <div>
               <h4 className="text-white font-bold mb-6">{t.footer.legal}</h4>
               <ul className="space-y-3 text-sm text-gray-400">
-                {t.footer.legalLinks.map((link, index) => (
-                  <li key={index}>
-                    <a className="hover:text-[#cea427] transition-colors" href="#">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                <li><span className="text-gray-500 cursor-default">{t.footer.legalLinks[0]}</span></li>
+                <li><span className="text-gray-500 cursor-default">{t.footer.legalLinks[1]}</span></li>
+                <li><span className="text-gray-500 cursor-default">{t.footer.legalLinks[2]}</span></li>
               </ul>
             </div>
           </div>
