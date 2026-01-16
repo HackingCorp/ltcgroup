@@ -119,8 +119,8 @@ export default function SolutionsFinancieresPage() {
               <a className="text-sm font-medium text-gray-300 hover:text-[#cea427] transition-colors" href="#resellers">
                 {t.nav.partners}
               </a>
-              <a className="text-sm font-medium text-gray-300 hover:text-[#cea427] transition-colors" href="#order-form">
-                {t.nav.orderForm}
+              <a className="text-sm font-medium text-gray-300 hover:text-[#cea427] transition-colors" href="#faq">
+                {t.nav.faq}
               </a>
             </div>
 
@@ -1079,6 +1079,55 @@ export default function SolutionsFinancieresPage() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="py-20 bg-[#10151e]" id="faq">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#cea427]/10 border border-[#cea427]/20 mb-6">
+              <span className="material-symbols-outlined text-[#cea427]">help</span>
+              <span className="text-[#cea427] font-bold text-sm">{t.faq.tag}</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">{t.faq.title}</h2>
+            <p className="text-gray-400">{t.faq.subtitle}</p>
+          </div>
+
+          <div className="space-y-4">
+            {t.faq.items.map((item, index) => (
+              <details
+                key={index}
+                className="group bg-[#1B2233] rounded-xl border border-white/10 overflow-hidden hover:border-[#cea427]/30 transition-colors"
+              >
+                <summary className="flex items-center justify-between p-6 cursor-pointer list-none">
+                  <span className="text-white font-medium pr-4">{item.question}</span>
+                  <span className="material-symbols-outlined text-[#cea427] transition-transform group-open:rotate-180">
+                    expand_more
+                  </span>
+                </summary>
+                <div className="px-6 pb-6 pt-0">
+                  <p className="text-gray-400 leading-relaxed">{item.answer}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+
+          {/* Contact CTA */}
+          <div className="mt-12 text-center">
+            <p className="text-gray-400 mb-4">{t.faq.moreQuestions}</p>
+            <a
+              href="https://wa.me/237673209375?text=Bonjour%2C%20j'ai%20une%20question%20concernant%20les%20cartes%20Visa%20LTC."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+              {t.faq.contactUs}
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Business Solutions Teaser */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-[#1B2233]"></div>
@@ -1233,7 +1282,7 @@ const translations = {
     nav: {
       pricing: "Nos Cartes",
       partners: "Partenaires",
-      orderForm: "Commander",
+      faq: "FAQ",
       orderCard: "Commander ma carte",
     },
     hero: {
@@ -1423,6 +1472,47 @@ const translations = {
       cta: "Devenir Partenaire",
       ctaSubtext: "Contactez-nous pour rejoindre le programme",
     },
+    faq: {
+      tag: "FAQ",
+      title: "Questions Fréquentes",
+      subtitle: "Retrouvez les réponses aux questions les plus courantes sur nos cartes Visa prépayées",
+      moreQuestions: "Vous avez d'autres questions ?",
+      contactUs: "Contactez-nous sur WhatsApp",
+      items: [
+        {
+          question: "Comment obtenir une carte Visa LTC ?",
+          answer: "C'est simple ! Remplissez le formulaire de commande sur notre site avec vos informations personnelles et une copie de votre CNI. Votre carte sera prête sous 24-48h. Vous pouvez également nous contacter directement via WhatsApp au 673 20 93 75."
+        },
+        {
+          question: "Comment recharger ma carte ?",
+          answer: "Vous pouvez recharger votre carte instantanément via Orange Money ou MTN Mobile Money. Contactez-nous au 673 20 93 75 avec le montant souhaité et nous effectuons la recharge en quelques minutes."
+        },
+        {
+          question: "Puis-je utiliser ma carte à l'étranger ?",
+          answer: "Oui ! Votre carte Visa est acceptée dans plus de 200 pays et sur des millions de sites web (Netflix, Amazon, Alibaba, etc.). Elle fonctionne pour les paiements en ligne et les retraits aux distributeurs automatiques."
+        },
+        {
+          question: "Quels sont les frais associés à la carte ?",
+          answer: "Le prix de la carte inclut son activation. Il n'y a pas de frais d'entretien mensuels. Les frais de transaction dépendent de votre utilisation (retrait DAB, paiement international). Contactez-nous pour plus de détails sur la grille tarifaire."
+        },
+        {
+          question: "Quelle est la différence entre les segments 1, 2 et 3 ?",
+          answer: "La différence principale est le plafond mensuel de dépenses. Segment 1: jusqu'à 2,5 millions FCFA/mois. Segment 2: jusqu'à 4,5 millions FCFA/mois. Segment 3: jusqu'à 10 millions FCFA/mois. Choisissez selon vos besoins."
+        },
+        {
+          question: "Combien de temps faut-il pour recevoir ma carte ?",
+          answer: "Une fois votre demande validée et le paiement effectué, votre carte est généralement prête sous 24 à 48 heures. La livraison à domicile est disponible à Yaoundé, Douala et dans les principales villes."
+        },
+        {
+          question: "Que faire si je perds ma carte ?",
+          answer: "En cas de perte ou de vol, contactez-nous immédiatement au 673 20 93 75. Nous bloquerons votre carte pour éviter toute utilisation frauduleuse. Une nouvelle carte pourra être émise avec le solde restant."
+        },
+        {
+          question: "Comment devenir revendeur de cartes ?",
+          answer: "Rejoignez notre programme partenaires ! Commandez un minimum de 25 cartes par segment à des prix préférentiels et revendez-les librement. Contactez-nous via WhatsApp pour connaître les tarifs revendeurs et les modalités."
+        }
+      ]
+    },
     business: {
       tag: "LTC Business",
       title: "Gérez les dépenses de votre entreprise",
@@ -1448,7 +1538,7 @@ const translations = {
     nav: {
       pricing: "Our Cards",
       partners: "Partners",
-      orderForm: "Order",
+      faq: "FAQ",
       orderCard: "Order my card",
     },
     hero: {
@@ -1637,6 +1727,47 @@ const translations = {
       },
       cta: "Become a Partner",
       ctaSubtext: "Contact us to join the program",
+    },
+    faq: {
+      tag: "FAQ",
+      title: "Frequently Asked Questions",
+      subtitle: "Find answers to the most common questions about our prepaid Visa cards",
+      moreQuestions: "Do you have other questions?",
+      contactUs: "Contact us on WhatsApp",
+      items: [
+        {
+          question: "How do I get an LTC Visa card?",
+          answer: "It's simple! Fill out the order form on our website with your personal information and a copy of your ID. Your card will be ready within 24-48 hours. You can also contact us directly via WhatsApp at 673 20 93 75."
+        },
+        {
+          question: "How do I top up my card?",
+          answer: "You can top up your card instantly via Orange Money or MTN Mobile Money. Contact us at 673 20 93 75 with the desired amount and we'll process the top-up within minutes."
+        },
+        {
+          question: "Can I use my card abroad?",
+          answer: "Yes! Your Visa card is accepted in over 200 countries and on millions of websites (Netflix, Amazon, Alibaba, etc.). It works for online payments and ATM withdrawals."
+        },
+        {
+          question: "What are the fees associated with the card?",
+          answer: "The card price includes activation. There are no monthly maintenance fees. Transaction fees depend on your usage (ATM withdrawal, international payment). Contact us for more details on the fee schedule."
+        },
+        {
+          question: "What is the difference between segments 1, 2 and 3?",
+          answer: "The main difference is the monthly spending limit. Segment 1: up to 2.5 million FCFA/month. Segment 2: up to 4.5 million FCFA/month. Segment 3: up to 10 million FCFA/month. Choose according to your needs."
+        },
+        {
+          question: "How long does it take to receive my card?",
+          answer: "Once your request is validated and payment is made, your card is usually ready within 24 to 48 hours. Home delivery is available in Yaoundé, Douala and major cities."
+        },
+        {
+          question: "What should I do if I lose my card?",
+          answer: "In case of loss or theft, contact us immediately at 673 20 93 75. We will block your card to prevent fraudulent use. A new card can be issued with the remaining balance."
+        },
+        {
+          question: "How do I become a card reseller?",
+          answer: "Join our partner program! Order a minimum of 25 cards per segment at preferential prices and resell them freely. Contact us via WhatsApp to learn about reseller rates and terms."
+        }
+      ]
     },
     business: {
       tag: "LTC Business",
