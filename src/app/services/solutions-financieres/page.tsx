@@ -225,13 +225,19 @@ export default function SolutionsFinancieresPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                <button className="w-full sm:w-auto h-12 px-8 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] font-bold text-base transition-all shadow-lg shadow-[#cea427]/20 flex items-center justify-center gap-2">
+                <a
+                  href="#order-form"
+                  className="w-full sm:w-auto h-12 px-8 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] font-bold text-base transition-all shadow-lg shadow-[#cea427]/20 flex items-center justify-center gap-2"
+                >
                   <span>{t.hero.cta1}</span>
                   <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-                </button>
-                <button className="w-full sm:w-auto h-12 px-8 rounded border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white font-semibold text-base transition-all backdrop-blur-sm">
+                </a>
+                <a
+                  href="#pricing"
+                  className="w-full sm:w-auto h-12 px-8 rounded border border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white font-semibold text-base transition-all backdrop-blur-sm flex items-center justify-center"
+                >
                   {t.hero.cta2}
-                </button>
+                </a>
               </div>
 
               <div className="mt-8 flex items-center justify-center lg:justify-start gap-6 text-sm text-gray-400">
@@ -1508,7 +1514,7 @@ const translations = {
         "Payez partout dans le monde avec la carte Visa LTC. Rechargez instantanément via Mobile Money (MTN, Orange). Sans compte bancaire requis.",
       cta1: "Commander ma carte",
       cta2: "En savoir plus",
-      delivery: "Livraison 48h",
+      delivery: "Disponible sous 24h",
       noCommitment: "Sans engagement",
     },
     partners: {
@@ -1604,7 +1610,7 @@ const translations = {
     documents: {
       title: "Documents Requis",
       subtitle: "Pour obtenir votre carte prépayée, veuillez fournir les documents suivants:",
-      processingTime: "Traitement sous 24-48h après réception des documents",
+      processingTime: "Traitement le jour même ou sous 24h max",
       items: [
         { name: "Une photo d'identité", description: "Format demi-carte (4x4 cm)" },
         { name: "Attestation d'immatriculation", description: "Document officiel d'enregistrement" },
@@ -1640,7 +1646,7 @@ const translations = {
       submitting: "Envoi en cours...",
       required: "Champs obligatoires",
       successTitle: "Demande envoyée !",
-      successMessage: "Votre demande de carte a bien été enregistrée. Nous vous contacterons sous 24-48h.",
+      successMessage: "Votre demande de carte a bien été enregistrée. Nous vous contacterons dans les plus brefs délais.",
       errorTitle: "Erreur",
       errorMessage: "Une erreur est survenue. Veuillez réessayer ou nous contacter directement.",
       deliveryOption: "Mode de réception de votre carte",
@@ -1714,7 +1720,7 @@ const translations = {
       items: [
         {
           question: "Comment obtenir une carte Visa LTC ?",
-          answer: "C'est simple ! Remplissez le formulaire de commande sur notre site avec vos informations personnelles et une copie de votre CNI. Votre carte sera prête sous 24-48h. Vous pouvez également nous contacter directement via WhatsApp au 673 20 93 75."
+          answer: "C'est simple ! Remplissez le formulaire de commande sur notre site avec vos informations personnelles et une copie de votre CNI. Votre carte sera prête le jour même ou sous 24h max. Vous pouvez également nous contacter directement via WhatsApp au 673 20 93 75."
         },
         {
           question: "Comment recharger ma carte ?",
@@ -1734,7 +1740,7 @@ const translations = {
         },
         {
           question: "Combien de temps faut-il pour recevoir ma carte ?",
-          answer: "Une fois votre demande validée et le paiement effectué, votre carte est généralement prête sous 24 à 48 heures. La livraison à domicile est disponible à Yaoundé, Douala et dans les principales villes."
+          answer: "Une fois votre demande validée et le paiement effectué, votre carte est généralement prête le jour même ou sous 24h maximum. La livraison à domicile est disponible à Yaoundé et Douala."
         },
         {
           question: "Que faire si je perds ma carte ?",
@@ -1782,7 +1788,7 @@ const translations = {
         "Pay anywhere in the world with the LTC Visa card. Top up instantly via Mobile Money (MTN, Orange). No bank account required.",
       cta1: "Order my card",
       cta2: "Learn more",
-      delivery: "48h delivery",
+      delivery: "Available within 24h",
       noCommitment: "No commitment",
     },
     partners: {
@@ -1878,7 +1884,7 @@ const translations = {
     documents: {
       title: "Required Documents",
       subtitle: "To obtain your prepaid card, please provide the following documents:",
-      processingTime: "Processing within 24-48h after document receipt",
+      processingTime: "Same day or within 24h max processing",
       items: [
         { name: "Passport photo", description: "Half-card format (4x4 cm)" },
         { name: "Registration certificate", description: "Official registration document" },
@@ -1914,7 +1920,7 @@ const translations = {
       submitting: "Sending...",
       required: "Required fields",
       successTitle: "Request sent!",
-      successMessage: "Your card request has been registered. We will contact you within 24-48h.",
+      successMessage: "Your card request has been registered. We will contact you as soon as possible.",
       errorTitle: "Error",
       errorMessage: "An error occurred. Please try again or contact us directly.",
       deliveryOption: "How would you like to receive your card?",
@@ -1988,7 +1994,7 @@ const translations = {
       items: [
         {
           question: "How do I get an LTC Visa card?",
-          answer: "It's simple! Fill out the order form on our website with your personal information and a copy of your ID. Your card will be ready within 24-48 hours. You can also contact us directly via WhatsApp at 673 20 93 75."
+          answer: "It's simple! Fill out the order form on our website with your personal information and a copy of your ID. Your card will be ready the same day or within 24 hours max. You can also contact us directly via WhatsApp at 673 20 93 75."
         },
         {
           question: "How do I top up my card?",
@@ -2008,7 +2014,7 @@ const translations = {
         },
         {
           question: "How long does it take to receive my card?",
-          answer: "Once your request is validated and payment is made, your card is usually ready within 24 to 48 hours. Home delivery is available in Yaoundé, Douala and major cities."
+          answer: "Once your request is validated and payment is made, your card is usually ready the same day or within 24 hours max. Home delivery is available in Yaoundé and Douala."
         },
         {
           question: "What should I do if I lose my card?",
