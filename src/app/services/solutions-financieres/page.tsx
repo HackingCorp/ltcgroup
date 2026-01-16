@@ -553,6 +553,148 @@ export default function SolutionsFinancieresPage() {
         </div>
       </section>
 
+      {/* Resellers/Partners Section */}
+      <section className="py-20 bg-[#10151e] relative overflow-hidden" id="resellers">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(206,164,39,0.08)_0%,rgba(16,21,30,0)_70%)] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#cea427]/10 border border-[#cea427]/20 mb-6">
+              <span className="material-symbols-outlined text-[#cea427]">handshake</span>
+              <span className="text-[#cea427] font-bold text-sm">{t.resellers.tag}</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{t.resellers.title}</h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">{t.resellers.subtitle}</p>
+          </div>
+
+          {/* Partner Pricing Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {/* Segment 1 */}
+            <div className="bg-[#1B2233] rounded-2xl p-6 border border-white/10 hover:border-[#cea427]/30 transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-white">{t.resellers.segment1.name}</span>
+                <span className="text-white font-bold italic">VISA</span>
+              </div>
+              <div className="text-sm text-[#cea427] font-medium mb-4">
+                {language === "fr" ? "Plafond:" : "Limit:"} {t.resellers.segment1.limit}
+              </div>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity2y}</span>
+                  <span className="text-white font-bold">{t.resellers.segment1.price2y} FCFA</span>
+                </div>
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity3y}</span>
+                  <span className="text-white font-bold">{t.resellers.segment1.price3y} FCFA</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Segment 2 */}
+            <div className="bg-[#1B2233] rounded-2xl p-6 border border-[#cea427]/30 hover:border-[#cea427]/50 transition-all relative">
+              <div className="absolute top-0 right-0 bg-[#cea427] text-[#10151e] text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-xl">
+                {language === "fr" ? "POPULAIRE" : "POPULAR"}
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-[#cea427]">{t.resellers.segment2.name}</span>
+                <span className="text-white font-bold italic">VISA</span>
+              </div>
+              <div className="text-sm text-[#cea427] font-medium mb-4">
+                {language === "fr" ? "Plafond:" : "Limit:"} {t.resellers.segment2.limit}
+              </div>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity2y}</span>
+                  <span className="text-white font-bold">{t.resellers.segment2.price2y} FCFA</span>
+                </div>
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3 border border-[#cea427]/20">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity3y}</span>
+                  <span className="text-[#cea427] font-bold">{t.resellers.segment2.price3y} FCFA</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Segment 3 */}
+            <div className="bg-[#1B2233] rounded-2xl p-6 border border-white/10 hover:border-[#cea427]/30 transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-white">{t.resellers.segment3.name}</span>
+                <span className="text-white font-bold italic">VISA</span>
+              </div>
+              <div className="text-sm text-[#cea427] font-medium mb-4">
+                {language === "fr" ? "Plafond:" : "Limit:"} {t.resellers.segment3.limit}
+              </div>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity3y}</span>
+                  <span className="text-white font-bold">{t.resellers.segment3.price3y} FCFA</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Minimum Order Notice */}
+          <div className="flex flex-wrap justify-center gap-4 mb-16">
+            <div className="flex items-center gap-2 bg-[#1B2233] px-4 py-2 rounded-full border border-white/10">
+              <span className="material-symbols-outlined text-[#cea427] text-[20px]">inventory_2</span>
+              <span className="text-gray-300 text-sm">{t.resellers.minOrder}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-[#1B2233] px-4 py-2 rounded-full border border-white/10">
+              <span className="material-symbols-outlined text-[#cea427] text-[20px]">shuffle</span>
+              <span className="text-gray-300 text-sm">{t.resellers.mixSegments}</span>
+            </div>
+          </div>
+
+          {/* How It Works */}
+          <div className="bg-[#1B2233] rounded-2xl p-8 lg:p-12 border border-white/10">
+            <h3 className="text-2xl font-bold text-white mb-8 text-center">{t.resellers.howItWorks.title}</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Step 1 */}
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-[#cea427]/20 flex items-center justify-center mx-auto mb-4 border-2 border-[#cea427]">
+                  <span className="material-symbols-outlined text-[#cea427] text-3xl">shopping_cart</span>
+                </div>
+                <h4 className="text-lg font-bold text-white mb-2">{t.resellers.howItWorks.step1.title}</h4>
+                <p className="text-sm text-gray-400">{t.resellers.howItWorks.step1.description}</p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-[#cea427]/20 flex items-center justify-center mx-auto mb-4 border-2 border-[#cea427]">
+                  <span className="material-symbols-outlined text-[#cea427] text-3xl">sell</span>
+                </div>
+                <h4 className="text-lg font-bold text-white mb-2">{t.resellers.howItWorks.step2.title}</h4>
+                <p className="text-sm text-gray-400">{t.resellers.howItWorks.step2.description}</p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-[#cea427]/20 flex items-center justify-center mx-auto mb-4 border-2 border-[#cea427]">
+                  <span className="material-symbols-outlined text-[#cea427] text-3xl">send</span>
+                </div>
+                <h4 className="text-lg font-bold text-white mb-2">{t.resellers.howItWorks.step3.title}</h4>
+                <p className="text-sm text-gray-400">{t.resellers.howItWorks.step3.description}</p>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="mt-10 text-center">
+              <a
+                href="https://wa.me/237673209375?text=Bonjour%2C%20je%20souhaite%20devenir%20partenaire%20revendeur%20de%20cartes%20Visa."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-3 h-14 px-10 rounded-lg bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-[#cea427]/20"
+              >
+                <span className="material-symbols-outlined">handshake</span>
+                {t.resellers.cta}
+              </a>
+              <p className="text-gray-500 text-sm mt-4">{t.resellers.ctaSubtext}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Order Form Section */}
       <section className="py-20 bg-[#0d1118]" id="order-form">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1191,6 +1333,49 @@ const translations = {
       errorTitle: "Erreur",
       errorMessage: "Une erreur est survenue. Veuillez réessayer ou nous contacter directement.",
     },
+    resellers: {
+      tag: "Programme Partenaires",
+      title: "Devenez Revendeur de Cartes Visa",
+      subtitle: "Rejoignez notre réseau de partenaires et bénéficiez de prix préférentiels pour revendre les cartes Visa prépayées UBA.",
+      minOrder: "Commande minimum: 25 cartes par segment",
+      mixSegments: "Vous pouvez mixer plusieurs segments",
+      validity2y: "Validité 2 ans",
+      validity3y: "Validité 3 ans",
+      segment1: {
+        name: "Segment 1",
+        limit: "2 500 000 FCFA/mois",
+        price2y: "6 500",
+        price3y: "7 500",
+      },
+      segment2: {
+        name: "Segment 2",
+        limit: "4 500 000 FCFA/mois",
+        price2y: "8 000",
+        price3y: "10 000",
+      },
+      segment3: {
+        name: "Segment 3",
+        limit: "10 000 000 FCFA/mois",
+        price3y: "15 000",
+      },
+      howItWorks: {
+        title: "Comment ça fonctionne ?",
+        step1: {
+          title: "Achetez votre stock",
+          description: "Commandez minimum 25 cartes aux prix partenaires. Vous pouvez mixer plusieurs segments.",
+        },
+        step2: {
+          title: "Revendez librement",
+          description: "Fixez vos propres prix de vente. Votre marge vous appartient entièrement.",
+        },
+        step3: {
+          title: "Envoyez les infos",
+          description: "À chaque vente, transmettez-nous les informations client pour l'enregistrement de la carte.",
+        },
+      },
+      cta: "Devenir Partenaire",
+      ctaSubtext: "Contactez-nous pour rejoindre le programme",
+    },
     business: {
       tag: "LTC Business",
       title: "Gérez les dépenses de votre entreprise",
@@ -1363,6 +1548,49 @@ const translations = {
       successMessage: "Your card request has been registered. We will contact you within 24-48h.",
       errorTitle: "Error",
       errorMessage: "An error occurred. Please try again or contact us directly.",
+    },
+    resellers: {
+      tag: "Partner Program",
+      title: "Become a Visa Card Reseller",
+      subtitle: "Join our partner network and benefit from preferential prices to resell UBA prepaid Visa cards.",
+      minOrder: "Minimum order: 25 cards per segment",
+      mixSegments: "You can mix multiple segments",
+      validity2y: "2 years validity",
+      validity3y: "3 years validity",
+      segment1: {
+        name: "Segment 1",
+        limit: "2,500,000 FCFA/month",
+        price2y: "6,500",
+        price3y: "7,500",
+      },
+      segment2: {
+        name: "Segment 2",
+        limit: "4,500,000 FCFA/month",
+        price2y: "8,000",
+        price3y: "10,000",
+      },
+      segment3: {
+        name: "Segment 3",
+        limit: "10,000,000 FCFA/month",
+        price3y: "15,000",
+      },
+      howItWorks: {
+        title: "How does it work?",
+        step1: {
+          title: "Buy your stock",
+          description: "Order minimum 25 cards at partner prices. You can mix multiple segments.",
+        },
+        step2: {
+          title: "Resell freely",
+          description: "Set your own selling prices. Your margin is entirely yours.",
+        },
+        step3: {
+          title: "Send the info",
+          description: "For each sale, send us customer information for card registration.",
+        },
+      },
+      cta: "Become a Partner",
+      ctaSubtext: "Contact us to join the program",
     },
     business: {
       tag: "LTC Business",
