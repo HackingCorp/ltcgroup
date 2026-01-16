@@ -22,6 +22,8 @@ export default function SolutionsFinancieresPage() {
     registrationNumber: "",
     fatherName: "",
     motherName: "",
+    deliveryOption: "",
+    deliveryAddress: "",
   });
 
   const [idPhotoFile, setIdPhotoFile] = useState<File | null>(null);
@@ -49,6 +51,16 @@ export default function SolutionsFinancieresPage() {
     setSubmitStatus("idle");
 
     try {
+      // Get delivery option label
+      const deliveryLabels: Record<string, string> = {
+        pickup_douala: "Retrait en agence - Douala",
+        pickup_yaounde: "Retrait en agence - Yaoundé",
+        delivery_douala: "Livraison à domicile - Douala",
+        delivery_yaounde: "Livraison à domicile - Yaoundé",
+        shipping: "Expédition (autre ville)",
+      };
+      const deliveryLabel = deliveryLabels[formData.deliveryOption] || formData.deliveryOption;
+
       // Create WhatsApp message with form data
       const message = `*DEMANDE DE CARTE VISA PREPAYEE*%0A%0A` +
         `*Type de carte:* ${formData.cardType}%0A` +
@@ -64,6 +76,8 @@ export default function SolutionsFinancieresPage() {
         `*Attestation/NIU:* ${formData.registrationNumber}%0A` +
         `*Nom du père:* ${formData.fatherName}%0A` +
         `*Nom de la mère:* ${formData.motherName}%0A%0A` +
+        `*Mode de réception:* ${deliveryLabel}%0A` +
+        (formData.deliveryAddress ? `*Adresse de livraison:* ${formData.deliveryAddress}%0A%0A` : `%0A`) +
         `_Veuillez envoyer les photos de votre CNI et photo d'identité après ce message._`;
 
       // Open WhatsApp with the message
@@ -85,6 +99,8 @@ export default function SolutionsFinancieresPage() {
         registrationNumber: "",
         fatherName: "",
         motherName: "",
+        deliveryOption: "",
+        deliveryAddress: "",
       });
       setIdPhotoFile(null);
       setPassportPhotoFile(null);
@@ -1030,6 +1046,114 @@ export default function SolutionsFinancieresPage() {
                   </div>
                 </div>
 
+                {/* Delivery Options */}
+                <div className="bg-[#10151e] rounded-xl p-6 border border-white/10">
+                  <label className="block text-sm font-medium text-gray-300 mb-4">
+                    {t.orderForm.deliveryOption} <span className="text-[#cea427]">*</span>
+                  </label>
+
+                  <div className="space-y-3">
+                    {/* Pickup Options */}
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">{t.orderForm.pickupTitle}</div>
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value="pickup_douala"
+                        checked={formData.deliveryOption === "pickup_douala"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value, deliveryAddress: "" }))}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
+                        <span className="text-white">{t.orderForm.pickupDouala}</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value="pickup_yaounde"
+                        checked={formData.deliveryOption === "pickup_yaounde"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value, deliveryAddress: "" }))}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
+                        <span className="text-white">{t.orderForm.pickupYaounde}</span>
+                      </div>
+                    </label>
+
+                    {/* Delivery Options */}
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-2 mt-4">{t.orderForm.deliveryTitle}</div>
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value="delivery_douala"
+                        checked={formData.deliveryOption === "delivery_douala"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">local_shipping</span>
+                        <span className="text-white">{t.orderForm.deliveryDouala}</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value="delivery_yaounde"
+                        checked={formData.deliveryOption === "delivery_yaounde"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">local_shipping</span>
+                        <span className="text-white">{t.orderForm.deliveryYaounde}</span>
+                      </div>
+                    </label>
+
+                    {/* Shipping Option */}
+                    <div className="text-xs text-gray-500 uppercase tracking-wider mb-2 mt-4">{t.orderForm.shippingTitle}</div>
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value="shipping"
+                        checked={formData.deliveryOption === "shipping"}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">flight</span>
+                        <span className="text-white">{t.orderForm.shipping}</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Delivery Address (shown when delivery or shipping is selected) */}
+                  {(formData.deliveryOption === "delivery_douala" ||
+                    formData.deliveryOption === "delivery_yaounde" ||
+                    formData.deliveryOption === "shipping") && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        {t.orderForm.deliveryAddress} <span className="text-[#cea427]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="deliveryAddress"
+                        value={formData.deliveryAddress}
+                        onChange={handleInputChange}
+                        required
+                        placeholder={t.orderForm.deliveryAddressPlaceholder}
+                        className="w-full bg-[#1B2233] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {/* Required Fields Notice */}
                 <p className="text-sm text-gray-500 flex items-center gap-2">
                   <span className="text-[#cea427]">*</span> {t.orderForm.required}
@@ -1428,6 +1552,17 @@ const translations = {
       successMessage: "Votre demande de carte a bien été enregistrée. Nous vous contacterons sous 24-48h.",
       errorTitle: "Erreur",
       errorMessage: "Une erreur est survenue. Veuillez réessayer ou nous contacter directement.",
+      deliveryOption: "Mode de réception de votre carte",
+      pickupTitle: "Retrait en agence (gratuit)",
+      pickupDouala: "Retrait en agence - Douala",
+      pickupYaounde: "Retrait en agence - Yaoundé",
+      deliveryTitle: "Livraison à domicile (Douala/Yaoundé)",
+      deliveryDouala: "Livraison à domicile - Douala",
+      deliveryYaounde: "Livraison à domicile - Yaoundé",
+      shippingTitle: "Expédition (autres villes)",
+      shipping: "Expédition vers une autre ville du Cameroun",
+      deliveryAddress: "Adresse de livraison complète",
+      deliveryAddressPlaceholder: "Ex: AKWA, RUE DE LA JOIE, IMMEUBLE ROSE...",
     },
     resellers: {
       tag: "Programme Partenaires",
@@ -1684,6 +1819,17 @@ const translations = {
       successMessage: "Your card request has been registered. We will contact you within 24-48h.",
       errorTitle: "Error",
       errorMessage: "An error occurred. Please try again or contact us directly.",
+      deliveryOption: "How would you like to receive your card?",
+      pickupTitle: "Agency pickup (free)",
+      pickupDouala: "Pickup at agency - Douala",
+      pickupYaounde: "Pickup at agency - Yaoundé",
+      deliveryTitle: "Home delivery (Douala/Yaoundé)",
+      deliveryDouala: "Home delivery - Douala",
+      deliveryYaounde: "Home delivery - Yaoundé",
+      shippingTitle: "Shipping (other cities)",
+      shipping: "Ship to another city in Cameroon",
+      deliveryAddress: "Full delivery address",
+      deliveryAddressPlaceholder: "Ex: AKWA, JOY STREET, PINK BUILDING...",
     },
     resellers: {
       tag: "Partner Program",
