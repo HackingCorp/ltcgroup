@@ -435,9 +435,12 @@ export default function SolutionsFinancieresPage() {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full py-3 rounded bg-[#0033a0] text-white font-bold hover:bg-[#002080] transition-colors">
+                <a
+                  href="#order-form"
+                  className="w-full py-3 rounded bg-[#0033a0] text-white font-bold hover:bg-[#002080] transition-colors block text-center"
+                >
                   {t.pricing.accessBank.cta}
-                </button>
+                </a>
               </div>
             </div>
           </div>
@@ -500,15 +503,16 @@ export default function SolutionsFinancieresPage() {
                     ))}
                   </ul>
 
-                  <button
-                    className={`w-full py-3 rounded font-bold transition-colors ${
+                  <a
+                    href="#order-form"
+                    className={`w-full py-3 rounded font-bold transition-colors block text-center ${
                       index === 2
                         ? "bg-[#cea427] text-[#10151e] hover:bg-[#b38d1f]"
                         : "bg-[#ce1126] text-white hover:bg-[#a00d1e]"
                     }`}
                   >
                     {t.pricing.orderCta}
-                  </button>
+                  </a>
                 </div>
               ))}
             </div>
