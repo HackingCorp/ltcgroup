@@ -210,94 +210,81 @@ export default function SolutionsFinancieresPage() {
             </div>
 
             {/* Hero Card Visual */}
-            <div className="flex-1 relative w-full max-w-[500px] lg:max-w-none">
+            <div className="flex-1 relative w-full max-w-[450px] lg:max-w-[480px] mx-auto lg:mx-0">
               <div
-                className="relative w-full aspect-[1.586/1] rounded-2xl transform transition-transform duration-700 ease-out hover:rotate-2 hover:scale-105 shadow-2xl z-20 overflow-hidden"
+                className="relative w-full aspect-[1.586/1] rounded-2xl transform transition-transform duration-700 ease-out hover:rotate-2 hover:scale-[1.02] z-20 overflow-hidden"
                 style={{
-                  background: "linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #1a1a1a 100%)",
-                  boxShadow: "0 25px 60px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(206, 164, 39, 0.1)",
+                  background: "linear-gradient(145deg, #232323 0%, #1a1a1a 30%, #0f0f0f 70%, #1a1a1a 100%)",
+                  boxShadow: "0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 50px rgba(206, 164, 39, 0.08)",
                 }}
               >
-                {/* Card Background Pattern */}
-                <div className="absolute inset-0">
-                  {/* Holographic stripe effect */}
-                  <div className="absolute top-0 right-0 w-full h-full bg-[linear-gradient(120deg,transparent_30%,rgba(206,164,39,0.03)_50%,transparent_70%)]"></div>
-                  {/* Subtle world map pattern */}
-                  <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='white' stroke-width='0.5'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='white' stroke-width='0.5'/%3E%3Ccircle cx='50' cy='50' r='20' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E\")", backgroundSize: "200px"}}></div>
-                </div>
+                {/* Card border */}
+                <div className="absolute inset-0 rounded-2xl border border-white/[0.08]"></div>
 
-                <div className="absolute inset-0 rounded-2xl border border-white/10">
-                  {/* Gold corner accent */}
-                  <div className="absolute -top-20 -right-20 w-40 h-40 bg-[radial-gradient(circle,rgba(206,164,39,0.15)_0%,transparent_70%)]"></div>
+                {/* Subtle golden glow top right */}
+                <div className="absolute -top-32 -right-32 w-64 h-64 bg-[radial-gradient(circle,rgba(206,164,39,0.12)_0%,transparent_60%)]"></div>
 
-                  {/* Bank Logo */}
-                  <div className="absolute top-6 left-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#cea427] via-[#f0d77c] to-[#cea427] flex items-center justify-center shadow-lg">
-                      <span className="text-[#10151e] font-black text-sm">LTC</span>
+                {/* Card Content */}
+                <div className="absolute inset-0 p-6 flex flex-col justify-between">
+                  {/* Top Row - Logo and Debit */}
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-[#d4af37] via-[#f5d76e] to-[#b8941f] flex items-center justify-center shadow-lg border border-[#f5d76e]/30">
+                        <span className="text-[#1a1a1a] font-black text-sm tracking-tight">LTC</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-white text-xs font-semibold tracking-wide">LTC FINANCE</span>
+                        <span className="text-[#d4af37] text-[10px] font-medium tracking-widest">GOLD PREMIUM</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-white/90 text-xs font-bold tracking-wider">LTC FINANCE</span>
-                      <span className="text-[#cea427] text-[10px] tracking-widest">GOLD PREMIUM</span>
-                    </div>
+                    <span className="text-white/30 text-[11px] font-medium tracking-[0.25em]">DEBIT</span>
                   </div>
 
-                  {/* Debit Label */}
-                  <div className="absolute top-6 right-6 text-white/40 text-xs font-medium tracking-[0.2em]">DEBIT</div>
-
-                  {/* EMV Chip */}
-                  <div className="absolute top-[85px] left-6 w-14 h-11 rounded-lg overflow-hidden shadow-lg">
-                    <div className="w-full h-full bg-gradient-to-br from-[#d4af37] via-[#f5d76e] to-[#aa8c2c] relative">
-                      {/* Chip lines */}
-                      <div className="absolute inset-1 border border-[#8b7024]/30 rounded-sm"></div>
-                      <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-[#8b7024]/40"></div>
-                      <div className="absolute top-0 bottom-0 left-1/2 w-[1px] bg-[#8b7024]/40"></div>
-                      <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-[#8b7024]/30 rounded-sm"></div>
+                  {/* Middle Row - Chip and Contactless */}
+                  <div className="flex items-center gap-4 -mt-2">
+                    {/* EMV Chip */}
+                    <div className="w-[52px] h-[40px] rounded-md overflow-hidden">
+                      <div className="w-full h-full bg-gradient-to-br from-[#e8c547] via-[#d4af37] to-[#a08030] relative">
+                        <div className="absolute inset-[3px] rounded-sm border border-[#8b7024]/40"></div>
+                        <div className="absolute top-1/2 left-[3px] right-[3px] h-[1px] bg-[#8b7024]/50 -translate-y-1/2"></div>
+                        <div className="absolute left-1/2 top-[3px] bottom-[3px] w-[1px] bg-[#8b7024]/50 -translate-x-1/2"></div>
+                        <div className="absolute top-[25%] left-[25%] w-[50%] h-[50%] border border-[#8b7024]/40 rounded-[2px]"></div>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Contactless Symbol */}
-                  <div className="absolute top-[90px] left-24">
-                    <svg className="w-8 h-8 text-white/60" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 18c3.31 0 6-2.69 6-6s-2.69-6-6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M12 14c1.66 0 3-1.34 3-3s-1.34-3-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M12 10c0.55 0 1 0.45 1 1s-0.45 1-1 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    {/* Contactless */}
+                    <svg className="w-7 h-7 text-white/50" viewBox="0 0 24 24" fill="none">
+                      <path d="M6.5 13.5c0-3.04 2.46-5.5 5.5-5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M8.5 13.5c0-1.93 1.57-3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      <path d="M10.5 13.5c0-.83.67-1.5 1.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                     </svg>
                   </div>
 
                   {/* Card Number */}
-                  <div className="absolute bottom-[70px] left-6 right-6">
-                    <div className="text-white font-mono text-xl sm:text-2xl tracking-[0.25em] drop-shadow-lg flex justify-between">
-                      <span>4289</span>
-                      <span>****</span>
-                      <span>****</span>
-                      <span>7842</span>
+                  <div className="mt-1">
+                    <div className="text-white/95 font-mono text-[22px] sm:text-[26px] tracking-[0.18em] font-medium">
+                      4289 •••• •••• 7842
                     </div>
                   </div>
 
-                  {/* Card Holder & Expiry */}
-                  <div className="absolute bottom-5 left-6 right-6 flex justify-between items-end">
-                    <div>
-                      <div className="text-white/40 text-[9px] tracking-wider mb-1">CARD HOLDER</div>
-                      <div className="text-white font-medium text-sm tracking-wider">JEAN DUPONT</div>
+                  {/* Bottom Row - Name, Expiry, Visa */}
+                  <div className="flex justify-between items-end">
+                    <div className="flex-1">
+                      <div className="text-white/30 text-[8px] tracking-[0.15em] mb-0.5">CARD HOLDER</div>
+                      <div className="text-white/90 text-[13px] font-medium tracking-wide">JEAN DUPONT</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-white/40 text-[9px] tracking-wider mb-1">VALID THRU</div>
-                      <div className="text-white font-medium text-sm tracking-wider">12/28</div>
+                    <div className="flex-shrink-0 mx-4">
+                      <div className="text-white/30 text-[8px] tracking-[0.15em] mb-0.5">VALID THRU</div>
+                      <div className="text-white/90 text-[13px] font-medium tracking-wide">12/28</div>
                     </div>
                     {/* Visa Logo */}
-                    <div className="ml-4">
-                      <svg className="w-16 h-10" viewBox="0 0 80 26" fill="none">
-                        <path d="M32.5 1.5L28 24.5H22.5L27 1.5H32.5Z" fill="white"/>
-                        <path d="M54 1.5L49.5 17L48.5 12L46 3.5C46 3.5 45.7 1.5 43 1.5H33.5L33.3 2C33.3 2 36.5 2.7 40 4.8L44.5 24.5H50.5L60.5 1.5H54Z" fill="white"/>
-                        <path d="M18 1.5L10.5 17.5L9.7 13L7 3.5C7 3.5 6.7 1.5 4 1.5H0.5V2C0.5 2 5 3 9 6.5C12.8 9.8 14 13 14 13L18 24.5H24L30 1.5H18Z" fill="white"/>
-                        <path d="M67 1.5C64.5 1.5 63.5 2.8 63.5 2.8L55 24.5H61L62 21.5H69.5L70.2 24.5H75.5L70.8 1.5H67ZM63.5 17L66.5 8L68 17H63.5Z" fill="white"/>
-                      </svg>
+                    <div className="flex-shrink-0">
+                      <span className="text-white text-3xl font-bold italic tracking-tight" style={{fontFamily: "Arial, sans-serif"}}>VISA</span>
                     </div>
                   </div>
                 </div>
               </div>
               {/* Ambient shadow below card */}
-              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-[70%] h-6 bg-black/50 blur-xl rounded-[100%]"></div>
+              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-[75%] h-5 bg-black/60 blur-xl rounded-[100%]"></div>
             </div>
           </div>
         </div>
