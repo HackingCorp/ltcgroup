@@ -1,11 +1,99 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useLanguage } from "@/i18n";
 
 export default function SolutionsFinancieresPage() {
   const { language } = useLanguage();
   const t = translations[language];
+
+  const [formData, setFormData] = useState({
+    cardType: "",
+    firstName: "",
+    lastName: "",
+    birthDate: "",
+    birthCity: "",
+    cityNeighborhood: "",
+    phone: "",
+    email: "",
+    profession: "",
+    idNumber: "",
+    registrationNumber: "",
+    fatherName: "",
+    motherName: "",
+  });
+
+  const [idPhotoFile, setIdPhotoFile] = useState<File | null>(null);
+  const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "id" | "passport") => {
+    const file = e.target.files?.[0] || null;
+    if (type === "id") {
+      setIdPhotoFile(file);
+    } else {
+      setPassportPhotoFile(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus("idle");
+
+    try {
+      // Create WhatsApp message with form data
+      const message = `*DEMANDE DE CARTE VISA PREPAYEE*%0A%0A` +
+        `*Type de carte:* ${formData.cardType}%0A` +
+        `*Prénom:* ${formData.firstName}%0A` +
+        `*Nom:* ${formData.lastName}%0A` +
+        `*Date de naissance:* ${formData.birthDate}%0A` +
+        `*Ville de naissance:* ${formData.birthCity}%0A` +
+        `*Ville-Quartier:* ${formData.cityNeighborhood}%0A` +
+        `*Téléphone:* ${formData.phone}%0A` +
+        `*Email:* ${formData.email}%0A` +
+        `*Profession:* ${formData.profession}%0A` +
+        `*N° CNI/Récépissé/Passeport:* ${formData.idNumber}%0A` +
+        `*Attestation/NIU:* ${formData.registrationNumber}%0A` +
+        `*Nom du père:* ${formData.fatherName}%0A` +
+        `*Nom de la mère:* ${formData.motherName}%0A%0A` +
+        `_Veuillez envoyer les photos de votre CNI et photo d'identité après ce message._`;
+
+      // Open WhatsApp with the message
+      window.open(`https://wa.me/237673209375?text=${message}`, "_blank");
+
+      setSubmitStatus("success");
+      // Reset form
+      setFormData({
+        cardType: "",
+        firstName: "",
+        lastName: "",
+        birthDate: "",
+        birthCity: "",
+        cityNeighborhood: "",
+        phone: "",
+        email: "",
+        profession: "",
+        idNumber: "",
+        registrationNumber: "",
+        fatherName: "",
+        motherName: "",
+      });
+      setIdPhotoFile(null);
+      setPassportPhotoFile(null);
+    } catch {
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-[#10151e] text-white font-sans antialiased overflow-x-hidden">
@@ -45,12 +133,12 @@ export default function SolutionsFinancieresPage() {
                 <span className="material-symbols-outlined text-[20px]">home</span>
                 LTC Group
               </Link>
-              <button className="hidden sm:flex items-center text-sm font-semibold text-gray-300 hover:text-white transition-colors">
-                {t.nav.login}
-              </button>
-              <button className="flex items-center justify-center h-10 px-5 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] text-sm font-bold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(206,164,39,0.3)]">
+              <a
+                href="#order-form"
+                className="flex items-center justify-center h-10 px-5 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] text-sm font-bold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(206,164,39,0.3)]"
+              >
                 {t.nav.orderCard}
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -465,6 +553,342 @@ export default function SolutionsFinancieresPage() {
         </div>
       </section>
 
+      {/* Order Form Section */}
+      <section className="py-20 bg-[#0d1118]" id="order-form">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#cea427]/10 border border-[#cea427]/20 mb-6">
+              <span className="material-symbols-outlined text-[#cea427]">edit_note</span>
+              <span className="text-[#cea427] font-bold text-sm">{t.orderForm.title}</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-4">{t.orderForm.title}</h2>
+            <p className="text-gray-400">{t.orderForm.subtitle}</p>
+          </div>
+
+          <div className="bg-[#1B2233] rounded-2xl p-8 border border-white/10">
+            {submitStatus === "success" ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
+                  <span className="material-symbols-outlined text-green-500 text-4xl">check_circle</span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">{t.orderForm.successTitle}</h3>
+                <p className="text-gray-400 mb-8">{t.orderForm.successMessage}</p>
+                <button
+                  onClick={() => setSubmitStatus("idle")}
+                  className="px-6 py-3 bg-[#cea427] text-[#10151e] font-bold rounded-lg hover:bg-[#b38d1f] transition-colors"
+                >
+                  {language === "fr" ? "Nouvelle demande" : "New request"}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Card Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {t.orderForm.cardType} <span className="text-[#cea427]">*</span>
+                  </label>
+                  <select
+                    name="cardType"
+                    value={formData.cardType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                  >
+                    <option value="">{t.orderForm.selectCard}</option>
+                    <option value="ACCESS_MASTERCARD_12500">Access Bank Mastercard - 12 500 FCFA</option>
+                    <option value="UBA_SEGMENT1_10000">UBA Visa Segment 1 - 10 000 FCFA (Plafond 2.5M)</option>
+                    <option value="UBA_SEGMENT2_15000">UBA Visa Segment 2 - 15 000 FCFA (Plafond 4.5M)</option>
+                    <option value="UBA_SEGMENT3_25000">UBA Visa Segment 3 - 25 000 FCFA (Plafond 10M)</option>
+                  </select>
+                </div>
+
+                {/* Personal Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.lastName} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="DUPONT"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.firstName} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="JEAN"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.birthDate} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="birthDate"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+                      required
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.birthCity} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="birthCity"
+                      value={formData.birthCity}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="YAOUNDÉ"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {t.orderForm.cityNeighborhood} <span className="text-[#cea427]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="cityNeighborhood"
+                    value={formData.cityNeighborhood}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="YAOUNDÉ - BASTOS"
+                    className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.phone} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      required
+                      placeholder="+237 6XX XXX XXX"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.email} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                      placeholder="exemple@email.com"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {t.orderForm.profession} <span className="text-[#cea427]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="profession"
+                    value={formData.profession}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="ENTREPRENEUR / ÉTUDIANT / SALARIÉ..."
+                    className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.idNumber} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="idNumber"
+                      value={formData.idNumber}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="XXXXXXXXX"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.registrationNumber}
+                    </label>
+                    <input
+                      type="text"
+                      name="registrationNumber"
+                      value={formData.registrationNumber}
+                      onChange={handleInputChange}
+                      placeholder="XXXXXXXXX"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.fatherName} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="fatherName"
+                      value={formData.fatherName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="DUPONT PIERRE"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.motherName} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="motherName"
+                      value={formData.motherName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="MBARGA MARIE"
+                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* File Uploads */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.idPhoto} <span className="text-[#cea427]">*</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mb-3">{t.orderForm.idPhotoDesc}</p>
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/20 rounded-lg cursor-pointer bg-[#10151e] hover:border-[#cea427]/50 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <span className="material-symbols-outlined text-gray-400 mb-2">upload_file</span>
+                        {idPhotoFile ? (
+                          <p className="text-sm text-[#cea427] font-medium">{idPhotoFile.name}</p>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-400">{t.orderForm.uploadFile}</p>
+                            <p className="text-xs text-gray-500">{t.orderForm.acceptedFormats}</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleFileChange(e, "id")}
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      {t.orderForm.passportPhoto}
+                    </label>
+                    <p className="text-xs text-gray-500 mb-3">{t.orderForm.passportPhotoDesc}</p>
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/20 rounded-lg cursor-pointer bg-[#10151e] hover:border-[#cea427]/50 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <span className="material-symbols-outlined text-gray-400 mb-2">photo_camera</span>
+                        {passportPhotoFile ? (
+                          <p className="text-sm text-[#cea427] font-medium">{passportPhotoFile.name}</p>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-400">{t.orderForm.uploadFile}</p>
+                            <p className="text-xs text-gray-500">{t.orderForm.acceptedFormats}</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleFileChange(e, "passport")}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Required Fields Notice */}
+                <p className="text-sm text-gray-500 flex items-center gap-2">
+                  <span className="text-[#cea427]">*</span> {t.orderForm.required}
+                </p>
+
+                {/* Error Message */}
+                {submitStatus === "error" && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
+                    <span className="material-symbols-outlined text-red-500">error</span>
+                    <div>
+                      <p className="text-red-500 font-medium">{t.orderForm.errorTitle}</p>
+                      <p className="text-sm text-red-400">{t.orderForm.errorMessage}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-4 rounded-lg bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] font-bold text-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#cea427]/20"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      {t.orderForm.submitting}
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined">send</span>
+                      {t.orderForm.submit}
+                    </>
+                  )}
+                </button>
+
+                {/* WhatsApp Note */}
+                <p className="text-center text-sm text-gray-400">
+                  <span className="material-symbols-outlined text-green-500 text-[16px] align-middle mr-1">chat</span>
+                  {language === "fr"
+                    ? "Votre demande sera envoyée via WhatsApp pour un traitement rapide"
+                    : "Your request will be sent via WhatsApp for quick processing"
+                  }
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Business Solutions Teaser */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-[#1B2233]"></div>
@@ -533,17 +957,25 @@ export default function SolutionsFinancieresPage() {
               </div>
               <p className="text-gray-400 text-sm leading-relaxed mb-6">{t.footer.description}</p>
               <div className="flex gap-4">
-                <a className="text-gray-400 hover:text-white transition-colors" href="#">
-                  FB
+                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#cea427] hover:text-[#10151e] transition-all" href="#" aria-label="Facebook">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
                 </a>
-                <a className="text-gray-400 hover:text-white transition-colors" href="#">
-                  TW
+                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#cea427] hover:text-[#10151e] transition-all" href="#" aria-label="Twitter">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
                 </a>
-                <a className="text-gray-400 hover:text-white transition-colors" href="#">
-                  IG
+                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#cea427] hover:text-[#10151e] transition-all" href="#" aria-label="Instagram">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
                 </a>
-                <a className="text-gray-400 hover:text-white transition-colors" href="#">
-                  IN
+                <a className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-[#cea427] hover:text-[#10151e] transition-all" href="#" aria-label="LinkedIn">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
                 </a>
               </div>
             </div>
@@ -727,6 +1159,38 @@ const translations = {
         { name: "Plan de localisation", description: "Croquis ou capture Google Maps de votre domicile" },
       ],
     },
+    orderForm: {
+      title: "Formulaire de Commande",
+      subtitle: "Remplissez ce formulaire pour commander votre carte Visa prépayée. Veuillez écrire en MAJUSCULES.",
+      cardType: "Type de carte souhaitée",
+      selectCard: "Sélectionnez une carte",
+      firstName: "Prénom",
+      lastName: "Nom",
+      birthDate: "Date de naissance",
+      birthCity: "Ville de naissance",
+      cityNeighborhood: "Ville - Quartier de résidence",
+      phone: "Téléphone",
+      email: "Adresse email",
+      profession: "Profession",
+      idNumber: "Numéro de CNI / Récépissé / Passeport",
+      registrationNumber: "Attestation d'immatriculation / NIU",
+      fatherName: "Nom et prénom du père",
+      motherName: "Nom et prénom de la mère",
+      idPhoto: "Photo de votre CNI",
+      idPhotoDesc: "Recto et verso de votre pièce d'identité",
+      passportPhoto: "Photo d'identité",
+      passportPhotoDesc: "Format demi-carte (4x4 cm)",
+      uploadFile: "Cliquez pour sélectionner un fichier",
+      dragDrop: "ou glissez-déposez ici",
+      acceptedFormats: "PNG, JPG, PDF (max 5MB)",
+      submit: "Envoyer ma demande",
+      submitting: "Envoi en cours...",
+      required: "Champs obligatoires",
+      successTitle: "Demande envoyée !",
+      successMessage: "Votre demande de carte a bien été enregistrée. Nous vous contacterons sous 24-48h.",
+      errorTitle: "Erreur",
+      errorMessage: "Une erreur est survenue. Veuillez réessayer ou nous contacter directement.",
+    },
     business: {
       tag: "LTC Business",
       title: "Gérez les dépenses de votre entreprise",
@@ -867,6 +1331,38 @@ const translations = {
         { name: "Copy of National ID", description: "Valid National Identity Card" },
         { name: "Location map", description: "Sketch or Google Maps screenshot of your home" },
       ],
+    },
+    orderForm: {
+      title: "Order Form",
+      subtitle: "Fill out this form to order your prepaid Visa card. Please write in CAPITAL LETTERS.",
+      cardType: "Desired card type",
+      selectCard: "Select a card",
+      firstName: "First name",
+      lastName: "Last name",
+      birthDate: "Date of birth",
+      birthCity: "City of birth",
+      cityNeighborhood: "City - Neighborhood of residence",
+      phone: "Phone number",
+      email: "Email address",
+      profession: "Profession",
+      idNumber: "ID Card / Receipt / Passport Number",
+      registrationNumber: "Registration Certificate / NIU",
+      fatherName: "Father's full name",
+      motherName: "Mother's full name",
+      idPhoto: "Photo of your ID",
+      idPhotoDesc: "Front and back of your identity document",
+      passportPhoto: "Passport photo",
+      passportPhotoDesc: "Half-card format (4x4 cm)",
+      uploadFile: "Click to select a file",
+      dragDrop: "or drag and drop here",
+      acceptedFormats: "PNG, JPG, PDF (max 5MB)",
+      submit: "Submit my request",
+      submitting: "Sending...",
+      required: "Required fields",
+      successTitle: "Request sent!",
+      successMessage: "Your card request has been registered. We will contact you within 24-48h.",
+      errorTitle: "Error",
+      errorMessage: "An error occurred. Please try again or contact us directly.",
     },
     business: {
       tag: "LTC Business",
