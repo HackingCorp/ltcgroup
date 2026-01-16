@@ -10,7 +10,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.emarket,
       icon: "shopping_cart",
-      href: "#", // TODO: /services/emarket-237
+      href: "https://emarket237.com",
     },
     {
       ...t.subsidiaries.cargo,
@@ -20,7 +20,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.panda,
       icon: "storefront",
-      href: "#", // TODO: /services/panda-market
+      href: "https://pandamarket.me",
     },
     {
       ...t.subsidiaries.btp,
@@ -30,7 +30,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.delivery,
       icon: "two_wheeler",
-      href: "#", // TODO: /services/go-livraison
+      href: "/services/go-livraison",
     },
     {
       ...t.subsidiaries.host,
@@ -45,7 +45,7 @@ export default function Subsidiaries() {
     {
       ...t.subsidiaries.immo,
       icon: "apartment",
-      href: "#", // TODO: /services/ltc-immo
+      href: "/services/ltc-immo",
     },
   ];
 
@@ -90,15 +90,29 @@ export default function Subsidiaries() {
                   {subsidiary.description}
                 </p>
               </div>
-              <Link
-                href={subsidiary.href}
-                className="mt-6 flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
-              >
-                {subsidiary.link}{" "}
-                <span className="material-symbols-outlined text-sm">
-                  arrow_forward
-                </span>
-              </Link>
+              {subsidiary.href.startsWith("http") ? (
+                <a
+                  href={subsidiary.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
+                >
+                  {subsidiary.link}{" "}
+                  <span className="material-symbols-outlined text-sm">
+                    open_in_new
+                  </span>
+                </a>
+              ) : (
+                <Link
+                  href={subsidiary.href}
+                  className="mt-6 flex items-center gap-2 text-sm font-bold text-primary group-hover:underline"
+                >
+                  {subsidiary.link}{" "}
+                  <span className="material-symbols-outlined text-sm">
+                    arrow_forward
+                  </span>
+                </Link>
+              )}
             </div>
           ))}
         </div>
