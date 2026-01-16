@@ -28,8 +28,31 @@ export default function SolutionsFinancieresPage() {
 
   const [idPhotoFile, setIdPhotoFile] = useState<File | null>(null);
   const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
+  const [noNiu, setNoNiu] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+
+  // Price calculation
+  const getCardPrice = () => {
+    const prices: Record<string, number> = {
+      "ACCESS_MASTERCARD_12500": 12500,
+      "UBA_SEGMENT1_10000": 10000,
+      "UBA_SEGMENT2_15000": 15000,
+      "UBA_SEGMENT3_25000": 25000,
+    };
+    return prices[formData.cardType] || 0;
+  };
+
+  const getDeliveryFee = () => {
+    if (formData.deliveryOption === "delivery_douala" || formData.deliveryOption === "delivery_yaounde") {
+      return 1500;
+    }
+    return 0;
+  };
+
+  const getNiuFee = () => noNiu ? 3000 : 0;
+
+  const getTotal = () => getCardPrice() + getDeliveryFee() + getNiuFee();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -61,6 +84,12 @@ export default function SolutionsFinancieresPage() {
       };
       const deliveryLabel = deliveryLabels[formData.deliveryOption] || formData.deliveryOption;
 
+      // Build price breakdown
+      const cardPrice = getCardPrice();
+      const deliveryFee = getDeliveryFee();
+      const niuFee = getNiuFee();
+      const total = getTotal();
+
       // Create WhatsApp message with form data
       const message = `*DEMANDE DE CARTE VISA PREPAYEE*%0A%0A` +
         `*Type de carte:* ${formData.cardType}%0A` +
@@ -73,11 +102,18 @@ export default function SolutionsFinancieresPage() {
         `*Email:* ${formData.email}%0A` +
         `*Profession:* ${formData.profession}%0A` +
         `*N° CNI/Récépissé/Passeport:* ${formData.idNumber}%0A` +
-        `*Attestation/NIU:* ${formData.registrationNumber}%0A` +
+        `*Attestation/NIU:* ${noNiu ? "❌ N'a pas de NIU (service +3 000 FCFA)" : formData.registrationNumber}%0A` +
         `*Nom du père:* ${formData.fatherName}%0A` +
         `*Nom de la mère:* ${formData.motherName}%0A%0A` +
-        `*Mode de réception:* ${deliveryLabel}%0A` +
+        `*Mode de réception:* ${deliveryLabel}${deliveryFee > 0 ? ` (+${deliveryFee.toLocaleString()} FCFA)` : ""}%0A` +
         (formData.deliveryAddress ? `*Adresse de livraison:* ${formData.deliveryAddress}%0A%0A` : `%0A`) +
+        `━━━━━━━━━━━━━━━━━━%0A` +
+        `*💰 RECAPITULATIF*%0A` +
+        `Carte: ${cardPrice.toLocaleString()} FCFA%0A` +
+        (deliveryFee > 0 ? `Livraison: ${deliveryFee.toLocaleString()} FCFA%0A` : "") +
+        (niuFee > 0 ? `Service NIU: ${niuFee.toLocaleString()} FCFA%0A` : "") +
+        `*TOTAL: ${total.toLocaleString()} FCFA*%0A` +
+        `━━━━━━━━━━━━━━━━━━%0A%0A` +
         `_Veuillez envoyer les photos de votre CNI et photo d'identité après ce message._`;
 
       // Open WhatsApp with the message
@@ -104,6 +140,7 @@ export default function SolutionsFinancieresPage() {
       });
       setIdPhotoFile(null);
       setPassportPhotoFile(null);
+      setNoNiu(false);
     } catch {
       setSubmitStatus("error");
     } finally {
@@ -934,17 +971,48 @@ export default function SolutionsFinancieresPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      {t.orderForm.registrationNumber}
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        {t.orderForm.registrationNumber}
+                      </label>
+                      {/* Info tooltip */}
+                      <div className="group relative">
+                        <span className="material-symbols-outlined text-[#cea427] text-[16px] cursor-help">info</span>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-3 bg-[#1B2233] border border-white/10 rounded-lg shadow-xl z-50">
+                          <p className="text-xs text-gray-300 leading-relaxed">{t.orderForm.niuExplanation}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!noNiu && (
+                      <input
+                        type="text"
+                        name="registrationNumber"
+                        value={formData.registrationNumber}
+                        onChange={handleInputChange}
+                        placeholder="XXXXXXXXX"
+                        className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all mb-3"
+                      />
+                    )}
+
+                    {/* No NIU checkbox */}
+                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#10151e] border border-white/10 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={noNiu}
+                        onChange={(e) => {
+                          setNoNiu(e.target.checked);
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, registrationNumber: "" }));
+                          }
+                        }}
+                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 rounded focus:ring-[#cea427]"
+                      />
+                      <div className="flex-1">
+                        <span className="text-white text-sm">{t.orderForm.noNiu}</span>
+                        <span className="ml-2 text-[#cea427] text-sm font-medium">+3 000 FCFA</span>
+                      </div>
                     </label>
-                    <input
-                      type="text"
-                      name="registrationNumber"
-                      value={formData.registrationNumber}
-                      onChange={handleInputChange}
-                      placeholder="XXXXXXXXX"
-                      className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
-                    />
                   </div>
                 </div>
 
@@ -1082,9 +1150,10 @@ export default function SolutionsFinancieresPage() {
                         onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
                         className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <span className="material-symbols-outlined text-[#cea427] text-[20px]">local_shipping</span>
                         <span className="text-white">{t.orderForm.deliveryDouala}</span>
+                        <span className="ml-auto text-[#cea427] text-sm font-medium">+1 500 FCFA</span>
                       </div>
                     </label>
                     <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
@@ -1096,9 +1165,10 @@ export default function SolutionsFinancieresPage() {
                         onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
                         className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <span className="material-symbols-outlined text-[#cea427] text-[20px]">local_shipping</span>
                         <span className="text-white">{t.orderForm.deliveryYaounde}</span>
+                        <span className="ml-auto text-[#cea427] text-sm font-medium">+1 500 FCFA</span>
                       </div>
                     </label>
 
@@ -1153,6 +1223,40 @@ export default function SolutionsFinancieresPage() {
                     <div>
                       <p className="text-red-500 font-medium">{t.orderForm.errorTitle}</p>
                       <p className="text-sm text-red-400">{t.orderForm.errorMessage}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Price Summary */}
+                {formData.cardType && (
+                  <div className="bg-[#10151e] rounded-xl p-5 border border-[#cea427]/30">
+                    <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#cea427]">receipt_long</span>
+                      {t.orderForm.priceSummary}
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-gray-300">
+                        <span>{t.orderForm.cardPrice}</span>
+                        <span>{getCardPrice().toLocaleString()} FCFA</span>
+                      </div>
+                      {getDeliveryFee() > 0 && (
+                        <div className="flex justify-between text-gray-300">
+                          <span>{t.orderForm.deliveryFee}</span>
+                          <span>{getDeliveryFee().toLocaleString()} FCFA</span>
+                        </div>
+                      )}
+                      {getNiuFee() > 0 && (
+                        <div className="flex justify-between text-gray-300">
+                          <span>{t.orderForm.niuService}</span>
+                          <span>{getNiuFee().toLocaleString()} FCFA</span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/10 pt-3 mt-3">
+                        <div className="flex justify-between text-white font-bold text-lg">
+                          <span>{t.orderForm.total}</span>
+                          <span className="text-[#cea427]">{getTotal().toLocaleString()} FCFA</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1550,6 +1654,13 @@ const translations = {
       shipping: "Expédition vers une autre ville du Cameroun",
       deliveryAddress: "Adresse de livraison complète",
       deliveryAddressPlaceholder: "Ex: AKWA, RUE DE LA JOIE, IMMEUBLE ROSE...",
+      niuExplanation: "Le NIU (Numéro d'Identification Unique) est un identifiant fiscal délivré par l'administration camerounaise. Il est requis pour l'ouverture de compte bancaire. Si vous n'en avez pas, nous pouvons vous aider à l'obtenir.",
+      noNiu: "Je n'ai pas de NIU",
+      priceSummary: "Récapitulatif",
+      cardPrice: "Carte",
+      deliveryFee: "Frais de livraison",
+      niuService: "Service NIU",
+      total: "TOTAL À PAYER",
     },
     resellers: {
       tag: "Programme Partenaires",
@@ -1817,6 +1928,13 @@ const translations = {
       shipping: "Ship to another city in Cameroon",
       deliveryAddress: "Full delivery address",
       deliveryAddressPlaceholder: "Ex: AKWA, JOY STREET, PINK BUILDING...",
+      niuExplanation: "The NIU (Unique Identification Number) is a tax identifier issued by the Cameroonian administration. It is required to open a bank account. If you don't have one, we can help you get it.",
+      noNiu: "I don't have a NIU",
+      priceSummary: "Summary",
+      cardPrice: "Card",
+      deliveryFee: "Delivery fee",
+      niuService: "NIU Service",
+      total: "TOTAL TO PAY",
     },
     resellers: {
       tag: "Partner Program",
