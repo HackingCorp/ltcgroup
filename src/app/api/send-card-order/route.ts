@@ -8,8 +8,8 @@ const TEAM_EMAIL = "lontsi05@gmail.com";
 
 // Email transporter configuration
 const transporter = nodemailer.createTransport({
-  host: "94.250.201.167",
-  port: 5587,
+  host: "panda-market-mail-service-ueipkj-mailserver-1",
+  port: 587,
   secure: false,
   auth: {
     user: "noreply@ltcgroup.site",
