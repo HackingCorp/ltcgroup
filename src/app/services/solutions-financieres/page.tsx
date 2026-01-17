@@ -74,50 +74,33 @@ export default function SolutionsFinancieresPage() {
     setSubmitStatus("idle");
 
     try {
-      // Get delivery option label
-      const deliveryLabels: Record<string, string> = {
-        pickup_douala: "Retrait en agence - Douala",
-        pickup_yaounde: "Retrait en agence - Yaoundé",
-        delivery_douala: "Livraison à domicile - Douala",
-        delivery_yaounde: "Livraison à domicile - Yaoundé",
-        shipping: "Expédition (autre ville)",
-      };
-      const deliveryLabel = deliveryLabels[formData.deliveryOption] || formData.deliveryOption;
-
       // Build price breakdown
       const cardPrice = getCardPrice();
       const deliveryFee = getDeliveryFee();
       const niuFee = getNiuFee();
       const total = getTotal();
 
-      // Create WhatsApp message with form data
-      const message = `*DEMANDE DE CARTE VISA PREPAYEE*%0A%0A` +
-        `*Type de carte:* ${formData.cardType}%0A` +
-        `*Prénom:* ${formData.firstName}%0A` +
-        `*Nom:* ${formData.lastName}%0A` +
-        `*Date de naissance:* ${formData.birthDate}%0A` +
-        `*Ville de naissance:* ${formData.birthCity}%0A` +
-        `*Ville-Quartier:* ${formData.cityNeighborhood}%0A` +
-        `*Téléphone:* ${formData.phone}%0A` +
-        `*Email:* ${formData.email}%0A` +
-        `*Profession:* ${formData.profession}%0A` +
-        `*N° CNI/Récépissé/Passeport:* ${formData.idNumber}%0A` +
-        `*Attestation/NIU:* ${noNiu ? "❌ N'a pas de NIU (service +3 000 FCFA)" : formData.registrationNumber}%0A` +
-        `*Nom du père:* ${formData.fatherName}%0A` +
-        `*Nom de la mère:* ${formData.motherName}%0A%0A` +
-        `*Mode de réception:* ${deliveryLabel}${deliveryFee > 0 ? ` (+${deliveryFee.toLocaleString()} FCFA)` : ""}%0A` +
-        (formData.deliveryAddress ? `*Adresse de livraison:* ${formData.deliveryAddress}%0A%0A` : `%0A`) +
-        `━━━━━━━━━━━━━━━━━━%0A` +
-        `*💰 RECAPITULATIF*%0A` +
-        `Carte: ${cardPrice.toLocaleString()} FCFA%0A` +
-        (deliveryFee > 0 ? `Livraison: ${deliveryFee.toLocaleString()} FCFA%0A` : "") +
-        (niuFee > 0 ? `Service NIU: ${niuFee.toLocaleString()} FCFA%0A` : "") +
-        `*TOTAL: ${total.toLocaleString()} FCFA*%0A` +
-        `━━━━━━━━━━━━━━━━━━%0A%0A` +
-        `_Veuillez envoyer les photos de votre CNI et photo d'identité après ce message._`;
+      // Send via API
+      const response = await fetch("/api/send-card-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
+          noNiu,
+          cardPrice,
+          deliveryFee,
+          niuFee,
+          total,
+        }),
+      });
 
-      // Open WhatsApp with the message
-      window.open(`https://wa.me/237673209375?text=${message}`, "_blank");
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to send order");
+      }
 
       setSubmitStatus("success");
       // Reset form
@@ -141,7 +124,8 @@ export default function SolutionsFinancieresPage() {
       setIdPhotoFile(null);
       setPassportPhotoFile(null);
       setNoNiu(false);
-    } catch {
+    } catch (error) {
+      console.error("Submit error:", error);
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -1288,10 +1272,10 @@ export default function SolutionsFinancieresPage() {
 
                 {/* WhatsApp Note */}
                 <p className="text-center text-sm text-gray-400">
-                  <span className="material-symbols-outlined text-green-500 text-[16px] align-middle mr-1">chat</span>
+                  <span className="material-symbols-outlined text-green-500 text-[16px] align-middle mr-1">verified</span>
                   {language === "fr"
-                    ? "Votre demande sera envoyée via WhatsApp pour un traitement rapide"
-                    : "Your request will be sent via WhatsApp for quick processing"
+                    ? "Votre demande sera envoyée automatiquement à notre équipe"
+                    : "Your request will be automatically sent to our team"
                   }
                 </p>
               </form>
