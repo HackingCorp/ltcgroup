@@ -6,15 +6,11 @@ const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
 const TEAM_PHONE = "237673209375";
 const TEAM_EMAIL = "lontsi05@gmail.com";
 
-// Email transporter configuration
+// Email transporter configuration (LTC Mail Server - no auth required)
 const transporter = nodemailer.createTransport({
-  host: "panda-market-mail-service-ueipkj-mailserver-1",
+  host: "ltc-mailserver",
   port: 587,
   secure: false,
-  auth: {
-    user: "noreply@ltcgroup.site",
-    pass: "LtcFinance2024!",
-  },
   tls: {
     rejectUnauthorized: false,
   },
