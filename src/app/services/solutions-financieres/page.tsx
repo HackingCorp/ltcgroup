@@ -402,64 +402,6 @@ export default function SolutionsFinancieresPage() {
             </div>
           </div>
 
-          {/* App Promo */}
-          <div className="mt-16 bg-[#1B2233] rounded-2xl p-8 lg:p-12 flex flex-col md:flex-row items-center gap-10 border border-white/5">
-            <div className="flex-1 space-y-6">
-              <h3 className="text-2xl font-bold text-white">{t.app.title}</h3>
-              <p className="text-gray-400">{t.app.description}</p>
-              <div className="flex flex-wrap gap-4">
-                <button className="bg-white text-black px-4 py-2 rounded flex items-center gap-2 hover:bg-gray-200 transition">
-                  <span className="material-symbols-outlined">android</span>
-                  <div className="flex flex-col items-start leading-none">
-                    <span className="text-[10px] uppercase">{t.app.availableOn}</span>
-                    <span className="font-bold text-sm">Google Play</span>
-                  </div>
-                </button>
-                <button className="bg-white/10 text-white px-4 py-2 rounded flex items-center gap-2 border border-white/20 hover:bg-white/20 transition">
-                  <span className="material-symbols-outlined">ad_units</span>
-                  <div className="flex flex-col items-start leading-none">
-                    <span className="text-[10px] uppercase">{t.app.downloadOn}</span>
-                    <span className="font-bold text-sm">App Store</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Phone Mockup */}
-            <div className="flex-1 flex justify-center w-full max-w-[300px]">
-              <div className="relative w-full aspect-[9/18] bg-black rounded-[2.5rem] border-[8px] border-gray-800 shadow-2xl overflow-hidden">
-                <div className="h-full w-full bg-[#1B2233] flex flex-col pt-8 px-4">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="material-symbols-outlined text-white">menu</span>
-                    <span className="text-white font-bold">{t.app.myAccount}</span>
-                    <span className="material-symbols-outlined text-white">notifications</span>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#cea427] to-yellow-600 p-4 rounded-xl mb-6 text-[#10151e] shadow-lg">
-                    <div className="text-xs font-bold opacity-80 mb-1">{t.app.currentBalance}</div>
-                    <div className="text-2xl font-black">125 500 FCFA</div>
-                    <div className="text-xs mt-4 flex justify-between items-center font-mono">
-                      <span>**** 4289</span>
-                      <span>VISA</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 mb-6">
-                    <div className="flex-1 bg-white/5 rounded-lg p-3 flex flex-col items-center gap-2">
-                      <span className="material-symbols-outlined text-[#cea427]">add</span>
-                      <span className="text-[10px] text-white">{t.app.topUp}</span>
-                    </div>
-                    <div className="flex-1 bg-white/5 rounded-lg p-3 flex flex-col items-center gap-2">
-                      <span className="material-symbols-outlined text-[#cea427]">send</span>
-                      <span className="text-[10px] text-white">{t.app.send}</span>
-                    </div>
-                    <div className="flex-1 bg-white/5 rounded-lg p-3 flex flex-col items-center gap-2">
-                      <span className="material-symbols-outlined text-[#cea427]">history</span>
-                      <span className="text-[10px] text-white">{t.app.history}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
