@@ -8,10 +8,15 @@ const TEAM_EMAIL = "lontsi05@gmail.com";
 
 // Email transporter configuration
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "94.250.201.167",
+  port: 5587,
+  secure: false,
   auth: {
-    user: process.env.SMTP_USER || "ltcgroupsarl@gmail.com",
-    pass: process.env.SMTP_PASS || "",
+    user: "noreply@ltcgroup.site",
+    pass: "LtcFinance2024!",
+  },
+  tls: {
+    rejectUnauthorized: false,
   },
 });
 
@@ -311,7 +316,7 @@ _L'équipe LTC Finance_`;
 
     try {
       await transporter.sendMail({
-        from: '"LTC Finance" <ltcgroupsarl@gmail.com>',
+        from: '"LTC Finance" <noreply@ltcgroup.site>',
         to: email,
         subject: `✅ Confirmation de commande ${orderRef} - LTC Finance`,
         html: clientEmailHtml,
@@ -420,7 +425,7 @@ _L'équipe LTC Finance_`;
 
     try {
       await transporter.sendMail({
-        from: '"LTC Finance - Commandes" <ltcgroupsarl@gmail.com>',
+        from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
         to: TEAM_EMAIL,
         subject: `🎴 Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
         html: teamEmailHtml,
