@@ -68,6 +68,16 @@ export default function SolutionsFinancieresPage() {
     }
   };
 
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -79,6 +89,17 @@ export default function SolutionsFinancieresPage() {
       const deliveryFee = getDeliveryFee();
       const niuFee = getNiuFee();
       const total = getTotal();
+
+      // Convert files to base64
+      let idPhotoBase64 = null;
+      let passportPhotoBase64 = null;
+
+      if (idPhotoFile) {
+        idPhotoBase64 = await fileToBase64(idPhotoFile);
+      }
+      if (passportPhotoFile) {
+        passportPhotoBase64 = await fileToBase64(passportPhotoFile);
+      }
 
       // Send via API
       const response = await fetch("/api/send-card-order", {
@@ -93,6 +114,10 @@ export default function SolutionsFinancieresPage() {
           deliveryFee,
           niuFee,
           total,
+          idPhoto: idPhotoBase64,
+          idPhotoName: idPhotoFile?.name,
+          passportPhoto: passportPhotoBase64,
+          passportPhotoName: passportPhotoFile?.name,
         }),
       });
 
