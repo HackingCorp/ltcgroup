@@ -595,6 +595,28 @@ export default function SolutionsFinancieresPage() {
               <span className="material-symbols-outlined text-[#cea427] text-[16px] align-middle mr-1">info</span>
               {t.pricing.rechargeNote}
             </div>
+
+            {/* Fees Info */}
+            <div className="mt-8 bg-[#1B2233] rounded-xl p-6 border border-white/10 max-w-2xl mx-auto">
+              <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#cea427]">payments</span>
+                {t.pricing.ubaFees.title}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <span className="material-symbols-outlined text-gray-500 text-[18px]">calendar_month</span>
+                  {t.pricing.ubaFees.monthly}
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <span className="material-symbols-outlined text-gray-500 text-[18px]">atm</span>
+                  {t.pricing.ubaFees.atm}
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <span className="material-symbols-outlined text-gray-500 text-[18px]">lock_reset</span>
+                  {t.pricing.ubaFees.pinReset}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Documents Required */}
@@ -817,7 +839,7 @@ export default function SolutionsFinancieresPage() {
                     <option value="">{t.orderForm.selectCard}</option>
                     <option value="ACCESS_MASTERCARD_12500">Access Bank Mastercard - 12 500 FCFA</option>
                     <option value="UBA_SEGMENT1_10000">UBA Visa Segment 1 - 10 000 FCFA (Plafond 2.5M)</option>
-                    <option value="UBA_SEGMENT2_15000">UBA Visa Segment 2 - 15 000 FCFA (Plafond 4.5M)</option>
+                    <option value="UBA_SEGMENT2_15000">UBA Visa Segment 2 - 15 000 FCFA (Plafond 4M)</option>
                     <option value="UBA_SEGMENT3_25000">UBA Visa Segment 3 - 25 000 FCFA (Plafond 10M)</option>
                   </select>
                 </div>
@@ -1578,17 +1600,22 @@ const translations = {
       },
       ubaCards: [
         { name: "Segment 1", limit: "2 500 000 FCFA", price: "10 000", oldPrice: "12 500" },
-        { name: "Segment 2", limit: "4 500 000 FCFA", price: "15 000", oldPrice: "17 500" },
+        { name: "Segment 2", limit: "4 000 000 FCFA", price: "15 000", oldPrice: "17 500" },
         { name: "Segment 3", limit: "10 000 000 FCFA", price: "25 000", oldPrice: "30 000" },
       ],
       ubaFeatures: [
         "Utilisable à l'internationale",
         "Achats en ligne",
         "Disponible immédiatement",
-        "0 frais d'entretien",
         "Sécurité renforcée",
-        "Validité 2-3 ans",
+        "Validité 2 ans",
       ],
+      ubaFees: {
+        title: "Frais d'utilisation",
+        monthly: "Frais mensuels: 84 FCFA",
+        atm: "Retrait DAB local: 400 FCFA",
+        pinReset: "Reset PIN: 1 000 - 5 000 FCFA",
+      },
     },
     documents: {
       title: "Documents Requis",
@@ -1667,7 +1694,7 @@ const translations = {
       },
       segment2: {
         name: "Segment 2",
-        limit: "4 500 000 FCFA/mois",
+        limit: "4 000 000 FCFA/mois",
         price2y: "8 000",
         price3y: "10 000",
       },
@@ -1719,7 +1746,7 @@ const translations = {
         },
         {
           question: "Quelle est la différence entre les segments 1, 2 et 3 ?",
-          answer: "La différence principale est le plafond mensuel de dépenses. Segment 1: jusqu'à 2,5 millions FCFA/mois. Segment 2: jusqu'à 4,5 millions FCFA/mois. Segment 3: jusqu'à 10 millions FCFA/mois. Choisissez selon vos besoins."
+          answer: "La différence principale est le plafond mensuel de dépenses. Segment 1: jusqu'à 2,5 millions FCFA/mois. Segment 2: jusqu'à 4 millions FCFA/mois. Segment 3: jusqu'à 10 millions FCFA/mois. Choisissez selon vos besoins."
         },
         {
           question: "Combien de temps faut-il pour recevoir ma carte ?",
@@ -1852,17 +1879,22 @@ const translations = {
       },
       ubaCards: [
         { name: "Segment 1", limit: "2,500,000 FCFA", price: "10,000", oldPrice: "12,500" },
-        { name: "Segment 2", limit: "4,500,000 FCFA", price: "15,000", oldPrice: "17,500" },
+        { name: "Segment 2", limit: "4,000,000 FCFA", price: "15,000", oldPrice: "17,500" },
         { name: "Segment 3", limit: "10,000,000 FCFA", price: "25,000", oldPrice: "30,000" },
       ],
       ubaFeatures: [
         "International use",
         "Online shopping",
         "Immediately available",
-        "Zero maintenance fees",
         "Enhanced security",
-        "2-3 years validity",
+        "2 years validity",
       ],
+      ubaFees: {
+        title: "Usage fees",
+        monthly: "Monthly fee: 84 FCFA",
+        atm: "Local ATM withdrawal: 400 FCFA",
+        pinReset: "PIN reset: 1,000 - 5,000 FCFA",
+      },
     },
     documents: {
       title: "Required Documents",
@@ -1941,7 +1973,7 @@ const translations = {
       },
       segment2: {
         name: "Segment 2",
-        limit: "4,500,000 FCFA/month",
+        limit: "4,000,000 FCFA/month",
         price2y: "8,000",
         price3y: "10,000",
       },
@@ -1993,7 +2025,7 @@ const translations = {
         },
         {
           question: "What is the difference between segments 1, 2 and 3?",
-          answer: "The main difference is the monthly spending limit. Segment 1: up to 2.5 million FCFA/month. Segment 2: up to 4.5 million FCFA/month. Segment 3: up to 10 million FCFA/month. Choose according to your needs."
+          answer: "The main difference is the monthly spending limit. Segment 1: up to 2.5 million FCFA/month. Segment 2: up to 4 million FCFA/month. Segment 3: up to 10 million FCFA/month. Choose according to your needs."
         },
         {
           question: "How long does it take to receive my card?",
