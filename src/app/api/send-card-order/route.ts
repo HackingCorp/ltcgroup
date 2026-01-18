@@ -223,96 +223,105 @@ _L'équipe LTC Finance_`;
     // =====================
     // 3. CLIENT EMAIL CONFIRMATION
     // =====================
+    const iconBaseUrl = "https://ltcgroup.site/email-icons";
+
     const clientEmailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; background: #fff; }
-    .header { background: linear-gradient(135deg, #10151e 0%, #1B2233 100%); padding: 30px; text-align: center; }
-    .header h1 { color: #cea427; margin: 0; font-size: 24px; }
-    .header p { color: #fff; margin: 10px 0 0 0; }
-    .content { padding: 30px; }
-    .order-ref { background: #f8f9fa; border-left: 4px solid #cea427; padding: 15px; margin: 20px 0; }
-    .order-ref strong { color: #cea427; }
-    .details { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; }
-    .details h3 { color: #10151e; margin-top: 0; border-bottom: 2px solid #cea427; padding-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-    .details table { width: 100%; border-collapse: collapse; }
-    .details td { padding: 8px 0; }
-    .details td:last-child { text-align: right; font-weight: bold; }
-    .total { background: #10151e; color: #fff; padding: 15px 20px; border-radius: 8px; margin: 20px 0; }
-    .total td { color: #fff; padding: 5px 0; }
-    .total td:last-child { color: #cea427; font-size: 20px; }
-    .next-steps { background: #e8f5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }
-    .next-steps h3 { color: #2e7d32; margin-top: 0; display: flex; align-items: center; gap: 10px; }
-    .footer { background: #10151e; color: #888; padding: 20px; text-align: center; font-size: 12px; }
-    .footer a { color: #cea427; }
-    .icon { display: inline-block; width: 20px; height: 20px; border-radius: 4px; text-align: center; line-height: 20px; font-size: 12px; font-weight: bold; color: #fff; }
-    .icon-card { background: #cea427; }
-    .icon-check { background: #28a745; }
-    .icon-phone { background: #2e7d32; }
-    .icon-info { background: #17a2b8; }
-  </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>LTC Finance</h1>
-      <p>Confirmation de commande</p>
-    </div>
-    <div class="content">
-      <p>Bonjour <strong>${firstName} ${lastName}</strong>,</p>
-      <p>Nous avons bien reçu votre demande de carte bancaire. Voici le récapitulatif de votre commande :</p>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #fff;">
+    <tr>
+      <td style="background: #10151e; padding: 30px; text-align: center;">
+        <h1 style="color: #cea427; margin: 0; font-size: 24px;">LTC Finance</h1>
+        <p style="color: #fff; margin: 10px 0 0 0;">Confirmation de commande</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 30px;">
+        <p>Bonjour <strong>${firstName} ${lastName}</strong>,</p>
+        <p>Nous avons bien reçu votre demande de carte bancaire. Voici le récapitulatif de votre commande :</p>
 
-      <div class="order-ref">
-        <span class="icon icon-check">&#10003;</span>
-        <strong>Référence de commande :</strong> ${orderRef}
-      </div>
-
-      <div class="details">
-        <h3><span class="icon icon-card">&#9830;</span> Détails de la commande</h3>
-        <table>
-          <tr><td>Type de carte</td><td>${cardLabel}</td></tr>
-          <tr><td>Mode de réception</td><td>${deliveryLabel}</td></tr>
-          ${deliveryAddress ? `<tr><td>Adresse de livraison</td><td>${deliveryAddress}</td></tr>` : ""}
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; border-left: 4px solid #28a745; margin: 20px 0;">
+          <tr>
+            <td>
+              <img src="${iconBaseUrl}/check-circle.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+              <strong style="color: #28a745;">Référence de commande :</strong> <span style="color: #cea427; font-weight: bold;">${orderRef}</span>
+            </td>
+          </tr>
         </table>
-      </div>
 
-      <div class="total">
-        <table>
-          <tr><td>Carte</td><td>${cardPrice?.toLocaleString() || 0} FCFA</td></tr>
-          ${deliveryFee > 0 ? `<tr><td>Livraison</td><td>${deliveryFee?.toLocaleString()} FCFA</td></tr>` : ""}
-          ${niuFee > 0 ? `<tr><td>Service NIU</td><td>${niuFee?.toLocaleString()} FCFA</td></tr>` : ""}
-          <tr style="border-top: 1px solid rgba(255,255,255,0.2);"><td><strong>TOTAL</strong></td><td>${total?.toLocaleString() || 0} FCFA</td></tr>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; border-left: 4px solid #cea427; margin: 20px 0;">
+          <tr>
+            <td>
+              <h3 style="color: #10151e; margin: 0 0 15px 0; border-bottom: 2px solid #cea427; padding-bottom: 10px;">
+                <img src="${iconBaseUrl}/credit-card.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Détails de la commande
+              </h3>
+              <table width="100%" cellpadding="8" cellspacing="0">
+                <tr><td style="color: #666;">Type de carte</td><td style="text-align: right; font-weight: bold;">${cardLabel}</td></tr>
+                <tr><td style="color: #666;">Mode de réception</td><td style="text-align: right; font-weight: bold;">${deliveryLabel}</td></tr>
+                ${deliveryAddress ? `<tr><td style="color: #666;">Adresse de livraison</td><td style="text-align: right; font-weight: bold;">${deliveryAddress}</td></tr>` : ""}
+              </table>
+            </td>
+          </tr>
         </table>
-      </div>
 
-      <div class="next-steps">
-        <h3><span class="icon icon-phone">&#9742;</span> Prochaines étapes</h3>
-        <p>Notre équipe vous contactera dans les <strong>24 heures</strong> pour :</p>
-        <ul>
-          <li>Vérifier vos informations</li>
-          <li>Organiser le paiement</li>
-          <li>Planifier la livraison ou le retrait de votre carte</li>
-        </ul>
-      </div>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #10151e; margin: 20px 0;">
+          <tr>
+            <td>
+              <table width="100%" cellpadding="5" cellspacing="0">
+                <tr><td style="color: #fff;">Carte</td><td style="text-align: right; color: #fff;">${cardPrice?.toLocaleString() || 0} FCFA</td></tr>
+                ${deliveryFee > 0 ? `<tr><td style="color: #fff;">Livraison</td><td style="text-align: right; color: #fff;">${deliveryFee?.toLocaleString()} FCFA</td></tr>` : ""}
+                ${niuFee > 0 ? `<tr><td style="color: #fff;">Service NIU</td><td style="text-align: right; color: #fff;">${niuFee?.toLocaleString()} FCFA</td></tr>` : ""}
+                <tr style="border-top: 1px solid rgba(255,255,255,0.2);"><td style="color: #fff;"><strong>TOTAL</strong></td><td style="text-align: right; color: #cea427; font-size: 20px; font-weight: bold;">${total?.toLocaleString() || 0} FCFA</td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
 
-      <p><span class="icon icon-info">?</span> Des questions ? Contactez-nous :</p>
-      <ul>
-        <li>WhatsApp : <a href="https://wa.me/237673209375">+237 673 209 375</a></li>
-        <li>Email : <a href="mailto:contact@ltcgroup.site">contact@ltcgroup.site</a></li>
-      </ul>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #e8f5e9; border-left: 4px solid #28a745; margin: 20px 0;">
+          <tr>
+            <td>
+              <h3 style="color: #2e7d32; margin: 0 0 10px 0;">
+                <img src="${iconBaseUrl}/steps.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Prochaines étapes
+              </h3>
+              <p style="margin: 0;">Notre équipe vous contactera dans les <strong>24 heures</strong> pour :</p>
+              <ul style="margin: 10px 0;">
+                <li>Vérifier vos informations</li>
+                <li>Organiser le paiement</li>
+                <li>Planifier la livraison ou le retrait de votre carte</li>
+              </ul>
+            </td>
+          </tr>
+        </table>
 
-      <p>Merci de votre confiance !</p>
-      <p><em>L'équipe LTC Finance</em></p>
-    </div>
-    <div class="footer">
-      <p>LTC GROUP SARL - Connecting Africa to the World</p>
-      <p><a href="https://ltcgroup.site">www.ltcgroup.site</a></p>
-    </div>
-  </div>
+        <p><strong>Des questions ?</strong> Contactez-nous :</p>
+        <table cellpadding="5" cellspacing="0">
+          <tr>
+            <td><img src="${iconBaseUrl}/whatsapp.svg" alt="" width="18" height="18" style="vertical-align: middle;"></td>
+            <td><a href="https://wa.me/237673209375" style="color: #cea427;">+237 673 209 375</a></td>
+          </tr>
+          <tr>
+            <td><img src="${iconBaseUrl}/email.svg" alt="" width="18" height="18" style="vertical-align: middle;"></td>
+            <td><a href="mailto:contact@ltcgroup.site" style="color: #cea427;">contact@ltcgroup.site</a></td>
+          </tr>
+        </table>
+
+        <p style="margin-top: 20px;">Merci de votre confiance !</p>
+        <p><em>L'équipe LTC Finance</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background: #10151e; color: #888; padding: 20px; text-align: center; font-size: 12px;">
+        <p style="margin: 0;">LTC GROUP SARL - Connecting Africa to the World</p>
+        <p style="margin: 5px 0 0 0;"><a href="https://ltcgroup.site" style="color: #cea427;">www.ltcgroup.site</a></p>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
@@ -336,99 +345,120 @@ _L'équipe LTC Finance_`;
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; background: #fff; }
-    .header { background: #10151e; padding: 20px; text-align: center; }
-    .header h1 { color: #cea427; margin: 0; }
-    .content { padding: 20px; }
-    .alert { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin: 15px 0; }
-    .section { background: #f8f9fa; border-radius: 8px; padding: 15px; margin: 15px 0; }
-    .section h3 { margin-top: 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 6px 0; vertical-align: top; }
-    td:first-child { font-weight: bold; width: 40%; color: #666; }
-    .total-box { background: #10151e; color: #fff; padding: 15px; border-radius: 8px; text-align: center; }
-    .total-box .amount { font-size: 28px; color: #cea427; font-weight: bold; }
-    .footer { background: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }
-    .icon { display: inline-block; width: 22px; height: 22px; border-radius: 4px; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; color: #fff; }
-    .icon-card { background: #cea427; }
-    .icon-user { background: #6c757d; }
-    .icon-doc { background: #17a2b8; }
-    .icon-truck { background: #28a745; }
-    .status-ok { color: #28a745; font-weight: bold; }
-    .status-no { color: #dc3545; font-weight: bold; }
-  </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Nouvelle Demande de Carte</h1>
-    </div>
-    <div class="content">
-      <div class="alert">
-        <strong>&#9656; Nouvelle commande reçue</strong><br>
-        Référence: <strong>${orderRef}</strong>
-      </div>
-
-      <div class="section">
-        <h3><span class="icon icon-card">&#9830;</span> Carte demandée</h3>
-        <p style="font-size: 18px; font-weight: bold; color: #cea427;">${cardLabel}</p>
-      </div>
-
-      <div class="section">
-        <h3><span class="icon icon-user">&#9679;</span> Informations personnelles</h3>
-        <table>
-          <tr><td>Nom complet</td><td>${firstName} ${lastName}</td></tr>
-          <tr><td>Date de naissance</td><td>${birthDate}</td></tr>
-          <tr><td>Ville de naissance</td><td>${birthCity}</td></tr>
-          <tr><td>Ville-Quartier</td><td>${cityNeighborhood}</td></tr>
-          <tr><td>Téléphone</td><td><a href="tel:${phone}">${phone}</a></td></tr>
-          <tr><td>Email</td><td><a href="mailto:${email}">${email}</a></td></tr>
-          <tr><td>Profession</td><td>${profession}</td></tr>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #fff;">
+    <tr>
+      <td style="background: #10151e; padding: 20px; text-align: center;">
+        <h1 style="color: #cea427; margin: 0;">Nouvelle Demande de Carte</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 20px;">
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #fff3cd; border: 1px solid #ffc107; margin: 15px 0;">
+          <tr>
+            <td>
+              <img src="${iconBaseUrl}/alert.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+              <strong>Nouvelle commande reçue</strong><br>
+              <span style="margin-left: 28px;">Référence: <strong>${orderRef}</strong></span>
+            </td>
+          </tr>
         </table>
-      </div>
 
-      <div class="section">
-        <h3><span class="icon icon-doc">&#9998;</span> Documents</h3>
-        <table>
-          <tr><td>N° CNI/Passeport</td><td>${idNumber}</td></tr>
-          <tr><td>NIU</td><td>${noNiu ? '<span class="status-no">&#10007; N\'a pas de NIU (+3 000 FCFA)</span>' : registrationNumber}</td></tr>
-          <tr><td>Nom du père</td><td>${fatherName}</td></tr>
-          <tr><td>Nom de la mère</td><td>${motherName}</td></tr>
-          <tr><td>Photo CNI</td><td>${idPhoto ? '<span class="status-ok">&#10003; Fournie (voir WhatsApp)</span>' : '<span class="status-no">&#10007; Non fournie</span>'}</td></tr>
-          <tr><td>Photo identité</td><td>${passportPhoto ? '<span class="status-ok">&#10003; Fournie (voir WhatsApp)</span>' : '<span class="status-no">&#10007; Non fournie</span>'}</td></tr>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; margin: 15px 0;">
+          <tr>
+            <td>
+              <h3 style="margin: 0 0 15px 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px;">
+                <img src="${iconBaseUrl}/credit-card.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Carte demandée
+              </h3>
+              <p style="font-size: 18px; font-weight: bold; color: #cea427; margin: 0;">${cardLabel}</p>
+            </td>
+          </tr>
         </table>
-      </div>
 
-      <div class="section">
-        <h3><span class="icon icon-truck">&#10148;</span> Livraison</h3>
-        <table>
-          <tr><td>Mode</td><td>${deliveryLabel}</td></tr>
-          ${deliveryAddress ? `<tr><td>Adresse</td><td>${deliveryAddress}</td></tr>` : ""}
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; margin: 15px 0;">
+          <tr>
+            <td>
+              <h3 style="margin: 0 0 15px 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px;">
+                <img src="${iconBaseUrl}/user.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Informations personnelles
+              </h3>
+              <table width="100%" cellpadding="6" cellspacing="0">
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Nom complet</td><td>${firstName} ${lastName}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Date de naissance</td><td>${birthDate}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Ville de naissance</td><td>${birthCity}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Ville-Quartier</td><td>${cityNeighborhood}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Téléphone</td><td><a href="tel:${phone}">${phone}</a></td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Email</td><td><a href="mailto:${email}">${email}</a></td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Profession</td><td>${profession}</td></tr>
+              </table>
+            </td>
+          </tr>
         </table>
-      </div>
 
-      <div class="total-box">
-        <div>Total à encaisser</div>
-        <div class="amount">${total?.toLocaleString() || 0} FCFA</div>
-        <div style="font-size: 12px; margin-top: 10px; opacity: 0.8;">
-          Carte: ${cardPrice?.toLocaleString() || 0} FCFA
-          ${deliveryFee > 0 ? ` | Livraison: ${deliveryFee?.toLocaleString()} FCFA` : ""}
-          ${niuFee > 0 ? ` | NIU: ${niuFee?.toLocaleString()} FCFA` : ""}
-        </div>
-      </div>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; margin: 15px 0;">
+          <tr>
+            <td>
+              <h3 style="margin: 0 0 15px 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px;">
+                <img src="${iconBaseUrl}/document.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Documents
+              </h3>
+              <table width="100%" cellpadding="6" cellspacing="0">
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">N° CNI/Passeport</td><td>${idNumber}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">NIU</td><td>${noNiu ? `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> N'a pas de NIU (+3 000 FCFA)` : registrationNumber}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Nom du père</td><td>${fatherName}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Nom de la mère</td><td>${motherName}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo CNI</td><td>${idPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Fournie (voir WhatsApp)` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo identité</td><td>${passportPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Fournie (voir WhatsApp)` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
 
-      <p style="text-align: center; margin-top: 20px;">
-        <a href="https://wa.me/${clientPhone}" style="display: inline-block; background: #25d366; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-          &#9742; Contacter le client sur WhatsApp
-        </a>
-      </p>
-    </div>
-    <div class="footer">
-      Commande reçue le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR")}
-    </div>
-  </div>
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #f8f9fa; margin: 15px 0;">
+          <tr>
+            <td>
+              <h3 style="margin: 0 0 15px 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px;">
+                <img src="${iconBaseUrl}/truck.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
+                Livraison
+              </h3>
+              <table width="100%" cellpadding="6" cellspacing="0">
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Mode</td><td>${deliveryLabel}</td></tr>
+                ${deliveryAddress ? `<tr><td style="font-weight: bold; width: 40%; color: #666;">Adresse</td><td>${deliveryAddress}</td></tr>` : ""}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: #10151e; margin: 15px 0; text-align: center;">
+          <tr>
+            <td>
+              <div style="color: #fff;">Total à encaisser</div>
+              <div style="font-size: 28px; color: #cea427; font-weight: bold;">${total?.toLocaleString() || 0} FCFA</div>
+              <div style="font-size: 12px; margin-top: 10px; color: rgba(255,255,255,0.8);">
+                Carte: ${cardPrice?.toLocaleString() || 0} FCFA
+                ${deliveryFee > 0 ? ` | Livraison: ${deliveryFee?.toLocaleString()} FCFA` : ""}
+                ${niuFee > 0 ? ` | NIU: ${niuFee?.toLocaleString()} FCFA` : ""}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <p style="text-align: center; margin-top: 20px;">
+          <a href="https://wa.me/${clientPhone}" style="display: inline-block; background: #25d366; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: bold;">
+            <img src="${iconBaseUrl}/whatsapp.svg" alt="" width="18" height="18" style="vertical-align: middle; margin-right: 8px;">
+            Contacter le client sur WhatsApp
+          </a>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+        Commande reçue le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR")}
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
