@@ -131,12 +131,12 @@ export async function POST(request: NextRequest) {
     // =====================
     // 1. TEAM WHATSAPP MESSAGE
     // =====================
-    const teamMessage = `*🎴 NOUVELLE DEMANDE DE CARTE*
+    const teamMessage = `*[NOUVELLE DEMANDE DE CARTE]*
 *Réf: ${orderRef}*
 
 *Type de carte:* ${cardLabel}
 
-*👤 INFORMATIONS PERSONNELLES*
+*— INFORMATIONS PERSONNELLES —*
 ━━━━━━━━━━━━━━━━━━
 *Prénom:* ${firstName}
 *Nom:* ${lastName}
@@ -147,27 +147,27 @@ export async function POST(request: NextRequest) {
 *Email:* ${email}
 *Profession:* ${profession}
 
-*📄 DOCUMENTS*
+*— DOCUMENTS —*
 ━━━━━━━━━━━━━━━━━━
 *N° CNI/Récépissé/Passeport:* ${idNumber}
-*Attestation/NIU:* ${noNiu ? "❌ N'a pas de NIU (service +3 000 FCFA)" : registrationNumber}
+*Attestation/NIU:* ${noNiu ? "[X] N'a pas de NIU (service +3 000 FCFA)" : registrationNumber}
 *Nom du père:* ${fatherName}
 *Nom de la mère:* ${motherName}
 
-*🚚 LIVRAISON*
+*— LIVRAISON —*
 ━━━━━━━━━━━━━━━━━━
 *Mode de réception:* ${deliveryLabel}
 ${deliveryAddress ? `*Adresse:* ${deliveryAddress}` : ""}
 
-*💰 RECAPITULATIF*
+*— RECAPITULATIF —*
 ━━━━━━━━━━━━━━━━━━
 Carte: ${cardPrice?.toLocaleString() || 0} FCFA
 ${deliveryFee > 0 ? `Livraison: ${deliveryFee?.toLocaleString()} FCFA` : ""}
 ${niuFee > 0 ? `Service NIU: ${niuFee?.toLocaleString()} FCFA` : ""}
 *TOTAL: ${total?.toLocaleString() || 0} FCFA*
 
-${idPhoto ? "📎 Photo CNI: Envoyée ci-dessous" : "⚠️ Photo CNI: Non fournie"}
-${passportPhoto ? "📎 Photo identité: Envoyée ci-dessous" : "⚠️ Photo identité: Non fournie"}`;
+${idPhoto ? "[+] Photo CNI: Envoyée ci-dessous" : "[-] Photo CNI: Non fournie"}
+${passportPhoto ? "[+] Photo identité: Envoyée ci-dessous" : "[-] Photo identité: Non fournie"}`;
 
     // Send team WhatsApp message
     await sendWhatsApp(TEAM_PHONE, teamMessage);
@@ -177,7 +177,7 @@ ${passportPhoto ? "📎 Photo identité: Envoyée ci-dessous" : "⚠️ Photo id
       await sendWhatsAppMedia(
         TEAM_PHONE,
         idPhoto,
-        `📄 CNI - ${firstName} ${lastName} (${orderRef})`,
+        `CNI - ${firstName} ${lastName} (${orderRef})`,
         idPhotoName || "cni.jpg"
       );
     }
@@ -186,7 +186,7 @@ ${passportPhoto ? "📎 Photo identité: Envoyée ci-dessous" : "⚠️ Photo id
       await sendWhatsAppMedia(
         TEAM_PHONE,
         passportPhoto,
-        `📷 Photo identité - ${firstName} ${lastName} (${orderRef})`,
+        `Photo identité - ${firstName} ${lastName} (${orderRef})`,
         passportPhotoName || "photo.jpg"
       );
     }
@@ -195,27 +195,27 @@ ${passportPhoto ? "📎 Photo identité: Envoyée ci-dessous" : "⚠️ Photo id
     // 2. CLIENT WHATSAPP CONFIRMATION
     // =====================
     const clientPhone = formatPhoneForWhatsApp(phone);
-    const clientWhatsAppMessage = `*✅ CONFIRMATION DE COMMANDE*
+    const clientWhatsAppMessage = `*CONFIRMATION DE COMMANDE*
 *LTC Finance*
 
 Bonjour *${firstName} ${lastName}*,
 
-Votre demande de carte bancaire a bien été reçue !
+Votre demande de carte bancaire a bien été reçue.
 
-*📋 Détails de la commande:*
+*— Détails de la commande —*
 ━━━━━━━━━━━━━━━━━━
 *Référence:* ${orderRef}
 *Carte:* ${cardLabel}
 *Mode de réception:* ${deliveryLabel}
 *Montant total:* ${total?.toLocaleString() || 0} FCFA
 
-*📞 Prochaines étapes:*
+*— Prochaines étapes —*
 Notre équipe vous contactera dans les 24h pour finaliser votre commande et organiser le paiement.
 
-*❓ Questions?*
+*— Questions? —*
 Répondez directement à ce message ou appelez le +237 673 209 375.
 
-Merci de votre confiance !
+Merci de votre confiance.
 _L'équipe LTC Finance_`;
 
     await sendWhatsApp(clientPhone, clientWhatsAppMessage);
@@ -284,7 +284,7 @@ _L'équipe LTC Finance_`;
       </div>
 
       <div class="next-steps">
-        <h3>📞 Prochaines étapes</h3>
+        <h3>Prochaines étapes</h3>
         <p>Notre équipe vous contactera dans les <strong>24 heures</strong> pour :</p>
         <ul>
           <li>Vérifier vos informations</li>
@@ -314,7 +314,7 @@ _L'équipe LTC Finance_`;
       await transporter.sendMail({
         from: '"LTC Finance" <noreply@ltcgroup.site>',
         to: email,
-        subject: `✅ Confirmation de commande ${orderRef} - LTC Finance`,
+        subject: `Confirmation de commande ${orderRef} - LTC Finance`,
         html: clientEmailHtml,
       });
     } catch (emailError) {
@@ -350,21 +350,21 @@ _L'équipe LTC Finance_`;
 <body>
   <div class="container">
     <div class="header">
-      <h1>🎴 Nouvelle Demande de Carte</h1>
+      <h1>Nouvelle Demande de Carte</h1>
     </div>
     <div class="content">
       <div class="alert">
-        <strong>⚡ Nouvelle commande reçue !</strong><br>
+        <strong>Nouvelle commande reçue</strong><br>
         Référence: <strong>${orderRef}</strong>
       </div>
 
       <div class="section">
-        <h3>📋 Carte demandée</h3>
+        <h3>Carte demandée</h3>
         <p style="font-size: 18px; font-weight: bold; color: #cea427;">${cardLabel}</p>
       </div>
 
       <div class="section">
-        <h3>👤 Informations personnelles</h3>
+        <h3>Informations personnelles</h3>
         <table>
           <tr><td>Nom complet</td><td>${firstName} ${lastName}</td></tr>
           <tr><td>Date de naissance</td><td>${birthDate}</td></tr>
@@ -377,19 +377,19 @@ _L'équipe LTC Finance_`;
       </div>
 
       <div class="section">
-        <h3>📄 Documents</h3>
+        <h3>Documents</h3>
         <table>
           <tr><td>N° CNI/Passeport</td><td>${idNumber}</td></tr>
-          <tr><td>NIU</td><td>${noNiu ? '<span style="color: #dc3545;">❌ N\'a pas de NIU (+3 000 FCFA)</span>' : registrationNumber}</td></tr>
+          <tr><td>NIU</td><td>${noNiu ? '<span style="color: #dc3545;">N\'a pas de NIU (+3 000 FCFA)</span>' : registrationNumber}</td></tr>
           <tr><td>Nom du père</td><td>${fatherName}</td></tr>
           <tr><td>Nom de la mère</td><td>${motherName}</td></tr>
-          <tr><td>Photo CNI</td><td>${idPhoto ? "✅ Fournie (voir WhatsApp)" : "❌ Non fournie"}</td></tr>
-          <tr><td>Photo identité</td><td>${passportPhoto ? "✅ Fournie (voir WhatsApp)" : "❌ Non fournie"}</td></tr>
+          <tr><td>Photo CNI</td><td>${idPhoto ? '<span style="color: #28a745;">Fournie (voir WhatsApp)</span>' : '<span style="color: #dc3545;">Non fournie</span>'}</td></tr>
+          <tr><td>Photo identité</td><td>${passportPhoto ? '<span style="color: #28a745;">Fournie (voir WhatsApp)</span>' : '<span style="color: #dc3545;">Non fournie</span>'}</td></tr>
         </table>
       </div>
 
       <div class="section">
-        <h3>🚚 Livraison</h3>
+        <h3>Livraison</h3>
         <table>
           <tr><td>Mode</td><td>${deliveryLabel}</td></tr>
           ${deliveryAddress ? `<tr><td>Adresse</td><td>${deliveryAddress}</td></tr>` : ""}
@@ -408,7 +408,7 @@ _L'équipe LTC Finance_`;
 
       <p style="text-align: center; margin-top: 20px;">
         <a href="https://wa.me/${clientPhone}" style="display: inline-block; background: #25d366; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-          📱 Contacter le client sur WhatsApp
+          Contacter le client sur WhatsApp
         </a>
       </p>
     </div>
@@ -423,7 +423,7 @@ _L'équipe LTC Finance_`;
       await transporter.sendMail({
         from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
         to: TEAM_EMAIL,
-        subject: `🎴 Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
+        subject: `[LTC Finance] Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
         html: teamEmailHtml,
       });
     } catch (emailError) {
