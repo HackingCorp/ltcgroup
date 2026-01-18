@@ -238,7 +238,7 @@ _L'équipe LTC Finance_`;
     .order-ref { background: #f8f9fa; border-left: 4px solid #cea427; padding: 15px; margin: 20px 0; }
     .order-ref strong { color: #cea427; }
     .details { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; }
-    .details h3 { color: #10151e; margin-top: 0; border-bottom: 2px solid #cea427; padding-bottom: 10px; }
+    .details h3 { color: #10151e; margin-top: 0; border-bottom: 2px solid #cea427; padding-bottom: 10px; display: flex; align-items: center; gap: 10px; }
     .details table { width: 100%; border-collapse: collapse; }
     .details td { padding: 8px 0; }
     .details td:last-child { text-align: right; font-weight: bold; }
@@ -246,9 +246,14 @@ _L'équipe LTC Finance_`;
     .total td { color: #fff; padding: 5px 0; }
     .total td:last-child { color: #cea427; font-size: 20px; }
     .next-steps { background: #e8f5e9; border-radius: 8px; padding: 20px; margin: 20px 0; }
-    .next-steps h3 { color: #2e7d32; margin-top: 0; }
+    .next-steps h3 { color: #2e7d32; margin-top: 0; display: flex; align-items: center; gap: 10px; }
     .footer { background: #10151e; color: #888; padding: 20px; text-align: center; font-size: 12px; }
     .footer a { color: #cea427; }
+    .icon { display: inline-block; width: 20px; height: 20px; border-radius: 4px; text-align: center; line-height: 20px; font-size: 12px; font-weight: bold; color: #fff; }
+    .icon-card { background: #cea427; }
+    .icon-check { background: #28a745; }
+    .icon-phone { background: #2e7d32; }
+    .icon-info { background: #17a2b8; }
   </style>
 </head>
 <body>
@@ -262,11 +267,12 @@ _L'équipe LTC Finance_`;
       <p>Nous avons bien reçu votre demande de carte bancaire. Voici le récapitulatif de votre commande :</p>
 
       <div class="order-ref">
+        <span class="icon icon-check">&#10003;</span>
         <strong>Référence de commande :</strong> ${orderRef}
       </div>
 
       <div class="details">
-        <h3>Détails de la commande</h3>
+        <h3><span class="icon icon-card">&#9830;</span> Détails de la commande</h3>
         <table>
           <tr><td>Type de carte</td><td>${cardLabel}</td></tr>
           <tr><td>Mode de réception</td><td>${deliveryLabel}</td></tr>
@@ -284,7 +290,7 @@ _L'équipe LTC Finance_`;
       </div>
 
       <div class="next-steps">
-        <h3>Prochaines étapes</h3>
+        <h3><span class="icon icon-phone">&#9742;</span> Prochaines étapes</h3>
         <p>Notre équipe vous contactera dans les <strong>24 heures</strong> pour :</p>
         <ul>
           <li>Vérifier vos informations</li>
@@ -293,7 +299,7 @@ _L'équipe LTC Finance_`;
         </ul>
       </div>
 
-      <p>Des questions ? Contactez-nous :</p>
+      <p><span class="icon icon-info">?</span> Des questions ? Contactez-nous :</p>
       <ul>
         <li>WhatsApp : <a href="https://wa.me/237673209375">+237 673 209 375</a></li>
         <li>Email : <a href="mailto:contact@ltcgroup.site">contact@ltcgroup.site</a></li>
@@ -338,13 +344,20 @@ _L'équipe LTC Finance_`;
     .content { padding: 20px; }
     .alert { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin: 15px 0; }
     .section { background: #f8f9fa; border-radius: 8px; padding: 15px; margin: 15px 0; }
-    .section h3 { margin-top: 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px; }
+    .section h3 { margin-top: 0; color: #10151e; border-bottom: 2px solid #cea427; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
     table { width: 100%; border-collapse: collapse; }
     td { padding: 6px 0; vertical-align: top; }
     td:first-child { font-weight: bold; width: 40%; color: #666; }
     .total-box { background: #10151e; color: #fff; padding: 15px; border-radius: 8px; text-align: center; }
     .total-box .amount { font-size: 28px; color: #cea427; font-weight: bold; }
     .footer { background: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }
+    .icon { display: inline-block; width: 22px; height: 22px; border-radius: 4px; text-align: center; line-height: 22px; font-size: 12px; font-weight: bold; color: #fff; }
+    .icon-card { background: #cea427; }
+    .icon-user { background: #6c757d; }
+    .icon-doc { background: #17a2b8; }
+    .icon-truck { background: #28a745; }
+    .status-ok { color: #28a745; font-weight: bold; }
+    .status-no { color: #dc3545; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -354,17 +367,17 @@ _L'équipe LTC Finance_`;
     </div>
     <div class="content">
       <div class="alert">
-        <strong>Nouvelle commande reçue</strong><br>
+        <strong>&#9656; Nouvelle commande reçue</strong><br>
         Référence: <strong>${orderRef}</strong>
       </div>
 
       <div class="section">
-        <h3>Carte demandée</h3>
+        <h3><span class="icon icon-card">&#9830;</span> Carte demandée</h3>
         <p style="font-size: 18px; font-weight: bold; color: #cea427;">${cardLabel}</p>
       </div>
 
       <div class="section">
-        <h3>Informations personnelles</h3>
+        <h3><span class="icon icon-user">&#9679;</span> Informations personnelles</h3>
         <table>
           <tr><td>Nom complet</td><td>${firstName} ${lastName}</td></tr>
           <tr><td>Date de naissance</td><td>${birthDate}</td></tr>
@@ -377,19 +390,19 @@ _L'équipe LTC Finance_`;
       </div>
 
       <div class="section">
-        <h3>Documents</h3>
+        <h3><span class="icon icon-doc">&#9998;</span> Documents</h3>
         <table>
           <tr><td>N° CNI/Passeport</td><td>${idNumber}</td></tr>
-          <tr><td>NIU</td><td>${noNiu ? '<span style="color: #dc3545;">N\'a pas de NIU (+3 000 FCFA)</span>' : registrationNumber}</td></tr>
+          <tr><td>NIU</td><td>${noNiu ? '<span class="status-no">&#10007; N\'a pas de NIU (+3 000 FCFA)</span>' : registrationNumber}</td></tr>
           <tr><td>Nom du père</td><td>${fatherName}</td></tr>
           <tr><td>Nom de la mère</td><td>${motherName}</td></tr>
-          <tr><td>Photo CNI</td><td>${idPhoto ? '<span style="color: #28a745;">Fournie (voir WhatsApp)</span>' : '<span style="color: #dc3545;">Non fournie</span>'}</td></tr>
-          <tr><td>Photo identité</td><td>${passportPhoto ? '<span style="color: #28a745;">Fournie (voir WhatsApp)</span>' : '<span style="color: #dc3545;">Non fournie</span>'}</td></tr>
+          <tr><td>Photo CNI</td><td>${idPhoto ? '<span class="status-ok">&#10003; Fournie (voir WhatsApp)</span>' : '<span class="status-no">&#10007; Non fournie</span>'}</td></tr>
+          <tr><td>Photo identité</td><td>${passportPhoto ? '<span class="status-ok">&#10003; Fournie (voir WhatsApp)</span>' : '<span class="status-no">&#10007; Non fournie</span>'}</td></tr>
         </table>
       </div>
 
       <div class="section">
-        <h3>Livraison</h3>
+        <h3><span class="icon icon-truck">&#10148;</span> Livraison</h3>
         <table>
           <tr><td>Mode</td><td>${deliveryLabel}</td></tr>
           ${deliveryAddress ? `<tr><td>Adresse</td><td>${deliveryAddress}</td></tr>` : ""}
@@ -408,7 +421,7 @@ _L'équipe LTC Finance_`;
 
       <p style="text-align: center; margin-top: 20px;">
         <a href="https://wa.me/${clientPhone}" style="display: inline-block; background: #25d366; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-          Contacter le client sur WhatsApp
+          &#9742; Contacter le client sur WhatsApp
         </a>
       </p>
     </div>
