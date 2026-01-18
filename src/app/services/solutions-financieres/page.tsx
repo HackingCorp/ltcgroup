@@ -1091,32 +1091,38 @@ export default function SolutionsFinancieresPage() {
                   <div className="space-y-3">
                     {/* Pickup Options */}
                     <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">{t.orderForm.pickupTitle}</div>
-                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                    <label className="flex items-start gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
                       <input
                         type="radio"
                         name="deliveryOption"
                         value="pickup_douala"
                         checked={formData.deliveryOption === "pickup_douala"}
                         onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value, deliveryAddress: "" }))}
-                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                        className="w-4 h-4 mt-1 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                       />
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
-                        <span className="text-white">{t.orderForm.pickupDouala}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
+                          <span className="text-white font-medium">{t.orderForm.pickupDouala}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 ml-7">{t.orderForm.addressDouala}</p>
                       </div>
                     </label>
-                    <label className="flex items-center gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                    <label className="flex items-start gap-3 p-3 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
                       <input
                         type="radio"
                         name="deliveryOption"
                         value="pickup_yaounde"
                         checked={formData.deliveryOption === "pickup_yaounde"}
                         onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value, deliveryAddress: "" }))}
-                        className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                        className="w-4 h-4 mt-1 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                       />
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
-                        <span className="text-white">{t.orderForm.pickupYaounde}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[#cea427] text-[20px]">store</span>
+                          <span className="text-white font-medium">{t.orderForm.pickupYaounde}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 ml-7">{t.orderForm.addressYaounde}</p>
                       </div>
                     </label>
 
@@ -1632,6 +1638,8 @@ const translations = {
       pickupTitle: "Retrait en agence (gratuit)",
       pickupDouala: "Retrait en agence - Douala",
       pickupYaounde: "Retrait en agence - Yaoundé",
+      addressDouala: "Immeuble Saker CCC Ndokotti, 2ème étage (plaque LTC Group)",
+      addressYaounde: "Mvan, descente entrée complexe BEAC - Immeuble carrelé à droite avec plaque LTC Group au balcon",
       deliveryTitle: "Livraison à domicile (Douala/Yaoundé)",
       deliveryDouala: "Livraison à domicile - Douala",
       deliveryYaounde: "Livraison à domicile - Yaoundé",
@@ -1911,6 +1919,8 @@ const translations = {
       pickupTitle: "Agency pickup (free)",
       pickupDouala: "Pickup at agency - Douala",
       pickupYaounde: "Pickup at agency - Yaoundé",
+      addressDouala: "Saker CCC Building Ndokotti, 2nd floor (LTC Group sign)",
+      addressYaounde: "Mvan, BEAC complex entrance descent - Tiled building on the right with LTC Group sign on balcony",
       deliveryTitle: "Home delivery (Douala/Yaoundé)",
       deliveryDouala: "Home delivery - Douala",
       deliveryYaounde: "Home delivery - Yaoundé",
