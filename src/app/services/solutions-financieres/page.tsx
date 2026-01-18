@@ -36,7 +36,8 @@ export default function SolutionsFinancieresPage() {
   const getCardPrice = () => {
     const prices: Record<string, number> = {
       "ACCESS_MASTERCARD_12500": 12500,
-      "UBA_SEGMENT1_10000": 10000,
+      "UBA_SEGMENT1_2ANS_10000": 10000,
+      "UBA_SEGMENT1_3ANS_12500": 12500,
       "UBA_SEGMENT2_15000": 15000,
       "UBA_SEGMENT3_25000": 25000,
     };
@@ -805,7 +806,8 @@ export default function SolutionsFinancieresPage() {
                   >
                     <option value="">{t.orderForm.selectCard}</option>
                     <option value="ACCESS_MASTERCARD_12500">Access Bank Mastercard - 12 500 FCFA</option>
-                    <option value="UBA_SEGMENT1_10000">UBA Visa Segment 1 - 10 000 FCFA (Plafond 2.5M)</option>
+                    <option value="UBA_SEGMENT1_2ANS_10000">UBA Visa Segment 1 - 10 000 FCFA (2 ans - Plafond 2.5M)</option>
+                    <option value="UBA_SEGMENT1_3ANS_12500">UBA Visa Segment 1 - 12 500 FCFA (3 ans - Plafond 2.5M)</option>
                     <option value="UBA_SEGMENT2_15000">UBA Visa Segment 2 - 15 000 FCFA (Plafond 4M)</option>
                     <option value="UBA_SEGMENT3_25000">UBA Visa Segment 3 - 25 000 FCFA (Plafond 10M)</option>
                   </select>

@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
     // Card type labels
     const cardLabels: Record<string, string> = {
       "ACCESS_MASTERCARD_12500": "Access Bank Mastercard",
-      "UBA_SEGMENT1_10000": "UBA Visa Segment 1 (Plafond 2.5M)",
+      "UBA_SEGMENT1_2ANS_10000": "UBA Visa Segment 1 (2 ans - Plafond 2.5M)",
+      "UBA_SEGMENT1_3ANS_12500": "UBA Visa Segment 1 (3 ans - Plafond 2.5M)",
       "UBA_SEGMENT2_15000": "UBA Visa Segment 2 (Plafond 4M)",
       "UBA_SEGMENT3_25000": "UBA Visa Segment 3 (Plafond 10M)",
     };
