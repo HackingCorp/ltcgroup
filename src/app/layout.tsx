@@ -10,7 +10,11 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "LTC GROUP SARL - Connecting Africa to the World",
+  metadataBase: new URL("https://ltcgroup.site"),
+  title: {
+    default: "LTC GROUP SARL - Connecting Africa to the World",
+    template: "%s | LTC GROUP",
+  },
   description:
     "LTC GROUP SARL est un groupe multisectoriel basé au Cameroun, actif dans le e-commerce, la logistique internationale, le BTP, les services digitaux et financiers. Un groupe, plusieurs solutions pour connecter l'Afrique au monde.",
   keywords: [
@@ -33,6 +37,27 @@ export const metadata: Metadata = {
     siteName: "LTC GROUP",
     locale: "fr_CM",
     type: "website",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "LTC GROUP SARL",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LTC GROUP SARL - Connecting Africa to the World",
+    description: "Groupe multisectoriel structuré, orienté innovation, commerce international et solutions digitales",
+    images: ["/og-image.jpg"],
+  },
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
