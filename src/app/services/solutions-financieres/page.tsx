@@ -954,7 +954,7 @@ export default function SolutionsFinancieresPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <label className="block text-sm font-medium text-gray-300">
-                        {t.orderForm.registrationNumber}
+                        {t.orderForm.registrationNumber} {!noNiu && <span className="text-[#cea427]">*</span>}
                       </label>
                       {/* Info tooltip */}
                       <div className="group relative">
@@ -966,14 +966,21 @@ export default function SolutionsFinancieresPage() {
                     </div>
 
                     {!noNiu && (
-                      <input
-                        type="text"
-                        name="registrationNumber"
-                        value={formData.registrationNumber}
-                        onChange={handleInputChange}
-                        placeholder="XXXXXXXXX"
-                        className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all mb-3"
-                      />
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          name="registrationNumber"
+                          value={formData.registrationNumber}
+                          onChange={handleInputChange}
+                          required
+                          minLength={15}
+                          maxLength={15}
+                          pattern="[A-Za-z0-9]{15}"
+                          placeholder="XXXXXXXXXXXXXXX (15 caractères)"
+                          className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Le NIU doit contenir exactement 15 caractères</p>
+                      </div>
                     )}
 
                     {/* No NIU checkbox */}
