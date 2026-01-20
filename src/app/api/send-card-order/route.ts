@@ -410,8 +410,8 @@ _L'équipe LTC Finance_`;
                 <tr><td style="font-weight: bold; width: 40%; color: #666;">NIU</td><td>${noNiu ? `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> N'a pas de NIU (+3 000 FCFA)` : registrationNumber}</td></tr>
                 <tr><td style="font-weight: bold; width: 40%; color: #666;">Nom du père</td><td>${fatherName}</td></tr>
                 <tr><td style="font-weight: bold; width: 40%; color: #666;">Nom de la mère</td><td>${motherName}</td></tr>
-                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo CNI</td><td>${idPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Fournie (voir WhatsApp)` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
-                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo identité</td><td>${passportPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Fournie (voir WhatsApp)` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo CNI</td><td>${idPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> En pièce jointe` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
+                <tr><td style="font-weight: bold; width: 40%; color: #666;">Photo identité</td><td>${passportPhoto ? `<img src="${iconBaseUrl}/check-circle.svg" alt="" width="16" height="16" style="vertical-align: middle;"> En pièce jointe` : `<img src="${iconBaseUrl}/cross.svg" alt="" width="16" height="16" style="vertical-align: middle;"> Non fournie`}</td></tr>
               </table>
             </td>
           </tr>
@@ -464,11 +464,45 @@ _L'équipe LTC Finance_`;
 </html>`;
 
     try {
+      // Prepare email attachments from uploaded photos
+      const attachments = [];
+
+      if (idPhoto) {
+        const matches = idPhoto.match(/^data:(.+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          const extension = mimeType.split('/')[1] || 'jpg';
+          attachments.push({
+            filename: idPhotoName || `CNI_${firstName}_${lastName}.${extension}`,
+            content: base64Data,
+            encoding: 'base64',
+            contentType: mimeType,
+          });
+        }
+      }
+
+      if (passportPhoto) {
+        const matches = passportPhoto.match(/^data:(.+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          const extension = mimeType.split('/')[1] || 'jpg';
+          attachments.push({
+            filename: passportPhotoName || `Photo_${firstName}_${lastName}.${extension}`,
+            content: base64Data,
+            encoding: 'base64',
+            contentType: mimeType,
+          });
+        }
+      }
+
       await transporter.sendMail({
         from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
         to: TEAM_EMAIL,
         subject: `[LTC Finance] Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
         html: teamEmailHtml,
+        attachments: attachments,
       });
     } catch (emailError) {
       console.error("Team email error:", emailError);
