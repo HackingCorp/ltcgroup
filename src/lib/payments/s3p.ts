@@ -25,7 +25,7 @@ export type S3PServiceId = typeof S3P_SERVICES[keyof typeof S3P_SERVICES];
 type S3PHeaders = Record<string, string>;
 
 interface S3PQuoteResponse {
-  quoteid: string;
+  quoteId: string;
   status: string;
   amount: number;
   fee: number;
@@ -46,26 +46,80 @@ interface S3PVerifyResponse {
   errorMessage?: string;
 }
 
-/**
- * Generate S3P authentication headers with s3pAuth Authorization
- * Format: s3pAuth {accessToken}#{nonce}#{signature}
- * Signature: HMAC-SHA1(accessToken + nonce + requestBody, secretKey) -> base64
- */
-function generateS3PHeaders(method: string, endpoint: string, body?: object): S3PHeaders {
-  const nonce = Date.now().toString();
-  const bodyString = body ? JSON.stringify(body) : '';
+interface S3PServiceResponse {
+  serviceid: string;
+  payItemId: string;
+  name: string;
+  [key: string]: unknown;
+}
 
-  // Build signature string: accessToken + nonce + requestBody
-  const signatureString = S3P_CONFIG.API_KEY + nonce + bodyString;
+/**
+ * URL encode a string according to RFC 3986
+ */
+function percentEncode(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A');
+}
+
+/**
+ * Generate S3P authentication headers with HMAC-SHA1 signature
+ * Format: s3pAuth, s3pAuth_timestamp="...", s3pAuth_signature="...", s3pAuth_nonce="...", s3pAuth_signature_method="HMAC-SHA1", s3pAuth_token="..."
+ */
+function generateS3PHeaders(method: string, url: string, params: Record<string, unknown> = {}): S3PHeaders {
+  const timestamp = Date.now();
+  const nonce = Date.now();
+  const signatureMethod = 'HMAC-SHA1';
+
+  // S3P authentication parameters
+  const s3pParams: Record<string, unknown> = {
+    s3pAuth_nonce: nonce,
+    s3pAuth_timestamp: timestamp,
+    s3pAuth_signature_method: signatureMethod,
+    s3pAuth_token: S3P_CONFIG.API_KEY,
+  };
+
+  // Merge all parameters
+  const allParams: Record<string, unknown> = { ...params, ...s3pParams };
+
+  // Clean and trim values
+  const cleanedParams: Record<string, string> = {};
+  for (const [key, value] of Object.entries(allParams)) {
+    if (value !== null && value !== undefined) {
+      if (typeof value === 'string') {
+        cleanedParams[key] = value.trim();
+      } else {
+        cleanedParams[key] = String(value);
+      }
+    }
+  }
+
+  // Sort alphabetically
+  const sortedKeys = Object.keys(cleanedParams).sort();
+  const sortedParams: Record<string, string> = {};
+  for (const key of sortedKeys) {
+    sortedParams[key] = cleanedParams[key];
+  }
+
+  // Create parameter string
+  const parameterString = Object.entries(sortedParams)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
+
+  // Create base string: METHOD&URL_ENCODED(url)&URL_ENCODED(parameterString)
+  const baseString = `${method}&${percentEncode(url)}&${percentEncode(parameterString)}`;
 
   // Generate HMAC-SHA1 signature
   const signature = crypto
     .createHmac('sha1', S3P_CONFIG.API_SECRET)
-    .update(signatureString)
+    .update(baseString)
     .digest('base64');
 
-  // Authorization header format: s3pAuth {accessToken}#{nonce}#{signature}
-  const authHeader = `s3pAuth ${S3P_CONFIG.API_KEY}#${nonce}#${signature}`;
+  // Create Authorization header
+  const authHeader = `s3pAuth, s3pAuth_timestamp="${timestamp}", s3pAuth_signature="${signature}", s3pAuth_nonce="${nonce}", s3pAuth_signature_method="${signatureMethod}", s3pAuth_token="${S3P_CONFIG.API_KEY}"`;
 
   return {
     'Authorization': authHeader,
@@ -99,15 +153,8 @@ export function formatPhoneForS3P(phone: string): string {
  */
 export function detectService(phone: string): S3PServiceId {
   const cleaned = formatPhoneForS3P(phone);
-  const prefix = cleaned.substring(0, 2);
 
-  // MTN prefixes: 67, 68, 65, 66, 69
-  const mtnPrefixes = ['65', '66', '67', '68', '69'];
-
-  // Orange prefixes: 69, 65 (shared), 655-659, 690-699
-  const orangePrefixes = ['69', '65'];
-
-  // More specific detection
+  // More specific detection based on Cameroon prefixes
   if (cleaned.startsWith('67') || cleaned.startsWith('68')) {
     return S3P_SERVICES.MTN_MOMO;
   }
@@ -124,20 +171,24 @@ export function detectService(phone: string): S3PServiceId {
 }
 
 /**
- * Step 1: Get available services (cashout)
+ * Step 1: Get available services and payItemId
  */
-export async function getServices(): Promise<unknown> {
+export async function getServices(serviceId: S3PServiceId): Promise<S3PServiceResponse[]> {
   const endpoint = '/cashout';
   const url = `${S3P_CONFIG.BASE_URL}${endpoint}`;
-  const headers = generateS3PHeaders('GET', endpoint);
+  const params = { serviceid: serviceId };
+  const headers = generateS3PHeaders('GET', url, params);
 
-  const response = await fetch(url, {
+  const urlWithParams = `${url}?serviceid=${serviceId}`;
+
+  const response = await fetch(urlWithParams, {
     method: 'GET',
     headers,
   });
 
   if (!response.ok) {
-    throw new Error(`S3P getServices failed: ${response.statusText}`);
+    const error = await response.text();
+    throw new Error(`S3P getServices failed: ${error}`);
   }
 
   return response.json();
@@ -147,20 +198,18 @@ export async function getServices(): Promise<unknown> {
  * Step 2: Create a quote for the payment
  */
 export async function createQuote(
-  serviceId: S3PServiceId,
-  amount: number,
-  phone: string
+  payItemId: string,
+  amount: number
 ): Promise<S3PQuoteResponse> {
   const endpoint = '/quotestd';
   const url = `${S3P_CONFIG.BASE_URL}${endpoint}`;
 
   const body = {
-    serviceid: serviceId,
+    payItemId: payItemId,
     amount: amount,
-    payItemId: phone, // Phone number without country code
   };
 
-  const headers = generateS3PHeaders('POST', endpoint, body);
+  const headers = generateS3PHeaders('POST', url, body);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -181,24 +230,24 @@ export async function createQuote(
  */
 export async function collectPayment(
   quoteId: string,
-  phone: string,
-  externalRef: string
+  serviceNumber: string,
+  externalRef: string,
+  customerName?: string
 ): Promise<S3PCollectResponse> {
   const endpoint = '/collectstd';
   const url = `${S3P_CONFIG.BASE_URL}${endpoint}`;
 
-  const body = {
-    quoteid: quoteId,
-    customerPhonenumber: phone, // Without country code
-    customerEmailaddress: '', // Optional
-    customerName: '', // Optional
-    customerAddress: '', // Optional
-    customerNumber: '', // Optional
-    serviceNumber: phone, // The number to charge
-    trid: externalRef, // Our transaction reference
+  const body: Record<string, string> = {
+    quoteId: quoteId,
+    customerPhonenumber: '237691371922', // Notification number
+    customerEmailaddress: 'lontsi05@gmail.com',
+    customerName: customerName || 'Client LTC Finance',
+    customerAddress: 'Cameroun',
+    serviceNumber: serviceNumber, // Customer's phone to charge (without 237)
+    trid: externalRef,
   };
 
-  const headers = generateS3PHeaders('POST', endpoint, body);
+  const headers = generateS3PHeaders('POST', url, body);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -217,12 +266,23 @@ export async function collectPayment(
 /**
  * Step 4: Verify transaction status
  */
-export async function verifyTransaction(ptn: string): Promise<S3PVerifyResponse> {
-  const endpoint = `/verifytx?ptn=${ptn}`;
+export async function verifyTransaction(transactionRef: string): Promise<S3PVerifyResponse> {
+  const endpoint = '/verifytx';
   const url = `${S3P_CONFIG.BASE_URL}${endpoint}`;
-  const headers = generateS3PHeaders('GET', endpoint);
 
-  const response = await fetch(url, {
+  // S3P accepts either trid or ptn
+  const params = transactionRef.startsWith('99999')
+    ? { ptn: transactionRef }
+    : { trid: transactionRef };
+
+  const headers = generateS3PHeaders('GET', url, params);
+
+  const queryString = Object.entries(params)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
+  const urlWithParams = `${url}?${queryString}`;
+
+  const response = await fetch(urlWithParams, {
     method: 'GET',
     headers,
   });
@@ -241,39 +301,72 @@ export async function verifyTransaction(ptn: string): Promise<S3PVerifyResponse>
 export async function initiateS3PPayment(
   amount: number,
   phone: string,
-  orderRef: string
+  orderRef: string,
+  customerName?: string
 ): Promise<{
   success: boolean;
   ptn?: string;
+  trid?: string;
   status?: string;
   message?: string;
   error?: string;
 }> {
   try {
-    // Format phone number
+    // Format phone number (without country code)
     const formattedPhone = formatPhoneForS3P(phone);
 
-    // Detect service
+    // Detect service based on phone prefix
     const serviceId = detectService(phone);
 
-    // Create quote
-    const quote = await createQuote(serviceId, amount, formattedPhone);
+    // Generate unique transaction reference
+    const trid = `LTC-${orderRef}-${Date.now()}`;
 
-    if (!quote.quoteid) {
+    // STEP 1: Get payItemId from services
+    const services = await getServices(serviceId);
+
+    let payItemId: string;
+    if (Array.isArray(services)) {
+      const service = services.find(s => s.serviceid === serviceId);
+      if (!service) {
+        return {
+          success: false,
+          error: `Service ${serviceId} not found`,
+        };
+      }
+      payItemId = service.payItemId;
+    } else if (services && typeof services === 'object' && 'payItemId' in services) {
+      payItemId = (services as S3PServiceResponse).payItemId;
+    } else {
+      return {
+        success: false,
+        error: 'Unexpected response format from S3P services',
+      };
+    }
+
+    // STEP 2: Create quote
+    const quote = await createQuote(payItemId, amount);
+
+    if (!quote.quoteId) {
       return {
         success: false,
         error: 'Failed to create payment quote',
       };
     }
 
-    // Initiate collection
-    const collection = await collectPayment(quote.quoteid, formattedPhone, orderRef);
+    // STEP 3: Initiate collection (sends push notification to customer)
+    const collection = await collectPayment(
+      quote.quoteId,
+      formattedPhone,
+      trid,
+      customerName
+    );
 
     return {
       success: true,
       ptn: collection.ptn,
+      trid: trid,
       status: collection.status,
-      message: collection.message,
+      message: collection.message || 'Payment request sent. Please check your phone.',
     };
   } catch (error) {
     console.error('S3P payment error:', error);

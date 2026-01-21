@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (method === 'mobile_money') {
       // Use S3P for Mobile Money (MTN, Orange Money)
-      const result = await initiateS3PPayment(amount, phone, orderRef);
+      const result = await initiateS3PPayment(amount, phone, orderRef, customerName);
 
       if (!result.success) {
         return NextResponse.json(
