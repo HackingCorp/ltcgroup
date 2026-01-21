@@ -48,6 +48,7 @@ export default function SolutionsFinancieresPage() {
   const [noNiu, setNoNiu] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error" | "payment_pending">("idle");
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"pay_later" | "mobile_money" | "enkap">("pay_later");
   const [paymentStatus, setPaymentStatus] = useState<{
     ptn?: string;
@@ -293,6 +294,7 @@ export default function SolutionsFinancieresPage() {
       setPaymentMethod("pay_later");
     } catch (error) {
       console.error("Submit error:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Une erreur est survenue. Veuillez réessayer.");
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -1468,11 +1470,23 @@ export default function SolutionsFinancieresPage() {
 
                 {/* Error Message */}
                 {submitStatus === "error" && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
-                    <span className="material-symbols-outlined text-red-500">error</span>
-                    <div>
-                      <p className="text-red-500 font-medium">{t.orderForm.errorTitle}</p>
-                      <p className="text-sm text-red-400">{t.orderForm.errorMessage}</p>
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-red-500 mt-0.5">error</span>
+                      <div className="flex-1">
+                        <p className="text-red-500 font-medium">{t.orderForm.errorTitle}</p>
+                        <p className="text-sm text-red-400 mt-1">{errorMessage || t.orderForm.errorMessage}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubmitStatus("idle");
+                          setErrorMessage("");
+                        }}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-xl">close</span>
+                      </button>
                     </div>
                   </div>
                 )}

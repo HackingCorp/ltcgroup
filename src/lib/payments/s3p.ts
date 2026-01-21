@@ -53,6 +53,55 @@ interface S3PServiceResponse {
   [key: string]: unknown;
 }
 
+interface S3PErrorResponse {
+  respCode: number;
+  devMsg: string;
+  usrMsg: string;
+}
+
+/**
+ * Map S3P error codes to user-friendly messages in French
+ */
+function mapS3PError(respCode: number, devMsg: string = ''): string {
+  const errorMap: Record<number, string> = {
+    // Success
+    0: 'Paiement réussi.',
+
+    // Transaction errors (Orange Money & MTN)
+    703202: 'Vous avez rejeté la transaction. Veuillez réessayer si vous souhaitez continuer.',
+    703201: 'La transaction n\'a pas été confirmée à temps. Veuillez réessayer.',
+    703108: 'Solde insuffisant sur votre compte Mobile Money.',
+    703000: 'La transaction a échoué. Veuillez réessayer.',
+    704005: 'La transaction a échoué. Veuillez réessayer.',
+
+    // API/Auth errors
+    4000: 'Erreur de connexion au service de paiement. Veuillez réessayer.',
+    50002: 'Le service de paiement est temporairement en maintenance. Veuillez réessayer plus tard.',
+    50001: 'Le service de paiement est temporairement indisponible. Veuillez réessayer plus tard.',
+    40001: 'Erreur technique. Veuillez contacter le support.',
+    40010: 'Le numéro de téléphone fourni est invalide.',
+    40030: 'Solde insuffisant sur votre compte Mobile Money.',
+    40031: 'Le montant dépasse la limite autorisée pour cette transaction.',
+    40020: 'Transaction en cours de traitement. Veuillez patienter.',
+    40021: 'Cette transaction a déjà été effectuée.',
+    40040: 'Le service de paiement sélectionné n\'est pas disponible.',
+  };
+
+  return errorMap[respCode] || `Une erreur de paiement est survenue. (Code: ${respCode})`;
+}
+
+/**
+ * Parse S3P error response and return user-friendly message
+ */
+function parseS3PError(errorText: string): string {
+  try {
+    const errorData: S3PErrorResponse = JSON.parse(errorText);
+    return mapS3PError(errorData.respCode, errorData.devMsg);
+  } catch {
+    return `Erreur de paiement: ${errorText}`;
+  }
+}
+
 /**
  * URL encode a string according to RFC 3986
  */
@@ -188,7 +237,7 @@ export async function getServices(serviceId: S3PServiceId): Promise<S3PServiceRe
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`S3P getServices failed: ${error}`);
+    throw new Error(parseS3PError(error));
   }
 
   return response.json();
@@ -219,7 +268,7 @@ export async function createQuote(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`S3P createQuote failed: ${error}`);
+    throw new Error(parseS3PError(error));
   }
 
   return response.json();
@@ -257,7 +306,7 @@ export async function collectPayment(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`S3P collectPayment failed: ${error}`);
+    throw new Error(parseS3PError(error));
   }
 
   return response.json();
@@ -289,7 +338,7 @@ export async function verifyTransaction(transactionRef: string): Promise<S3PVeri
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`S3P verifyTransaction failed: ${error}`);
+    throw new Error(parseS3PError(error));
   }
 
   return response.json();
