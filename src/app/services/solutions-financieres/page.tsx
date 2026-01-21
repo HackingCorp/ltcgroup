@@ -24,13 +24,36 @@ export default function SolutionsFinancieresPage() {
     motherName: "",
     deliveryOption: "",
     deliveryAddress: "",
+    shippingCity: "",
   });
+
+  // Shipping cities with their prices
+  const shippingCities = {
+    zone1: {
+      price: 2000,
+      cities: ["BAFOUSSAM", "MBOUDA", "DSCHANG", "BAFANG", "NKONGSAMBA", "KRIBI", "BERTOUA"],
+    },
+    zone2: {
+      price: 3000,
+      cities: ["NGAOUNDERE", "GAROUA-BOULAI", "MEIGANGA"],
+    },
+    zone3: {
+      price: 3000,
+      label: "Autre ville",
+    },
+  };
 
   const [idPhotoFile, setIdPhotoFile] = useState<File | null>(null);
   const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
   const [noNiu, setNoNiu] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error" | "payment_pending">("idle");
+  const [paymentMethod, setPaymentMethod] = useState<"pay_later" | "mobile_money" | "enkap">("pay_later");
+  const [paymentStatus, setPaymentStatus] = useState<{
+    ptn?: string;
+    orderId?: string;
+    checking?: boolean;
+  }>({});
 
   // Price calculation
   const getCardPrice = () => {
@@ -48,8 +71,30 @@ export default function SolutionsFinancieresPage() {
     if (formData.deliveryOption === "delivery_douala" || formData.deliveryOption === "delivery_yaounde") {
       return 1500;
     }
+    if (formData.deliveryOption === "shipping" && formData.shippingCity) {
+      // Check zone 1 cities (2000 FCFA)
+      if (shippingCities.zone1.cities.includes(formData.shippingCity)) {
+        return 2000;
+      }
+      // Check zone 2 cities (3000 FCFA)
+      if (shippingCities.zone2.cities.includes(formData.shippingCity)) {
+        return 3000;
+      }
+      // Other cities (3000 FCFA)
+      if (formData.shippingCity === "AUTRE") {
+        return 3000;
+      }
+    }
     return 0;
   };
+
+  // Check if shipping requires online payment
+  const isShippingSelected = formData.deliveryOption === "shipping";
+
+  // Force payment method when shipping is selected
+  const effectivePaymentMethod = isShippingSelected && paymentMethod === "pay_later"
+    ? "mobile_money"
+    : paymentMethod;
 
   const getNiuFee = () => noNiu ? 3000 : 0;
 
@@ -79,6 +124,28 @@ export default function SolutionsFinancieresPage() {
     });
   };
 
+  // Generate order reference
+  const generateOrderRef = () => `LTC-${Date.now().toString(36).toUpperCase()}`;
+
+  // Check Mobile Money payment status
+  const checkMobileMoneyStatus = async (ptn: string) => {
+    try {
+      const response = await fetch(`/api/payments/initiate?ptn=${ptn}`);
+      const result = await response.json();
+
+      if (result.status === "SUCCESS") {
+        setSubmitStatus("success");
+        setPaymentStatus({});
+      } else if (result.status === "FAILED" || result.status === "ERRORED") {
+        setSubmitStatus("error");
+        setPaymentStatus({});
+      }
+      // If still PENDING, keep checking
+    } catch (error) {
+      console.error("Status check error:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -90,6 +157,7 @@ export default function SolutionsFinancieresPage() {
       const deliveryFee = getDeliveryFee();
       const niuFee = getNiuFee();
       const total = getTotal();
+      const orderRef = generateOrderRef();
 
       // Convert files to base64
       let idPhotoBase64 = null;
@@ -102,7 +170,78 @@ export default function SolutionsFinancieresPage() {
         passportPhotoBase64 = await fileToBase64(passportPhotoFile);
       }
 
-      // Send via API
+      // Handle payment based on selected method (use effective method for shipping)
+      const finalPaymentMethod = isShippingSelected && paymentMethod === "pay_later"
+        ? "mobile_money"
+        : paymentMethod;
+
+      if (finalPaymentMethod === "mobile_money" || finalPaymentMethod === "enkap") {
+        // Initiate payment
+        const paymentResponse = await fetch("/api/payments/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            method: finalPaymentMethod,
+            amount: total,
+            orderRef,
+            phone: formData.phone,
+            email: formData.email,
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            cardType: formData.cardType,
+            orderDetails: { cardPrice, deliveryFee, niuFee, deliveryOption: formData.deliveryOption },
+          }),
+        });
+
+        const paymentResult = await paymentResponse.json();
+
+        if (!paymentResult.success) {
+          throw new Error(paymentResult.error || "Payment initiation failed");
+        }
+
+        if (finalPaymentMethod === "enkap" && paymentResult.paymentUrl) {
+          // Store order data before redirect
+          sessionStorage.setItem("pendingOrder", JSON.stringify({
+            ...formData,
+            noNiu,
+            cardPrice,
+            deliveryFee,
+            niuFee,
+            total,
+            orderRef,
+            idPhoto: idPhotoBase64,
+            idPhotoName: idPhotoFile?.name,
+            passportPhoto: passportPhotoBase64,
+            passportPhotoName: passportPhotoFile?.name,
+          }));
+
+          // Redirect to E-nkap payment page
+          window.location.href = paymentResult.paymentUrl;
+          return;
+        }
+
+        if (finalPaymentMethod === "mobile_money" && paymentResult.ptn) {
+          // Show Mobile Money confirmation screen
+          setPaymentStatus({ ptn: paymentResult.ptn, checking: true });
+          setSubmitStatus("payment_pending");
+
+          // Start polling for payment status
+          const pollInterval = setInterval(async () => {
+            await checkMobileMoneyStatus(paymentResult.ptn);
+          }, 5000);
+
+          // Store interval to clear later
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            if (submitStatus === "payment_pending") {
+              setPaymentStatus(prev => ({ ...prev, checking: false }));
+            }
+          }, 120000); // Stop polling after 2 minutes
+
+          return;
+        }
+      }
+
+      // For "pay_later" method - send order notification only
       const response = await fetch("/api/send-card-order", {
         method: "POST",
         headers: {
@@ -146,10 +285,12 @@ export default function SolutionsFinancieresPage() {
         motherName: "",
         deliveryOption: "",
         deliveryAddress: "",
+        shippingCity: "",
       });
       setIdPhotoFile(null);
       setPassportPhotoFile(null);
       setNoNiu(false);
+      setPaymentMethod("pay_later");
     } catch (error) {
       console.error("Submit error:", error);
       setSubmitStatus("error");
@@ -790,6 +931,63 @@ export default function SolutionsFinancieresPage() {
                   {language === "fr" ? "Nouvelle demande" : "New request"}
                 </button>
               </div>
+            ) : submitStatus === "payment_pending" ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-orange-500/20 flex items-center justify-center mx-auto mb-6">
+                  {paymentStatus.checking ? (
+                    <span className="material-symbols-outlined text-orange-500 text-4xl animate-pulse">smartphone</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-orange-500 text-4xl">hourglass_top</span>
+                  )}
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-4">
+                  {language === "fr" ? "Confirmez le paiement" : "Confirm payment"}
+                </h3>
+                <p className="text-gray-400 mb-4">
+                  {language === "fr"
+                    ? "Une demande de paiement a été envoyée sur votre téléphone."
+                    : "A payment request has been sent to your phone."
+                  }
+                </p>
+                <div className="bg-[#10151e] rounded-xl p-4 mb-6 max-w-sm mx-auto">
+                  <p className="text-sm text-gray-400 mb-2">
+                    {language === "fr" ? "Composez sur votre téléphone :" : "Dial on your phone:"}
+                  </p>
+                  <p className="text-xl font-mono text-[#cea427]">*126# (MTN) / #150# (Orange)</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {language === "fr"
+                      ? "Puis confirmez le paiement avec votre code PIN"
+                      : "Then confirm the payment with your PIN code"
+                    }
+                  </p>
+                </div>
+                {paymentStatus.checking ? (
+                  <div className="flex items-center justify-center gap-2 text-orange-400">
+                    <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <span className="text-sm">
+                      {language === "fr" ? "Vérification en cours..." : "Checking status..."}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      {language === "fr"
+                        ? "Le délai de vérification a expiré. Votre paiement a peut-être été traité."
+                        : "Verification timeout. Your payment may have been processed."
+                      }
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSubmitStatus("idle");
+                        setPaymentStatus({});
+                      }}
+                      className="px-6 py-3 bg-white/10 text-white font-bold rounded-lg hover:bg-white/20 transition-colors"
+                    >
+                      {language === "fr" ? "Réessayer" : "Try again"}
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Card Type Selection */}
@@ -1174,23 +1372,70 @@ export default function SolutionsFinancieresPage() {
                         name="deliveryOption"
                         value="shipping"
                         checked={formData.deliveryOption === "shipping"}
-                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deliveryOption: e.target.value, shippingCity: "" }))}
                         className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                       />
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#cea427] text-[20px]">flight</span>
-                        <span className="text-white">{t.orderForm.shipping}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[#cea427] text-[20px]">flight</span>
+                          <span className="text-white">{t.orderForm.shipping}</span>
+                        </div>
+                        <p className="text-xs text-orange-400 mt-1 ml-7 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">info</span>
+                          {language === "fr" ? "Paiement en ligne obligatoire" : "Online payment required"}
+                        </p>
                       </div>
+                      <span className="text-[#cea427] text-sm font-medium">+2 000 - 3 000 FCFA</span>
                     </label>
+
+                    {/* City Selection for Shipping */}
+                    {formData.deliveryOption === "shipping" && (
+                      <div className="mt-4 ml-7 p-4 bg-[#1B2233] rounded-lg border border-white/10">
+                        <label className="block text-sm font-medium text-gray-300 mb-3">
+                          {language === "fr" ? "Ville de destination" : "Destination city"} <span className="text-[#cea427]">*</span>
+                        </label>
+                        <select
+                          name="shippingCity"
+                          value={formData.shippingCity}
+                          onChange={(e) => setFormData(prev => ({ ...prev, shippingCity: e.target.value }))}
+                          required
+                          className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
+                        >
+                          <option value="">{language === "fr" ? "Sélectionnez une ville" : "Select a city"}</option>
+                          <optgroup label={language === "fr" ? "Zone 1 - 2 000 FCFA" : "Zone 1 - 2,000 FCFA"}>
+                            {shippingCities.zone1.cities.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label={language === "fr" ? "Zone 2 - 3 000 FCFA" : "Zone 2 - 3,000 FCFA"}>
+                            {shippingCities.zone2.cities.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label={language === "fr" ? "Autres villes - 3 000 FCFA" : "Other cities - 3,000 FCFA"}>
+                            <option value="AUTRE">{language === "fr" ? "Autre ville (préciser)" : "Other city (specify)"}</option>
+                          </optgroup>
+                        </select>
+                        {formData.shippingCity && (
+                          <p className="mt-2 text-sm text-[#cea427] flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                            {language === "fr" ? "Frais d'expédition" : "Shipping fee"}: {getDeliveryFee().toLocaleString()} FCFA
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Delivery Address (shown when delivery or shipping is selected) */}
                   {(formData.deliveryOption === "delivery_douala" ||
                     formData.deliveryOption === "delivery_yaounde" ||
-                    formData.deliveryOption === "shipping") && (
+                    (formData.deliveryOption === "shipping" && formData.shippingCity)) && (
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        {t.orderForm.deliveryAddress} <span className="text-[#cea427]">*</span>
+                        {formData.deliveryOption === "shipping"
+                          ? (language === "fr" ? "Adresse de livraison complète" : "Full delivery address")
+                          : t.orderForm.deliveryAddress
+                        } <span className="text-[#cea427]">*</span>
                       </label>
                       <input
                         type="text"
@@ -1198,9 +1443,20 @@ export default function SolutionsFinancieresPage() {
                         value={formData.deliveryAddress}
                         onChange={handleInputChange}
                         required
-                        placeholder={t.orderForm.deliveryAddressPlaceholder}
+                        placeholder={formData.shippingCity === "AUTRE"
+                          ? (language === "fr" ? "Ex: GAROUA, QUARTIER YELWA, RUE..." : "Ex: GAROUA, YELWA DISTRICT, STREET...")
+                          : t.orderForm.deliveryAddressPlaceholder
+                        }
                         className="w-full bg-[#1B2233] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
                       />
+                      {formData.shippingCity === "AUTRE" && (
+                        <p className="mt-2 text-xs text-gray-400">
+                          {language === "fr"
+                            ? "Veuillez inclure le nom de la ville dans l'adresse"
+                            : "Please include the city name in the address"
+                          }
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1255,32 +1511,188 @@ export default function SolutionsFinancieresPage() {
                   </div>
                 )}
 
+                {/* Payment Method Selection */}
+                {formData.cardType && (
+                  <div className="bg-[#10151e] rounded-xl p-5 border border-white/10">
+                    <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[#cea427]">payments</span>
+                      {language === "fr" ? "Mode de paiement" : "Payment method"}
+                    </h4>
+
+                    {/* Notice for shipping - online payment required */}
+                    {isShippingSelected && (
+                      <div className="mb-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-start gap-2">
+                        <span className="material-symbols-outlined text-orange-500 text-[20px]">info</span>
+                        <div>
+                          <p className="text-sm text-orange-400 font-medium">
+                            {language === "fr" ? "Paiement en ligne obligatoire" : "Online payment required"}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {language === "fr"
+                              ? "Pour les expéditions hors Douala/Yaoundé, le paiement doit être effectué en ligne avant l'envoi."
+                              : "For shipments outside Douala/Yaoundé, payment must be made online before shipping."
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {/* Pay Later Option - disabled for shipping */}
+                      {!isShippingSelected && (
+                        <label className="flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="pay_later"
+                            checked={paymentMethod === "pay_later"}
+                            onChange={() => setPaymentMethod("pay_later")}
+                            className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-gray-400 text-[20px]">schedule</span>
+                              <span className="text-white font-medium">
+                                {language === "fr" ? "Payer plus tard" : "Pay later"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1 ml-7">
+                              {language === "fr"
+                                ? "Notre équipe vous contactera pour organiser le paiement"
+                                : "Our team will contact you to arrange payment"
+                              }
+                            </p>
+                          </div>
+                        </label>
+                      )}
+
+                      {/* Mobile Money Option */}
+                      <label className={`flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border cursor-pointer transition-colors ${
+                        (isShippingSelected && (paymentMethod === "pay_later" || paymentMethod === "mobile_money"))
+                          ? "border-orange-500/50 bg-orange-500/5"
+                          : "border-white/5 hover:border-[#cea427]/30"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="mobile_money"
+                          checked={paymentMethod === "mobile_money" || (isShippingSelected && paymentMethod === "pay_later")}
+                          onChange={() => setPaymentMethod("mobile_money")}
+                          className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-orange-500 text-[20px]">smartphone</span>
+                            <span className="text-white font-medium">Mobile Money</span>
+                            <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                              {language === "fr" ? "Instantané" : "Instant"}
+                            </span>
+                            {isShippingSelected && (
+                              <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
+                                {language === "fr" ? "Recommandé" : "Recommended"}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1 ml-7">
+                            MTN Mobile Money, Orange Money
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-8 h-5 bg-yellow-500 rounded flex items-center justify-center text-[8px] font-bold text-black">MTN</div>
+                          <div className="w-8 h-5 bg-orange-500 rounded flex items-center justify-center text-[8px] font-bold text-white">OM</div>
+                        </div>
+                      </label>
+
+                      {/* E-nkap Option (Card/Multi-channel) */}
+                      <label className="flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="enkap"
+                          checked={paymentMethod === "enkap"}
+                          onChange={() => setPaymentMethod("enkap")}
+                          className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-blue-500 text-[20px]">credit_card</span>
+                            <span className="text-white font-medium">
+                              {language === "fr" ? "Carte bancaire / E-nkap" : "Bank card / E-nkap"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1 ml-7">
+                            Visa, Mastercard, {language === "fr" ? "et autres moyens" : "and other methods"}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-8 h-5 bg-blue-600 rounded flex items-center justify-center text-[8px] font-bold text-white">VISA</div>
+                          <div className="w-8 h-5 bg-red-500 rounded flex items-center justify-center text-[8px] font-bold text-white">MC</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 rounded-lg bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] font-bold text-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#cea427]/20"
+                  className={`w-full py-4 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+                    effectivePaymentMethod === "pay_later"
+                      ? "bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] shadow-[#cea427]/20"
+                      : effectivePaymentMethod === "mobile_money"
+                      ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white shadow-orange-500/20"
+                      : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-blue-500/20"
+                  }`}
                 >
                   {isSubmitting ? (
                     <>
                       <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                      {t.orderForm.submitting}
+                      {effectivePaymentMethod === "pay_later"
+                        ? t.orderForm.submitting
+                        : language === "fr" ? "Traitement en cours..." : "Processing..."}
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined">send</span>
-                      {t.orderForm.submit}
+                      <span className="material-symbols-outlined">
+                        {effectivePaymentMethod === "pay_later" ? "send" : effectivePaymentMethod === "mobile_money" ? "smartphone" : "credit_card"}
+                      </span>
+                      {effectivePaymentMethod === "pay_later"
+                        ? t.orderForm.submit
+                        : effectivePaymentMethod === "mobile_money"
+                        ? (language === "fr" ? "Payer par Mobile Money" : "Pay with Mobile Money")
+                        : (language === "fr" ? "Payer par carte" : "Pay by card")}
                     </>
                   )}
                 </button>
 
-                {/* WhatsApp Note */}
+                {/* Note based on payment method */}
                 <p className="text-center text-sm text-gray-400">
-                  <span className="material-symbols-outlined text-green-500 text-[16px] align-middle mr-1">verified</span>
-                  {language === "fr"
-                    ? "Votre demande sera envoyée automatiquement à notre équipe"
-                    : "Your request will be automatically sent to our team"
-                  }
+                  {effectivePaymentMethod === "pay_later" ? (
+                    <>
+                      <span className="material-symbols-outlined text-green-500 text-[16px] align-middle mr-1">verified</span>
+                      {language === "fr"
+                        ? "Votre demande sera envoyée automatiquement à notre équipe"
+                        : "Your request will be automatically sent to our team"
+                      }
+                    </>
+                  ) : effectivePaymentMethod === "mobile_money" ? (
+                    <>
+                      <span className="material-symbols-outlined text-orange-500 text-[16px] align-middle mr-1">lock</span>
+                      {language === "fr"
+                        ? "Paiement sécurisé via MTN MoMo ou Orange Money"
+                        : "Secure payment via MTN MoMo or Orange Money"
+                      }
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-blue-500 text-[16px] align-middle mr-1">lock</span>
+                      {language === "fr"
+                        ? "Vous serez redirigé vers une page de paiement sécurisée"
+                        : "You will be redirected to a secure payment page"
+                      }
+                    </>
+                  )}
                 </p>
               </form>
             )}
