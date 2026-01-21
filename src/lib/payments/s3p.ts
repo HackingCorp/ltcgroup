@@ -47,16 +47,16 @@ interface S3PVerifyResponse {
 }
 
 /**
- * Generate S3P authentication headers with HMAC-SHA1 signature
+ * Generate S3P authentication headers with s3pAuth Authorization
+ * Format: s3pAuth {accessToken}#{nonce}#{signature}
+ * Signature: HMAC-SHA1(accessToken + nonce + requestBody, secretKey) -> base64
  */
 function generateS3PHeaders(method: string, endpoint: string, body?: object): S3PHeaders {
   const nonce = Date.now().toString();
+  const bodyString = body ? JSON.stringify(body) : '';
 
-  // Build signature string: method + endpoint + nonce + body (if present)
-  let signatureString = `${method}${endpoint}${nonce}`;
-  if (body) {
-    signatureString += JSON.stringify(body);
-  }
+  // Build signature string: accessToken + nonce + requestBody
+  const signatureString = S3P_CONFIG.API_KEY + nonce + bodyString;
 
   // Generate HMAC-SHA1 signature
   const signature = crypto
@@ -64,10 +64,11 @@ function generateS3PHeaders(method: string, endpoint: string, body?: object): S3
     .update(signatureString)
     .digest('base64');
 
+  // Authorization header format: s3pAuth {accessToken}#{nonce}#{signature}
+  const authHeader = `s3pAuth ${S3P_CONFIG.API_KEY}#${nonce}#${signature}`;
+
   return {
-    'x-api-key': S3P_CONFIG.API_KEY,
-    'x-api-nonce': nonce,
-    'x-api-signature': signature,
+    'Authorization': authHeader,
     'Content-Type': 'application/json',
   };
 }
