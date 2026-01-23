@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       motherName,
       deliveryOption,
       deliveryAddress,
+      shippingCity,
       noNiu,
       cardPrice,
       deliveryFee,
@@ -112,9 +113,12 @@ export async function POST(request: NextRequest) {
       pickup_yaounde: "Retrait en agence - Yaoundé",
       delivery_douala: "Livraison à domicile - Douala (+1 500 FCFA)",
       delivery_yaounde: "Livraison à domicile - Yaoundé (+1 500 FCFA)",
-      shipping: "Expédition (autre ville)",
+      shipping: "Expédition",
     };
-    const deliveryLabel = deliveryLabels[deliveryOption] || deliveryOption;
+    let deliveryLabel = deliveryLabels[deliveryOption] || deliveryOption;
+    if (deliveryOption === "shipping" && shippingCity) {
+      deliveryLabel = `Expédition vers ${shippingCity}`;
+    }
 
     // Card type labels
     const cardLabels: Record<string, string> = {

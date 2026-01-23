@@ -151,8 +151,28 @@ export default function SolutionsFinancieresPage() {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus("idle");
+    setErrorMessage("");
 
     try {
+      // Validate delivery option
+      if (!formData.deliveryOption) {
+        throw new Error("Veuillez sélectionner un mode de réception de votre carte.");
+      }
+
+      // Validate shipping city if shipping is selected
+      if (formData.deliveryOption === "shipping" && !formData.shippingCity) {
+        throw new Error("Veuillez sélectionner une ville de destination.");
+      }
+
+      // Validate delivery address for delivery/shipping options
+      const needsAddress = formData.deliveryOption === "delivery_douala" ||
+        formData.deliveryOption === "delivery_yaounde" ||
+        formData.deliveryOption === "shipping";
+
+      if (needsAddress && !formData.deliveryAddress.trim()) {
+        throw new Error("Veuillez entrer votre adresse de livraison complète.");
+      }
+
       // Build price breakdown
       const cardPrice = getCardPrice();
       const deliveryFee = getDeliveryFee();
