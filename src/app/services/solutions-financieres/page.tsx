@@ -1193,13 +1193,13 @@ export default function SolutionsFinancieresPage() {
                           value={formData.registrationNumber}
                           onChange={handleInputChange}
                           required
-                          minLength={15}
-                          maxLength={15}
-                          pattern="[A-Za-z0-9]{15}"
-                          placeholder="XXXXXXXXXXXXXXX (15 caractères)"
+                          minLength={14}
+                          maxLength={14}
+                          pattern="[A-Za-z0-9]{14}"
+                          placeholder="XXXXXXXXXXXXXX (14 caractères)"
                           className="w-full bg-[#10151e] border border-white/10 rounded-lg px-4 py-3 text-white uppercase placeholder:text-gray-500 focus:ring-2 focus:ring-[#cea427] focus:border-transparent transition-all"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Le NIU doit contenir exactement 15 caractères</p>
+                        <p className="text-xs text-gray-500 mt-1">Le NIU doit contenir exactement 14 caractères</p>
                       </div>
                     )}
 
