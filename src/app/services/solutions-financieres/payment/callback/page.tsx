@@ -27,9 +27,14 @@ function PaymentCallbackContent() {
 
     setStatus(finalStatus);
 
-    // Send order notification with payment status
+    // Send order notification only on success
     const sendOrderNotification = async () => {
       if (orderSent) return;
+      if (finalStatus !== "success") {
+        // Don't send order notification on failed/cancelled payment
+        sessionStorage.removeItem("pendingOrder");
+        return;
+      }
 
       try {
         const pendingOrderStr = sessionStorage.getItem("pendingOrder");
@@ -37,18 +42,12 @@ function PaymentCallbackContent() {
 
         const pendingOrder = JSON.parse(pendingOrderStr);
 
-        const paymentStatusMap: Record<string, string> = {
-          success: "SUCCESS",
-          failed: "FAILED",
-          cancelled: "FAILED",
-        };
-
         const response = await fetch("/api/send-card-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...pendingOrder,
-            paymentStatus: paymentStatusMap[finalStatus],
+            paymentStatus: "SUCCESS",
             paymentMethod: "enkap",
           }),
         });

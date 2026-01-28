@@ -174,11 +174,8 @@ export default function SolutionsFinancieresPage() {
         setSubmitStatus("success");
         setPaymentStatus({});
       } else if (result.status === "FAILED" || result.status === "ERRORED") {
-        // Send order notification with failed status
-        if (pendingOrderData) {
-          await sendOrderNotification(pendingOrderData, "FAILED", "mobile_money");
-          setPendingOrderData(null);
-        }
+        // Don't send order notification on failed payment
+        setPendingOrderData(null);
         setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
         setSubmitStatus("error");
         setPaymentStatus({});
