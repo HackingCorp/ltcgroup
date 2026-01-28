@@ -341,7 +341,20 @@ export async function verifyTransaction(transactionRef: string): Promise<S3PVeri
     throw new Error(parseS3PError(error));
   }
 
-  return response.json();
+  // S3P returns an array of transactions
+  const data = await response.json();
+  const transaction = Array.isArray(data) ? data[0] : data;
+
+  if (!transaction) {
+    throw new Error('Transaction non trouvée');
+  }
+
+  return {
+    ptn: transaction.ptn,
+    status: transaction.status,
+    amount: parseFloat(transaction.priceLocalCur) || 0,
+    errorMessage: transaction.errorCode ? mapS3PError(transaction.errorCode) : undefined,
+  };
 }
 
 /**
