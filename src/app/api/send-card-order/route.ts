@@ -105,7 +105,24 @@ export async function POST(request: NextRequest) {
       idPhotoName,
       passportPhoto,
       passportPhotoName,
+      paymentStatus,
+      paymentMethod,
     } = body;
+
+    // Payment status labels
+    const paymentStatusLabels: Record<string, string> = {
+      SUCCESS: "✅ PAYÉ",
+      PENDING: "⏳ En attente",
+      FAILED: "❌ Échoué",
+      NOT_PAID: "💳 Non payé",
+    };
+    const paymentStatusLabel = paymentStatusLabels[paymentStatus] || paymentStatusLabels["NOT_PAID"];
+
+    const paymentMethodLabels: Record<string, string> = {
+      mobile_money: "Mobile Money",
+      enkap: "E-nkap",
+    };
+    const paymentMethodLabel = paymentMethod ? paymentMethodLabels[paymentMethod] || paymentMethod : "Non spécifié";
 
     // Build delivery option label
     const deliveryLabels: Record<string, string> = {
@@ -140,6 +157,8 @@ export async function POST(request: NextRequest) {
 *Réf: ${orderRef}*
 
 *Type de carte:* ${cardLabel}
+*Statut paiement:* ${paymentStatusLabel}
+*Moyen de paiement:* ${paymentMethodLabel}
 
 *— INFORMATIONS PERSONNELLES —*
 ━━━━━━━━━━━━━━━━━━
@@ -366,6 +385,18 @@ _L'équipe LTC Finance_`;
               <img src="${iconBaseUrl}/alert.svg" alt="" width="20" height="20" style="vertical-align: middle; margin-right: 8px;">
               <strong>Nouvelle commande reçue</strong><br>
               <span style="margin-left: 28px;">Référence: <strong>${orderRef}</strong></span>
+            </td>
+          </tr>
+        </table>
+
+        <table width="100%" cellpadding="15" cellspacing="0" style="background: ${paymentStatus === 'SUCCESS' ? '#d4edda' : paymentStatus === 'FAILED' ? '#f8d7da' : '#e2e3e5'}; border: 1px solid ${paymentStatus === 'SUCCESS' ? '#28a745' : paymentStatus === 'FAILED' ? '#dc3545' : '#6c757d'}; margin: 15px 0;">
+          <tr>
+            <td style="text-align: center;">
+              <div style="font-size: 24px; margin-bottom: 5px;">${paymentStatus === 'SUCCESS' ? '✅' : paymentStatus === 'FAILED' ? '❌' : '⏳'}</div>
+              <strong style="font-size: 16px; color: ${paymentStatus === 'SUCCESS' ? '#155724' : paymentStatus === 'FAILED' ? '#721c24' : '#383d41'};">
+                ${paymentStatusLabel}
+              </strong>
+              <div style="font-size: 12px; color: #666; margin-top: 5px;">via ${paymentMethodLabel}</div>
             </td>
           </tr>
         </table>

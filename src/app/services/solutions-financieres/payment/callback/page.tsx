@@ -7,26 +7,63 @@ import { Suspense, useEffect, useState } from "react";
 function PaymentCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "failed" | "cancelled">("loading");
+  const [orderSent, setOrderSent] = useState(false);
 
   useEffect(() => {
     // E-nkap returns status in query params
     const paymentStatus = searchParams.get("status");
-    const orderId = searchParams.get("order_id");
-    const reference = searchParams.get("merchant_reference");
+
+    let finalStatus: "success" | "failed" | "cancelled" = "success";
 
     if (paymentStatus) {
       if (paymentStatus.toUpperCase() === "COMPLETED" || paymentStatus.toUpperCase() === "SUCCESS") {
-        setStatus("success");
+        finalStatus = "success";
       } else if (paymentStatus.toUpperCase() === "CANCELLED") {
-        setStatus("cancelled");
+        finalStatus = "cancelled";
       } else {
-        setStatus("failed");
+        finalStatus = "failed";
       }
-    } else {
-      // Default to success if no status (some providers don't include it)
-      setStatus("success");
     }
-  }, [searchParams]);
+
+    setStatus(finalStatus);
+
+    // Send order notification with payment status
+    const sendOrderNotification = async () => {
+      if (orderSent) return;
+
+      try {
+        const pendingOrderStr = sessionStorage.getItem("pendingOrder");
+        if (!pendingOrderStr) return;
+
+        const pendingOrder = JSON.parse(pendingOrderStr);
+
+        const paymentStatusMap: Record<string, string> = {
+          success: "SUCCESS",
+          failed: "FAILED",
+          cancelled: "FAILED",
+        };
+
+        const response = await fetch("/api/send-card-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...pendingOrder,
+            paymentStatus: paymentStatusMap[finalStatus],
+            paymentMethod: "enkap",
+          }),
+        });
+
+        if (response.ok) {
+          sessionStorage.removeItem("pendingOrder");
+          setOrderSent(true);
+        }
+      } catch (error) {
+        console.error("Failed to send order notification:", error);
+      }
+    };
+
+    sendOrderNotification();
+  }, [searchParams, orderSent]);
 
   return (
     <div className="bg-[#10151e] text-white font-sans antialiased min-h-screen flex items-center justify-center">

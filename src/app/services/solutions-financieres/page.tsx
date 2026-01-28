@@ -56,6 +56,7 @@ export default function SolutionsFinancieresPage() {
     orderId?: string;
     checking?: boolean;
   }>({});
+  const [pendingOrderData, setPendingOrderData] = useState<Record<string, unknown> | null>(null);
 
   // Price calculation
   const getCardPrice = () => {
@@ -129,6 +130,26 @@ export default function SolutionsFinancieresPage() {
   // Generate order reference
   const generateOrderRef = () => `LTC-${Date.now().toString(36).toUpperCase()}`;
 
+  // Send order notification to manager
+  const sendOrderNotification = async (orderData: Record<string, unknown>, status: string, method: string) => {
+    try {
+      const response = await fetch("/api/send-card-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...orderData,
+          paymentStatus: status,
+          paymentMethod: method,
+        }),
+      });
+      const result = await response.json();
+      return result.success;
+    } catch (error) {
+      console.error("Failed to send order notification:", error);
+      return false;
+    }
+  };
+
   // Check Mobile Money payment status
   const checkMobileMoneyStatus = async (trid: string) => {
     try {
@@ -145,9 +166,19 @@ export default function SolutionsFinancieresPage() {
       }
 
       if (result.status === "SUCCESS") {
+        // Send order notification with payment status
+        if (pendingOrderData) {
+          await sendOrderNotification(pendingOrderData, "SUCCESS", "mobile_money");
+          setPendingOrderData(null);
+        }
         setSubmitStatus("success");
         setPaymentStatus({});
       } else if (result.status === "FAILED" || result.status === "ERRORED") {
+        // Send order notification with failed status
+        if (pendingOrderData) {
+          await sendOrderNotification(pendingOrderData, "FAILED", "mobile_money");
+          setPendingOrderData(null);
+        }
         setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
         setSubmitStatus("error");
         setPaymentStatus({});
@@ -252,6 +283,20 @@ export default function SolutionsFinancieresPage() {
         }
 
         if (finalPaymentMethod === "mobile_money" && paymentResult.trid) {
+          // Store order data for later notification
+          setPendingOrderData({
+            ...formData,
+            noNiu,
+            cardPrice,
+            deliveryFee,
+            niuFee,
+            total,
+            idPhoto: idPhotoBase64,
+            idPhotoName: idPhotoFile?.name,
+            passportPhoto: passportPhotoBase64,
+            passportPhotoName: passportPhotoFile?.name,
+          });
+
           // Show Mobile Money confirmation screen
           setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, checking: true });
           setSubmitStatus("payment_pending");
@@ -290,6 +335,8 @@ export default function SolutionsFinancieresPage() {
           idPhotoName: idPhotoFile?.name,
           passportPhoto: passportPhotoBase64,
           passportPhotoName: passportPhotoFile?.name,
+          paymentStatus: "NOT_PAID",
+          paymentMethod: "pay_later",
         }),
       });
 
