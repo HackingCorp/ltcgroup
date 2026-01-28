@@ -129,12 +129,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("Payment status check error:", error);
-    // Return PENDING status instead of error to keep polling
-    // The transaction might still be processing
-    return NextResponse.json({
-      success: true,
-      status: "PENDING",
-      errorMessage: "Vérification en cours...",
-    });
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : "Erreur de vérification" },
+      { status: 500 }
+    );
   }
 }

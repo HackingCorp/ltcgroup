@@ -135,6 +135,15 @@ export default function SolutionsFinancieresPage() {
       const response = await fetch(`/api/payments/initiate?trid=${trid}`);
       const result = await response.json();
 
+      if (!result.success && result.error) {
+        // API error during verification
+        console.error("Verification error:", result.error);
+        setErrorMessage(result.error);
+        setSubmitStatus("error");
+        setPaymentStatus({});
+        return;
+      }
+
       if (result.status === "SUCCESS") {
         setSubmitStatus("success");
         setPaymentStatus({});
