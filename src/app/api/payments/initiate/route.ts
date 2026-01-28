@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
         success: true,
         paymentMethod: 'mobile_money',
         ptn: result.ptn,
+        trid: result.trid, // Transaction reference for verification
         status: result.status,
         message: result.message || "Veuillez confirmer le paiement sur votre téléphone",
         orderRef,
@@ -104,16 +105,20 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const trid = searchParams.get('trid');
     const ptn = searchParams.get('ptn');
 
-    if (!ptn) {
+    // Prefer TRID for verification (more reliable)
+    const transactionRef = trid || ptn;
+
+    if (!transactionRef) {
       return NextResponse.json(
-        { success: false, error: "Missing PTN parameter" },
+        { success: false, error: "Missing transaction reference" },
         { status: 400 }
       );
     }
 
-    const result = await verifyTransaction(ptn);
+    const result = await verifyTransaction(transactionRef);
 
     return NextResponse.json({
       success: true,
@@ -124,9 +129,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("Payment status check error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to check payment status" },
-      { status: 500 }
-    );
+    // Return PENDING status instead of error to keep polling
+    // The transaction might still be processing
+    return NextResponse.json({
+      success: true,
+      status: "PENDING",
+      errorMessage: "Vérification en cours...",
+    });
   }
 }

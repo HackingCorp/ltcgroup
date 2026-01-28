@@ -52,6 +52,7 @@ export default function SolutionsFinancieresPage() {
   const [paymentMethod, setPaymentMethod] = useState<"pay_later" | "mobile_money" | "enkap">("pay_later");
   const [paymentStatus, setPaymentStatus] = useState<{
     ptn?: string;
+    trid?: string;
     orderId?: string;
     checking?: boolean;
   }>({});
@@ -129,15 +130,16 @@ export default function SolutionsFinancieresPage() {
   const generateOrderRef = () => `LTC-${Date.now().toString(36).toUpperCase()}`;
 
   // Check Mobile Money payment status
-  const checkMobileMoneyStatus = async (ptn: string) => {
+  const checkMobileMoneyStatus = async (trid: string) => {
     try {
-      const response = await fetch(`/api/payments/initiate?ptn=${ptn}`);
+      const response = await fetch(`/api/payments/initiate?trid=${trid}`);
       const result = await response.json();
 
       if (result.status === "SUCCESS") {
         setSubmitStatus("success");
         setPaymentStatus({});
       } else if (result.status === "FAILED" || result.status === "ERRORED") {
+        setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
         setSubmitStatus("error");
         setPaymentStatus({});
       }
@@ -240,14 +242,14 @@ export default function SolutionsFinancieresPage() {
           return;
         }
 
-        if (finalPaymentMethod === "mobile_money" && paymentResult.ptn) {
+        if (finalPaymentMethod === "mobile_money" && paymentResult.trid) {
           // Show Mobile Money confirmation screen
-          setPaymentStatus({ ptn: paymentResult.ptn, checking: true });
+          setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, checking: true });
           setSubmitStatus("payment_pending");
 
-          // Start polling for payment status
+          // Start polling for payment status using TRID (more reliable)
           const pollInterval = setInterval(async () => {
-            await checkMobileMoneyStatus(paymentResult.ptn);
+            await checkMobileMoneyStatus(paymentResult.trid);
           }, 5000);
 
           // Store interval to clear later
