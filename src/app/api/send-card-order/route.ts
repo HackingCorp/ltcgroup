@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { saveOrder } from "@/lib/supabase";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
 const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
@@ -542,6 +543,41 @@ _L'équipe LTC Finance_`;
     } catch (emailError) {
       console.error("Team email error:", emailError);
       // Continue even if email fails
+    }
+
+    // =====================
+    // 5. SAVE ORDER TO DATABASE
+    // =====================
+    try {
+      await saveOrder({
+        order_ref: orderRef,
+        card_type: cardType,
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate,
+        birth_city: birthCity,
+        city_neighborhood: cityNeighborhood,
+        phone,
+        email,
+        profession,
+        id_number: idNumber,
+        registration_number: registrationNumber || null,
+        father_name: fatherName,
+        mother_name: motherName,
+        delivery_option: deliveryOption,
+        delivery_address: deliveryAddress || null,
+        shipping_city: shippingCity || null,
+        no_niu: noNiu || false,
+        card_price: cardPrice || 0,
+        delivery_fee: deliveryFee || 0,
+        niu_fee: niuFee || 0,
+        total: total || 0,
+        payment_status: paymentStatus || 'NOT_PAID',
+        payment_method: paymentMethod || null,
+      });
+    } catch (dbError) {
+      console.error("Database save error:", dbError);
+      // Continue even if database save fails - notifications were already sent
     }
 
     return NextResponse.json({ success: true, orderRef });
