@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { updateOrderPaymentStatus } from "@/lib/supabase";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
 const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
@@ -70,6 +71,10 @@ async function handleEnkapWebhook(payload: EnkapWebhookPayload) {
   const { order_id, merchant_reference, status, amount, payment_method, customer } = payload;
 
   console.log(`E-nkap webhook: Order ${merchant_reference} - Status: ${status}`);
+
+  // Update payment status in database
+  const dbStatus = status === 'COMPLETED' ? 'SUCCESS' : status === 'PENDING' ? 'PENDING' : 'FAILED';
+  await updateOrderPaymentStatus(merchant_reference, dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED', 'enkap');
 
   if (status === 'COMPLETED') {
     // Payment successful - notify team
@@ -161,6 +166,10 @@ async function handleS3PWebhook(payload: S3PWebhookPayload) {
   const { ptn, trid, status, amount, serviceNumber, errorMessage } = payload;
 
   console.log(`S3P webhook: Transaction ${trid} - Status: ${status}`);
+
+  // Update payment status in database
+  const dbStatus = status === 'SUCCESS' ? 'SUCCESS' : status === 'PENDING' ? 'PENDING' : 'FAILED';
+  await updateOrderPaymentStatus(trid, dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED', 'mobile_money');
 
   if (status === 'SUCCESS') {
     // Payment successful - notify team

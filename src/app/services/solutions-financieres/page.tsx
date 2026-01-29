@@ -54,6 +54,7 @@ export default function SolutionsFinancieresPage() {
     ptn?: string;
     trid?: string;
     orderId?: string;
+    orderRef?: string;
     checking?: boolean;
   }>({});
   const [pendingOrderData, setPendingOrderData] = useState<Record<string, unknown> | null>(null);
@@ -160,9 +161,12 @@ export default function SolutionsFinancieresPage() {
   };
 
   // Check Mobile Money payment status
-  const checkMobileMoneyStatus = async (trid: string) => {
+  const checkMobileMoneyStatus = async (trid: string, orderRef?: string) => {
     try {
-      const response = await fetch(`/api/payments/initiate?trid=${trid}`);
+      const url = orderRef
+        ? `/api/payments/initiate?trid=${trid}&orderRef=${orderRef}`
+        : `/api/payments/initiate?trid=${trid}`;
+      const response = await fetch(url);
       const result = await response.json();
 
       if (!result.success && result.error) {
@@ -307,12 +311,12 @@ export default function SolutionsFinancieresPage() {
           });
 
           // Show Mobile Money confirmation screen
-          setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, checking: true });
+          setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, orderRef, checking: true });
           setSubmitStatus("payment_pending");
 
           // Start polling for payment status using TRID (more reliable)
           const pollInterval = setInterval(async () => {
-            await checkMobileMoneyStatus(paymentResult.trid);
+            await checkMobileMoneyStatus(paymentResult.trid, orderRef);
           }, 5000);
 
           // Store interval to clear later

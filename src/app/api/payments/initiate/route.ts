@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initiateS3PPayment, verifyTransaction } from "@/lib/payments/s3p";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
+import { updateOrderPaymentStatus } from "@/lib/supabase";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
 
@@ -107,6 +108,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const trid = searchParams.get('trid');
     const ptn = searchParams.get('ptn');
+    const orderRef = searchParams.get('orderRef');
 
     // Prefer TRID for verification (more reliable)
     const transactionRef = trid || ptn;
@@ -119,6 +121,12 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await verifyTransaction(transactionRef);
+
+    // Update payment status in database if we have the order reference
+    if (orderRef && (result.status === 'SUCCESS' || result.status === 'FAILED' || result.status === 'ERRORED')) {
+      const dbStatus = result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+      await updateOrderPaymentStatus(orderRef, dbStatus, 'mobile_money');
+    }
 
     return NextResponse.json({
       success: true,
