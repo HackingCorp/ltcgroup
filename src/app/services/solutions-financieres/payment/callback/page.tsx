@@ -27,7 +27,7 @@ function PaymentCallbackContent() {
 
     setStatus(finalStatus);
 
-    // Send order notification only on success
+    // Send order notification only on success with retry
     const sendOrderNotification = async () => {
       if (orderSent) return;
       if (finalStatus !== "success") {
@@ -36,28 +36,37 @@ function PaymentCallbackContent() {
         return;
       }
 
-      try {
-        const pendingOrderStr = sessionStorage.getItem("pendingOrder");
-        if (!pendingOrderStr) return;
+      const pendingOrderStr = sessionStorage.getItem("pendingOrder");
+      if (!pendingOrderStr) return;
 
-        const pendingOrder = JSON.parse(pendingOrderStr);
+      const pendingOrder = JSON.parse(pendingOrderStr);
 
-        const response = await fetch("/api/send-card-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...pendingOrder,
-            paymentStatus: "SUCCESS",
-            paymentMethod: "enkap",
-          }),
-        });
+      // Retry up to 3 times
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch("/api/send-card-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...pendingOrder,
+              paymentStatus: "SUCCESS",
+              paymentMethod: "enkap",
+            }),
+          });
 
-        if (response.ok) {
-          sessionStorage.removeItem("pendingOrder");
-          setOrderSent(true);
+          if (response.ok) {
+            sessionStorage.removeItem("pendingOrder");
+            setOrderSent(true);
+            return;
+          }
+          console.error(`Order notification attempt ${attempt} failed`);
+        } catch (error) {
+          console.error(`Order notification attempt ${attempt} error:`, error);
         }
-      } catch (error) {
-        console.error("Failed to send order notification:", error);
+        // Wait before retry
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
       }
     };
 

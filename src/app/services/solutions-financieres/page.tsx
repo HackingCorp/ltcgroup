@@ -130,24 +130,33 @@ export default function SolutionsFinancieresPage() {
   // Generate order reference
   const generateOrderRef = () => `LTC-${Date.now().toString(36).toUpperCase()}`;
 
-  // Send order notification to manager
-  const sendOrderNotification = async (orderData: Record<string, unknown>, status: string, method: string) => {
-    try {
-      const response = await fetch("/api/send-card-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...orderData,
-          paymentStatus: status,
-          paymentMethod: method,
-        }),
-      });
-      const result = await response.json();
-      return result.success;
-    } catch (error) {
-      console.error("Failed to send order notification:", error);
-      return false;
+  // Send order notification to manager with retry
+  const sendOrderNotification = async (orderData: Record<string, unknown>, status: string, method: string, retries = 3): Promise<boolean> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch("/api/send-card-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...orderData,
+            paymentStatus: status,
+            paymentMethod: method,
+          }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          return true;
+        }
+        console.error(`Order notification attempt ${attempt} failed:`, result.error);
+      } catch (error) {
+        console.error(`Order notification attempt ${attempt} error:`, error);
+      }
+      // Wait before retry (1s, 2s, 3s)
+      if (attempt < retries) {
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
     }
+    return false;
   };
 
   // Check Mobile Money payment status
@@ -168,8 +177,11 @@ export default function SolutionsFinancieresPage() {
       if (result.status === "SUCCESS") {
         // Send order notification with payment status
         if (pendingOrderData) {
-          await sendOrderNotification(pendingOrderData, "SUCCESS", "mobile_money");
-          setPendingOrderData(null);
+          const sent = await sendOrderNotification(pendingOrderData, "SUCCESS", "mobile_money");
+          if (sent) {
+            setPendingOrderData(null);
+          }
+          // Show success even if notification failed (payment is confirmed)
         }
         setSubmitStatus("success");
         setPaymentStatus({});
