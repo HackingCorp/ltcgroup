@@ -85,6 +85,13 @@ function mapS3PError(respCode: number, devMsg: string = ''): string {
     40020: 'Transaction en cours de traitement. Veuillez patienter.',
     40021: 'Cette transaction a déjà été effectuée.',
     40040: 'Le service de paiement sélectionné n\'est pas disponible.',
+
+    // Merchant/Quote errors
+    40302: 'Service de paiement temporairement indisponible. Veuillez réessayer dans quelques minutes.',
+    40301: 'La demande de paiement a expiré. Veuillez recommencer.',
+    40303: 'Montant invalide pour ce service de paiement.',
+    40304: 'Le service de paiement n\'est pas disponible pour ce numéro.',
+    40305: 'Limite de transactions atteinte. Veuillez réessayer plus tard.',
   };
 
   return errorMap[respCode] || `Une erreur de paiement est survenue. (Code: ${respCode})`;
