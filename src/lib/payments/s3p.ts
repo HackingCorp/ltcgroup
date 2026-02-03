@@ -61,18 +61,21 @@ interface S3PErrorResponse {
 
 /**
  * Map S3P error codes to user-friendly messages in French
+ * Based on official S3P documentation
  */
 function mapS3PError(respCode: number, devMsg: string = ''): string {
   const errorMap: Record<number, string> = {
     // Success
     0: 'Paiement réussi.',
 
-    // Transaction errors (Orange Money & MTN)
+    // Orange Money transaction errors
     703202: 'Vous avez rejeté la transaction. Veuillez réessayer si vous souhaitez continuer.',
+    703108: 'Solde insuffisant sur votre compte Orange Money.',
     703201: 'La transaction n\'a pas été confirmée à temps. Veuillez réessayer.',
-    703108: 'Solde insuffisant sur votre compte Mobile Money.',
-    703000: 'La transaction a échoué. Veuillez réessayer.',
-    704005: 'La transaction a échoué. Veuillez réessayer.',
+    703000: 'La transaction Orange Money a échoué. Veuillez réessayer.',
+
+    // MTN Mobile Money transaction errors
+    704005: 'La transaction MTN Mobile Money a échoué. Veuillez réessayer.',
 
     // API/Auth errors
     4000: 'Erreur de connexion au service de paiement. Veuillez réessayer.',
@@ -86,7 +89,7 @@ function mapS3PError(respCode: number, devMsg: string = ''): string {
     40021: 'Cette transaction a déjà été effectuée.',
     40040: 'Le service de paiement sélectionné n\'est pas disponible.',
 
-    // Merchant/Quote errors
+    // Quote/Merchant errors
     40302: 'Service de paiement temporairement indisponible. Veuillez réessayer dans quelques minutes.',
     40301: 'La demande de paiement a expiré. Veuillez recommencer.',
     40303: 'Montant invalide pour ce service de paiement.',
