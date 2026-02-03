@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLanguage } from "@/i18n";
 
 export default function SolutionsFinancieresPage() {
@@ -58,6 +58,8 @@ export default function SolutionsFinancieresPage() {
     checking?: boolean;
   }>({});
   const [pendingOrderData, setPendingOrderData] = useState<Record<string, unknown> | null>(null);
+  // Use ref to avoid stale closure in polling interval
+  const pendingOrderDataRef = useRef<Record<string, unknown> | null>(null);
 
   // Price calculation
   const getCardPrice = () => {
@@ -179,10 +181,12 @@ export default function SolutionsFinancieresPage() {
       }
 
       if (result.status === "SUCCESS") {
-        // Send order notification with payment status
-        if (pendingOrderData) {
-          const sent = await sendOrderNotification(pendingOrderData, "SUCCESS", "mobile_money");
+        // Send order notification with payment status - use ref to avoid stale closure
+        const orderData = pendingOrderDataRef.current;
+        if (orderData) {
+          const sent = await sendOrderNotification(orderData, "SUCCESS", "mobile_money");
           if (sent) {
+            pendingOrderDataRef.current = null;
             setPendingOrderData(null);
           }
           // Show success even if notification failed (payment is confirmed)
@@ -191,6 +195,7 @@ export default function SolutionsFinancieresPage() {
         setPaymentStatus({});
       } else if (result.status === "FAILED" || result.status === "ERRORED") {
         // Don't send order notification on failed payment
+        pendingOrderDataRef.current = null;
         setPendingOrderData(null);
         setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
         setSubmitStatus("error");
@@ -296,19 +301,23 @@ export default function SolutionsFinancieresPage() {
         }
 
         if (finalPaymentMethod === "mobile_money" && paymentResult.trid) {
-          // Store order data for later notification
-          setPendingOrderData({
+          // Store order data for later notification - use both state and ref
+          const orderDataForNotification = {
             ...formData,
             noNiu,
             cardPrice,
             deliveryFee,
             niuFee,
             total,
+            orderRef, // Include orderRef for database tracking
             idPhoto: idPhotoBase64,
             idPhotoName: idPhotoFile?.name,
             passportPhoto: passportPhotoBase64,
             passportPhotoName: passportPhotoFile?.name,
-          });
+          };
+          // Set ref immediately (synchronous) for polling callback
+          pendingOrderDataRef.current = orderDataForNotification;
+          setPendingOrderData(orderDataForNotification);
 
           // Show Mobile Money confirmation screen
           setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, orderRef, checking: true });
