@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initiateS3PPayment, verifyTransaction } from "@/lib/payments/s3p";
+import { initiateS3PPayment, verifyTransaction, detectService, S3P_SERVICES } from "@/lib/payments/s3p";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
-import { updateOrderPaymentStatus } from "@/lib/supabase";
+import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus } from "@/lib/supabase";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
 
@@ -39,15 +39,51 @@ export async function POST(request: NextRequest) {
     // For now, we'll include them in the transaction reference
 
     if (method === 'mobile_money') {
+      // Detect provider (MTN or Orange)
+      let provider = 'MTN';
+      try {
+        const serviceId = detectService(phone);
+        provider = serviceId === S3P_SERVICES.ORANGE_MONEY ? 'ORANGE' : 'MTN';
+      } catch {
+        // Default to MTN if detection fails
+      }
+
       // Use S3P for Mobile Money (MTN, Orange Money)
       const result = await initiateS3PPayment(amount, phone, orderRef, customerName);
 
       if (!result.success) {
+        // Save failed transaction attempt
+        await saveTransaction({
+          order_ref: orderRef,
+          amount,
+          phone,
+          customer_name: customerName,
+          customer_email: email,
+          payment_method: 'mobile_money',
+          provider,
+          status: 'FAILED',
+          error_message: result.error,
+        });
+
         return NextResponse.json(
           { success: false, error: result.error },
           { status: 400 }
         );
       }
+
+      // Save transaction to database
+      await saveTransaction({
+        ptn: result.ptn,
+        trid: result.trid,
+        order_ref: orderRef,
+        amount,
+        phone,
+        customer_name: customerName,
+        customer_email: email,
+        payment_method: 'mobile_money',
+        provider,
+        status: 'PENDING',
+      });
 
       return NextResponse.json({
         success: true,
@@ -71,11 +107,35 @@ export async function POST(request: NextRequest) {
       });
 
       if (!result.success) {
+        // Save failed transaction attempt
+        await saveTransaction({
+          order_ref: orderRef,
+          amount,
+          phone,
+          customer_name: customerName,
+          customer_email: email,
+          payment_method: 'enkap',
+          status: 'FAILED',
+          error_message: result.error,
+        });
+
         return NextResponse.json(
           { success: false, error: result.error },
           { status: 400 }
         );
       }
+
+      // Save transaction to database
+      await saveTransaction({
+        trid: result.transactionId,
+        order_ref: orderRef,
+        amount,
+        phone,
+        customer_name: customerName,
+        customer_email: email,
+        payment_method: 'enkap',
+        status: 'PENDING',
+      });
 
       return NextResponse.json({
         success: true,
@@ -122,10 +182,22 @@ export async function GET(request: NextRequest) {
 
     const result = await verifyTransaction(transactionRef);
 
-    // Update payment status in database if we have the order reference
-    if (orderRef && (result.status === 'SUCCESS' || result.status === 'FAILED' || result.status === 'ERRORED')) {
+    // Update transaction and order status in database
+    if (result.status === 'SUCCESS' || result.status === 'FAILED' || result.status === 'ERRORED') {
       const dbStatus = result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
-      await updateOrderPaymentStatus(orderRef, dbStatus, 'mobile_money');
+
+      // Update transaction status
+      await updateTransactionStatus(
+        { trid: trid || undefined, ptn: ptn || undefined },
+        dbStatus,
+        undefined,
+        result.errorMessage
+      );
+
+      // Update order status if we have the order reference
+      if (orderRef) {
+        await updateOrderPaymentStatus(orderRef, dbStatus, 'mobile_money');
+      }
     }
 
     return NextResponse.json({

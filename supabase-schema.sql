@@ -89,3 +89,64 @@ SELECT
   SUM(total) FILTER (WHERE payment_status = 'SUCCESS') as total_revenue,
   COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as orders_today
 FROM orders;
+
+-- =============================================
+-- TRANSACTIONS TABLE - Records all payment events
+-- =============================================
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Transaction identifiers
+  ptn VARCHAR(100),                    -- S3P Payment Transaction Number
+  trid VARCHAR(100),                   -- Transaction Reference ID
+  order_ref VARCHAR(50),               -- Link to order (if exists)
+
+  -- Payment details
+  amount INTEGER NOT NULL,
+  phone VARCHAR(20),
+  customer_name VARCHAR(200),
+  customer_email VARCHAR(255),
+
+  -- Payment method & provider
+  payment_method VARCHAR(50) NOT NULL, -- 'mobile_money', 'enkap'
+  provider VARCHAR(50),                -- 'MTN', 'ORANGE', 'VISA', etc.
+
+  -- Status
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, SUCCESS, FAILED, ERRORED
+  error_code VARCHAR(20),
+  error_message TEXT,
+
+  -- Timestamps
+  initiated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for transactions
+CREATE INDEX IF NOT EXISTS idx_transactions_ptn ON transactions(ptn);
+CREATE INDEX IF NOT EXISTS idx_transactions_trid ON transactions(trid);
+CREATE INDEX IF NOT EXISTS idx_transactions_order_ref ON transactions(order_ref);
+CREATE INDEX IF NOT EXISTS idx_transactions_phone ON transactions(phone);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
+
+-- Enable RLS
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- Policy for service role
+CREATE POLICY "Service role has full access to transactions" ON transactions
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+-- View for transaction statistics
+CREATE OR REPLACE VIEW transaction_stats AS
+SELECT
+  COUNT(*) as total_transactions,
+  COUNT(*) FILTER (WHERE status = 'SUCCESS') as successful,
+  COUNT(*) FILTER (WHERE status = 'FAILED' OR status = 'ERRORED') as failed,
+  COUNT(*) FILTER (WHERE status = 'PENDING') as pending,
+  SUM(amount) FILTER (WHERE status = 'SUCCESS') as total_collected,
+  COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as today_count,
+  SUM(amount) FILTER (WHERE status = 'SUCCESS' AND created_at > NOW() - INTERVAL '24 hours') as today_collected
+FROM transactions;
