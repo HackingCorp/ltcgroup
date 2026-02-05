@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { updateOrderPaymentStatus, updateTransactionStatus } from "@/lib/supabase";
+import { updateOrderPaymentStatus, updateTransactionStatus, getTransaction } from "@/lib/supabase";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
 const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
@@ -175,7 +175,16 @@ async function handleS3PWebhook(payload: S3PWebhookPayload) {
 
   // Update payment status in database
   const dbStatus = status === 'SUCCESS' ? 'SUCCESS' : status === 'PENDING' ? 'PENDING' : 'FAILED';
-  await updateOrderPaymentStatus(trid, dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED', 'mobile_money');
+
+  // Get the order_ref from the transaction table
+  const transaction = await getTransaction({ trid, ptn });
+  const orderRef = transaction?.order_ref;
+
+  if (orderRef) {
+    await updateOrderPaymentStatus(orderRef, dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED', 'mobile_money');
+  } else {
+    console.warn(`No order_ref found for transaction trid=${trid} ptn=${ptn}`);
+  }
 
   // Update transaction status
   await updateTransactionStatus(

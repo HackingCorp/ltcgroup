@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       passportPhotoName,
       paymentStatus,
       paymentMethod,
+      orderRef: providedOrderRef, // Accept existing orderRef if provided
     } = body;
 
     // Payment status labels
@@ -148,8 +149,8 @@ export async function POST(request: NextRequest) {
     };
     const cardLabel = cardLabels[cardType] || cardType;
 
-    // Generate order reference
-    const orderRef = `LTC-${Date.now().toString(36).toUpperCase()}`;
+    // Use provided orderRef or generate a new one
+    const orderRef = providedOrderRef || `LTC-${Date.now().toString(36).toUpperCase()}`;
 
     // =====================
     // 1. TEAM WHATSAPP MESSAGE
