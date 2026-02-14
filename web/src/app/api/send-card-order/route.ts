@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { saveOrder } from "@/lib/supabase";
+import { saveOrder } from "@/lib/db";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
 const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";

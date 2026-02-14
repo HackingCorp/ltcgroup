@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initiateS3PPayment, verifyTransaction, detectService, S3P_SERVICES } from "@/lib/payments/s3p";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
-import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus } from "@/lib/supabase";
+import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus } from "@/lib/db";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
 

@@ -1,7 +1,14 @@
--- Schema for LTC Group Orders Database
--- Run this SQL in your Supabase SQL Editor
+-- =============================================
+-- LTC Group - Initial Database Schema
+-- PostgreSQL 16+ (Docker)
+-- =============================================
 
--- Create orders table
+-- Enable pgcrypto for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- =============================================
+-- ORDERS TABLE
+-- =============================================
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   order_ref VARCHAR(50) UNIQUE NOT NULL,
@@ -46,21 +53,12 @@ CREATE TABLE IF NOT EXISTS orders (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index for faster lookups
+-- Indexes for orders
 CREATE INDEX IF NOT EXISTS idx_orders_order_ref ON orders(order_ref);
 CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(phone);
 CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(email);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-
--- Enable Row Level Security (optional but recommended)
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
--- Create policy to allow service role full access
-CREATE POLICY "Service role has full access" ON orders
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
 
 -- Function to auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -78,7 +76,7 @@ CREATE TRIGGER update_orders_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- View for order statistics (optional)
+-- View for order statistics
 CREATE OR REPLACE VIEW order_stats AS
 SELECT
   COUNT(*) as total_orders,
@@ -129,15 +127,6 @@ CREATE INDEX IF NOT EXISTS idx_transactions_order_ref ON transactions(order_ref)
 CREATE INDEX IF NOT EXISTS idx_transactions_phone ON transactions(phone);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
-
--- Enable RLS
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-
--- Policy for service role
-CREATE POLICY "Service role has full access to transactions" ON transactions
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
 
 -- View for transaction statistics
 CREATE OR REPLACE VIEW transaction_stats AS
