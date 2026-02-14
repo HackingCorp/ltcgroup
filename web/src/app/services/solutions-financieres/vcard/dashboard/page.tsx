@@ -1,118 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import BalanceWidget from "@/components/vcard/BalanceWidget";
 import TransactionList from "@/components/vcard/TransactionList";
 import CardPreview from "@/components/vcard/CardPreview";
-
-// MOCK DATA - Phase 1
-// TODO Phase 2: Replace with real API calls
-const MOCK_USER_CARDS = [
-  {
-    id: "vc_001",
-    type: "visa_segment2",
-    last4: "1234",
-    balance: 45000,
-    reserved: 5000,
-    status: "active",
-    expiryDate: "12/28",
-    holderName: "JEAN DUPONT",
-  },
-];
-
-const MOCK_TRANSACTIONS = [
-  {
-    id: "tx_001",
-    date: "2026-02-14",
-    description: "Recharge Mobile Money",
-    amount: 25000,
-    status: "completed" as const,
-    type: "topup" as const,
-  },
-  {
-    id: "tx_002",
-    date: "2026-02-13",
-    description: "Netflix Subscription",
-    amount: -4500,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_003",
-    date: "2026-02-12",
-    description: "Amazon Purchase",
-    amount: -12000,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_004",
-    date: "2026-02-10",
-    description: "Spotify Premium",
-    amount: -2500,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_005",
-    date: "2026-02-09",
-    description: "Recharge E-nkap",
-    amount: 50000,
-    status: "completed" as const,
-    type: "topup" as const,
-  },
-  {
-    id: "tx_006",
-    date: "2026-02-08",
-    description: "Udemy Course",
-    amount: -8500,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_007",
-    date: "2026-02-07",
-    description: "Google Cloud",
-    amount: -15000,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_008",
-    date: "2026-02-05",
-    description: "PayPal Transfer",
-    amount: -7500,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_009",
-    date: "2026-02-04",
-    description: "Apple iTunes",
-    amount: -3000,
-    status: "completed" as const,
-    type: "payment" as const,
-  },
-  {
-    id: "tx_010",
-    date: "2026-02-01",
-    description: "Recharge initiale",
-    amount: 50000,
-    status: "completed" as const,
-    type: "topup" as const,
-  },
-];
+import {
+  cardsAPI,
+  transactionsAPI,
+  authAPI,
+  isAuthenticated,
+  type CardResponse,
+  type TransactionResponse
+} from "@/lib/vcard-api";
 
 export default function VCardDashboardPage() {
-  // TODO Phase 2: Replace with real data fetching
-  // const [isLoading, setIsLoading] = useState(true);
-  const [selectedCardId, setSelectedCardId] = useState(
-    MOCK_USER_CARDS[0]?.id || ""
-  );
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [userCards, setUserCards] = useState<CardResponse[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState("");
+  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
 
-  const selectedCard = MOCK_USER_CARDS.find(
-    (card) => card.id === selectedCardId
-  );
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/services/solutions-financieres/vcard/auth");
+    } else {
+      loadData();
+    }
+  }, [router]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const { cards } = await cardsAPI.list();
+      setUserCards(cards);
+
+      if (cards.length > 0) {
+        const firstCard = cards[0];
+        setSelectedCardId(firstCard.id);
+        await loadTransactions(firstCard.id);
+      }
+    } catch (error) {
+      console.error("Failed to load data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadTransactions = async (cardId: string) => {
+    try {
+      const { transactions: txs } = await transactionsAPI.list(cardId, 50, 0);
+      setTransactions(txs);
+    } catch (error) {
+      console.error("Failed to load transactions:", error);
+    }
+  };
+
+  const selectedCard = userCards.find((card) => card.id === selectedCardId);
+
+  // Map API transactions to component format
+  const mappedTransactions = transactions.map(tx => ({
+    id: tx.id,
+    date: tx.created_at.split('T')[0], // Extract date from ISO string
+    description: tx.description || `${tx.transaction_type} - ${tx.amount} ${tx.currency}`,
+    amount: tx.transaction_type === 'TOPUP' ? tx.amount : -tx.amount,
+    status: "completed" as const,
+    type: tx.transaction_type === 'TOPUP' ? "topup" as const : "payment" as const,
+  }));
 
   // Card status badge
   const getStatusBadge = (status: string) => {
@@ -146,6 +101,19 @@ export default function VCardDashboardPage() {
       </span>
     );
   };
+
+  if (isLoading) {
+    return (
+      <div className="px-6 lg:px-20 py-12 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-6xl text-[#cea427] animate-spin">
+            progress_activity
+          </span>
+          <p className="text-slate-600 mt-4">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedCard) {
     return (
@@ -214,7 +182,7 @@ export default function VCardDashboardPage() {
               </span>
             </div>
             <p className="text-3xl font-black text-slate-900">
-              {MOCK_TRANSACTIONS.filter((t) => t.type === "topup").length}
+              {transactions.filter((t) => t.transaction_type === "TOPUP").length}
             </p>
           </div>
 
@@ -228,7 +196,7 @@ export default function VCardDashboardPage() {
               </span>
             </div>
             <p className="text-3xl font-black text-slate-900">
-              {MOCK_TRANSACTIONS.length}
+              {transactions.length}
             </p>
           </div>
         </div>
@@ -248,15 +216,13 @@ export default function VCardDashboardPage() {
                 <div>
                   <CardPreview
                     cardType={
-                      selectedCard.type as
-                        | "visa_segment1"
-                        | "visa_segment2"
-                        | "visa_segment3"
-                        | "mastercard"
+                      selectedCard.card_type === "VISA"
+                        ? "visa_segment2"
+                        : "mastercard"
                     }
-                    holderName={selectedCard.holderName}
-                    last4={selectedCard.last4}
-                    expiryDate={selectedCard.expiryDate}
+                    holderName="VOTRE NOM"
+                    last4={selectedCard.card_number_masked.slice(-4)}
+                    expiryDate={selectedCard.expiry_date}
                     showCVV={true}
                   />
                 </div>
@@ -268,7 +234,7 @@ export default function VCardDashboardPage() {
                       Numéro de carte
                     </p>
                     <p className="text-lg font-mono font-bold text-slate-900">
-                      •••• •••• •••• {selectedCard.last4}
+                      {selectedCard.card_number_masked}
                     </p>
                   </div>
 
@@ -278,7 +244,7 @@ export default function VCardDashboardPage() {
                         Date d'expiration
                       </p>
                       <p className="text-lg font-bold text-slate-900">
-                        {selectedCard.expiryDate}
+                        {selectedCard.expiry_date}
                       </p>
                     </div>
                     <div>
@@ -286,11 +252,7 @@ export default function VCardDashboardPage() {
                         Type
                       </p>
                       <p className="text-lg font-bold text-slate-900">
-                        {selectedCard.type
-                          .replace("_", " ")
-                          .toUpperCase()
-                          .replace("VISA ", "Visa ")
-                          .replace("MASTERCARD", "Mastercard")}
+                        {selectedCard.card_type}
                       </p>
                     </div>
                   </div>
@@ -316,7 +278,7 @@ export default function VCardDashboardPage() {
 
             {/* Transactions */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <TransactionList transactions={MOCK_TRANSACTIONS} />
+              <TransactionList transactions={mappedTransactions} />
             </div>
           </div>
 
@@ -326,9 +288,9 @@ export default function VCardDashboardPage() {
               {/* Balance widget */}
               <BalanceWidget
                 balance={selectedCard.balance}
-                reserved={selectedCard.reserved}
-                cardType={selectedCard.type}
-                last4={selectedCard.last4}
+                reserved={0}
+                cardType={selectedCard.card_type === "VISA" ? "visa_segment2" : "mastercard"}
+                last4={selectedCard.card_number_masked.slice(-4)}
               />
 
               {/* Quick actions */}
@@ -373,16 +335,19 @@ export default function VCardDashboardPage() {
                     </div>
                   </a>
 
-                  <button className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors w-full text-left">
-                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
-                      <span className="material-symbols-outlined text-slate-600">
-                        help
+                  <button
+                    onClick={() => authAPI.logout()}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors w-full text-left"
+                  >
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <span className="material-symbols-outlined text-red-600">
+                        logout
                       </span>
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900">Support</p>
+                      <p className="font-bold text-slate-900">Déconnexion</p>
                       <p className="text-xs text-slate-500">
-                        Besoin d'aide ?
+                        Se déconnecter
                       </p>
                     </div>
                   </button>

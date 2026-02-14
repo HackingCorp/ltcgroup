@@ -33,7 +33,14 @@ class CardsProvider with ChangeNotifier {
     try {
       _cards = await _apiService.getCards();
     } catch (e) {
-      _error = 'Erreur lors du chargement des cartes';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
+
+      // If session expired, rethrow to let UI handle logout
+      if (errorMessage.contains('Session expirée')) {
+        rethrow;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -52,6 +59,7 @@ class CardsProvider with ChangeNotifier {
   /// Purchase new card
   Future<bool> purchaseCard({
     required String type,
+    required double initialBalance,
     String currency = 'EUR',
   }) async {
     _isLoading = true;
@@ -61,14 +69,16 @@ class CardsProvider with ChangeNotifier {
     try {
       final newCard = await _apiService.purchaseCard(
         type: type,
-        currency: currency,
+        initialBalance: initialBalance,
       );
       _cards.add(newCard);
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Erreur lors de l\'achat de la carte';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;
@@ -100,7 +110,9 @@ class CardsProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Erreur lors de la mise à jour de la carte';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;

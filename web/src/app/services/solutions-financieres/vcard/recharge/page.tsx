@@ -1,30 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import TopupForm from "@/components/vcard/TopupForm";
 import CardPreview from "@/components/vcard/CardPreview";
-
-// MOCK DATA - Phase 1
-// TODO Phase 2: Replace with real API calls
-const MOCK_USER_CARDS = [
-  {
-    id: "vc_001",
-    type: "visa_segment2",
-    last4: "1234",
-    balance: 45000,
-    status: "active",
-    expiryDate: "12/28",
-    holderName: "JEAN DUPONT",
-    email: "jean.dupont@example.com",
-  },
-];
+import { cardsAPI, transactionsAPI, isAuthenticated, type CardResponse } from "@/lib/vcard-api";
 
 export default function VCardRechargePage() {
-  const [searchMethod, setSearchMethod] = useState<"card" | "email">("card");
+  const router = useRouter();
+  const [searchMethod, setSearchMethod] = useState<"card" | "list">("list");
   const [searchValue, setSearchValue] = useState("");
-  const [selectedCard, setSelectedCard] = useState<
-    (typeof MOCK_USER_CARDS)[0] | null
-  >(null);
+  const [selectedCard, setSelectedCard] = useState<CardResponse | null>(null);
+  const [userCards, setUserCards] = useState<CardResponse[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<
@@ -32,63 +19,70 @@ export default function VCardRechargePage() {
   >("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/services/solutions-financieres/vcard/auth");
+    } else {
+      loadUserCards();
+    }
+  }, [router]);
+
+  const loadUserCards = async () => {
+    try {
+      const { cards } = await cardsAPI.list();
+      setUserCards(cards);
+    } catch (error) {
+      console.error("Failed to load cards:", error);
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
     setErrorMessage("");
 
-    // TODO Phase 2: Replace with real API call
-    // const response = await fetch(`/api/vcard/cards?${searchMethod}=${searchValue}`);
-
-    // MOCK: Simulate search
-    setTimeout(() => {
-      if (searchMethod === "card" && searchValue.endsWith("1234")) {
-        setSelectedCard(MOCK_USER_CARDS[0]);
-      } else if (
-        searchMethod === "email" &&
-        searchValue === MOCK_USER_CARDS[0].email
-      ) {
-        setSelectedCard(MOCK_USER_CARDS[0]);
-      } else {
-        setErrorMessage("Aucune carte trouvée avec ces informations");
-        setSelectedCard(null);
+    try {
+      if (searchMethod === "card") {
+        // Search by last4 digits
+        const card = userCards.find(c => c.card_number_masked.slice(-4) === searchValue);
+        if (card) {
+          setSelectedCard(card);
+        } else {
+          setErrorMessage("Aucune carte trouvée avec ces informations");
+          setSelectedCard(null);
+        }
       }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Erreur lors de la recherche"
+      );
+    } finally {
       setIsSearching(false);
-    }, 1000);
+    }
   };
 
   const handleTopup = async (amount: number, paymentMethod: string) => {
+    if (!selectedCard) return;
+
     setIsSubmitting(true);
     setSubmitStatus("idle");
+    setErrorMessage("");
 
     try {
-      // TODO Phase 2: Replace with real API call
-      // const response = await fetch("/api/vcard/topup", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     cardId: selectedCard?.id,
-      //     amount,
-      //     paymentMethod,
-      //   }),
-      // });
-
-      // MOCK: Simulate topup
-      console.log("Topup request:", {
-        cardId: selectedCard?.id,
+      await transactionsAPI.topup({
+        card_id: selectedCard.id,
         amount,
-        paymentMethod,
+        currency: selectedCard.currency,
       });
 
-      setTimeout(() => {
-        setSubmitStatus("success");
-        setIsSubmitting(false);
-      }, 2000);
+      setSubmitStatus("success");
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Erreur lors de la recharge"
       );
       setSubmitStatus("error");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -149,15 +143,25 @@ export default function VCardRechargePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content - 2/3 width */}
             <div className="lg:col-span-2 space-y-8">
-              {/* Search card */}
+              {/* Search/Select card */}
               {!selectedCard && (
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                   <h2 className="text-xl font-black text-slate-900 mb-6">
-                    Identifier votre carte
+                    Sélectionner votre carte
                   </h2>
 
                   {/* Search method selector */}
                   <div className="flex gap-2 mb-6">
+                    <button
+                      onClick={() => setSearchMethod("list")}
+                      className={`flex-1 h-10 px-4 font-bold rounded-lg transition-all ${
+                        searchMethod === "list"
+                          ? "bg-[#cea427] text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      Mes cartes
+                    </button>
                     <button
                       onClick={() => setSearchMethod("card")}
                       className={`flex-1 h-10 px-4 font-bold rounded-lg transition-all ${
@@ -166,88 +170,89 @@ export default function VCardRechargePage() {
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      Par numéro de carte
-                    </button>
-                    <button
-                      onClick={() => setSearchMethod("email")}
-                      className={`flex-1 h-10 px-4 font-bold rounded-lg transition-all ${
-                        searchMethod === "email"
-                          ? "bg-[#cea427] text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      Par email
+                      Rechercher
                     </button>
                   </div>
 
-                  {/* Search form */}
-                  <form onSubmit={handleSearch}>
-                    <div className="mb-4">
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        {searchMethod === "card"
-                          ? "Derniers 4 chiffres de la carte"
-                          : "Adresse email"}
-                      </label>
-                      <input
-                        type={searchMethod === "card" ? "text" : "email"}
-                        value={searchValue}
-                        onChange={(e) => setSearchValue(e.target.value)}
-                        placeholder={
-                          searchMethod === "card"
-                            ? "1234"
-                            : "votre.email@example.com"
-                        }
-                        maxLength={searchMethod === "card" ? 4 : undefined}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                      />
-                    </div>
-
-                    {errorMessage && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                        {errorMessage}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isSearching}
-                      className="w-full h-12 bg-[#cea427] hover:bg-[#cea427]-dark disabled:bg-slate-300 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
-                    >
-                      {isSearching ? (
-                        <>
-                          <span className="material-symbols-outlined animate-spin">
-                            progress_activity
-                          </span>
-                          <span>Recherche...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined">
-                            search
-                          </span>
-                          <span>Rechercher ma carte</span>
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Info */}
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex gap-3">
-                      <span className="material-symbols-outlined text-blue-600">
-                        info
-                      </span>
-                      <div className="text-sm text-blue-900">
-                        <p className="font-bold mb-1">Comment trouver ma carte ?</p>
-                        <p className="text-blue-700">
-                          Les 4 derniers chiffres se trouvent sur votre carte
-                          virtuelle ou dans l'email de confirmation que vous avez
-                          reçu lors de l'achat.
+                  {searchMethod === "list" ? (
+                    // Card list
+                    <div className="space-y-3">
+                      {userCards.length === 0 ? (
+                        <p className="text-slate-500 text-center py-8">
+                          Aucune carte trouvée
                         </p>
-                      </div>
+                      ) : (
+                        userCards.map((card) => (
+                          <button
+                            key={card.id}
+                            onClick={() => setSelectedCard(card)}
+                            className="w-full flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-left"
+                          >
+                            <span className="material-symbols-outlined text-3xl text-slate-600">
+                              credit_card
+                            </span>
+                            <div className="flex-1">
+                              <p className="font-bold text-slate-900">
+                                {card.card_type} {card.card_number_masked}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                Solde: {formatAmount(card.balance)} {card.currency}
+                              </p>
+                            </div>
+                            <span className="material-symbols-outlined text-slate-400">
+                              chevron_right
+                            </span>
+                          </button>
+                        ))
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    // Search form
+                    <form onSubmit={handleSearch}>
+                      <div className="mb-4">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                          Derniers 4 chiffres de la carte
+                        </label>
+                        <input
+                          type="text"
+                          value={searchValue}
+                          onChange={(e) => setSearchValue(e.target.value)}
+                          placeholder="1234"
+                          maxLength={4}
+                          required
+                          className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
+                        />
+                      </div>
+
+                      {errorMessage && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                          {errorMessage}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isSearching}
+                        className="w-full h-12 bg-[#cea427] hover:bg-[#cea427]-dark disabled:bg-slate-300 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        {isSearching ? (
+                          <>
+                            <span className="material-symbols-outlined animate-spin">
+                              progress_activity
+                            </span>
+                            <span>Recherche...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined">
+                              search
+                            </span>
+                            <span>Rechercher ma carte</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )}
                 </div>
               )}
 
@@ -278,17 +283,12 @@ export default function VCardRechargePage() {
                       </span>
                       <div>
                         <p className="font-bold text-slate-900">
-                          {selectedCard.type
-                            .replace("_", " ")
-                            .toUpperCase()
-                            .replace("VISA ", "Visa ")
-                            .replace("MASTERCARD", "Mastercard")}{" "}
-                          •••• {selectedCard.last4}
+                          {selectedCard.card_type} {selectedCard.card_number_masked}
                         </p>
                         <p className="text-sm text-slate-600">
                           Solde actuel:{" "}
                           <span className="font-bold text-[#cea427]">
-                            {formatAmount(selectedCard.balance)} FCFA
+                            {formatAmount(selectedCard.balance)} {selectedCard.currency}
                           </span>
                         </p>
                       </div>
@@ -321,15 +321,13 @@ export default function VCardRechargePage() {
                     </h3>
                     <CardPreview
                       cardType={
-                        selectedCard.type as
-                          | "visa_segment1"
-                          | "visa_segment2"
-                          | "visa_segment3"
-                          | "mastercard"
+                        selectedCard.card_type === "VISA"
+                          ? "visa_segment2"
+                          : "mastercard"
                       }
-                      holderName={selectedCard.holderName}
-                      last4={selectedCard.last4}
-                      expiryDate={selectedCard.expiryDate}
+                      holderName="VOTRE NOM"
+                      last4={selectedCard.card_number_masked.slice(-4)}
+                      expiryDate={selectedCard.expiry_date}
                     />
                   </div>
                 )}

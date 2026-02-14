@@ -10,8 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import StaticPool
 
 from app.main import app
-from app.database import get_db
+from app.database import get_db, Base
 from app.services.accountpe import AccountPEClient
+from app.models.user import User, KYCStatus
+from app.models.card import Card, CardType, CardStatus
+from app.services.auth import hash_password
+from decimal import Decimal
 
 
 # Test database URL (SQLite in-memory for fast tests)
@@ -34,9 +38,9 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
         engine, class_=AsyncSession, expire_on_commit=False
     )
 
-    # Create tables (when models are defined)
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
+    # Create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as session:
         yield session
@@ -82,6 +86,35 @@ def mock_accountpe(monkeypatch):
         async def health_check(self) -> dict:
             return {"status": "healthy", "service": "accountpe-api"}
 
+        async def register_user(self, email: str, phone: str, first_name: str, last_name: str, password: str) -> dict:
+            return {"user_id": "accountpe_user_123", "status": "registered"}
+
+        async def purchase_card(self, user_id: str, card_type: str, initial_balance: float) -> dict:
+            return {
+                "card_id": "accountpe_card_123",
+                "card_number": "4111111111111111",
+                "expiry_date": "12/29",
+                "cvv": "123"
+            }
+
+        async def freeze_card(self, provider_card_id: str) -> dict:
+            return {"status": "frozen"}
+
+        async def unfreeze_card(self, provider_card_id: str) -> dict:
+            return {"status": "active"}
+
+        async def block_card(self, provider_card_id: str) -> dict:
+            return {"status": "blocked"}
+
+        async def topup_card(self, card_id: str, amount: float, currency: str) -> dict:
+            return {"transaction_id": "accountpe_txn_123", "status": "completed"}
+
+        async def withdraw_from_card(self, card_id: str, amount: float, currency: str) -> dict:
+            return {"transaction_id": "accountpe_txn_456", "status": "completed"}
+
+        async def submit_kyc(self, user_id: str, document_url: str, document_type: str) -> dict:
+            return {"status": "pending"}
+
     mock_client = MockAccountPEClient()
     monkeypatch.setattr("app.services.accountpe.accountpe_client", mock_client)
     return mock_client
@@ -95,33 +128,78 @@ def sample_user_data() -> dict:
     return {
         "email": "test@example.com",
         "password": "SecurePassword123!",
-        "full_name": "Test User",
+        "first_name": "Test",
+        "last_name": "User",
         "phone": "237670000000",
     }
 
 
-@pytest.fixture
-def sample_card_data() -> dict:
+@pytest_asyncio.fixture
+async def test_user(test_db: AsyncSession) -> User:
     """
-    Sample vCard data for testing card operations.
+    Create a test user in the database.
     """
-    return {
-        "card_type": "VISA",
-        "amount": 50000,  # 50,000 FCFA
-        "currency": "XAF",
-        "holder_name": "Test User",
-    }
+    user = User(
+        email="testuser@example.com",
+        phone="+237671234567",
+        first_name="Test",
+        last_name="User",
+        hashed_password=hash_password("TestPassword123!"),
+        kyc_status=KYCStatus.APPROVED,
+    )
+    test_db.add(user)
+    await test_db.commit()
+    await test_db.refresh(user)
+    return user
 
 
-@pytest.fixture
-def sample_transaction_data() -> dict:
+@pytest_asyncio.fixture
+async def test_user_token(test_client: AsyncClient, test_db: AsyncSession) -> tuple[str, User]:
     """
-    Sample transaction data for testing.
+    Create a test user and return their JWT token along with the user object.
     """
-    return {
-        "card_id": "card_123",
-        "amount": 10000,
-        "type": "TOPUP",
-        "status": "PENDING",
-        "reference": "TXN_123456",
-    }
+    # Create user with KYC approved
+    user = User(
+        email="tokenuser@example.com",
+        phone="+237671234568",
+        first_name="Token",
+        last_name="User",
+        hashed_password=hash_password("TokenPassword123!"),
+        kyc_status=KYCStatus.APPROVED,
+    )
+    test_db.add(user)
+    await test_db.commit()
+    await test_db.refresh(user)
+
+    # Login to get token
+    response = await test_client.post(
+        "/api/v1/auth/login",
+        params={"email": user.email, "password": "TokenPassword123!"}
+    )
+    assert response.status_code == 200
+    token_data = response.json()
+    return token_data["access_token"], user
+
+
+@pytest_asyncio.fixture
+async def test_card(test_db: AsyncSession, test_user: User) -> Card:
+    """
+    Create a test card for the test user.
+    """
+    card = Card(
+        user_id=test_user.id,
+        card_type=CardType.VISA,
+        card_number_masked="****1111",
+        card_number_full_encrypted="4111111111111111",
+        status=CardStatus.ACTIVE,
+        balance=Decimal("100.00"),
+        currency="USD",
+        provider="AccountPE",
+        provider_card_id="accountpe_card_123",
+        expiry_date="12/29",
+        cvv_encrypted="123",
+    )
+    test_db.add(card)
+    await test_db.commit()
+    await test_db.refresh(card)
+    return card

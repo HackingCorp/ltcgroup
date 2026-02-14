@@ -21,6 +21,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
 
     final success = await cardsProvider.purchaseCard(
       type: _selectedType,
+      initialBalance: 0.0,
       currency: _currency,
     );
 

@@ -59,7 +59,7 @@ class _TopupScreenState extends State<TopupScreen> {
     final success = await transactionsProvider.topupCard(
       cardId: _selectedCardId!,
       amount: amount,
-      method: _selectedMethod,
+      currency: 'USD',
     );
 
     if (!mounted) return;

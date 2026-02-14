@@ -1,17 +1,13 @@
 """
 Tests for authentication endpoints (API v1)
-
-These tests are skeleton tests for future API endpoints.
-They will be skipped until the actual endpoints are implemented.
 """
 
 import pytest
 from httpx import AsyncClient
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_register_user_success(test_client: AsyncClient, sample_user_data: dict):
+async def test_register_user_success(test_client: AsyncClient, sample_user_data: dict, mock_accountpe):
     """
     Test successful user registration.
     """
@@ -19,37 +15,71 @@ async def test_register_user_success(test_client: AsyncClient, sample_user_data:
 
     assert response.status_code == 201
     data = response.json()
-    assert "id" in data
-    assert data["email"] == sample_user_data["email"]
-    assert "password" not in data  # Password should not be returned
+    assert "user" in data
+    assert "token" in data
+
+    user = data["user"]
+    assert "id" in user
+    assert user["email"] == sample_user_data["email"]
+    assert user["first_name"] == sample_user_data["first_name"]
+    assert user["last_name"] == sample_user_data["last_name"]
+    assert user["kyc_status"] == "PENDING"
+
+    token = data["token"]
+    assert "access_token" in token
+    assert token["token_type"] == "bearer"
+    assert "expires_in" in token
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_register_user_duplicate_email(test_client: AsyncClient, sample_user_data: dict):
+async def test_register_user_duplicate_email(test_client: AsyncClient, sample_user_data: dict, mock_accountpe):
     """
     Test that registering with an existing email returns an error.
     """
     # First registration
-    await test_client.post("/api/v1/auth/register", json=sample_user_data)
+    response1 = await test_client.post("/api/v1/auth/register", json=sample_user_data)
+    assert response1.status_code == 201
 
     # Second registration with same email
-    response = await test_client.post("/api/v1/auth/register", json=sample_user_data)
+    response2 = await test_client.post("/api/v1/auth/register", json=sample_user_data)
 
-    assert response.status_code == 400
-    data = response.json()
-    assert "error" in data or "detail" in data
+    assert response2.status_code == 400
+    data = response2.json()
+    assert "detail" in data
+    assert "email" in data["detail"].lower()
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_register_user_invalid_data(test_client: AsyncClient):
+async def test_register_user_duplicate_phone(test_client: AsyncClient, sample_user_data: dict, mock_accountpe):
+    """
+    Test that registering with an existing phone returns an error.
+    """
+    # First registration
+    response1 = await test_client.post("/api/v1/auth/register", json=sample_user_data)
+    assert response1.status_code == 201
+
+    # Second registration with same phone but different email
+    duplicate_phone_data = sample_user_data.copy()
+    duplicate_phone_data["email"] = "different@example.com"
+    response2 = await test_client.post("/api/v1/auth/register", json=duplicate_phone_data)
+
+    assert response2.status_code == 400
+    data = response2.json()
+    assert "detail" in data
+    assert "phone" in data["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_register_user_invalid_data(test_client: AsyncClient, mock_accountpe):
     """
     Test registration with invalid data.
     """
     invalid_data = {
         "email": "not-an-email",
         "password": "123",  # Too short
+        "first_name": "Test",
+        "last_name": "User",
+        "phone": "123"
     }
 
     response = await test_client.post("/api/v1/auth/register", json=invalid_data)
@@ -57,53 +87,66 @@ async def test_register_user_invalid_data(test_client: AsyncClient):
     assert response.status_code == 422  # Validation error
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_login_success(test_client: AsyncClient, sample_user_data: dict):
+async def test_login_success(test_client: AsyncClient, sample_user_data: dict, mock_accountpe):
     """
     Test successful login and JWT token generation.
     """
     # Register user first
     await test_client.post("/api/v1/auth/register", json=sample_user_data)
 
-    # Login
-    login_data = {
-        "email": sample_user_data["email"],
-        "password": sample_user_data["password"],
-    }
-    response = await test_client.post("/api/v1/auth/login", json=login_data)
+    # Login - note that the login endpoint uses query params, not JSON body
+    response = await test_client.post(
+        "/api/v1/auth/login",
+        params={
+            "email": sample_user_data["email"],
+            "password": sample_user_data["password"],
+        }
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert "token_type" in data
     assert data["token_type"] == "bearer"
+    assert "expires_in" in data
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_login_invalid_credentials(test_client: AsyncClient):
+async def test_login_invalid_password(test_client: AsyncClient, sample_user_data: dict, mock_accountpe):
     """
-    Test login with invalid credentials.
+    Test login with wrong password.
     """
-    login_data = {
-        "email": "nonexistent@example.com",
-        "password": "WrongPassword123!",
-    }
+    # Register user first
+    await test_client.post("/api/v1/auth/register", json=sample_user_data)
 
-    response = await test_client.post("/api/v1/auth/login", json=login_data)
+    # Login with wrong password
+    response = await test_client.post(
+        "/api/v1/auth/login",
+        params={
+            "email": sample_user_data["email"],
+            "password": "WrongPassword123!",
+        }
+    )
 
     assert response.status_code == 401
     data = response.json()
-    assert "error" in data or "detail" in data
+    assert "detail" in data
 
 
-@pytest.mark.skip(reason="Auth endpoints not yet implemented")
 @pytest.mark.asyncio
-async def test_login_missing_fields(test_client: AsyncClient):
+async def test_login_nonexistent_user(test_client: AsyncClient, mock_accountpe):
     """
-    Test login with missing required fields.
+    Test login with non-existent email.
     """
-    response = await test_client.post("/api/v1/auth/login", json={})
+    response = await test_client.post(
+        "/api/v1/auth/login",
+        params={
+            "email": "nonexistent@example.com",
+            "password": "SomePassword123!",
+        }
+    )
 
-    assert response.status_code == 422  # Validation error
+    assert response.status_code == 401
+    data = response.json()
+    assert "detail" in data

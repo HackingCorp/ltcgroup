@@ -8,26 +8,28 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('vCard Dashboard', () => {
-  test.skip('should display login page for unauthenticated users', async ({ page }) => {
+  test('should redirect unauthenticated users to auth page', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
-    // Should redirect to login or show login prompt
-    await expect(page.locator('text=/connexion|login/i')).toBeVisible();
+    // Wait for redirect
+    await page.waitForLoadState('networkidle');
+
+    // Should redirect to auth page
+    expect(page.url()).toContain('/auth');
   });
 
-  test.skip('should login successfully with valid credentials', async ({ page }) => {
-    await page.goto('/services/solutions-financieres/vcard/login');
+  test('should display auth page with login form', async ({ page }) => {
+    await page.goto('/services/solutions-financieres/vcard/auth');
 
-    // Fill login form
-    await page.fill('[name="email"]', 'test@example.com');
-    await page.fill('[name="password"]', 'SecurePassword123!');
+    // Wait for page load
+    await page.waitForLoadState('networkidle');
 
-    // Submit
-    await page.click('button[type="submit"]');
+    // Should have email and password fields
+    const emailField = page.locator('input[name="email"], input[type="email"]');
+    const passwordField = page.locator('input[name="password"], input[type="password"]');
 
-    // Should redirect to dashboard
-    await page.waitForURL(/dashboard/);
-    await expect(page.locator('h1')).toContainText(/tableau de bord|dashboard/i);
+    await expect(emailField).toBeVisible();
+    await expect(passwordField).toBeVisible();
   });
 
   test.skip('should display list of user cards', async ({ page }) => {

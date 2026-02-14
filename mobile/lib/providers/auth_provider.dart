@@ -49,7 +49,9 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Identifiants incorrects';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;
@@ -78,7 +80,9 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Erreur lors de l\'inscription';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;
@@ -106,5 +110,10 @@ class AuthProvider with ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// Handle session expiry (called on 401 errors)
+  Future<void> handleSessionExpired() async {
+    await logout();
   }
 }

@@ -31,7 +31,7 @@ class Transaction {
   bool get isPending => status == 'PENDING';
 
   /// Check if transaction is successful
-  bool get isSuccess => status == 'SUCCESS';
+  bool get isSuccess => status == 'COMPLETED' || status == 'SUCCESS';
 
   /// Check if transaction is failed
   bool get isFailed => status == 'FAILED';
@@ -58,12 +58,12 @@ class Transaction {
   factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
       id: json['id'] as String,
-      cardId: json['cardId'] as String,
+      cardId: json['card_id'] as String,
       amount: (json['amount'] as num).toDouble(),
-      type: json['type'] as String,
+      type: json['transaction_type'] as String,
       status: json['status'] as String,
       merchant: json['merchant'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
@@ -71,12 +71,12 @@ class Transaction {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'cardId': cardId,
+      'card_id': cardId,
       'amount': amount,
-      'type': type,
+      'transaction_type': type,
       'status': status,
       'merchant': merchant,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 

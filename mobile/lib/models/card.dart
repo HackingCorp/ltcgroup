@@ -40,13 +40,13 @@ class VirtualCard {
   factory VirtualCard.fromJson(Map<String, dynamic> json) {
     return VirtualCard(
       id: json['id'] as String,
-      type: json['type'] as String,
+      type: json['card_type'] as String,
       balance: (json['balance'] as num).toDouble(),
       status: json['status'] as String,
-      maskedNumber: json['maskedNumber'] as String,
+      maskedNumber: json['card_number_masked'] as String,
       currency: json['currency'] as String,
-      expiryDate: DateTime.parse(json['expiryDate'] as String),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      expiryDate: DateTime.parse(json['expiry_date'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
@@ -54,13 +54,13 @@ class VirtualCard {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'type': type,
+      'card_type': type,
       'balance': balance,
       'status': status,
-      'maskedNumber': maskedNumber,
+      'card_number_masked': maskedNumber,
       'currency': currency,
-      'expiryDate': expiryDate.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
+      'expiry_date': expiryDate.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 

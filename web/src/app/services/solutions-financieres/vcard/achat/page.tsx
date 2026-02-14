@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import CardSelector from "@/components/vcard/CardSelector";
 import CardPreview from "@/components/vcard/CardPreview";
+import { cardsAPI, isAuthenticated, type CardType } from "@/lib/vcard-api";
 
 export default function VCardAchatPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     cardType: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    birthDate: "",
+    initialBalance: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,9 +18,13 @@ export default function VCardAchatPage() {
     "idle" | "success" | "error" | "payment_pending"
   >("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<
-    "mobile_money" | "enkap"
-  >("mobile_money");
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/services/solutions-financieres/vcard/auth");
+    }
+  }, [router]);
 
   const CARD_PRICES: Record<string, number> = {
     visa_segment1: 5000,
@@ -50,48 +53,37 @@ export default function VCardAchatPage() {
       if (!formData.cardType) {
         throw new Error("Veuillez sélectionner un type de carte");
       }
-      if (!formData.firstName || !formData.lastName) {
-        throw new Error("Veuillez renseigner votre nom complet");
-      }
-      if (!formData.email || !formData.phone) {
-        throw new Error("Veuillez renseigner vos coordonnées");
+      if (!formData.initialBalance || parseFloat(formData.initialBalance) <= 0) {
+        throw new Error("Veuillez entrer un montant initial valide");
       }
 
-      const total = getCardPrice();
-      const orderRef = `VCARD-${Date.now().toString(36).toUpperCase()}`;
+      // Map UI card type to API card type
+      const cardTypeMap: Record<string, CardType> = {
+        visa_segment1: "VISA",
+        visa_segment2: "VISA",
+        visa_segment3: "VISA",
+        mastercard: "MASTERCARD",
+      };
 
-      // TODO Phase 2: Connect to backend API
-      // const response = await fetch("/api/vcard/purchase", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     ...formData,
-      //     orderRef,
-      //     amount: total,
-      //     paymentMethod,
-      //   }),
-      // });
+      const apiCardType = cardTypeMap[formData.cardType];
+      if (!apiCardType) {
+        throw new Error("Type de carte invalide");
+      }
 
-      // MOCK: Simulate payment initiation
-      console.log("Creating vCard order:", {
-        ...formData,
-        orderRef,
-        total,
-        paymentMethod,
+      // Call API to purchase card
+      const card = await cardsAPI.purchase({
+        card_type: apiCardType,
+        initial_balance: parseFloat(formData.initialBalance),
       });
 
-      setSubmitStatus("payment_pending");
-
-      // Simulate payment flow
-      setTimeout(() => {
-        setSubmitStatus("success");
-        setIsSubmitting(false);
-      }, 2000);
+      console.log("Card purchased successfully:", card);
+      setSubmitStatus("success");
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Une erreur est survenue"
       );
       setSubmitStatus("error");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -160,157 +152,31 @@ export default function VCardAchatPage() {
                   />
                 </div>
 
-                {/* Personal information */}
+                {/* Initial balance */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                   <h2 className="text-xl font-black text-slate-900 mb-6">
-                    Informations personnelles
+                    Solde initial
                   </h2>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Prénom(s) *
-                      </label>
-                      <input
-                        type="text"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                        placeholder="Jean"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Nom de famille *
-                      </label>
-                      <input
-                        type="text"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                        placeholder="Dupont"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                        placeholder="jean.dupont@example.com"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Téléphone *
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                        placeholder="6XXXXXXXX"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Date de naissance *
-                      </label>
-                      <input
-                        type="date"
-                        name="birthDate"
-                        value={formData.birthDate}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment method */}
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <h2 className="text-xl font-black text-slate-900 mb-6">
-                    Méthode de paiement
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("mobile_money")}
-                      className={`p-4 rounded-lg border-2 transition-all text-left ${
-                        paymentMethod === "mobile_money"
-                          ? "border-[#cea427] bg-[#cea427]/5"
-                          : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            paymentMethod === "mobile_money"
-                              ? "border-[#cea427]"
-                              : "border-slate-300"
-                          }`}
-                        >
-                          {paymentMethod === "mobile_money" && (
-                            <div className="w-3 h-3 rounded-full bg-[#cea427]"></div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            Mobile Money
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            MTN, Orange, Express Union
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("enkap")}
-                      className={`p-4 rounded-lg border-2 transition-all text-left ${
-                        paymentMethod === "enkap"
-                          ? "border-[#cea427] bg-[#cea427]/5"
-                          : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            paymentMethod === "enkap"
-                              ? "border-[#cea427]"
-                              : "border-slate-300"
-                          }`}
-                        >
-                          {paymentMethod === "enkap" && (
-                            <div className="w-3 h-3 rounded-full bg-[#cea427]"></div>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">E-nkap</p>
-                          <p className="text-xs text-slate-500">
-                            Paiement par carte
-                          </p>
-                        </div>
-                      </div>
-                    </button>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Montant à créditer sur la carte (FCFA) *
+                    </label>
+                    <input
+                      type="number"
+                      name="initialBalance"
+                      value={formData.initialBalance}
+                      onChange={handleInputChange}
+                      required
+                      min="0"
+                      step="100"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg focus:border-[#cea427] focus:ring-2 focus:ring-[#cea427]/20 outline-none transition-all"
+                      placeholder="10000"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">
+                      Ce montant sera chargé sur votre carte après validation du
+                      paiement
+                    </p>
                   </div>
                 </div>
 
@@ -369,16 +235,12 @@ export default function VCardAchatPage() {
                         | "mastercard"
                         | ""
                     }
-                    holderName={
-                      formData.firstName && formData.lastName
-                        ? `${formData.firstName} ${formData.lastName}`.toUpperCase()
-                        : "VOTRE NOM"
-                    }
+                    holderName="VOTRE NOM"
                   />
                 </div>
 
                 {/* Price summary */}
-                {formData.cardType && (
+                {formData.cardType && formData.initialBalance && (
                   <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl shadow-lg p-6 text-white">
                     <h3 className="text-sm font-bold uppercase mb-4 text-white/80">
                       Résumé
@@ -386,18 +248,28 @@ export default function VCardAchatPage() {
 
                     <div className="space-y-3 mb-6">
                       <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Prix de la carte</span>
+                        <span className="text-white/80">Type de carte</span>
                         <span className="font-medium">
-                          {formatAmount(getCardPrice())} FCFA
+                          {formData.cardType
+                            .replace("_", " ")
+                            .toUpperCase()
+                            .replace("VISA ", "Visa ")
+                            .replace("MASTERCARD", "Mastercard")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-white/80">Solde initial</span>
+                        <span className="font-medium">
+                          {formatAmount(parseFloat(formData.initialBalance))} FCFA
                         </span>
                       </div>
                     </div>
 
                     <div className="pt-4 border-t border-white/20">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold">Total</span>
+                        <span className="font-bold">Total à payer</span>
                         <span className="text-2xl font-black">
-                          {formatAmount(getCardPrice())} FCFA
+                          {formatAmount(parseFloat(formData.initialBalance))} FCFA
                         </span>
                       </div>
                     </div>

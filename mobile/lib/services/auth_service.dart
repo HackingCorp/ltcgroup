@@ -15,13 +15,16 @@ class AuthService {
     // Call API
     final response = await _apiService.login(email, password);
 
-    // Extract token and user
+    // Extract token
     final token = response['token'] as String;
-    final userJson = response['user'] as Map<String, dynamic>;
-    final user = User.fromJson(userJson);
 
-    // Save to local storage
+    // Save token first
     await _storageService.saveToken(token);
+
+    // Now fetch user profile using the token
+    final user = await _apiService.getCurrentUser();
+
+    // Save user to local storage
     await _storageService.saveUser(user);
 
     return user;

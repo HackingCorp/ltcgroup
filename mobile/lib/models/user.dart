@@ -22,18 +22,18 @@ class User {
   String get fullName => '$firstName $lastName';
 
   /// Check if KYC is verified
-  bool get isKycVerified => kycStatus == 'VERIFIED';
+  bool get isKycVerified => kycStatus == 'APPROVED' || kycStatus == 'VERIFIED';
 
   /// Create User from JSON
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as String,
       email: json['email'] as String,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
+      firstName: json['first_name'] as String,
+      lastName: json['last_name'] as String,
       phone: json['phone'] as String?,
-      kycStatus: json['kycStatus'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      kycStatus: json['kyc_status'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
 
@@ -42,11 +42,11 @@ class User {
     return {
       'id': id,
       'email': email,
-      'firstName': firstName,
-      'lastName': lastName,
+      'first_name': firstName,
+      'last_name': lastName,
       'phone': phone,
-      'kycStatus': kycStatus,
-      'createdAt': createdAt.toIso8601String(),
+      'kyc_status': kycStatus,
+      'created_at': createdAt.toIso8601String(),
     };
   }
 

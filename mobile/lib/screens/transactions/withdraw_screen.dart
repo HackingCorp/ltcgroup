@@ -72,7 +72,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final success = await transactionsProvider.withdrawFromCard(
       cardId: _selectedCardId!,
       amount: amount,
-      destination: _selectedDestination,
+      currency: 'USD',
     );
 
     if (!mounted) return;

@@ -8,10 +8,11 @@ class ApiConfig {
   static const String registerEndpoint = '/auth/register';
   static const String cardsEndpoint = '/cards';
   static const String transactionsEndpoint = '/transactions';
-  static const String topupEndpoint = '/cards/topup';
-  static const String withdrawEndpoint = '/cards/withdraw';
+  static const String topupEndpoint = '/transactions/topup';
+  static const String withdrawEndpoint = '/transactions/withdraw';
   static const String notificationsEndpoint = '/notifications';
   static const String profileEndpoint = '/users/me';
+  static const String kycEndpoint = '/users/kyc';
 
   // Timeout duration
   static const Duration timeout = Duration(seconds: 30);

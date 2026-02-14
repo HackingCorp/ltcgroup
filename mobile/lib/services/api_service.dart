@@ -1,295 +1,479 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/card.dart';
 import '../models/transaction.dart';
+import '../config/api_config.dart';
+import 'storage_service.dart';
 
-/// API Service with MOCK data (Phase 1)
-/// This will be replaced with real HTTP calls in Phase 2
+/// API Service with real HTTP calls
 class ApiService {
-  // Mock delay to simulate network call
-  Future<void> _mockDelay() async {
-    await Future.delayed(const Duration(milliseconds: 800));
+  final StorageService _storageService = StorageService();
+
+  /// Get authorization headers with token
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final token = await _storageService.getToken();
+    return ApiConfig.headers(token: token);
   }
 
-  /// Login - Returns mock user and token
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    await _mockDelay();
-
-    // Simple validation
-    if (email.isEmpty || password.isEmpty) {
-      throw Exception('Email et mot de passe requis');
+  /// Handle API errors
+  Exception _handleError(http.Response response) {
+    try {
+      final data = json.decode(response.body);
+      final detail = data['detail'] ?? 'Une erreur est survenue';
+      return Exception(detail);
+    } catch (e) {
+      return Exception('Erreur ${response.statusCode}: ${response.reasonPhrase}');
     }
-
-    // Mock successful login
-    return {
-      'token': 'mock_token_${DateTime.now().millisecondsSinceEpoch}',
-      'user': {
-        'id': 'user-123',
-        'email': email,
-        'firstName': 'John',
-        'lastName': 'Doe',
-        'phone': '+33612345678',
-        'kycStatus': 'VERIFIED',
-        'createdAt': '2026-01-15T10:00:00Z',
-      },
-    };
   }
 
-  /// Register - Returns mock user and token
+  /// Login - Returns user and token
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}?email=$email&password=$password');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'token': data['access_token'] as String,
+          'user': null, // We'll fetch user data separately with /users/me
+        };
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de connexion: $e');
+    }
+  }
+
+  /// Register - Returns user and token
   Future<Map<String, dynamic>> register({
     required String email,
     required String password,
     required String firstName,
     required String lastName,
+    String? phone,
   }) async {
-    await _mockDelay();
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.registerEndpoint}');
 
-    // Simple validation
-    if (email.isEmpty || password.isEmpty || firstName.isEmpty || lastName.isEmpty) {
-      throw Exception('Tous les champs sont requis');
-    }
-
-    // Mock successful registration
-    return {
-      'token': 'mock_token_${DateTime.now().millisecondsSinceEpoch}',
-      'user': {
-        'id': 'user-${DateTime.now().millisecondsSinceEpoch}',
-        'email': email,
-        'firstName': firstName,
-        'lastName': lastName,
-        'phone': null,
-        'kycStatus': 'PENDING',
-        'createdAt': DateTime.now().toIso8601String(),
-      },
+    final body = {
+      'email': email,
+      'password': password,
+      'first_name': firstName,
+      'last_name': lastName,
+      if (phone != null) 'phone': phone,
     };
-  }
 
-  /// Get all cards - Returns mock cards
-  Future<List<VirtualCard>> getCards() async {
-    await _mockDelay();
-
-    final mockCards = [
-      {
-        'id': 'card-1',
-        'type': 'VISA',
-        'balance': 250.00,
-        'status': 'ACTIVE',
-        'maskedNumber': '**** **** **** 4532',
-        'currency': 'EUR',
-        'expiryDate': '2028-12-31T00:00:00Z',
-        'createdAt': '2026-01-20T14:30:00Z',
-      },
-      {
-        'id': 'card-2',
-        'type': 'MASTERCARD',
-        'balance': 150.75,
-        'status': 'ACTIVE',
-        'maskedNumber': '**** **** **** 8765',
-        'currency': 'EUR',
-        'expiryDate': '2029-06-30T00:00:00Z',
-        'createdAt': '2026-02-01T09:15:00Z',
-      },
-    ];
-
-    return mockCards.map((json) => VirtualCard.fromJson(json)).toList();
-  }
-
-  /// Get card by ID - Returns mock card
-  Future<VirtualCard> getCardById(String cardId) async {
-    await _mockDelay();
-
-    final cards = await getCards();
     try {
-      return cards.firstWhere((card) => card.id == cardId);
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(),
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return {
+          'token': data['token']['access_token'] as String,
+          'user': data['user'],
+        };
+      } else {
+        throw _handleError(response);
+      }
     } catch (e) {
-      throw Exception('Carte non trouvée');
+      if (e is Exception) rethrow;
+      throw Exception('Erreur d\'inscription: $e');
     }
   }
 
-  /// Purchase new card - Returns mock card
+  /// Get current user profile
+  Future<User> getCurrentUser() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileEndpoint}');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return User.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération du profil: $e');
+    }
+  }
+
+  /// Update user profile
+  Future<User> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phone,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileEndpoint}');
+    final headers = await _getAuthHeaders();
+
+    final body = <String, dynamic>{};
+    if (firstName != null) body['first_name'] = firstName;
+    if (lastName != null) body['last_name'] = lastName;
+    if (phone != null) body['phone'] = phone;
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return User.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de mise à jour du profil: $e');
+    }
+  }
+
+  /// Submit KYC document
+  Future<void> submitKyc({
+    required String documentUrl,
+    required String documentType,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.kycEndpoint}');
+    final headers = await _getAuthHeaders();
+
+    final body = {
+      'document_url': documentUrl,
+      'document_type': documentType,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de soumission KYC: $e');
+    }
+  }
+
+  /// Get all cards
+  Future<List<VirtualCard>> getCards() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final cardsList = data['cards'] as List;
+        return cardsList.map((json) => VirtualCard.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération des cartes: $e');
+    }
+  }
+
+  /// Get card by ID
+  Future<VirtualCard> getCardById(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Carte non trouvée');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération de la carte: $e');
+    }
+  }
+
+  /// Purchase new card
   Future<VirtualCard> purchaseCard({
     required String type,
-    String currency = 'EUR',
+    required double initialBalance,
   }) async {
-    await _mockDelay();
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/purchase');
+    final headers = await _getAuthHeaders();
 
-    final mockCard = {
-      'id': 'card-${DateTime.now().millisecondsSinceEpoch}',
-      'type': type,
-      'balance': 0.0,
-      'status': 'ACTIVE',
-      'maskedNumber': '**** **** **** ${1000 + DateTime.now().millisecondsSinceEpoch % 9000}',
-      'currency': currency,
-      'expiryDate': DateTime(DateTime.now().year + 4, 12, 31).toIso8601String(),
-      'createdAt': DateTime.now().toIso8601String(),
+    final body = {
+      'card_type': type,
+      'initial_balance': initialBalance,
     };
 
-    return VirtualCard.fromJson(mockCard);
-  }
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
 
-  /// Get transactions - Returns mock transactions
-  Future<List<Transaction>> getTransactions({String? cardId}) async {
-    await _mockDelay();
-
-    final mockTransactions = [
-      {
-        'id': 'tx-1',
-        'cardId': 'card-1',
-        'amount': -45.99,
-        'type': 'PURCHASE',
-        'status': 'SUCCESS',
-        'merchant': 'Amazon',
-        'createdAt': '2026-02-13T16:45:00Z',
-      },
-      {
-        'id': 'tx-2',
-        'cardId': 'card-1',
-        'amount': 100.00,
-        'type': 'TOPUP',
-        'status': 'SUCCESS',
-        'merchant': null,
-        'createdAt': '2026-02-12T10:20:00Z',
-      },
-      {
-        'id': 'tx-3',
-        'cardId': 'card-2',
-        'amount': -25.50,
-        'type': 'PURCHASE',
-        'status': 'SUCCESS',
-        'merchant': 'Netflix',
-        'createdAt': '2026-02-11T18:30:00Z',
-      },
-      {
-        'id': 'tx-4',
-        'cardId': 'card-1',
-        'amount': -12.99,
-        'type': 'PURCHASE',
-        'status': 'SUCCESS',
-        'merchant': 'Spotify',
-        'createdAt': '2026-02-10T09:15:00Z',
-      },
-      {
-        'id': 'tx-5',
-        'cardId': 'card-2',
-        'amount': 50.00,
-        'type': 'TOPUP',
-        'status': 'SUCCESS',
-        'merchant': null,
-        'createdAt': '2026-02-09T14:00:00Z',
-      },
-      {
-        'id': 'tx-6',
-        'cardId': 'card-1',
-        'amount': -8.50,
-        'type': 'PURCHASE',
-        'status': 'FAILED',
-        'merchant': 'Uber',
-        'createdAt': '2026-02-08T20:30:00Z',
-      },
-    ];
-
-    List<Transaction> transactions = mockTransactions
-        .map((json) => Transaction.fromJson(json))
-        .toList();
-
-    // Filter by cardId if provided
-    if (cardId != null) {
-      transactions = transactions.where((tx) => tx.cardId == cardId).toList();
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur d\'achat de carte: $e');
     }
-
-    return transactions;
   }
 
-  /// Topup card - Returns mock transaction
-  Future<Transaction> topupCard({
-    required String cardId,
-    required double amount,
-    required String method,
-  }) async {
-    await _mockDelay();
+  /// Freeze card
+  Future<VirtualCard> freezeCard(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/freeze');
+    final headers = await _getAuthHeaders();
 
-    if (amount <= 0) {
-      throw Exception('Le montant doit être supérieur à 0');
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de gel de la carte: $e');
     }
-
-    final mockTransaction = {
-      'id': 'tx-${DateTime.now().millisecondsSinceEpoch}',
-      'cardId': cardId,
-      'amount': amount,
-      'type': 'TOPUP',
-      'status': 'SUCCESS',
-      'merchant': null,
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-
-    return Transaction.fromJson(mockTransaction);
   }
 
-  /// Withdraw from card - Returns mock transaction
-  Future<Transaction> withdrawFromCard({
-    required String cardId,
-    required double amount,
-    required String destination,
-  }) async {
-    await _mockDelay();
+  /// Unfreeze card
+  Future<VirtualCard> unfreezeCard(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/unfreeze');
+    final headers = await _getAuthHeaders();
 
-    if (amount <= 0) {
-      throw Exception('Le montant doit être supérieur à 0');
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de dégel de la carte: $e');
     }
-
-    final mockTransaction = {
-      'id': 'tx-${DateTime.now().millisecondsSinceEpoch}',
-      'cardId': cardId,
-      'amount': -amount,
-      'type': 'WITHDRAWAL',
-      'status': 'SUCCESS',
-      'merchant': null,
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-
-    return Transaction.fromJson(mockTransaction);
   }
 
-  /// Get notifications - Returns mock notifications
-  Future<List<Map<String, dynamic>>> getNotifications() async {
-    await _mockDelay();
+  /// Block card
+  Future<VirtualCard> blockCard(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/block');
+    final headers = await _getAuthHeaders();
 
-    return [
-      {
-        'id': 'notif-1',
-        'title': 'Achat réussi',
-        'message': 'Achat de 45.99€ chez Amazon',
-        'type': 'TRANSACTION',
-        'read': false,
-        'createdAt': '2026-02-13T16:45:00Z',
-      },
-      {
-        'id': 'notif-2',
-        'title': 'Recharge effectuée',
-        'message': 'Votre carte a été rechargée de 100.00€',
-        'type': 'TRANSACTION',
-        'read': true,
-        'createdAt': '2026-02-12T10:20:00Z',
-      },
-      {
-        'id': 'notif-3',
-        'title': 'KYC vérifié',
-        'message': 'Votre identité a été vérifiée avec succès',
-        'type': 'KYC',
-        'read': true,
-        'createdAt': '2026-01-16T12:00:00Z',
-      },
-    ];
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de blocage de la carte: $e');
+    }
   }
 
-  /// Update card status - Returns updated card
+  /// Update card status (generic method)
   Future<VirtualCard> updateCardStatus({
     required String cardId,
     required String status,
   }) async {
-    await _mockDelay();
+    switch (status.toUpperCase()) {
+      case 'FROZEN':
+        return await freezeCard(cardId);
+      case 'BLOCKED':
+        return await blockCard(cardId);
+      case 'ACTIVE':
+        return await unfreezeCard(cardId);
+      default:
+        throw Exception('Statut de carte invalide: $status');
+    }
+  }
 
-    final card = await getCardById(cardId);
-    return card.copyWith(status: status);
+  /// Get transactions for a card
+  Future<List<Transaction>> getTransactions({
+    String? cardId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final String path = cardId != null
+        ? '${ApiConfig.transactionsEndpoint}/cards/$cardId/transactions'
+        : ApiConfig.transactionsEndpoint;
+
+    final url = Uri.parse('${ApiConfig.baseUrl}$path?limit=$limit&offset=$offset');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final transactionsList = data['transactions'] as List;
+        return transactionsList.map((json) => Transaction.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération des transactions: $e');
+    }
+  }
+
+  /// Topup card
+  Future<Transaction> topupCard({
+    required String cardId,
+    required double amount,
+    String currency = 'USD',
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.topupEndpoint}');
+    final headers = await _getAuthHeaders();
+
+    final body = {
+      'card_id': cardId,
+      'amount': amount,
+      'currency': currency,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return Transaction.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de recharge: $e');
+    }
+  }
+
+  /// Withdraw from card
+  Future<Transaction> withdrawFromCard({
+    required String cardId,
+    required double amount,
+    String currency = 'USD',
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.withdrawEndpoint}');
+    final headers = await _getAuthHeaders();
+
+    final body = {
+      'card_id': cardId,
+      'amount': amount,
+      'currency': currency,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return Transaction.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de retrait: $e');
+    }
+  }
+
+  /// Get notifications - Mock implementation (no backend endpoint yet)
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    // This endpoint doesn't exist in the backend yet, so we keep a mock
+    await Future.delayed(const Duration(milliseconds: 500));
+    return [];
   }
 }

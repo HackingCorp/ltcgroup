@@ -33,7 +33,9 @@ class TransactionsProvider with ChangeNotifier {
       // Sort by date descending
       _transactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      _error = 'Erreur lors du chargement des transactions';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -44,7 +46,7 @@ class TransactionsProvider with ChangeNotifier {
   Future<bool> topupCard({
     required String cardId,
     required double amount,
-    required String method,
+    String currency = 'USD',
   }) async {
     _isLoading = true;
     _error = null;
@@ -54,7 +56,7 @@ class TransactionsProvider with ChangeNotifier {
       final transaction = await _apiService.topupCard(
         cardId: cardId,
         amount: amount,
-        method: method,
+        currency: currency,
       );
 
       // Add transaction to list
@@ -64,7 +66,9 @@ class TransactionsProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Erreur lors de la recharge';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;
@@ -75,7 +79,7 @@ class TransactionsProvider with ChangeNotifier {
   Future<bool> withdrawFromCard({
     required String cardId,
     required double amount,
-    required String destination,
+    String currency = 'USD',
   }) async {
     _isLoading = true;
     _error = null;
@@ -85,7 +89,7 @@ class TransactionsProvider with ChangeNotifier {
       final transaction = await _apiService.withdrawFromCard(
         cardId: cardId,
         amount: amount,
-        destination: destination,
+        currency: currency,
       );
 
       // Add transaction to list
@@ -95,7 +99,9 @@ class TransactionsProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Erreur lors du retrait';
+      // Extract error message from exception
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
       _isLoading = false;
       notifyListeners();
       return false;
