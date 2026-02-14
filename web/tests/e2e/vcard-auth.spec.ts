@@ -42,7 +42,7 @@ test.describe('vCard Authentication', () => {
     await expect(page.locator('text=/email.*invalide|invalid.*email/i')).toBeVisible();
   });
 
-  test.skip('should successfully login with valid credentials', async ({ page }) => {
+  test('should successfully login with valid credentials', async ({ page }) => {
     // Fill login form
     await page.fill('input[name="email"], input[type="email"]', 'test@example.com');
     await page.fill('input[name="password"], input[type="password"]', 'TestPassword123!');
@@ -57,7 +57,7 @@ test.describe('vCard Authentication', () => {
     expect(page.url()).toContain('/dashboard');
   });
 
-  test.skip('should show error for invalid credentials', async ({ page }) => {
+  test('should show error for invalid credentials', async ({ page }) => {
     await page.fill('input[name="email"], input[type="email"]', 'invalid@example.com');
     await page.fill('input[name="password"], input[type="password"]', 'WrongPassword123!');
 
@@ -136,7 +136,7 @@ test.describe('vCard Registration', () => {
     await expect(page.locator('text=/mots de passe.*correspondent pas|passwords.*not match/i')).toBeVisible();
   });
 
-  test.skip('should successfully register new user', async ({ page }) => {
+  test('should successfully register new user', async ({ page }) => {
     // Fill registration form
     await page.fill('input[name="email"]', 'newuser@example.com');
     await page.fill('input[name="password"]', 'StrongPassword123!');
@@ -162,7 +162,7 @@ test.describe('vCard Registration', () => {
 });
 
 test.describe('Password Reset', () => {
-  test.skip('should display forgot password form', async ({ page }) => {
+  test('should display forgot password form', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/auth');
     await page.click('text=/mot de passe.*oublié|forgot.*password/i');
 
@@ -171,7 +171,7 @@ test.describe('Password Reset', () => {
     await expect(page.locator('button:has-text(/envoyer|send|réinitialiser/i)')).toBeVisible();
   });
 
-  test.skip('should send password reset email', async ({ page }) => {
+  test('should send password reset email', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/auth/forgot-password');
 
     await page.fill('input[name="email"]', 'user@example.com');

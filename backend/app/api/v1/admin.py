@@ -11,7 +11,9 @@ from app.models.user import User, KYCStatus
 from app.models.card import Card
 from app.models.transaction import Transaction, TransactionStatus, TransactionType
 from app.models.audit_log import AuditLog
+from app.models.notification import Notification, NotificationType
 from app.services.auth import get_current_user
+from app.services.email import email_service
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -52,6 +54,13 @@ class UserListResponse(BaseModel):
 
 class KYCActionRequest(BaseModel):
     reason: Optional[str] = None
+
+
+class SendNotificationRequest(BaseModel):
+    user_id: UUID4
+    title: str
+    message: str
+    type: NotificationType
 
 
 class TransactionListItem(BaseModel):
@@ -170,7 +179,21 @@ async def approve_kyc(
 
     # Update KYC status
     user.kyc_status = KYCStatus.APPROVED
+    user.kyc_rejected_reason = None  # Clear any previous rejection reason
     await db.commit()
+
+    # Create notification
+    notification = Notification(
+        user_id=user.id,
+        title="KYC Verification Approved",
+        message="Your KYC verification has been approved. You can now access all features.",
+        type=NotificationType.KYC,
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Send email notification
+    await email_service.send_kyc_approved(user)
 
     # Log audit event
     await log_audit(
@@ -210,9 +233,23 @@ async def reject_kyc(
             detail="KYC already rejected",
         )
 
-    # Update KYC status
+    # Update KYC status and save rejection reason
     user.kyc_status = KYCStatus.REJECTED
+    user.kyc_rejected_reason = kyc_action.reason
     await db.commit()
+
+    # Create notification
+    notification = Notification(
+        user_id=user.id,
+        title="KYC Verification Update",
+        message=f"Your KYC verification could not be approved. {kyc_action.reason or 'Please contact support for details.'}",
+        type=NotificationType.KYC,
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Send email notification
+    await email_service.send_kyc_rejected(user, kyc_action.reason or "No reason provided")
 
     # Log audit event
     await log_audit(
@@ -330,3 +367,52 @@ async def get_admin_stats(
         total_revenue=total_revenue,
         pending_kyc=pending_kyc,
     )
+
+
+@router.post("/notifications/send")
+async def send_notification_to_user(
+    notification_request: SendNotificationRequest,
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a notification to a specific user (admin only)."""
+    # Verify target user exists
+    result = await db.execute(select(User).where(User.id == notification_request.user_id))
+    target_user = result.scalar_one_or_none()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Create notification
+    notification = Notification(
+        user_id=notification_request.user_id,
+        title=notification_request.title,
+        message=notification_request.message,
+        type=notification_request.type,
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Log audit event
+    await log_audit(
+        db=db,
+        user_id=admin_user.id,
+        action="send_notification",
+        resource_type="notification",
+        resource_id=str(notification.id),
+        details={
+            "target_user_id": str(notification_request.user_id),
+            "title": notification_request.title,
+            "type": notification_request.type.value,
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return {
+        "message": "Notification sent successfully",
+        "notification_id": str(notification.id),
+    }

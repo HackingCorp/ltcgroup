@@ -80,27 +80,23 @@ class TestPaymentFlow:
         assert transaction is not None
         assert transaction.status == TransactionStatus.PENDING
 
-        # Step 2: Simulate successful webhook callback
-        # TODO: Uncomment when webhook endpoint is implemented
-        # webhook_payload = {
-        #     "transaction_reference": payment_ref,
-        #     "amount": 100.0,
-        #     "status": "SUCCESS",
-        #     "currency": "XAF"
-        # }
-        # webhook_response = await test_client.post(
-        #     "/api/v1/webhooks/payment",
-        #     json=webhook_payload
-        # )
-        # assert webhook_response.status_code == 200
-        #
-        # # Step 3: Verify balance updated
-        # await test_db.refresh(transaction)
-        # assert transaction.status == TransactionStatus.COMPLETED
-        #
-        # # Verify user balance increased (if wallet_balance field exists)
-        # await test_db.refresh(user)
-        # # assert user.wallet_balance >= Decimal("100.0")
+        # Step 2: Simulate successful S3P webhook callback
+        webhook_payload = {
+            "ptn": payment_ref,
+            "trid": payment_ref,
+            "amount": 100.0,
+            "status": "SUCCESS",
+            "currency": "XAF"
+        }
+        webhook_response = await test_client.post(
+            "/api/v1/payments/webhook/s3p",
+            json=webhook_payload
+        )
+        assert webhook_response.status_code == 200
+
+        # Step 3: Verify transaction marked as completed
+        await test_db.refresh(transaction)
+        assert transaction.status == TransactionStatus.COMPLETED
 
     async def test_payment_flow_with_failed_webhook(
         self,
@@ -126,30 +122,25 @@ class TestPaymentFlow:
         payment_data = response.json()
         payment_ref = payment_data.get("payment_reference") or payment_data.get("reference")
 
-        # Step 2: Simulate failed webhook callback
-        # TODO: Uncomment when webhook endpoint is implemented
-        # webhook_payload = {
-        #     "transaction_reference": payment_ref,
-        #     "amount": 100.0,
-        #     "status": "FAILED",
-        #     "currency": "XAF"
-        # }
-        # webhook_response = await test_client.post(
-        #     "/api/v1/webhooks/payment",
-        #     json=webhook_payload
-        # )
-        # assert webhook_response.status_code == 200
-        #
-        # # Step 3: Verify transaction marked as failed
-        # stmt = select(Transaction).where(Transaction.external_reference == payment_ref)
-        # result = await test_db.execute(stmt)
-        # transaction = result.scalar_one()
-        # assert transaction.status == TransactionStatus.FAILED
-        #
-        # # Verify user balance did NOT increase
-        # await test_db.refresh(user)
-        # # Assuming initial balance is 0 or known value
-        # # assert user.wallet_balance == initial_balance
+        # Step 2: Simulate failed S3P webhook callback
+        webhook_payload = {
+            "ptn": payment_ref,
+            "trid": payment_ref,
+            "amount": 100.0,
+            "status": "FAILED",
+            "currency": "XAF"
+        }
+        webhook_response = await test_client.post(
+            "/api/v1/payments/webhook/s3p",
+            json=webhook_payload
+        )
+        assert webhook_response.status_code == 200
+
+        # Step 3: Verify transaction marked as failed
+        stmt = select(Transaction).where(Transaction.external_reference == payment_ref)
+        result = await test_db.execute(stmt)
+        transaction = result.scalar_one()
+        assert transaction.status == TransactionStatus.FAILED
 
 
 @pytest.mark.asyncio

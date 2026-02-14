@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     kyc_status: KYCStatus
+    kyc_rejected_reason: str | None = None
     created_at: datetime
 
     class Config:

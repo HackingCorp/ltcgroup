@@ -46,6 +46,8 @@ backend/.mypy_cache/
 backend/.pytest_cache/
 backend/htmlcov/
 backend/.coverage
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # --- Mobile (Flutter) ---
 mobile/.dart_tool/

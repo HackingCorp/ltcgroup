@@ -31,6 +31,7 @@ class User(Base):
     )
     kyc_document_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     kyc_submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    kyc_rejected_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -48,6 +49,9 @@ class User(Base):
     )
     transactions: Mapped[list["Transaction"]] = relationship(
         "Transaction", back_populates="user", cascade="all, delete-orphan"
+    )
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self):

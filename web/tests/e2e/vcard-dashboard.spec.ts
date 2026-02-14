@@ -32,7 +32,7 @@ test.describe('vCard Dashboard', () => {
     await expect(passwordField).toBeVisible();
   });
 
-  test.skip('should display list of user cards', async ({ page }) => {
+  test('should display list of user cards', async ({ page }) => {
     // Assume user is logged in (setup authentication in beforeEach)
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
@@ -45,7 +45,7 @@ test.describe('vCard Dashboard', () => {
     await expect(cardItems.first()).toBeVisible();
   });
 
-  test.skip('should display card details when clicked', async ({ page }) => {
+  test('should display card details when clicked', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
     // Click on first card
@@ -61,7 +61,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/solde|balance/i')).toBeVisible();
   });
 
-  test.skip('should show transaction history for a card', async ({ page }) => {
+  test('should show transaction history for a card', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Navigate to transactions tab
@@ -76,7 +76,7 @@ test.describe('vCard Dashboard', () => {
     await expect(transactionItem).toBeVisible();
   });
 
-  test.skip('should show freeze and unfreeze buttons', async ({ page }) => {
+  test('should show freeze and unfreeze buttons', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Freeze button should be visible for active cards
@@ -84,7 +84,7 @@ test.describe('vCard Dashboard', () => {
     await expect(freezeButton).toBeVisible();
   });
 
-  test.skip('should freeze a card', async ({ page }) => {
+  test('should freeze a card', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Click freeze button
@@ -100,7 +100,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/gelée|frozen/i')).toBeVisible();
   });
 
-  test.skip('should unfreeze a frozen card', async ({ page }) => {
+  test('should unfreeze a frozen card', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Assume card is frozen
@@ -116,7 +116,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/active/i')).toBeVisible();
   });
 
-  test.skip('should initiate card topup', async ({ page }) => {
+  test('should initiate card topup', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Click topup button
@@ -138,7 +138,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/paiement.*cours/i')).toBeVisible();
   });
 
-  test.skip('should display card statistics', async ({ page }) => {
+  test('should display card statistics', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
     // Should show summary stats
@@ -152,7 +152,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/\\d+ cartes?/i')).toBeVisible();
   });
 
-  test.skip('should filter transactions by type', async ({ page }) => {
+  test('should filter transactions by type', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Open filter dropdown
@@ -174,7 +174,7 @@ test.describe('vCard Dashboard', () => {
     }
   });
 
-  test.skip('should show block button with confirmation modal', async ({ page }) => {
+  test('should show block button with confirmation modal', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Click block button (usually in settings/actions menu)
@@ -186,7 +186,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('[data-testid="block-confirmation-modal"]')).toBeVisible();
   });
 
-  test.skip('should block a card with confirmation', async ({ page }) => {
+  test('should block a card with confirmation', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
     // Click block button (usually in settings/actions menu)
@@ -204,7 +204,7 @@ test.describe('vCard Dashboard', () => {
     await expect(page.locator('text=/carte bloquée/i')).toBeVisible();
   });
 
-  test.skip('should have logout button visible', async ({ page }) => {
+  test('should have logout button visible', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
     // Logout button should be visible
@@ -212,7 +212,7 @@ test.describe('vCard Dashboard', () => {
     await expect(logoutButton).toBeVisible();
   });
 
-  test.skip('should logout successfully', async ({ page }) => {
+  test('should logout successfully', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard');
 
     // Click logout button

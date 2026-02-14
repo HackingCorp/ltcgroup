@@ -28,7 +28,7 @@ test.describe('vCard Purchase Flow', () => {
     expect(isOnAuthPage || isOnAchatPage).toBeTruthy();
   });
 
-  test.skip('should fill purchase form with valid data', async ({ page }) => {
+  test('should fill purchase form with valid data', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Select card type
@@ -47,7 +47,7 @@ test.describe('vCard Purchase Flow', () => {
     await expect(submitButton).toBeEnabled();
   });
 
-  test.skip('should select payment method (Mobile Money)', async ({ page }) => {
+  test('should select payment method (Mobile Money)', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill required fields first
@@ -62,7 +62,7 @@ test.describe('vCard Purchase Flow', () => {
     await expect(paymentSection).toBeVisible();
   });
 
-  test.skip('should select payment method (E-nkap)', async ({ page }) => {
+  test('should select payment method (E-nkap)', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill required fields
@@ -76,7 +76,7 @@ test.describe('vCard Purchase Flow', () => {
     await expect(enkapInfo).toBeVisible();
   });
 
-  test.skip('should validate phone number format', async ({ page }) => {
+  test('should validate phone number format', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Enter invalid phone number
@@ -88,7 +88,7 @@ test.describe('vCard Purchase Flow', () => {
     await expect(errorMessage).toBeVisible();
   });
 
-  test.skip('should initiate Mobile Money payment and show confirmation', async ({ page }) => {
+  test('should initiate Mobile Money payment and show confirmation', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill form
@@ -104,7 +104,7 @@ test.describe('vCard Purchase Flow', () => {
     await expect(page.locator('text=/confirmer.*paiement/i')).toBeVisible();
   });
 
-  test.skip('should redirect to E-nkap payment page', async ({ page }) => {
+  test('should redirect to E-nkap payment page', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill form
@@ -120,7 +120,7 @@ test.describe('vCard Purchase Flow', () => {
     await page.waitForURL(/enkap|payment/i, { timeout: 10000 });
   });
 
-  test.skip('should show order summary before payment', async ({ page }) => {
+  test('should show order summary before payment', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     await page.fill('[name="customerName"]', 'Jean Dupont');

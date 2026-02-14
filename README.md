@@ -1,5 +1,7 @@
 # LTC GROUP - Monorepo
 
+[![CI](https://github.com/ltcgroup/ltcgroup/actions/workflows/ci.yml/badge.svg)](https://github.com/ltcgroup/ltcgroup/actions/workflows/ci.yml)
+
 **Connecting Africa to the World**
 
 Plateforme digitale multi-services : solutions financières (vCard), logistique, hébergement web, immobilier.
@@ -61,6 +63,20 @@ curl http://localhost:8000/health
 
 - **S3P / Smobilpay** : Mobile Money (MTN, Orange Money)
 - **E-nkap** : Multi-canal (cartes, mobile money)
+
+## Statut du Projet
+
+### Phase 4 - Tests & CI/CD (TERMINÉ)
+- ✅ Backend: Tous les tests admin/webhooks activés
+- ✅ Web: 73 tests E2E Playwright unskippés
+- ✅ CI/CD: Pipeline GitHub Actions (tests backend, lint/build web, Flutter analyze)
+- ✅ Security: Trivy vulnerability scanning
+
+### Prochaines étapes
+- Configuration de déploiement automatique (backend Docker, web Vercel/Netlify)
+- Intégration complète Firebase pour mobile
+- Service d'upload de fichiers KYC
+- Service de notifications email
 
 ## Équipe
 

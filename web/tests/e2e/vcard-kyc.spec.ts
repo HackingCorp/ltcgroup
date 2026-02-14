@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('KYC Flow', () => {
-  test.skip('should display KYC status page for authenticated user', async ({ page }) => {
+  test('should display KYC status page for authenticated user', async ({ page }) => {
     // TODO: Setup authentication before this test
     await page.goto('/services/solutions-financieres/vcard/kyc');
     await page.waitForLoadState('networkidle');
@@ -15,14 +15,14 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('[data-testid="kyc-status"]')).toBeVisible();
   });
 
-  test.skip('should show pending status for new users', async ({ page }) => {
+  test('should show pending status for new users', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Should show pending badge/status
     await expect(page.locator('text=/en attente|pending/i')).toBeVisible();
   });
 
-  test.skip('should display document type selector', async ({ page }) => {
+  test('should display document type selector', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Should have document type options
@@ -35,7 +35,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('option:has-text("ID Card"), text=/carte.*identité|CNI/i')).toBeVisible();
   });
 
-  test.skip('should allow file upload for KYC document', async ({ page }) => {
+  test('should allow file upload for KYC document', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Select document type
@@ -56,7 +56,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('text=/passport.jpg|fichier.*sélectionné/i')).toBeVisible();
   });
 
-  test.skip('should submit KYC documents successfully', async ({ page }) => {
+  test('should submit KYC documents successfully', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Fill KYC form
@@ -80,7 +80,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('text=/en cours.*vérification|under.*review/i')).toBeVisible();
   });
 
-  test.skip('should display approved KYC status', async ({ page }) => {
+  test('should display approved KYC status', async ({ page }) => {
     // Assume user with approved KYC
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
@@ -89,7 +89,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('[data-testid="kyc-status-approved"]')).toBeVisible();
   });
 
-  test.skip('should display rejected KYC status with reason', async ({ page }) => {
+  test('should display rejected KYC status with reason', async ({ page }) => {
     // Assume user with rejected KYC
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
@@ -100,7 +100,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('[data-testid="rejection-reason"]')).toBeVisible();
   });
 
-  test.skip('should allow resubmission after rejection', async ({ page }) => {
+  test('should allow resubmission after rejection', async ({ page }) => {
     // Assume user with rejected KYC
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
@@ -114,7 +114,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('select[name="document_type"]')).toBeVisible();
   });
 
-  test.skip('should validate file size limits', async ({ page }) => {
+  test('should validate file size limits', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Try to upload a large file (mock)
@@ -133,7 +133,7 @@ test.describe('KYC Flow', () => {
     await expect(page.locator('text=/fichier.*volumineux|file.*large|taille.*maximum/i')).toBeVisible();
   });
 
-  test.skip('should validate file type', async ({ page }) => {
+  test('should validate file type', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     const fileInput = page.locator('input[type="file"]');
@@ -151,7 +151,7 @@ test.describe('KYC Flow', () => {
 });
 
 test.describe('KYC Document Capture', () => {
-  test.skip('should open camera for document capture', async ({ page }) => {
+  test('should open camera for document capture', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     // Click camera button
@@ -166,7 +166,7 @@ test.describe('KYC Document Capture', () => {
     await expect(page.locator('video[data-testid="camera-preview"]')).toBeVisible();
   });
 
-  test.skip('should capture photo from camera', async ({ page }) => {
+  test('should capture photo from camera', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/kyc');
 
     await page.click('button:has-text(/prendre.*photo|camera/i)');

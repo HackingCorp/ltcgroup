@@ -30,6 +30,22 @@ class Settings(BaseSettings):
     enkap_consumer_secret: str = "rD9fRGJkVVs8TZtfjJ0VTD7taOsa"
     enkap_merchant_code: str = ""  # Optional merchant code if needed
 
+    # SMTP Email Configuration
+    smtp_host: str = "mail.ltcgroup.site"
+    smtp_port: int = 587
+    smtp_user: str = "noreply@ltcgroup.site"
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@ltcgroup.site"
+
+    # File Upload Configuration
+    upload_dir: str = "./uploads"
+
+    # S3 Configuration (optional, for production)
+    aws_s3_bucket: str = ""
+    aws_s3_region: str = ""
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+
     class Config:
         env_file = ".env"
 

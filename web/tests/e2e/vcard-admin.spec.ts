@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Admin Dashboard Access', () => {
-  test.skip('should redirect non-admin users to regular dashboard', async ({ page }) => {
+  test('should redirect non-admin users to regular dashboard', async ({ page }) => {
     // TODO: Setup regular user authentication
     await page.goto('/services/solutions-financieres/vcard/admin');
 
@@ -17,7 +17,7 @@ test.describe('Admin Dashboard Access', () => {
     await expect(page.locator('[data-testid="admin-panel"]')).not.toBeVisible();
   });
 
-  test.skip('should allow admin users to access admin panel', async ({ page }) => {
+  test('should allow admin users to access admin panel', async ({ page }) => {
     // TODO: Setup admin user authentication
     await page.goto('/services/solutions-financieres/vcard/admin');
 
@@ -27,7 +27,7 @@ test.describe('Admin Dashboard Access', () => {
 });
 
 test.describe('Admin User Management', () => {
-  test.skip('should display users table', async ({ page }) => {
+  test('should display users table', async ({ page }) => {
     // Assume admin is authenticated
     await page.goto('/services/solutions-financieres/vcard/admin/users');
 
@@ -41,7 +41,7 @@ test.describe('Admin User Management', () => {
     await expect(page.locator('th:has-text(/kyc.*statut|kyc.*status/i)')).toBeVisible();
   });
 
-  test.skip('should paginate users list', async ({ page }) => {
+  test('should paginate users list', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/users');
 
     // Should have pagination controls
@@ -56,7 +56,7 @@ test.describe('Admin User Management', () => {
     expect(page.url()).toMatch(/page=2|\?.*page.*2/);
   });
 
-  test.skip('should search users by email or name', async ({ page }) => {
+  test('should search users by email or name', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/users');
 
     // Should have search input
@@ -80,7 +80,7 @@ test.describe('Admin User Management', () => {
     }
   });
 
-  test.skip('should filter users by KYC status', async ({ page }) => {
+  test('should filter users by KYC status', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/users');
 
     // Select KYC status filter
@@ -99,7 +99,7 @@ test.describe('Admin User Management', () => {
     }
   });
 
-  test.skip('should view user details', async ({ page }) => {
+  test('should view user details', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/users');
 
     // Click on first user row
@@ -115,7 +115,7 @@ test.describe('Admin User Management', () => {
 });
 
 test.describe('Admin KYC Management', () => {
-  test.skip('should display pending KYC requests', async ({ page }) => {
+  test('should display pending KYC requests', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/kyc');
 
     // Should show list of pending KYC
@@ -126,7 +126,7 @@ test.describe('Admin KYC Management', () => {
     await expect(page.locator('[data-testid="kyc-item"]').first()).toBeVisible();
   });
 
-  test.skip('should view KYC document image', async ({ page }) => {
+  test('should view KYC document image', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/kyc');
 
     // Click on KYC item
@@ -137,7 +137,7 @@ test.describe('Admin KYC Management', () => {
     await expect(documentImage).toBeVisible();
   });
 
-  test.skip('should approve KYC request', async ({ page }) => {
+  test('should approve KYC request', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/kyc');
 
     // Click on KYC item
@@ -158,7 +158,7 @@ test.describe('Admin KYC Management', () => {
     await page.waitForTimeout(500);
   });
 
-  test.skip('should reject KYC request with reason', async ({ page }) => {
+  test('should reject KYC request with reason', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/kyc');
 
     // Click on KYC item
@@ -182,7 +182,7 @@ test.describe('Admin KYC Management', () => {
     await expect(page.locator('text=/kyc.*rejeté|kyc.*rejected/i')).toBeVisible();
   });
 
-  test.skip('should not allow approval without viewing document', async ({ page }) => {
+  test('should not allow approval without viewing document', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/kyc');
 
     // Approve button might be disabled initially
@@ -195,7 +195,7 @@ test.describe('Admin KYC Management', () => {
 });
 
 test.describe('Admin Transaction Management', () => {
-  test.skip('should display all transactions', async ({ page }) => {
+  test('should display all transactions', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/transactions');
 
     // Should show transactions table
@@ -208,7 +208,7 @@ test.describe('Admin Transaction Management', () => {
     await expect(page.locator('th:has-text(/statut|status/i)')).toBeVisible();
   });
 
-  test.skip('should filter transactions by status', async ({ page }) => {
+  test('should filter transactions by status', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/transactions');
 
     // Select status filter
@@ -224,7 +224,7 @@ test.describe('Admin Transaction Management', () => {
     }
   });
 
-  test.skip('should filter transactions by date range', async ({ page }) => {
+  test('should filter transactions by date range', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/transactions');
 
     // Set date range
@@ -240,7 +240,7 @@ test.describe('Admin Transaction Management', () => {
     // Results should be within date range (verify in UI)
   });
 
-  test.skip('should export transactions to CSV', async ({ page }) => {
+  test('should export transactions to CSV', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/transactions');
 
     // Click export button
@@ -260,7 +260,7 @@ test.describe('Admin Transaction Management', () => {
 });
 
 test.describe('Admin Dashboard Statistics', () => {
-  test.skip('should display key metrics', async ({ page }) => {
+  test('should display key metrics', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin');
 
     // Should show statistics cards
@@ -270,7 +270,7 @@ test.describe('Admin Dashboard Statistics', () => {
     await expect(page.locator('[data-testid="stat-pending-kyc"]')).toBeVisible();
   });
 
-  test.skip('should display revenue chart', async ({ page }) => {
+  test('should display revenue chart', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin');
 
     // Should show chart
@@ -278,7 +278,7 @@ test.describe('Admin Dashboard Statistics', () => {
     await expect(revenueChart).toBeVisible();
   });
 
-  test.skip('should display recent activity feed', async ({ page }) => {
+  test('should display recent activity feed', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin');
 
     // Should show activity feed
@@ -291,14 +291,14 @@ test.describe('Admin Dashboard Statistics', () => {
 });
 
 test.describe('Admin Settings', () => {
-  test.skip('should allow admin to view system settings', async ({ page }) => {
+  test('should allow admin to view system settings', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/settings');
 
     // Should show settings form
     await expect(page.locator('form[data-testid="settings-form"]')).toBeVisible();
   });
 
-  test.skip('should update fee configuration', async ({ page }) => {
+  test('should update fee configuration', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/admin/settings');
 
     // Update fee settings

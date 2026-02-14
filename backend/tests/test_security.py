@@ -315,44 +315,80 @@ class TestWebhookIdempotency:
     async def test_processing_same_webhook_twice_does_not_double_credit(
         self,
         test_client: AsyncClient,
-        test_user: User,
-        test_db: AsyncSession
+        test_user_token: tuple[str, User],
+        test_db: AsyncSession,
+        mock_accountpe
     ):
         """Test that processing the same webhook twice doesn't double-credit the user."""
-        # NOTE: This test assumes webhook endpoint exists at /api/v1/webhooks/s3p or similar
-        # and uses a transaction_reference or external_id for idempotency
+        token, user = test_user_token
 
-        # TODO: Implement when webhook endpoint is finalized
-        # webhook_payload = {
-        #     "transaction_reference": "unique_txn_ref_123",
-        #     "amount": 100.0,
-        #     "status": "SUCCESS",
-        #     "user_id": str(test_user.id)
-        # }
-        #
-        # # First webhook call
-        # response1 = await test_client.post(
-        #     "/api/v1/webhooks/s3p",
-        #     json=webhook_payload
-        # )
-        # assert response1.status_code == 200
-        #
-        # # Get initial balance
-        # from sqlalchemy import select
-        # stmt = select(User).where(User.id == test_user.id)
-        # result = await test_db.execute(stmt)
-        # user = result.scalar_one()
-        # balance_after_first = user.wallet_balance
-        #
-        # # Second webhook call with same reference
-        # response2 = await test_client.post(
-        #     "/api/v1/webhooks/s3p",
-        #     json=webhook_payload
-        # )
-        # assert response2.status_code == 200
-        #
-        # # Verify balance hasn't changed
-        # await test_db.refresh(user)
-        # balance_after_second = user.wallet_balance
-        # assert balance_after_second == balance_after_first
-        pass
+        # First, create a card for the user
+        from app.models.card import Card, CardType, CardStatus
+        card = Card(
+            user_id=user.id,
+            card_type=CardType.VISA,
+            card_number_masked="****1234",
+            card_number_full_encrypted="4111111111111234",
+            status=CardStatus.ACTIVE,
+            balance=Decimal("0.00"),
+            currency="XAF",
+            provider="AccountPE",
+            provider_card_id="test_card_123",
+            expiry_date="12/29",
+            cvv_encrypted="123",
+        )
+        test_db.add(card)
+        await test_db.commit()
+        await test_db.refresh(card)
+
+        # Create a pending transaction
+        from app.models.transaction import Transaction, TransactionType, TransactionStatus
+        unique_ref = "unique_txn_ref_123"
+        transaction = Transaction(
+            card_id=card.id,
+            user_id=user.id,
+            amount=Decimal("100.0"),
+            currency="XAF",
+            type=TransactionType.TOPUP,
+            status=TransactionStatus.PENDING,
+            description="Test topup",
+            provider_transaction_id=unique_ref,
+            metadata={"ptn": unique_ref, "trid": unique_ref}
+        )
+        test_db.add(transaction)
+        await test_db.commit()
+
+        webhook_payload = {
+            "ptn": unique_ref,
+            "trid": unique_ref,
+            "amount": 100.0,
+            "status": "SUCCESS",
+        }
+
+        # First webhook call
+        response1 = await test_client.post(
+            "/api/v1/payments/webhook/s3p",
+            json=webhook_payload
+        )
+        assert response1.status_code == 200
+
+        # Get balance after first webhook
+        from sqlalchemy import select
+        stmt = select(Card).where(Card.id == card.id)
+        result = await test_db.execute(stmt)
+        card_after_first = result.scalar_one()
+        balance_after_first = card_after_first.balance
+        assert balance_after_first == Decimal("100.0")
+
+        # Second webhook call with same reference (idempotency check)
+        response2 = await test_client.post(
+            "/api/v1/payments/webhook/s3p",
+            json=webhook_payload
+        )
+        assert response2.status_code == 200
+
+        # Verify balance hasn't changed (no double credit)
+        await test_db.refresh(card_after_first)
+        balance_after_second = card_after_first.balance
+        assert balance_after_second == balance_after_first
+        assert balance_after_second == Decimal("100.0")

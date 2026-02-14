@@ -476,10 +476,130 @@ class ApiService {
     }
   }
 
-  /// Get notifications - Mock implementation (no backend endpoint yet)
-  Future<List<Map<String, dynamic>>> getNotifications() async {
-    // This endpoint doesn't exist in the backend yet, so we keep a mock
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [];
+  /// Reveal card sensitive data (card number, CVV, expiry)
+  Future<Map<String, dynamic>> revealCard(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/reveal');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'card_number': data['card_number'] as String,
+          'cvv': data['cvv'] as String,
+          'expiry_date': data['expiry_date'] as String,
+        };
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de révélation de carte: $e');
+    }
+  }
+
+  /// Get notifications
+  Future<List<Map<String, dynamic>>> getNotifications({int limit = 50, int offset = 0}) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/notifications?limit=$limit&offset=$offset');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['notifications'] ?? []);
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération des notifications: $e');
+    }
+  }
+
+  /// Get unread notification count
+  Future<int> getUnreadNotificationCount() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/notifications/unread-count');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['count'] ?? 0;
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de récupération du compteur: $e');
+    }
+  }
+
+  /// Mark notification as read
+  Future<void> markNotificationRead(String notificationId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/notifications/$notificationId/read');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de marquage de notification: $e');
+    }
+  }
+
+  /// Mark all notifications as read
+  Future<void> markAllNotificationsRead() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/notifications/read-all');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        return;
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expirée. Veuillez vous reconnecter.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de marquage des notifications: $e');
+    }
   }
 }

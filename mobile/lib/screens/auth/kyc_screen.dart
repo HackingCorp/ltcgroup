@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../widgets/custom_button.dart';
 import '../../config/theme.dart';
 import '../../services/api_service.dart';
+import '../../services/storage_service.dart';
+import '../../config/api_config.dart';
 
 class KycScreen extends StatefulWidget {
   const KycScreen({super.key});
@@ -564,9 +568,20 @@ class _KycScreenState extends State<KycScreen> {
     });
 
     try {
-      // In a real app, you would upload images to cloud storage first
-      // For now, we'll just use placeholder URLs
-      final documentUrl = 'https://example.com/documents/${DateTime.now().millisecondsSinceEpoch}';
+      // Upload files to backend and get URLs
+      String? documentUrl;
+
+      if (_frontImagePath != null) {
+        documentUrl = await _uploadFile(_frontImagePath!, 'front');
+      }
+
+      if (_backImagePath != null && _selectedDocumentType != 'PASSPORT') {
+        await _uploadFile(_backImagePath!, 'back');
+      }
+
+      if (documentUrl == null) {
+        throw Exception('Erreur lors de l\'upload des documents');
+      }
 
       await _apiService.submitKyc(
         documentUrl: documentUrl,
@@ -583,6 +598,27 @@ class _KycScreenState extends State<KycScreen> {
         _isLoading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  Future<String> _uploadFile(String filePath, String side) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/uploads/kyc');
+    final token = await StorageService().getToken();
+
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..fields['document_type'] = _selectedDocumentType!
+      ..fields['side'] = side
+      ..files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = json.decode(response.body);
+      return data['url'] as String;
+    } else {
+      throw Exception('Erreur lors de l\'upload du fichier');
     }
   }
 }

@@ -59,27 +59,27 @@ class TestAdminEndpoints:
         """Test that non-admin users cannot access GET /api/v1/admin/users."""
         token, _ = test_user_token
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/users",
-        #     headers={"Authorization": f"Bearer {token}"}
-        # )
-        # assert response.status_code == 403
-        # assert "not authorized" in response.json()["detail"].lower()
+        response = await test_client.get(
+            "/api/v1/admin/users",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
+        assert "admin" in response.json()["detail"].lower()
 
     async def test_get_users_as_admin(
         self, test_client: AsyncClient, test_admin_token: str, test_db: AsyncSession
     ):
         """Test that admin can access GET /api/v1/admin/users and get paginated results."""
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/users",
-        #     headers={"Authorization": f"Bearer {test_admin_token}"}
-        # )
-        # assert response.status_code == 200
-        # data = response.json()
-        # assert "users" in data or "items" in data
-        # assert "total" in data or "count" in data
+        response = await test_client.get(
+            "/api/v1/admin/users",
+            headers={"Authorization": f"Bearer {test_admin_token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "users" in data
+        assert "total" in data
+        assert "page" in data
+        assert "page_size" in data
 
     async def test_approve_kyc_requires_admin(
         self, test_client: AsyncClient, test_user_token: tuple[str, User]
@@ -87,12 +87,11 @@ class TestAdminEndpoints:
         """Test that non-admin users cannot approve KYC."""
         token, user = test_user_token
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.post(
-        #     f"/api/v1/admin/users/{user.id}/kyc/approve",
-        #     headers={"Authorization": f"Bearer {token}"}
-        # )
-        # assert response.status_code == 403
+        response = await test_client.post(
+            f"/api/v1/admin/users/{user.id}/kyc/approve",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
 
     async def test_approve_kyc_as_admin(
         self, test_client: AsyncClient, test_admin_token: str, test_db: AsyncSession
@@ -111,16 +110,15 @@ class TestAdminEndpoints:
         await test_db.commit()
         await test_db.refresh(pending_user)
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.post(
-        #     f"/api/v1/admin/users/{pending_user.id}/kyc/approve",
-        #     headers={"Authorization": f"Bearer {test_admin_token}"}
-        # )
-        # assert response.status_code == 200
-        #
-        # # Verify status changed
-        # await test_db.refresh(pending_user)
-        # assert pending_user.kyc_status == KYCStatus.APPROVED
+        response = await test_client.post(
+            f"/api/v1/admin/users/{pending_user.id}/kyc/approve",
+            headers={"Authorization": f"Bearer {test_admin_token}"}
+        )
+        assert response.status_code == 200
+
+        # Verify status changed
+        await test_db.refresh(pending_user)
+        assert pending_user.kyc_status == KYCStatus.APPROVED
 
     async def test_reject_kyc_as_admin(
         self, test_client: AsyncClient, test_admin_token: str, test_db: AsyncSession
@@ -139,17 +137,16 @@ class TestAdminEndpoints:
         await test_db.commit()
         await test_db.refresh(pending_user)
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.post(
-        #     f"/api/v1/admin/users/{pending_user.id}/kyc/reject",
-        #     headers={"Authorization": f"Bearer {test_admin_token}"},
-        #     json={"reason": "Document not clear"}
-        # )
-        # assert response.status_code == 200
-        #
-        # # Verify status changed
-        # await test_db.refresh(pending_user)
-        # assert pending_user.kyc_status == KYCStatus.REJECTED
+        response = await test_client.post(
+            f"/api/v1/admin/users/{pending_user.id}/kyc/reject",
+            headers={"Authorization": f"Bearer {test_admin_token}"},
+            json={"reason": "Document not clear"}
+        )
+        assert response.status_code == 200
+
+        # Verify status changed
+        await test_db.refresh(pending_user)
+        assert pending_user.kyc_status == KYCStatus.REJECTED
 
     async def test_get_transactions_requires_admin(
         self, test_client: AsyncClient, test_user_token: tuple[str, User]
@@ -157,25 +154,26 @@ class TestAdminEndpoints:
         """Test that non-admin users cannot access all transactions."""
         token, _ = test_user_token
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/transactions",
-        #     headers={"Authorization": f"Bearer {token}"}
-        # )
-        # assert response.status_code == 403
+        response = await test_client.get(
+            "/api/v1/admin/transactions",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
 
     async def test_get_transactions_as_admin(
         self, test_client: AsyncClient, test_admin_token: str
     ):
         """Test that admin can access all transactions."""
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/transactions",
-        #     headers={"Authorization": f"Bearer {test_admin_token}"}
-        # )
-        # assert response.status_code == 200
-        # data = response.json()
-        # assert isinstance(data, list) or "transactions" in data or "items" in data
+        response = await test_client.get(
+            "/api/v1/admin/transactions",
+            headers={"Authorization": f"Bearer {test_admin_token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "transactions" in data
+        assert "total" in data
+        assert "page" in data
+        assert "page_size" in data
 
     async def test_get_stats_requires_admin(
         self, test_client: AsyncClient, test_user_token: tuple[str, User]
@@ -183,24 +181,25 @@ class TestAdminEndpoints:
         """Test that non-admin users cannot access dashboard stats."""
         token, _ = test_user_token
 
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/stats",
-        #     headers={"Authorization": f"Bearer {token}"}
-        # )
-        # assert response.status_code == 403
+        response = await test_client.get(
+            "/api/v1/admin/stats",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
 
     async def test_get_stats_as_admin(
         self, test_client: AsyncClient, test_admin_token: str
     ):
         """Test that admin can access dashboard statistics."""
-        # TODO: Uncomment when admin.py is implemented
-        # response = await test_client.get(
-        #     "/api/v1/admin/stats",
-        #     headers={"Authorization": f"Bearer {test_admin_token}"}
-        # )
-        # assert response.status_code == 200
-        # data = response.json()
-        # assert "total_users" in data or "users_count" in data
-        # assert "total_cards" in data or "cards_count" in data
-        # assert "total_transactions" in data or "transactions_count" in data
+        response = await test_client.get(
+            "/api/v1/admin/stats",
+            headers={"Authorization": f"Bearer {test_admin_token}"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_users" in data
+        assert "total_cards" in data
+        assert "total_transactions" in data
+        assert "total_volume" in data
+        assert "total_revenue" in data
+        assert "pending_kyc" in data

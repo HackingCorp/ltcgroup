@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Mobile Money Payment Flow (S3P)', () => {
-  test.skip('should detect MTN number correctly', async ({ page }) => {
+  test('should detect MTN number correctly', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill MTN number (67, 650-656)
@@ -19,7 +19,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     await expect(providerLabel).toBeVisible();
   });
 
-  test.skip('should detect Orange number correctly', async ({ page }) => {
+  test('should detect Orange number correctly', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
     // Fill Orange number (69, 655-659)
@@ -30,7 +30,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     await expect(providerLabel).toBeVisible();
   });
 
-  test.skip('should initiate S3P payment with MTN', async ({ page }) => {
+  test('should initiate S3P payment with MTN', async ({ page }) => {
     // Mock the payment API endpoint
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -65,7 +65,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     await expect(page.locator('text=/(PTN|TRID).*\\w+/i')).toBeVisible();
   });
 
-  test.skip('should poll payment status after initiation', async ({ page }) => {
+  test('should poll payment status after initiation', async ({ page }) => {
     // Mock payment initiation
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -105,7 +105,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     });
   });
 
-  test.skip('should handle payment timeout', async ({ page }) => {
+  test('should handle payment timeout', async ({ page }) => {
     // Mock payment that stays pending
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -136,7 +136,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     ).toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('should handle payment failure', async ({ page }) => {
+  test('should handle payment failure', async ({ page }) => {
     // Mock failed payment
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -174,7 +174,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
 });
 
 test.describe('E-nkap Payment Flow', () => {
-  test.skip('should initiate E-nkap payment', async ({ page }) => {
+  test('should initiate E-nkap payment', async ({ page }) => {
     // Mock E-nkap payment initiation
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -204,7 +204,7 @@ test.describe('E-nkap Payment Flow', () => {
     await expect(page.locator('text=/redirection|checkout/i')).toBeVisible();
   });
 
-  test.skip('should handle E-nkap callback success', async ({ page }) => {
+  test('should handle E-nkap callback success', async ({ page }) => {
     await page.goto('/services/solutions-financieres/payment/callback?status=COMPLETED&orderRef=ORD123');
 
     // Should show success message
@@ -214,14 +214,14 @@ test.describe('E-nkap Payment Flow', () => {
     await expect(page.locator('text=ORD123')).toBeVisible();
   });
 
-  test.skip('should handle E-nkap callback failure', async ({ page }) => {
+  test('should handle E-nkap callback failure', async ({ page }) => {
     await page.goto('/services/solutions-financieres/payment/callback?status=FAILED&orderRef=ORD123');
 
     // Should show failure message
     await expect(page.locator('text=/paiement.*échoué|failed/i')).toBeVisible();
   });
 
-  test.skip('should handle E-nkap callback cancellation', async ({ page }) => {
+  test('should handle E-nkap callback cancellation', async ({ page }) => {
     await page.goto('/services/solutions-financieres/payment/callback?status=CANCELLED&orderRef=ORD123');
 
     // Should show cancellation message
@@ -230,7 +230,7 @@ test.describe('E-nkap Payment Flow', () => {
 });
 
 test.describe('Payment Error Handling', () => {
-  test.skip('should handle network errors gracefully', async ({ page }) => {
+  test('should handle network errors gracefully', async ({ page }) => {
     // Mock network error
     await page.route('/api/payments/initiate', async (route) => {
       await route.abort('failed');
@@ -245,7 +245,7 @@ test.describe('Payment Error Handling', () => {
     await expect(page.locator('text=/erreur.*réseau|network error/i')).toBeVisible();
   });
 
-  test.skip('should handle invalid payment response', async ({ page }) => {
+  test('should handle invalid payment response', async ({ page }) => {
     // Mock invalid response
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({

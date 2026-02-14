@@ -7,6 +7,7 @@ import '../../widgets/transaction_item.dart';
 import '../../widgets/custom_button.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
+import '../../services/api_service.dart';
 
 class CardDetailScreen extends StatefulWidget {
   const CardDetailScreen({super.key});
@@ -155,22 +156,34 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
       return;
     }
 
-    // In a real app, call GET /cards/{id}/reveal endpoint
-    // For now, simulate the API call
-    setState(() {
-      _isCardNumberRevealed = true;
-      _revealedCardNumber = '4532 1234 5678 9010'; // Mock data
-    });
+    // Call real API to reveal card data
+    try {
+      final revealData = await ApiService().revealCard(cardId);
+      if (!mounted) return;
 
-    // Auto-hide after 30 seconds
-    Future.delayed(const Duration(seconds: 30), () {
-      if (mounted) {
-        setState(() {
-          _isCardNumberRevealed = false;
-          _revealedCardNumber = null;
-        });
-      }
-    });
+      setState(() {
+        _revealedCardNumber = revealData['card_number'];
+        _isCardNumberRevealed = true;
+      });
+
+      // Auto-hide after 30 seconds
+      Future.delayed(const Duration(seconds: 30), () {
+        if (mounted) {
+          setState(() {
+            _isCardNumberRevealed = false;
+            _revealedCardNumber = null;
+          });
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${e.toString()}'),
+          backgroundColor: LTCColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _toggleCvvReveal(String cardId) async {
@@ -182,22 +195,34 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
       return;
     }
 
-    // In a real app, call GET /cards/{id}/reveal endpoint
-    // For now, simulate the API call
-    setState(() {
-      _isCvvRevealed = true;
-      _revealedCvv = '123'; // Mock data
-    });
+    // Call real API to reveal CVV
+    try {
+      final revealData = await ApiService().revealCard(cardId);
+      if (!mounted) return;
 
-    // Auto-hide after 30 seconds
-    Future.delayed(const Duration(seconds: 30), () {
-      if (mounted) {
-        setState(() {
-          _isCvvRevealed = false;
-          _revealedCvv = null;
-        });
-      }
-    });
+      setState(() {
+        _revealedCvv = revealData['cvv'];
+        _isCvvRevealed = true;
+      });
+
+      // Auto-hide after 30 seconds
+      Future.delayed(const Duration(seconds: 30), () {
+        if (mounted) {
+          setState(() {
+            _isCvvRevealed = false;
+            _revealedCvv = null;
+          });
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${e.toString()}'),
+          backgroundColor: LTCColors.error,
+        ),
+      );
+    }
   }
 
   @override
