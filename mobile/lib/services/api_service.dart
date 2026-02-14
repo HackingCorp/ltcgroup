@@ -18,6 +18,12 @@ class ApiService {
 
   /// Handle API errors
   Exception _handleError(http.Response response) {
+    if (response.statusCode == 401) {
+      // Session expired - clear token
+      _storageService.removeToken();
+      return Exception('Session expirée. Veuillez vous reconnecter.');
+    }
+
     try {
       final data = json.decode(response.body);
       final detail = data['detail'] ?? 'Une erreur est survenue';

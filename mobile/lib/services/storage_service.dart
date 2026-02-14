@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../models/user.dart';
 
@@ -6,23 +7,23 @@ import '../models/user.dart';
 class StorageService {
   static const String _keyToken = 'auth_token';
   static const String _keyUser = 'user_data';
+  static const String _keyBiometricEnabled = 'biometric_enabled';
 
-  /// Save authentication token
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  /// Save authentication token (secure)
   Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyToken, token);
+    await _secureStorage.write(key: _keyToken, value: token);
   }
 
-  /// Get authentication token
+  /// Get authentication token (secure)
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyToken);
+    return await _secureStorage.read(key: _keyToken);
   }
 
-  /// Remove authentication token
+  /// Remove authentication token (secure)
   Future<void> removeToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyToken);
+    await _secureStorage.delete(key: _keyToken);
   }
 
   /// Save user data
@@ -52,6 +53,19 @@ class StorageService {
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    await _secureStorage.deleteAll();
+  }
+
+  /// Save biometric preference
+  Future<void> setBiometricEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyBiometricEnabled, enabled);
+  }
+
+  /// Get biometric preference
+  Future<bool> isBiometricEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyBiometricEnabled) ?? false;
   }
 
   /// Check if user is logged in

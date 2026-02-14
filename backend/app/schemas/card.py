@@ -30,3 +30,9 @@ class CardAction(BaseModel):
 class CardListResponse(BaseModel):
     cards: list[CardResponse]
     total: int
+
+
+class CardRevealResponse(BaseModel):
+    card_number_full: str
+    cvv: str
+    expiry_date: str

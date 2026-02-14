@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Numeric, Text
+from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Numeric, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSON
 import enum
@@ -25,6 +25,13 @@ class TransactionStatus(str, enum.Enum):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_transaction_id",
+            name="uq_provider_transaction_id",
+            sqlite_on_conflict="IGNORE",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

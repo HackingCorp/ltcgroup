@@ -20,6 +20,14 @@ export default function VCardDashboardPage() {
   const [userCards, setUserCards] = useState<CardResponse[]>([]);
   const [selectedCardId, setSelectedCardId] = useState("");
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [cardToBlock, setCardToBlock] = useState<CardResponse | null>(null);
+  const [showRevealModal, setShowRevealModal] = useState(false);
+  const [revealedCardData, setRevealedCardData] = useState<{
+    card_number: string;
+    cvv: string;
+    expiry_date: string;
+  } | null>(null);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -59,6 +67,47 @@ export default function VCardDashboardPage() {
 
   const selectedCard = userCards.find((card) => card.id === selectedCardId);
 
+  const handleFreezeCard = async (cardId: string) => {
+    try {
+      await cardsAPI.freeze(cardId);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleUnfreezeCard = async (cardId: string) => {
+    try {
+      await cardsAPI.unfreeze(cardId);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleBlockCard = async () => {
+    if (!cardToBlock) return;
+
+    try {
+      await cardsAPI.block(cardToBlock.id);
+      setShowBlockModal(false);
+      setCardToBlock(null);
+      await loadData();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleRevealCard = async (cardId: string) => {
+    try {
+      const revealData = await cardsAPI.reveal(cardId);
+      setRevealedCardData(revealData);
+      setShowRevealModal(true);
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   // Map API transactions to component format
   const mappedTransactions = transactions.map(tx => ({
     id: tx.id,
@@ -72,17 +121,22 @@ export default function VCardDashboardPage() {
   // Card status badge
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      active: {
+      ACTIVE: {
         label: "Active",
         color: "bg-green-100 text-green-700",
         icon: "check_circle",
       },
-      blocked: {
+      FROZEN: {
+        label: "Gelée",
+        color: "bg-blue-100 text-blue-700",
+        icon: "ac_unit",
+      },
+      BLOCKED: {
         label: "Bloquée",
         color: "bg-red-100 text-red-700",
         icon: "block",
       },
-      expired: {
+      EXPIRED: {
         label: "Expirée",
         color: "bg-slate-100 text-slate-700",
         icon: "schedule",
@@ -90,7 +144,7 @@ export default function VCardDashboardPage() {
     };
 
     const config =
-      statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.ACTIVE;
 
     return (
       <span
@@ -258,19 +312,76 @@ export default function VCardDashboardPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-4">
-                    <button className="flex-1 flex items-center justify-center gap-2 h-10 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg transition-all text-sm">
-                      <span className="material-symbols-outlined text-base">
-                        block
-                      </span>
-                      <span>Bloquer</span>
-                    </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-all text-sm">
-                      <span className="material-symbols-outlined text-base">
-                        download
-                      </span>
-                      <span>Export</span>
-                    </button>
+                  <div className="grid grid-cols-2 gap-2 pt-4">
+                    {selectedCard.status === "ACTIVE" && (
+                      <>
+                        <button
+                          onClick={() => handleFreezeCard(selectedCard.id)}
+                          className="flex items-center justify-center gap-2 h-10 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-lg transition-all text-sm"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            ac_unit
+                          </span>
+                          <span>Geler</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCardToBlock(selectedCard);
+                            setShowBlockModal(true);
+                          }}
+                          className="flex items-center justify-center gap-2 h-10 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg transition-all text-sm"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            block
+                          </span>
+                          <span>Bloquer</span>
+                        </button>
+                      </>
+                    )}
+
+                    {selectedCard.status === "FROZEN" && (
+                      <>
+                        <button
+                          onClick={() => handleUnfreezeCard(selectedCard.id)}
+                          className="flex items-center justify-center gap-2 h-10 bg-green-100 hover:bg-green-200 text-green-700 font-bold rounded-lg transition-all text-sm"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            play_arrow
+                          </span>
+                          <span>Dégeler</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCardToBlock(selectedCard);
+                            setShowBlockModal(true);
+                          }}
+                          className="flex items-center justify-center gap-2 h-10 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg transition-all text-sm"
+                        >
+                          <span className="material-symbols-outlined text-base">
+                            block
+                          </span>
+                          <span>Bloquer</span>
+                        </button>
+                      </>
+                    )}
+
+                    {selectedCard.status === "BLOCKED" && (
+                      <div className="col-span-2 text-center py-2 text-sm text-red-600 font-medium">
+                        Carte bloquée définitivement
+                      </div>
+                    )}
+
+                    {(selectedCard.status === "ACTIVE" || selectedCard.status === "FROZEN") && (
+                      <button
+                        onClick={() => handleRevealCard(selectedCard.id)}
+                        className="col-span-2 flex items-center justify-center gap-2 h-10 bg-[#cea427] hover:bg-[#b38d1f] text-white font-bold rounded-lg transition-all text-sm"
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          visibility
+                        </span>
+                        <span>Voir les détails complets</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -370,6 +481,127 @@ export default function VCardDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Block Confirmation Modal */}
+        {showBlockModal && cardToBlock && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="material-symbols-outlined text-4xl text-red-600">
+                  warning
+                </span>
+                <h3 className="text-xl font-black text-slate-900">
+                  Bloquer la carte
+                </h3>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-2">
+                Êtes-vous sûr de vouloir bloquer cette carte ?
+              </p>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-red-800 font-bold">
+                  ⚠️ Cette action est irréversible
+                </p>
+                <p className="text-sm text-red-700 mt-1">
+                  Une fois bloquée, vous ne pourrez plus utiliser cette carte. Vous devrez en commander une nouvelle.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBlockCard}
+                  className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all"
+                >
+                  Oui, bloquer
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBlockModal(false);
+                    setCardToBlock(null);
+                  }}
+                  className="flex-1 h-10 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reveal Card Modal */}
+        {showRevealModal && revealedCardData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-black text-slate-900">
+                  Détails de la carte
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowRevealModal(false);
+                    setRevealedCardData(null);
+                  }}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                    Numéro de carte
+                  </label>
+                  <div className="h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center font-mono text-lg font-bold text-slate-900">
+                    {revealedCardData.card_number}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                      Date d'expiration
+                    </label>
+                    <div className="h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center font-mono text-lg font-bold text-slate-900">
+                      {revealedCardData.expiry_date}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">
+                      CVV
+                    </label>
+                    <div className="h-12 px-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center font-mono text-lg font-bold text-slate-900">
+                      {revealedCardData.cvv}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <div className="flex gap-2">
+                    <span className="material-symbols-outlined text-yellow-600 text-base">
+                      lock
+                    </span>
+                    <p className="text-xs text-yellow-800">
+                      Ne partagez jamais ces informations. Gardez-les en sécurité.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowRevealModal(false);
+                  setRevealedCardData(null);
+                }}
+                className="w-full h-12 bg-[#cea427] hover:bg-[#b38d1f] text-white font-bold rounded-lg transition-all mt-6"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

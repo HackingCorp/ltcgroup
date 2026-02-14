@@ -4,9 +4,70 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
+import '../../services/storage_service.dart';
+import '../../services/biometric_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final StorageService _storageService = StorageService();
+  final BiometricService _biometricService = BiometricService();
+  bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSettings();
+  }
+
+  Future<void> _loadBiometricSettings() async {
+    final enabled = await _storageService.isBiometricEnabled();
+    final available = await _biometricService.checkBiometricAvailable();
+    setState(() {
+      _biometricEnabled = enabled;
+      _biometricAvailable = available;
+    });
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      // Enable biometric - authenticate first
+      final authenticated = await _biometricService.authenticate(
+        reason: 'Activer l\'authentification biométrique',
+      );
+
+      if (authenticated) {
+        await _storageService.setBiometricEnabled(true);
+        setState(() {
+          _biometricEnabled = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Authentification biométrique activée')),
+          );
+        }
+      }
+    } else {
+      // Disable biometric
+      await _storageService.setBiometricEnabled(false);
+      setState(() {
+        _biometricEnabled = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentification biométrique désactivée')),
+        );
+      }
+    }
+  }
 
   Future<void> _handleLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -189,6 +250,8 @@ class ProfileScreen extends StatelessWidget {
                     },
                   ),
                   const Divider(height: 1),
+                  if (_biometricAvailable) _buildBiometricToggle(),
+                  if (_biometricAvailable) const Divider(height: 1),
                   _buildSettingsTile(
                     context,
                     icon: Icons.settings_outlined,
@@ -349,6 +412,29 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBiometricToggle() {
+    return SwitchListTile(
+      value: _biometricEnabled,
+      onChanged: _toggleBiometric,
+      secondary: Icon(Icons.fingerprint, color: LTCColors.accent),
+      title: const Text(
+        'Authentification biométrique',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: const Text(
+        'Utilisez votre empreinte ou Face ID pour vous connecter',
+        style: TextStyle(
+          fontSize: 12,
+          color: LTCColors.textSecondary,
+        ),
+      ),
+      activeColor: LTCColors.accent,
     );
   }
 

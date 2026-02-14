@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.user import User
@@ -18,7 +19,9 @@ from app.models.transaction import Transaction, TransactionType, TransactionStat
 from app.services.auth import get_current_user
 from app.services.s3p import s3p_client, S3PError
 from app.services.enkap import enkap_client, EnkapError, verify_webhook_signature
+from app.utils.logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
@@ -248,7 +251,7 @@ async def get_payment_status(
 
         except Exception as e:
             # Log error but don't fail the status check
-            print(f"Error verifying payment status: {e}")
+            logger.error(f"Error verifying payment status for transaction {transaction_id}: {str(e)}")
 
     return PaymentStatusResponse(
         transaction_id=transaction.id,
@@ -263,7 +266,7 @@ async def get_payment_status(
 @router.post("/webhook/s3p", status_code=status.HTTP_200_OK)
 async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    S3P webhook for payment notifications
+    S3P webhook for payment notifications (idempotent)
     Expected payload: {ptn, status, amount, trid, ...}
     """
     try:
@@ -271,6 +274,8 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         ptn = payload.get("ptn")
         trid = payload.get("trid")
         payment_status = payload.get("status")
+
+        logger.info(f"S3P webhook received: ptn={ptn}, trid={trid}, status={payment_status}")
 
         # Find transaction by trid or ptn
         query = select(Transaction).where(
@@ -282,7 +287,13 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         transaction = result.scalar_one_or_none()
 
         if not transaction:
+            logger.warning(f"S3P webhook: Transaction not found for ptn={ptn}, trid={trid}")
             return {"status": "error", "message": "Transaction not found"}
+
+        # Idempotency check: if already processed, return success
+        if transaction.status in [TransactionStatus.COMPLETED, TransactionStatus.FAILED]:
+            logger.info(f"S3P webhook: Transaction {transaction.id} already processed with status {transaction.status}")
+            return {"status": "success", "message": "Transaction already processed"}
 
         # Update transaction status
         if payment_status == "SUCCESS":
@@ -295,6 +306,7 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             card.balance += transaction.amount
             await db.commit()
 
+            logger.info(f"S3P webhook: Transaction {transaction.id} marked as COMPLETED, card balance updated")
             return {"status": "success", "message": "Payment processed"}
 
         elif payment_status in ["FAILED", "ERRORED"]:
@@ -302,19 +314,20 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             transaction.metadata = {**transaction.metadata, "webhook_data": payload}
             await db.commit()
 
+            logger.info(f"S3P webhook: Transaction {transaction.id} marked as FAILED")
             return {"status": "success", "message": "Payment marked as failed"}
 
         return {"status": "success", "message": "Webhook received"}
 
     except Exception as e:
-        print(f"S3P webhook error: {e}")
+        logger.error(f"S3P webhook error: {str(e)}", exc_info=e)
         return {"status": "error", "message": str(e)}
 
 
 @router.post("/webhook/enkap", status_code=status.HTTP_200_OK)
 async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """
-    E-nkap webhook for payment notifications
+    E-nkap webhook for payment notifications (idempotent)
     Expected payload: {order_id, status, amount, merchant_reference, ...}
     """
     try:
@@ -324,12 +337,15 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         # Verify signature if present
         if signature and not verify_webhook_signature(body.decode("utf-8"), signature):
+            logger.warning("E-nkap webhook: Invalid signature")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
         payload = await request.json()
         order_id = payload.get("order_id")
         merchant_ref = payload.get("merchant_reference")
         payment_status = payload.get("status")
+
+        logger.info(f"E-nkap webhook received: order_id={order_id}, merchant_ref={merchant_ref}, status={payment_status}")
 
         # Find transaction
         query = select(Transaction).where(
@@ -339,7 +355,13 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         transaction = result.scalar_one_or_none()
 
         if not transaction:
+            logger.warning(f"E-nkap webhook: Transaction not found for order_id={order_id}, merchant_ref={merchant_ref}")
             return {"status": "error", "message": "Transaction not found"}
+
+        # Idempotency check: if already processed, return success
+        if transaction.status in [TransactionStatus.COMPLETED, TransactionStatus.FAILED]:
+            logger.info(f"E-nkap webhook: Transaction {transaction.id} already processed with status {transaction.status}")
+            return {"status": "success", "message": "Transaction already processed"}
 
         # Update transaction status
         if payment_status == "COMPLETED":
@@ -352,6 +374,7 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             card.balance += transaction.amount
             await db.commit()
 
+            logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as COMPLETED, card balance updated")
             return {"status": "success", "message": "Payment processed"}
 
         elif payment_status in ["FAILED", "CANCELLED"]:
@@ -359,10 +382,11 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             transaction.metadata = {**transaction.metadata, "webhook_data": payload}
             await db.commit()
 
+            logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as FAILED")
             return {"status": "success", "message": "Payment marked as failed"}
 
         return {"status": "success", "message": "Webhook received"}
 
     except Exception as e:
-        print(f"E-nkap webhook error: {e}")
+        logger.error(f"E-nkap webhook error: {str(e)}", exc_info=e)
         return {"status": "error", "message": str(e)}

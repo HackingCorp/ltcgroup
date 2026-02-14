@@ -19,6 +19,9 @@ export default function TransactionList({
   transactions,
 }: TransactionListProps) {
   const [filter, setFilter] = useState<"all" | "topup" | "payment">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -37,10 +40,33 @@ export default function TransactionList({
   };
 
   // Filter transactions
-  const filteredTransactions =
-    filter === "all"
-      ? transactions
-      : transactions.filter((t) => t.type === filter);
+  let filteredTransactions = transactions;
+
+  // Filter by type
+  if (filter !== "all") {
+    filteredTransactions = filteredTransactions.filter((t) => t.type === filter);
+  }
+
+  // Filter by status
+  if (statusFilter !== "all") {
+    filteredTransactions = filteredTransactions.filter((t) => t.status === statusFilter);
+  }
+
+  // Filter by date range
+  if (dateFrom) {
+    filteredTransactions = filteredTransactions.filter(
+      (t) => new Date(t.date) >= new Date(dateFrom)
+    );
+  }
+
+  if (dateTo) {
+    filteredTransactions = filteredTransactions.filter(
+      (t) => new Date(t.date) <= new Date(dateTo)
+    );
+  }
+
+  // Calculate total amount
+  const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   // Paginate
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -62,19 +88,57 @@ export default function TransactionList({
     failed: "Échoué",
   };
 
+  const exportToCSV = () => {
+    const headers = ["Date", "Description", "Montant", "Statut"];
+    const rows = filteredTransactions.map((t) => [
+      formatDate(t.date),
+      t.description,
+      `${formatAmount(t.amount)} FCFA`,
+      statusLabels[t.status],
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", `transactions_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="w-full">
-      {/* Header and filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-slate-900">Historique</h3>
+        <button
+          onClick={exportToCSV}
+          disabled={filteredTransactions.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-[#cea427] hover:bg-[#b38d1f] text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          <span className="material-symbols-outlined text-base">download</span>
+          <span>Exporter CSV</span>
+        </button>
+      </div>
 
-        {/* Filter buttons */}
-        <div className="flex gap-2">
+      {/* Filters */}
+      <div className="space-y-4 mb-6">
+        {/* Type filters */}
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilter("all")}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
               filter === "all"
-                ? "bg-[#cea427] text-[#10151e]"
+                ? "bg-[#cea427] text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
@@ -84,7 +148,7 @@ export default function TransactionList({
             onClick={() => setFilter("topup")}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
               filter === "topup"
-                ? "bg-[#cea427] text-[#10151e]"
+                ? "bg-[#cea427] text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
@@ -94,13 +158,59 @@ export default function TransactionList({
             onClick={() => setFilter("payment")}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
               filter === "payment"
-                ? "bg-[#cea427] text-[#10151e]"
+                ? "bg-[#cea427] text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
             Paiements
           </button>
         </div>
+
+        {/* Status and Date Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#cea427] focus:border-transparent"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="completed">Complétée</option>
+            <option value="pending">En cours</option>
+            <option value="failed">Échouée</option>
+          </select>
+
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#cea427] focus:border-transparent"
+            placeholder="Date début"
+          />
+
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-10 px-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#cea427] focus:border-transparent"
+            placeholder="Date fin"
+          />
+        </div>
+
+        {/* Total Amount */}
+        {filteredTransactions.length > 0 && (
+          <div className="bg-slate-50 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-700">
+              Total ({filteredTransactions.length} transactions)
+            </span>
+            <span
+              className={`text-lg font-black ${
+                totalAmount >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {formatAmount(totalAmount)} FCFA
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Transactions list */}

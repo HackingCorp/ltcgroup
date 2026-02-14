@@ -16,12 +16,25 @@ class CardDetailScreen extends StatefulWidget {
 }
 
 class _CardDetailScreenState extends State<CardDetailScreen> {
+  bool _isCardNumberRevealed = false;
+  bool _isCvvRevealed = false;
+  String? _revealedCardNumber;
+  String? _revealedCvv;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCardTransactions();
     });
+  }
+
+  @override
+  void dispose() {
+    // Clear revealed data
+    _revealedCardNumber = null;
+    _revealedCvv = null;
+    super.dispose();
   }
 
   Future<void> _loadCardTransactions() async {
@@ -110,6 +123,83 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
         false;
   }
 
+  Future<bool> _showFreezeConfirmation() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Geler la carte'),
+            content: const Text(
+              'Êtes-vous sûr de vouloir geler cette carte ? Vous pourrez la dégeler plus tard.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Geler'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _toggleCardNumberReveal(String cardId) async {
+    if (_isCardNumberRevealed) {
+      setState(() {
+        _isCardNumberRevealed = false;
+        _revealedCardNumber = null;
+      });
+      return;
+    }
+
+    // In a real app, call GET /cards/{id}/reveal endpoint
+    // For now, simulate the API call
+    setState(() {
+      _isCardNumberRevealed = true;
+      _revealedCardNumber = '4532 1234 5678 9010'; // Mock data
+    });
+
+    // Auto-hide after 30 seconds
+    Future.delayed(const Duration(seconds: 30), () {
+      if (mounted) {
+        setState(() {
+          _isCardNumberRevealed = false;
+          _revealedCardNumber = null;
+        });
+      }
+    });
+  }
+
+  Future<void> _toggleCvvReveal(String cardId) async {
+    if (_isCvvRevealed) {
+      setState(() {
+        _isCvvRevealed = false;
+        _revealedCvv = null;
+      });
+      return;
+    }
+
+    // In a real app, call GET /cards/{id}/reveal endpoint
+    // For now, simulate the API call
+    setState(() {
+      _isCvvRevealed = true;
+      _revealedCvv = '123'; // Mock data
+    });
+
+    // Auto-hide after 30 seconds
+    Future.delayed(const Duration(seconds: 30), () {
+      if (mounted) {
+        setState(() {
+          _isCvvRevealed = false;
+          _revealedCvv = null;
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final cardId = ModalRoute.of(context)?.settings.arguments as String?;
@@ -158,11 +248,21 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
               ),
               child: Column(
                 children: [
-                  _buildDetailRow('Numéro', card.maskedNumber),
+                  _buildRevealableRow(
+                    'Numéro',
+                    _isCardNumberRevealed ? _revealedCardNumber! : card.maskedNumber,
+                    _isCardNumberRevealed,
+                    () => _toggleCardNumberReveal(card.id),
+                  ),
                   const Divider(height: 24),
                   _buildDetailRow('Expire le', card.expiryFormatted),
                   const Divider(height: 24),
-                  _buildDetailRow('CVV', '***'),
+                  _buildRevealableRow(
+                    'CVV',
+                    _isCvvRevealed ? _revealedCvv! : '***',
+                    _isCvvRevealed,
+                    () => _toggleCvvReveal(card.id),
+                  ),
                   const Divider(height: 24),
                   _buildDetailRow('Type', card.type),
                   const Divider(height: 24),
@@ -215,7 +315,12 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                       text: 'Geler la carte',
                       icon: Icons.ac_unit,
                       variant: ButtonVariant.outline,
-                      onPressed: () => _handleCardAction('freeze', card.id),
+                      onPressed: () async {
+                        final confirmed = await _showFreezeConfirmation();
+                        if (confirmed) {
+                          _handleCardAction('freeze', card.id);
+                        }
+                      },
                     ),
                   if (card.isFrozen)
                     CustomButton(
@@ -302,6 +407,43 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
             fontWeight: FontWeight.w600,
             color: LTCColors.textPrimary,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRevealableRow(String label, String value, bool isRevealed, VoidCallback onToggle) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: LTCColors.textSecondary,
+          ),
+        ),
+        Row(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: LTCColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(
+                isRevealed ? Icons.visibility_off : Icons.visibility,
+                size: 20,
+              ),
+              onPressed: onToggle,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
         ),
       ],
     );

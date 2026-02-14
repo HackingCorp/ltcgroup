@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../services/api_service.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../widgets/empty_state.dart';
 import '../../config/theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -12,8 +13,8 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final ApiService _apiService = ApiService();
-  List<Map<String, dynamic>> _notifications = [];
+  final NotificationService _notificationService = NotificationService();
+  List<AppNotification> _notifications = [];
   bool _isLoading = false;
 
   @override
@@ -28,13 +29,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
 
     try {
-      _notifications = await _apiService.getNotifications();
+      _notifications = await _notificationService.getStoredNotifications();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur: $e'),
-            backgroundColor: LTCColors.error,
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -54,7 +55,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final unreadCount =
-        _notifications.where((n) => n['read'] == false).length;
+        _notifications.where((n) => !n.isRead).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,7 +70,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           : RefreshIndicator(
               onRefresh: _handleRefresh,
               child: _notifications.isEmpty
-                  ? _buildEmptyState()
+                  ? const EmptyState(
+                      title: 'Aucune notification',
+                      message: 'Vos notifications apparaîtront ici',
+                      icon: Icons.notifications_none,
+                    )
                   : ListView.builder(
                       itemCount: _notifications.length,
                       itemBuilder: (context, index) {
@@ -81,130 +86,97 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationItem(Map<String, dynamic> notification) {
+  Widget _buildNotificationItem(AppNotification notification) {
     final dateFormat = DateFormat('dd MMM yyyy HH:mm', 'fr_FR');
-    final createdAt = DateTime.parse(notification['createdAt'] as String);
-    final isRead = notification['read'] as bool;
-    final type = notification['type'] as String;
 
-    IconData icon;
-    Color iconColor;
+    // Determine icon and color based on title/body content
+    IconData icon = Icons.notifications;
+    Color iconColor = LTCTheme.gold;
 
-    switch (type) {
-      case 'TRANSACTION':
-        icon = Icons.receipt;
-        iconColor = LTCColors.info;
-        break;
-      case 'KYC':
-        icon = Icons.verified_user;
-        iconColor = LTCColors.success;
-        break;
-      case 'CARD':
-        icon = Icons.credit_card;
-        iconColor = LTCColors.accent;
-        break;
-      default:
-        icon = Icons.notifications;
-        iconColor = Colors.grey;
+    if (notification.title.toLowerCase().contains('transaction') ||
+        notification.body.toLowerCase().contains('transaction')) {
+      icon = Icons.receipt;
+      iconColor = Colors.blue;
+    } else if (notification.title.toLowerCase().contains('kyc') ||
+        notification.body.toLowerCase().contains('kyc')) {
+      icon = Icons.verified_user;
+      iconColor = Colors.green;
+    } else if (notification.title.toLowerCase().contains('carte') ||
+        notification.body.toLowerCase().contains('carte')) {
+      icon = Icons.credit_card;
+      iconColor = LTCTheme.gold;
     }
 
-    return Container(
-      color: isRead ? Colors.transparent : LTCColors.accent.withOpacity(0.05),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: () async {
+        if (!notification.isRead) {
+          await _notificationService.markAsRead(notification.id);
+          setState(() {
+            _loadNotifications();
+          });
+        }
+      },
+      child: Container(
+        color: notification.isRead ? Colors.transparent : LTCTheme.gold.withOpacity(0.05),
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
           ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 24,
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                notification['title'] as String,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                  color: LTCColors.textPrimary,
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  notification.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            if (!isRead)
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: LTCColors.accent,
-                  shape: BoxShape.circle,
+              if (!notification.isRead)
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: LTCTheme.gold,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                notification.body,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
                 ),
               ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              notification['message'] as String,
-              style: const TextStyle(
-                fontSize: 14,
-                color: LTCColors.textSecondary,
+              const SizedBox(height: 8),
+              Text(
+                dateFormat.format(notification.timestamp),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              dateFormat.format(createdAt),
-              style: const TextStyle(
-                fontSize: 12,
-                color: LTCColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_none,
-              size: 100,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Aucune notification',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: LTCColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Vos notifications apparaîtront ici',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: LTCColors.textSecondary,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

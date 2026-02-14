@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -10,13 +10,17 @@ from app.schemas.user import UserCreate, UserResponse
 from app.services.auth import hash_password, verify_password, create_access_token
 from app.services.accountpe import accountpe_client
 from app.utils.exceptions import UserAlreadyExistsException, InvalidCredentialsException
+from app.utils.logging_config import get_logger
 from app.config import settings
+from app.middleware.rate_limit import limiter
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """
     Register a new user locally and with AccountPE provider.
     """
@@ -54,7 +58,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
         )
     except Exception as e:
         # Log error but don't fail registration if AccountPE is down
-        print(f"AccountPE registration failed: {e}")
+        logger.warning(f"AccountPE registration failed for user {new_user.email}: {str(e)}")
 
     # Generate access token
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
@@ -74,7 +78,8 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(email: str, password: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, email: str, password: str, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and return JWT token.
     """

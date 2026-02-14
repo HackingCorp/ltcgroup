@@ -7,7 +7,9 @@ from app.models.user import User, KYCStatus
 from app.schemas.user import UserResponse, UserUpdate, KYCSubmit, KYCResponse
 from app.services.auth import get_current_user
 from app.services.accountpe import accountpe_client
+from app.utils.logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
@@ -74,7 +76,7 @@ async def submit_kyc(
         elif result.get("status") == "rejected":
             current_user.kyc_status = KYCStatus.REJECTED
     except Exception as e:
-        print(f"AccountPE KYC submission failed: {e}")
+        logger.warning(f"AccountPE KYC submission failed for user {current_user.id}: {str(e)}")
         # Continue with local pending status
 
     await db.commit()

@@ -20,7 +20,12 @@ class TransactionItem extends StatelessWidget {
     final dateFormat = DateFormat('dd MMM yyyy HH:mm', 'fr_FR');
 
     return ListTile(
-      onTap: onTap,
+      onTap: onTap ?? () {
+        Navigator.of(context).pushNamed(
+          '/transaction-detail',
+          arguments: transaction,
+        );
+      },
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: Container(
         width: 48,

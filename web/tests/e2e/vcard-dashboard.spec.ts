@@ -76,6 +76,14 @@ test.describe('vCard Dashboard', () => {
     await expect(transactionItem).toBeVisible();
   });
 
+  test.skip('should show freeze and unfreeze buttons', async ({ page }) => {
+    await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
+
+    // Freeze button should be visible for active cards
+    const freezeButton = page.locator('button:has-text(/geler|freeze/i)');
+    await expect(freezeButton).toBeVisible();
+  });
+
   test.skip('should freeze a card', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
@@ -166,6 +174,18 @@ test.describe('vCard Dashboard', () => {
     }
   });
 
+  test.skip('should show block button with confirmation modal', async ({ page }) => {
+    await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
+
+    // Click block button (usually in settings/actions menu)
+    await page.click('[data-testid="card-actions"]');
+    await page.click('text=Bloquer la carte');
+
+    // Should show warning modal
+    await expect(page.locator('text=/action.*irréversible/i')).toBeVisible();
+    await expect(page.locator('[data-testid="block-confirmation-modal"]')).toBeVisible();
+  });
+
   test.skip('should block a card with confirmation', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/dashboard/cards/card_123');
 
@@ -182,6 +202,14 @@ test.describe('vCard Dashboard', () => {
 
     // Should show success and card status updated
     await expect(page.locator('text=/carte bloquée/i')).toBeVisible();
+  });
+
+  test.skip('should have logout button visible', async ({ page }) => {
+    await page.goto('/services/solutions-financieres/vcard/dashboard');
+
+    // Logout button should be visible
+    const logoutButton = page.locator('[data-testid="logout-button"], button:has-text(/déconnexion|logout/i)');
+    await expect(logoutButton).toBeVisible();
   });
 
   test.skip('should logout successfully', async ({ page }) => {

@@ -34,6 +34,9 @@ export interface UserResponse {
   first_name: string;
   last_name: string;
   kyc_status: KYCStatus;
+  kyc_submitted_at?: string;
+  kyc_rejected_reason?: string;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -86,10 +89,63 @@ export interface WithdrawRequest {
   card_id: string;
   amount: number;
   currency: string;
+  withdrawal_method: "MOBILE_MONEY";
+  phone_number: string;
 }
 
 export interface ApiError {
   detail: string;
+}
+
+export interface KYCSubmitRequest {
+  document_url: string;
+  document_type: "PASSPORT" | "ID_CARD" | "DRIVER_LICENSE";
+}
+
+export interface KYCSubmitResponse {
+  kyc_status: KYCStatus;
+  kyc_submitted_at: string;
+}
+
+export interface UpdateProfileRequest {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface CardRevealResponse {
+  card_number: string;
+  cvv: string;
+  expiry_date: string;
+}
+
+export interface AdminStatsResponse {
+  total_users: number;
+  total_cards: number;
+  total_volume: number;
+  revenue: number;
+}
+
+export interface AdminUsersListResponse {
+  users: UserResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface AdminTransactionFilters {
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  type?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 // Token management
@@ -213,6 +269,27 @@ export const usersAPI = {
   async getMe(): Promise<UserResponse> {
     return apiFetch<UserResponse>("/users/me");
   },
+
+  async updateMe(data: UpdateProfileRequest): Promise<UserResponse> {
+    return apiFetch<UserResponse>("/users/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async submitKYC(data: KYCSubmitRequest): Promise<KYCSubmitResponse> {
+    return apiFetch<KYCSubmitResponse>("/users/me/kyc", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async changePassword(data: ChangePasswordRequest): Promise<void> {
+    return apiFetch<void>("/users/me/password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Cards API
@@ -249,6 +326,12 @@ export const cardsAPI = {
       method: "POST",
     });
   },
+
+  async reveal(cardId: string): Promise<CardRevealResponse> {
+    return apiFetch<CardRevealResponse>(`/cards/${cardId}/reveal`, {
+      method: "POST",
+    });
+  },
 };
 
 // Transactions API
@@ -275,5 +358,50 @@ export const transactionsAPI = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  async listAll(filters?: AdminTransactionFilters): Promise<TransactionsListResponse> {
+    const params = new URLSearchParams();
+    if (filters?.start_date) params.set("start_date", filters.start_date);
+    if (filters?.end_date) params.set("end_date", filters.end_date);
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.type) params.set("type", filters.type);
+    if (filters?.search) params.set("search", filters.search);
+    if (filters?.page) params.set("page", filters.page.toString());
+    if (filters?.limit) params.set("limit", filters.limit.toString());
+
+    return apiFetch<TransactionsListResponse>(
+      `/transactions/?${params.toString()}`
+    );
+  },
+};
+
+// Admin API
+export const adminAPI = {
+  async listUsers(page: number = 1, limit: number = 50): Promise<AdminUsersListResponse> {
+    return apiFetch<AdminUsersListResponse>(
+      `/admin/users?page=${page}&limit=${limit}`
+    );
+  },
+
+  async approveKYC(userId: string): Promise<void> {
+    return apiFetch<void>(`/admin/users/${userId}/kyc/approve`, {
+      method: "POST",
+    });
+  },
+
+  async rejectKYC(userId: string, reason: string): Promise<void> {
+    return apiFetch<void>(`/admin/users/${userId}/kyc/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async getStats(): Promise<AdminStatsResponse> {
+    return apiFetch<AdminStatsResponse>("/admin/stats");
+  },
+
+  async listTransactions(filters?: AdminTransactionFilters): Promise<TransactionsListResponse> {
+    return transactionsAPI.listAll(filters);
   },
 };

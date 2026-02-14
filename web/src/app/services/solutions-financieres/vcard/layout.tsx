@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { isAuthenticated, usersAPI, type UserResponse } from "@/lib/vcard-api";
 
 export default function VCardLayout({
   children,
@@ -11,6 +13,21 @@ export default function VCardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      if (isAuthenticated()) {
+        try {
+          const user = await usersAPI.getMe();
+          setCurrentUser(user);
+        } catch (error) {
+          console.error("Failed to load user:", error);
+        }
+      }
+    };
+    loadUser();
+  }, []);
 
   const navItems = [
     {
@@ -19,21 +36,57 @@ export default function VCardLayout({
       icon: "home",
     },
     {
+      href: "/services/solutions-financieres/vcard/dashboard",
+      label: "Dashboard",
+      icon: "dashboard",
+      authRequired: true,
+    },
+    {
       href: "/services/solutions-financieres/vcard/achat",
       label: "Acheter",
       icon: "add_card",
+      authRequired: true,
     },
     {
       href: "/services/solutions-financieres/vcard/recharge",
       label: "Recharger",
       icon: "add_circle",
+      authRequired: true,
     },
     {
-      href: "/services/solutions-financieres/vcard/dashboard",
-      label: "Dashboard",
-      icon: "dashboard",
+      href: "/services/solutions-financieres/vcard/retrait",
+      label: "Retrait",
+      icon: "account_balance",
+      authRequired: true,
+    },
+    {
+      href: "/services/solutions-financieres/vcard/kyc",
+      label: "KYC",
+      icon: "verified_user",
+      authRequired: true,
+    },
+    {
+      href: "/services/solutions-financieres/vcard/profile",
+      label: "Profil",
+      icon: "person",
+      authRequired: true,
     },
   ];
+
+  // Add admin link if user is admin
+  if (currentUser?.is_admin) {
+    navItems.push({
+      href: "/services/solutions-financieres/vcard/admin",
+      label: "Admin",
+      icon: "admin_panel_settings",
+      authRequired: true,
+    });
+  }
+
+  const isAuth = isAuthenticated();
+  const visibleNavItems = navItems.filter(
+    (item) => !item.authRequired || isAuth
+  );
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -67,7 +120,7 @@ export default function VCardLayout({
       <div className="bg-white border-b border-slate-200 sticky top-[73px] z-40">
         <div className="px-6 lg:px-20">
           <nav className="flex gap-1 overflow-x-auto">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
