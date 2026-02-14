@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LTC GROUP - Monorepo
 
-## Getting Started
+[![CI](https://github.com/ltcgroup/ltcgroup/actions/workflows/ci.yml/badge.svg)](https://github.com/ltcgroup/ltcgroup/actions/workflows/ci.yml)
 
-First, run the development server:
+**Connecting Africa to the World**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Plateforme digitale multi-services : solutions financières (vCard), logistique, hébergement web, immobilier.
+
+## Architecture
+
+```
+ltcgroup/
+├── web/          # Site Next.js (React 19 + Tailwind 4)
+├── backend/      # API FastAPI (Python 3.12)
+├── mobile/       # App Flutter (Dart 3.3)
+├── db/           # Migrations PostgreSQL
+└── docker-compose.yml
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quick Start
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Lancer l'infrastructure (PostgreSQL + Redis + pgAdmin)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env
+docker compose up -d
+```
 
-## Learn More
+- **PostgreSQL** : `localhost:5432`
+- **Redis** : `localhost:6379`
+- **pgAdmin** : `http://localhost:5050`
+- **Backend API** : `http://localhost:8000`
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Lancer le site web (Next.js)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd web
+npm install
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Le site est accessible sur `http://localhost:3000`.
 
-## Deploy on Vercel
+### 3. Backend API (FastAPI)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Le backend démarre automatiquement via Docker. Health check :
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+curl http://localhost:8000/health
+```
+
+## Services
+
+| Service | Description | Stack |
+|---------|-------------|-------|
+| **Web** | Site vitrine + formulaires commandes | Next.js 16, React 19, Tailwind 4 |
+| **Backend** | API Gateway vCard + paiements | FastAPI, SQLAlchemy, asyncpg |
+| **Mobile** | App gestion cartes virtuelles | Flutter 3.19, Dart 3.3 |
+| **DB** | Base de données | PostgreSQL 16 |
+| **Cache** | Sessions & cache | Redis 7 |
+
+## Paiements intégrés
+
+- **S3P / Smobilpay** : Mobile Money (MTN, Orange Money)
+- **E-nkap** : Multi-canal (cartes, mobile money)
+
+## Statut du Projet
+
+### Phase 4 - Tests & CI/CD (TERMINÉ)
+- ✅ Backend: Tous les tests admin/webhooks activés
+- ✅ Web: 73 tests E2E Playwright unskippés
+- ✅ CI/CD: Pipeline GitHub Actions (tests backend, lint/build web, Flutter analyze)
+- ✅ Security: Trivy vulnerability scanning
+
+### Prochaines étapes
+- Configuration de déploiement automatique (backend Docker, web Vercel/Netlify)
+- Intégration complète Firebase pour mobile
+- Service d'upload de fichiers KYC
+- Service de notifications email
+
+## Équipe
+
+LTC GROUP SARL - [ltcgroup.site](https://ltcgroup.site)

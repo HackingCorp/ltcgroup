@@ -1,0 +1,25 @@
+{
+  "_comment": "REPLACE with real google-services.json from Firebase Console",
+  "_instructions": "1. Go to https://console.firebase.google.com, 2. Create project 'ltc-vcard', 3. Add Android app with package 'site.ltcgroup.vcard', 4. Download google-services.json and replace this file",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "ltc-vcard-placeholder",
+    "storage_bucket": "ltc-vcard-placeholder.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "site.ltcgroup.vcard"
+        }
+      },
+      "api_key": [{"current_key": "PLACEHOLDER_API_KEY"}],
+      "services": {
+        "appinvite_service": {"other_platform_oauth_client": []},
+        "analytics_service": {"status": 1}
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
