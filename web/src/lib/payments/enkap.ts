@@ -10,7 +10,27 @@ const ENKAP_CONFIG = {
   BASE_URL: 'https://api-v2.enkap.cm',
   CONSUMER_KEY: 'wXRF_8iU7h9UNiBG4zNYFdCQPwga',
   CONSUMER_SECRET: 'rD9fRGJkVVs8TZtfjJ0VTD7taOsa',
+  TIMEOUT_MS: 30000,
 };
+
+/**
+ * Fetch with timeout for E-nkap API
+ */
+async function enkapFetch(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ENKAP_CONFIG.TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Le service E-nkap ne répond pas. Veuillez réessayer.');
+    }
+    throw error;
+  }
+}
 
 // Token cache
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -77,7 +97,7 @@ async function getAccessToken(): Promise<string> {
     `${ENKAP_CONFIG.CONSUMER_KEY}:${ENKAP_CONFIG.CONSUMER_SECRET}`
   ).toString('base64');
 
-  const response = await fetch(url, {
+  const response = await enkapFetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${credentials}`,
@@ -135,7 +155,7 @@ export async function createOrder(params: {
     lang: 'fr',
   };
 
-  const response = await fetch(url, {
+  const response = await enkapFetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -160,7 +180,7 @@ export async function getOrderStatus(orderId: string): Promise<EnkapOrderStatus>
 
   const url = `${ENKAP_CONFIG.BASE_URL}/api/order/${orderId}/status`;
 
-  const response = await fetch(url, {
+  const response = await enkapFetch(url, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLanguage } from "@/i18n";
 
 export default function SolutionsFinancieresPage() {
@@ -60,6 +60,18 @@ export default function SolutionsFinancieresPage() {
   const [pendingOrderData, setPendingOrderData] = useState<Record<string, unknown> | null>(null);
   // Use ref to avoid stale closure in polling interval
   const pendingOrderDataRef = useRef<Record<string, unknown> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submitStatusRef = useRef(submitStatus);
+  submitStatusRef.current = submitStatus;
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, []);
 
   // Price calculation
   const getCardPrice = () => {
@@ -162,26 +174,41 @@ export default function SolutionsFinancieresPage() {
     return false;
   };
 
+  // Stop polling helper
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
   // Check Mobile Money payment status
   const checkMobileMoneyStatus = async (trid: string, orderRef?: string) => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       const url = orderRef
         ? `/api/payments/initiate?trid=${trid}&orderRef=${orderRef}`
         : `/api/payments/initiate?trid=${trid}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (!result.success && result.error) {
-        // API error during verification
         console.error("Verification error:", result.error);
         setErrorMessage(result.error);
         setSubmitStatus("error");
         setPaymentStatus({});
+        stopPolling();
         return;
       }
 
       if (result.status === "SUCCESS") {
-        // Send order notification with payment status - use ref to avoid stale closure
+        stopPolling();
         const orderData = pendingOrderDataRef.current;
         if (orderData) {
           const sent = await sendOrderNotification(orderData, "SUCCESS", "mobile_money");
@@ -189,12 +216,11 @@ export default function SolutionsFinancieresPage() {
             pendingOrderDataRef.current = null;
             setPendingOrderData(null);
           }
-          // Show success even if notification failed (payment is confirmed)
         }
         setSubmitStatus("success");
         setPaymentStatus({});
       } else if (result.status === "FAILED" || result.status === "ERRORED") {
-        // Don't send order notification on failed payment
+        stopPolling();
         pendingOrderDataRef.current = null;
         setPendingOrderData(null);
         setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
@@ -203,6 +229,8 @@ export default function SolutionsFinancieresPage() {
       }
       // If still PENDING, keep checking
     } catch (error) {
+      // Ignore AbortError from timeout - polling will retry
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error("Status check error:", error);
     }
   };
@@ -335,18 +363,27 @@ export default function SolutionsFinancieresPage() {
           setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, orderRef, checking: true });
           setSubmitStatus("payment_pending");
 
+          // Clear any previous polling
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+
           // Start polling for payment status using TRID (more reliable)
-          const pollInterval = setInterval(async () => {
+          pollIntervalRef.current = setInterval(async () => {
+            // Stop polling if status is no longer pending (use ref to avoid stale closure)
+            if (submitStatusRef.current !== "payment_pending") {
+              if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+              return;
+            }
             await checkMobileMoneyStatus(paymentResult.trid, orderRef);
           }, 5000);
 
-          // Store interval to clear later
-          setTimeout(() => {
-            clearInterval(pollInterval);
-            if (submitStatus === "payment_pending") {
+          // Stop polling after 2 minutes
+          pollTimeoutRef.current = setTimeout(() => {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            if (submitStatusRef.current === "payment_pending") {
               setPaymentStatus(prev => ({ ...prev, checking: false }));
             }
-          }, 120000); // Stop polling after 2 minutes
+          }, 120000);
 
           return;
         }
@@ -443,7 +480,7 @@ export default function SolutionsFinancieresPage() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/"
                 className="hidden md:flex items-center gap-2 text-[#cea427] font-bold text-sm hover:underline"
@@ -453,7 +490,7 @@ export default function SolutionsFinancieresPage() {
               </Link>
               <a
                 href="#order-form"
-                className="flex items-center justify-center h-10 px-5 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] text-sm font-bold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(206,164,39,0.3)]"
+                className="flex items-center justify-center h-10 px-3 sm:px-5 rounded bg-[#cea427] hover:bg-[#b38d1f] text-[#10151e] text-xs sm:text-sm font-bold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(206,164,39,0.3)] whitespace-nowrap"
               >
                 {t.nav.orderCard}
               </a>
@@ -1666,14 +1703,14 @@ export default function SolutionsFinancieresPage() {
                     <div className="space-y-3">
                       {/* Pay Later Option - disabled for shipping */}
                       {!isShippingSelected && (
-                        <label className="flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                        <label className="flex items-start gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
                           <input
                             type="radio"
                             name="paymentMethod"
                             value="pay_later"
                             checked={paymentMethod === "pay_later"}
                             onChange={() => setPaymentMethod("pay_later")}
-                            className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                            className="w-4 h-4 mt-1 shrink-0 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -1693,7 +1730,7 @@ export default function SolutionsFinancieresPage() {
                       )}
 
                       {/* Mobile Money Option */}
-                      <label className={`flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border cursor-pointer transition-colors ${
+                      <label className={`flex items-start gap-3 p-4 rounded-lg bg-[#1B2233] border cursor-pointer transition-colors ${
                         (isShippingSelected && (paymentMethod === "pay_later" || paymentMethod === "mobile_money"))
                           ? "border-orange-500/50 bg-orange-500/5"
                           : "border-white/5 hover:border-[#cea427]/30"
@@ -1704,10 +1741,10 @@ export default function SolutionsFinancieresPage() {
                           value="mobile_money"
                           checked={paymentMethod === "mobile_money" || (isShippingSelected && paymentMethod === "pay_later")}
                           onChange={() => setPaymentMethod("mobile_money")}
-                          className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                          className="w-4 h-4 mt-1 shrink-0 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                         />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="material-symbols-outlined text-orange-500 text-[20px]">smartphone</span>
                             <span className="text-white font-medium">Mobile Money</span>
                             <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
@@ -1718,41 +1755,41 @@ export default function SolutionsFinancieresPage() {
                                 {language === "fr" ? "Recommandé" : "Recommended"}
                               </span>
                             )}
+                            <div className="flex gap-1 ml-auto">
+                              <div className="w-8 h-5 bg-yellow-500 rounded flex items-center justify-center text-[8px] font-bold text-black">MTN</div>
+                              <div className="w-8 h-5 bg-orange-500 rounded flex items-center justify-center text-[8px] font-bold text-white">OM</div>
+                            </div>
                           </div>
                           <p className="text-xs text-gray-400 mt-1 ml-7">
                             MTN Mobile Money, Orange Money
                           </p>
                         </div>
-                        <div className="flex gap-1">
-                          <div className="w-8 h-5 bg-yellow-500 rounded flex items-center justify-center text-[8px] font-bold text-black">MTN</div>
-                          <div className="w-8 h-5 bg-orange-500 rounded flex items-center justify-center text-[8px] font-bold text-white">OM</div>
-                        </div>
                       </label>
 
                       {/* E-nkap Option (Card/Multi-channel) */}
-                      <label className="flex items-center gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
+                      <label className="flex items-start gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">
                         <input
                           type="radio"
                           name="paymentMethod"
                           value="enkap"
                           checked={paymentMethod === "enkap"}
                           onChange={() => setPaymentMethod("enkap")}
-                          className="w-4 h-4 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
+                          className="w-4 h-4 mt-1 shrink-0 text-[#cea427] bg-[#10151e] border-white/20 focus:ring-[#cea427]"
                         />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="material-symbols-outlined text-blue-500 text-[20px]">credit_card</span>
                             <span className="text-white font-medium">
                               {language === "fr" ? "Carte bancaire / E-nkap" : "Bank card / E-nkap"}
                             </span>
+                            <div className="flex gap-1 ml-auto">
+                              <div className="w-8 h-5 bg-blue-600 rounded flex items-center justify-center text-[8px] font-bold text-white">VISA</div>
+                              <div className="w-8 h-5 bg-red-500 rounded flex items-center justify-center text-[8px] font-bold text-white">MC</div>
+                            </div>
                           </div>
                           <p className="text-xs text-gray-400 mt-1 ml-7">
                             Visa, Mastercard, {language === "fr" ? "et autres moyens" : "and other methods"}
                           </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <div className="w-8 h-5 bg-blue-600 rounded flex items-center justify-center text-[8px] font-bold text-white">VISA</div>
-                          <div className="w-8 h-5 bg-red-500 rounded flex items-center justify-center text-[8px] font-bold text-white">MC</div>
                         </div>
                       </label>
                     </div>

@@ -12,6 +12,8 @@ const S3P_CONFIG = {
   BASE_URL: 'https://s3pv2cm.smobilpay.com/v2',
   API_KEY: '9183eee1-bf8b-49cb-bffc-d466706d3aef',
   API_SECRET: 'c5821829-a9db-4cf1-9894-65e3caffaa62',
+  TIMEOUT_MS: 30000,
+  MAX_RETRIES: 2,
 };
 
 // Service IDs
@@ -110,6 +112,39 @@ function parseS3PError(errorText: string): string {
   } catch {
     return `Erreur de paiement: ${errorText}`;
   }
+}
+
+/**
+ * Fetch with timeout and retry
+ */
+async function s3pFetch(
+  url: string,
+  options: RequestInit,
+  retries: number = S3P_CONFIG.MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), S3P_CONFIG.TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (lastError.name === 'AbortError') {
+        lastError = new Error('Le service de paiement ne répond pas. Veuillez réessayer.');
+      }
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
+      }
+    }
+  }
+  throw lastError || new Error('Service de paiement indisponible');
 }
 
 /**
@@ -240,7 +275,7 @@ export async function getServices(serviceId: S3PServiceId): Promise<S3PServiceRe
 
   const urlWithParams = `${url}?serviceid=${serviceId}`;
 
-  const response = await fetch(urlWithParams, {
+  const response = await s3pFetch(urlWithParams, {
     method: 'GET',
     headers,
   });
@@ -270,7 +305,7 @@ export async function createQuote(
 
   const headers = generateS3PHeaders('POST', url, body);
 
-  const response = await fetch(url, {
+  const response = await s3pFetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -308,7 +343,7 @@ export async function collectPayment(
 
   const headers = generateS3PHeaders('POST', url, body);
 
-  const response = await fetch(url, {
+  const response = await s3pFetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -341,10 +376,10 @@ export async function verifyTransaction(transactionRef: string): Promise<S3PVeri
     .join('&');
   const urlWithParams = `${url}?${queryString}`;
 
-  const response = await fetch(urlWithParams, {
+  const response = await s3pFetch(urlWithParams, {
     method: 'GET',
     headers,
-  });
+  }, 1); // Only 1 retry for verification (called frequently by polling)
 
   if (!response.ok) {
     const error = await response.text();

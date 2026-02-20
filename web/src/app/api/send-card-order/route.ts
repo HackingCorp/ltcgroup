@@ -17,50 +17,69 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Send WhatsApp message via WazeApp API
+// Send WhatsApp message via WazeApp API (with timeout)
 async function sendWhatsApp(to: string, message: string) {
-  const response = await fetch(`${WAZEAPP_API_URL}/send/immediate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": WAZEAPP_API_KEY,
-    },
-    body: JSON.stringify({
-      to,
-      message,
-      type: "text",
-    }),
-  });
-  return response.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${WAZEAPP_API_URL}/send/immediate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": WAZEAPP_API_KEY,
+      },
+      body: JSON.stringify({
+        to,
+        message,
+        type: "text",
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error("WhatsApp send error:", error);
+    return null;
+  }
 }
 
-// Send WhatsApp media via WazeApp API
+// Send WhatsApp media via WazeApp API (with timeout)
 async function sendWhatsAppMedia(to: string, mediaBase64: string, caption: string, filename: string) {
-  // Extract mime type and base64 data
   const matches = mediaBase64.match(/^data:(.+);base64,(.+)$/);
   if (!matches) return null;
 
   const mimeType = matches[1];
   const base64Data = matches[2];
 
-  const response = await fetch(`${WAZEAPP_API_URL}/send/immediate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": WAZEAPP_API_KEY,
-    },
-    body: JSON.stringify({
-      to,
-      type: mimeType.startsWith("image/") ? "image" : "document",
-      media: {
-        data: base64Data,
-        mimetype: mimeType,
-        filename: filename,
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(`${WAZEAPP_API_URL}/send/immediate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": WAZEAPP_API_KEY,
       },
-      caption,
-    }),
-  });
-  return response.json();
+      body: JSON.stringify({
+        to,
+        type: mimeType.startsWith("image/") ? "image" : "document",
+        media: {
+          data: base64Data,
+          mimetype: mimeType,
+          filename: filename,
+        },
+        caption,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error("WhatsApp media send error:", error);
+    return null;
+  }
 }
 
 // Format phone number for WhatsApp (ensure it has country code)
@@ -583,7 +602,8 @@ _L'équipe LTC Finance_`;
 
     return NextResponse.json({ success: true, orderRef });
   } catch (error) {
-    console.error("API Error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Send-card-order error:", message);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

@@ -17,8 +17,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Send WhatsApp message via WazeApp API
+// Send WhatsApp message via WazeApp API (with timeout)
 async function sendWhatsApp(to: string, message: string) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(`${WAZEAPP_API_URL}/send/immediate`, {
       method: "POST",
@@ -31,9 +33,12 @@ async function sendWhatsApp(to: string, message: string) {
         message,
         type: "text",
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     return response.json();
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error("WhatsApp send error:", error);
     return null;
   }
