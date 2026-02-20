@@ -17,7 +17,7 @@ void main() {
       //
       // expect(find.text('Authentification Biométrique'), findsOneWidget);
       // expect(find.byIcon(Icons.fingerprint), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show fingerprint icon by default', (WidgetTester tester) async {
       // TODO: Implement biometric icon test
@@ -28,7 +28,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.fingerprint), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show face icon for face ID', (WidgetTester tester) async {
       // TODO: Implement face ID icon test
@@ -39,7 +39,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.face), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should trigger biometric auth on button press', (WidgetTester tester) async {
       // TODO: Implement auth trigger test
@@ -59,7 +59,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(authTriggered, true);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show error message on auth failure', (WidgetTester tester) async {
       // TODO: Implement error state test
@@ -72,7 +72,7 @@ void main() {
       // );
       //
       // expect(find.text('Authentification échouée'), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show fallback to PIN option', (WidgetTester tester) async {
       // TODO: Implement PIN fallback test
@@ -88,7 +88,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(find.byType(PinEntryScreen), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should display biometric not available message', (WidgetTester tester) async {
       // TODO: Implement not available state test
@@ -99,7 +99,7 @@ void main() {
       // );
       //
       // expect(find.text('Biométrie non disponible'), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show loading indicator during auth', (WidgetTester tester) async {
       // TODO: Implement loading state test
@@ -110,7 +110,7 @@ void main() {
       // );
       //
       // expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should call callback on successful authentication', (WidgetTester tester) async {
       // TODO: Implement success callback test
@@ -130,7 +130,7 @@ void main() {
       //
       // await tester.pumpAndSettle();
       // expect(authSuccessful, true);
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should allow retry after failure', (WidgetTester tester) async {
       // TODO: Implement retry test
@@ -147,6 +147,6 @@ void main() {
       //
       // await tester.tap(retryButton);
       // await tester.pumpAndSettle();
-    }, skip: 'BiometricAuthScreen not yet implemented');
+    }, skip: true);
   });
 }

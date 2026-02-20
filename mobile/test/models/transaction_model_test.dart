@@ -24,7 +24,7 @@ void main() {
       // expect(transaction.amount, 10000);
       // expect(transaction.type, TransactionType.topup);
       // expect(transaction.status, TransactionStatus.success);
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
 
     test('should convert Transaction to JSON', () {
       // TODO: Implement when Transaction model is created
@@ -42,7 +42,7 @@ void main() {
       // expect(json['id'], 'txn_123');
       // expect(json['amount'], 10000);
       // expect(json['type'], 'TOPUP');
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
 
     test('should format transaction amount with currency', () {
       // TODO: Implement when Transaction model has formatting
@@ -55,7 +55,7 @@ void main() {
       // final formatted = transaction.formattedAmount;
       //
       // expect(formatted, '+10,000 FCFA');
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
 
     test('should show negative amount for withdrawals', () {
       // TODO: Implement when Transaction model handles types
@@ -67,7 +67,7 @@ void main() {
       // final formatted = transaction.formattedAmount;
       //
       // expect(formatted, '-5,000 FCFA');
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
 
     test('should format transaction date correctly', () {
       // TODO: Implement when Transaction model has date formatting
@@ -78,12 +78,12 @@ void main() {
       // final formatted = transaction.formattedDate;
       //
       // expect(formatted, '14 Feb 2026, 10:30');
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
 
     test('should categorize transaction types', () {
       // TODO: Implement transaction type categorization
       // Test various transaction types:
       // TOPUP, PURCHASE, WITHDRAWAL, FEE, REFUND
-    }, skip: 'Transaction model not yet implemented');
+    }, skip: true);
   });
 }

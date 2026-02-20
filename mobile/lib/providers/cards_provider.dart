@@ -60,7 +60,7 @@ class CardsProvider with ChangeNotifier {
   Future<bool> purchaseCard({
     required String type,
     required double initialBalance,
-    String currency = 'EUR',
+    String currency = 'XAF',
   }) async {
     _isLoading = true;
     _error = null;
@@ -71,7 +71,7 @@ class CardsProvider with ChangeNotifier {
         type: type,
         initialBalance: initialBalance,
       );
-      _cards.add(newCard);
+      _cards = [..._cards, newCard];
       _isLoading = false;
       notifyListeners();
       return true;

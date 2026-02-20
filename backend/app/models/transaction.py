@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Numeric, Text, UniqueConstraint
+from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Index, Numeric, Text, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSON
 import enum
@@ -29,8 +29,9 @@ class Transaction(Base):
         UniqueConstraint(
             "provider_transaction_id",
             name="uq_provider_transaction_id",
-            sqlite_on_conflict="IGNORE",
         ),
+        Index("ix_transactions_status_created", "status", "created_at"),
+        CheckConstraint('amount > 0', name='ck_transactions_amount_positive'),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -54,14 +55,14 @@ class Transaction(Base):
     )
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    provider_transaction_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    provider_transaction_id: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None, index=True)
+    extra_data: Mapped[dict | None] = mapped_column("extra_data", JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # Relationships

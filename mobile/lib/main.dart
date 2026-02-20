@@ -21,6 +21,7 @@ import 'screens/transactions/topup_screen.dart';
 import 'screens/transactions/withdraw_screen.dart';
 import 'screens/transactions/transaction_detail_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 
 // Services
 import 'services/storage_service.dart';
@@ -30,24 +31,28 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    // Ignore Firebase initialization errors in case config is not set up yet
+  // Initialize Firebase only if real credentials are configured
+  if (DefaultFirebaseOptions.isConfigured) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      debugPrint('Firebase init failed: $e');
+    }
   }
 
   // Initialize date formatting for French locale
   await initializeDateFormatting('fr_FR', null);
 
-  // Initialize notifications
-  try {
-    final notificationService = NotificationService();
-    await notificationService.initializeNotifications();
-  } catch (e) {
-    // Ignore notification initialization errors
+  // Initialize notifications (requires Firebase)
+  if (DefaultFirebaseOptions.isConfigured) {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.initializeNotifications();
+    } catch (e) {
+      debugPrint('Notification init failed: $e');
+    }
   }
 
   runApp(const MyApp());
@@ -81,6 +86,9 @@ class MyApp extends StatelessWidget {
           '/withdraw': (context) => const WithdrawScreen(),
           '/transaction-detail': (context) => const TransactionDetailScreen(),
           '/notifications': (context) => const NotificationsScreen(),
+          '/onboarding': (context) => OnboardingScreen(onComplete: () {
+            Navigator.of(context).pushReplacementNamed('/');
+          }),
         },
       ),
     );
@@ -100,6 +108,7 @@ class _AuthGateState extends State<AuthGate> {
   final BiometricService _biometricService = BiometricService();
   bool _checkedBiometric = false;
   bool _shouldUseBiometric = false;
+  bool _onboardingSeen = true; // default true to avoid flash
 
   @override
   void initState() {
@@ -111,8 +120,10 @@ class _AuthGateState extends State<AuthGate> {
     final isLoggedIn = await _storageService.isLoggedIn();
     final biometricEnabled = await _storageService.isBiometricEnabled();
     final biometricAvailable = await _biometricService.checkBiometricAvailable();
+    final onboardingSeen = await _storageService.isOnboardingSeen();
 
     setState(() {
+      _onboardingSeen = onboardingSeen;
       _shouldUseBiometric = isLoggedIn && biometricEnabled && biometricAvailable;
       _checkedBiometric = true;
     });
@@ -125,6 +136,14 @@ class _AuthGateState extends State<AuthGate> {
         body: Center(
           child: CircularProgressIndicator(),
         ),
+      );
+    }
+
+    if (!_onboardingSeen) {
+      return OnboardingScreen(
+        onComplete: () {
+          setState(() => _onboardingSeen = true);
+        },
       );
     }
 

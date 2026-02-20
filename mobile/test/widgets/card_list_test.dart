@@ -25,7 +25,7 @@ void main() {
       // expect(find.text('VISA'), findsOneWidget);
       // expect(find.text('MASTERCARD'), findsOneWidget);
       // expect(find.text('50,000'), findsOneWidget);
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show empty state when no cards', (WidgetTester tester) async {
       // TODO: Implement empty state test
@@ -39,7 +39,7 @@ void main() {
       //
       // expect(find.text('Aucune carte'), findsOneWidget);
       // expect(find.byIcon(Icons.credit_card_off), findsOneWidget);
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show loading indicator while fetching', (WidgetTester tester) async {
       // TODO: Implement loading state test
@@ -52,7 +52,7 @@ void main() {
       // );
       //
       // expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should navigate to card details on tap', (WidgetTester tester) async {
       // TODO: Implement tap navigation test
@@ -81,7 +81,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(navigated, true);
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should display card status badge', (WidgetTester tester) async {
       // TODO: Implement status badge test
@@ -89,7 +89,7 @@ void main() {
       // ACTIVE - green badge
       // FROZEN - blue badge
       // BLOCKED - red badge
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show error message on fetch failure', (WidgetTester tester) async {
       // TODO: Implement error state test
@@ -105,16 +105,16 @@ void main() {
       //
       // expect(find.text('Failed to load cards'), findsOneWidget);
       // expect(find.byIcon(Icons.error), findsOneWidget);
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should allow pull-to-refresh', (WidgetTester tester) async {
       // TODO: Implement pull-to-refresh test
       // Test that pulling down triggers a refresh callback
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should filter cards by status', (WidgetTester tester) async {
       // TODO: Implement filtering test
       // Test that cards can be filtered by ACTIVE, FROZEN, BLOCKED
-    }, skip: 'CardList widget not yet implemented');
+    }, skip: true);
   });
 }

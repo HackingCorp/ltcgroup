@@ -3,6 +3,7 @@ Encryption utilities for sensitive card data using Fernet symmetric encryption.
 """
 import base64
 import hashlib
+from functools import lru_cache
 from cryptography.fernet import Fernet
 
 from app.config import settings
@@ -19,6 +20,13 @@ def _derive_fernet_key(encryption_key: str) -> bytes:
     return base64.urlsafe_b64encode(key_bytes)
 
 
+@lru_cache(maxsize=1)
+def _get_cipher() -> Fernet:
+    """Get a cached Fernet cipher instance."""
+    fernet_key = _derive_fernet_key(settings.encryption_key)
+    return Fernet(fernet_key)
+
+
 def encrypt_field(plaintext: str) -> str:
     """
     Encrypt a plaintext string using Fernet symmetric encryption.
@@ -32,8 +40,7 @@ def encrypt_field(plaintext: str) -> str:
     if not plaintext:
         return plaintext
 
-    fernet_key = _derive_fernet_key(settings.encryption_key)
-    cipher = Fernet(fernet_key)
+    cipher = _get_cipher()
 
     # Encrypt and return as string
     encrypted_bytes = cipher.encrypt(plaintext.encode())
@@ -56,8 +63,7 @@ def decrypt_field(ciphertext: str) -> str:
     if not ciphertext:
         return ciphertext
 
-    fernet_key = _derive_fernet_key(settings.encryption_key)
-    cipher = Fernet(fernet_key)
+    cipher = _get_cipher()
 
     # Decrypt and return as string
     decrypted_bytes = cipher.decrypt(ciphertext.encode())

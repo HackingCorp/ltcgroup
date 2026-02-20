@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models.user import User, KYCStatus
@@ -35,10 +37,26 @@ async def update_user_profile(
     if user_update.last_name is not None:
         current_user.last_name = user_update.last_name
     if user_update.phone is not None:
+        # Check phone uniqueness before update
+        existing = await db.execute(
+            select(User).where(User.phone == user_update.phone, User.id != current_user.id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Phone number already in use",
+            )
         current_user.phone = user_update.phone
 
-    await db.commit()
-    await db.refresh(current_user)
+    try:
+        await db.commit()
+        await db.refresh(current_user)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Phone number already in use",
+        )
 
     return UserResponse.model_validate(current_user)
 
@@ -60,24 +78,12 @@ async def submit_kyc(
 
     # Update local database
     current_user.kyc_document_url = kyc_data.document_url
-    current_user.kyc_submitted_at = datetime.utcnow()
+    current_user.kyc_submitted_at = datetime.now(timezone.utc)
     current_user.kyc_status = KYCStatus.PENDING
 
-    # Submit to AccountPE
-    try:
-        result = await accountpe_client.submit_kyc(
-            user_id=str(current_user.id),
-            document_url=kyc_data.document_url,
-            document_type=kyc_data.document_type,
-        )
-        # Update status based on AccountPE response if available
-        if result.get("status") == "approved":
-            current_user.kyc_status = KYCStatus.APPROVED
-        elif result.get("status") == "rejected":
-            current_user.kyc_status = KYCStatus.REJECTED
-    except Exception as e:
-        logger.warning(f"AccountPE KYC submission failed for user {current_user.id}: {str(e)}")
-        # Continue with local pending status
+    # TODO: Integrate with accountpe_client.update_user() once full KYC fields
+    # (dob, mobile, gender, address, id_proof_type, etc.) are collected from the user.
+    # For now, KYC stays in local PENDING status until admin reviews it.
 
     await db.commit()
     await db.refresh(current_user)

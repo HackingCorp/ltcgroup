@@ -35,8 +35,8 @@ class AppConstants {
   static const String kycStatusRejected = 'REJECTED';
 
   // Currency
-  static const String defaultCurrency = 'EUR';
-  static const String currencySymbol = '€';
+  static const String defaultCurrency = 'XAF';
+  static const String currencySymbol = 'FCFA';
 
   // Validation
   static const int minPasswordLength = 8;

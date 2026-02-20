@@ -20,7 +20,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.inbox), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should display empty message', (WidgetTester tester) async {
       // TODO: Implement message test
@@ -35,7 +35,7 @@ void main() {
       // );
       //
       // expect(find.text('Aucune carte disponible'), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should display action button if provided', (WidgetTester tester) async {
       // TODO: Implement action button test
@@ -53,7 +53,7 @@ void main() {
       //
       // expect(find.text('Acheter une carte'), findsOneWidget);
       // expect(find.byType(ElevatedButton), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should call action callback when button pressed', (WidgetTester tester) async {
       // TODO: Implement callback test
@@ -79,7 +79,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(actionCalled, true);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should not show action button when callback is null', (WidgetTester tester) async {
       // TODO: Implement no action button test
@@ -94,7 +94,7 @@ void main() {
       // );
       //
       // expect(find.byType(ElevatedButton), findsNothing);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should display custom icon if provided', (WidgetTester tester) async {
       // TODO: Implement custom icon test
@@ -110,7 +110,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.credit_card_off), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should center content vertically', (WidgetTester tester) async {
       // TODO: Implement layout test
@@ -126,7 +126,7 @@ void main() {
       //
       // final center = find.byType(Center);
       // expect(center, findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should display subtitle if provided', (WidgetTester tester) async {
       // TODO: Implement subtitle test
@@ -142,7 +142,7 @@ void main() {
       // );
       //
       // expect(find.text('Vos transactions apparaîtront ici'), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should have proper styling for message', (WidgetTester tester) async {
       // TODO: Implement styling test
@@ -158,7 +158,7 @@ void main() {
       //
       // final textWidget = tester.widget<Text>(find.text('Aucune donnée'));
       // expect(textWidget.style?.fontSize, greaterThan(16));
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
   });
 
   group('EmptyState Specific Scenarios', () {
@@ -177,7 +177,7 @@ void main() {
       // expect(find.text('Aucune carte'), findsOneWidget);
       // expect(find.text('Acheter une carte'), findsOneWidget);
       // expect(find.byIcon(Icons.credit_card), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show empty transactions state', (WidgetTester tester) async {
       // TODO: Implement empty transactions test
@@ -191,7 +191,7 @@ void main() {
       //
       // expect(find.text('Aucune transaction'), findsOneWidget);
       // expect(find.byIcon(Icons.receipt_long), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show no search results state', (WidgetTester tester) async {
       // TODO: Implement no search results test
@@ -207,6 +207,6 @@ void main() {
       //
       // expect(find.text('Aucun résultat pour "test query"'), findsOneWidget);
       // expect(find.byIcon(Icons.search_off), findsOneWidget);
-    }, skip: 'EmptyState widget not yet implemented');
+    }, skip: true);
   });
 }

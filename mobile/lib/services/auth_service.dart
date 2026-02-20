@@ -33,6 +33,7 @@ class AuthService {
   /// Register user
   Future<User> register({
     required String email,
+    required String phone,
     required String password,
     required String firstName,
     required String lastName,
@@ -43,6 +44,7 @@ class AuthService {
       password: password,
       firstName: firstName,
       lastName: lastName,
+      phone: phone,
     );
 
     // Extract token and user

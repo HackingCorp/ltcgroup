@@ -4,10 +4,14 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 class DefaultFirebaseOptions {
+  /// Returns true if Firebase has been configured with real credentials
+  static bool get isConfigured => _apiKey != 'PLACEHOLDER';
+
+  static const String _apiKey = 'PLACEHOLDER';
+
   static FirebaseOptions get currentPlatform {
-    // TODO: Replace with real Firebase options from flutterfire configure
     return const FirebaseOptions(
-      apiKey: 'PLACEHOLDER',
+      apiKey: _apiKey,
       appId: 'PLACEHOLDER',
       messagingSenderId: 'PLACEHOLDER',
       projectId: 'ltc-vcard',

@@ -6,7 +6,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import init_models, get_db
+from app.database import init_models, async_session
 from app.api.v1 import router as api_v1_router
 from app.middleware.rate_limit import limiter
 from app.middleware.request_logging import RequestLoggingMiddleware
@@ -21,10 +21,35 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     # Startup: Initialize database tables
     logger.info("Starting LTC vCard API...")
-    await init_models()
-    logger.info("Database initialized successfully")
+    # In production, use Alembic migrations
+    if settings.environment == "development":
+        await init_models()
+        logger.info("Database initialized successfully")
+
+    # Create shared Redis client for health checks
+    import redis.asyncio as aioredis
+    try:
+        app.state.redis = aioredis.from_url(settings.redis_url)
+        await app.state.redis.ping()
+        logger.info("Redis connection established")
+    except Exception as e:
+        logger.warning(f"Redis not available at startup: {e}")
+        app.state.redis = None
+
     yield
-    # Shutdown: cleanup if needed
+
+    # Shutdown: cleanup HTTP clients via close() methods
+    from app.services.accountpe import accountpe_client
+    from app.services.s3p import s3p_client
+    from app.services.enkap import enkap_client
+
+    await accountpe_client.close()
+    await s3p_client.close()
+    await enkap_client.close()
+
+    # Shutdown: cleanup Redis
+    if getattr(app.state, "redis", None):
+        await app.state.redis.close()
     logger.info("Shutting down LTC vCard API...")
 
 
@@ -44,8 +69,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # Add request logging middleware
@@ -82,22 +107,23 @@ async def health_check():
 
     # Check database connectivity
     try:
-        async for db in get_db():
-            await db.execute("SELECT 1")
+        async with async_session() as db:
+            from sqlalchemy import text
+            await db.execute(text("SELECT 1"))
             health_status["database"] = "healthy"
-            break
     except Exception as e:
         logger.error(f"Database health check failed: {str(e)}")
         health_status["database"] = "unhealthy"
         health_status["status"] = "degraded"
 
-    # Check Redis connectivity
+    # Check Redis connectivity using shared client
     try:
-        import redis.asyncio as redis
-        redis_client = redis.from_url(settings.redis_url)
-        await redis_client.ping()
-        await redis_client.close()
-        health_status["redis"] = "healthy"
+        redis_client = getattr(app.state, "redis", None)
+        if redis_client:
+            await redis_client.ping()
+            health_status["redis"] = "healthy"
+        else:
+            health_status["redis"] = "unavailable"
     except Exception as e:
         logger.error(f"Redis health check failed: {str(e)}")
         health_status["redis"] = "unhealthy"

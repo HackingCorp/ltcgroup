@@ -10,17 +10,37 @@ import 'storage_service.dart';
 class ApiService {
   final StorageService _storageService = StorageService();
 
+  /// Global callback invoked when a 401 response is received (session expired).
+  /// Set this from the AuthProvider to trigger automatic logout.
+  static void Function()? onSessionExpired;
+
   /// Get authorization headers with token
   Future<Map<String, String>> _getAuthHeaders() async {
     final token = await _storageService.getToken();
     return ApiConfig.headers(token: token);
   }
 
+  /// Retry helper for GET requests (retries on 5xx or network errors).
+  Future<http.Response> _retryGet(String url, {Map<String, String>? headers, int maxRetries = 2}) async {
+    for (int i = 0; i <= maxRetries; i++) {
+      try {
+        final response = await http.get(Uri.parse(url), headers: headers).timeout(ApiConfig.timeout);
+        if (response.statusCode < 500) return response;
+        if (i < maxRetries) await Future.delayed(const Duration(seconds: 1));
+      } catch (e) {
+        if (i >= maxRetries) rethrow;
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+    throw Exception('Request failed after retries');
+  }
+
   /// Handle API errors
   Exception _handleError(http.Response response) {
     if (response.statusCode == 401) {
-      // Session expired - clear token
+      // Session expired - clear token and notify the app
       _storageService.removeToken();
+      onSessionExpired?.call();
       return Exception('Session expirée. Veuillez vous reconnecter.');
     }
 
@@ -35,12 +55,13 @@ class ApiService {
 
   /// Login - Returns user and token
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}?email=$email&password=$password');
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
 
     try {
       final response = await http.post(
         url,
         headers: ApiConfig.headers(),
+        body: json.encode({'email': email, 'password': password}),
       ).timeout(ApiConfig.timeout);
 
       if (response.statusCode == 200) {
@@ -100,20 +121,15 @@ class ApiService {
 
   /// Get current user profile
   Future<User> getCurrentUser() async {
-    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.profileEndpoint}');
+    final url = '${ApiConfig.baseUrl}${ApiConfig.profileEndpoint}';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return User.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -147,8 +163,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return User.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -180,8 +194,6 @@ class ApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return;
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -193,21 +205,16 @@ class ApiService {
 
   /// Get all cards
   Future<List<VirtualCard>> getCards() async {
-    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/');
+    final url = '${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final cardsList = data['cards'] as List;
         return cardsList.map((json) => VirtualCard.fromJson(json)).toList();
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -219,22 +226,15 @@ class ApiService {
 
   /// Get card by ID
   Future<VirtualCard> getCardById(String cardId) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId');
+    final url = '${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return VirtualCard.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
-      } else if (response.statusCode == 404) {
-        throw Exception('Carte non trouvée');
       } else {
         throw _handleError(response);
       }
@@ -267,8 +267,6 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         return VirtualCard.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -292,8 +290,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return VirtualCard.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -317,8 +313,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return VirtualCard.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -342,8 +336,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return VirtualCard.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -380,21 +372,16 @@ class ApiService {
         ? '${ApiConfig.transactionsEndpoint}/cards/$cardId/transactions'
         : ApiConfig.transactionsEndpoint;
 
-    final url = Uri.parse('${ApiConfig.baseUrl}$path?limit=$limit&offset=$offset');
+    final url = '${ApiConfig.baseUrl}$path?limit=$limit&offset=$offset';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final transactionsList = data['transactions'] as List;
         return transactionsList.map((json) => Transaction.fromJson(json)).toList();
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -408,7 +395,7 @@ class ApiService {
   Future<Transaction> topupCard({
     required String cardId,
     required double amount,
-    String currency = 'USD',
+    String currency = 'XAF',
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.topupEndpoint}');
     final headers = await _getAuthHeaders();
@@ -429,8 +416,6 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         return Transaction.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -444,7 +429,7 @@ class ApiService {
   Future<Transaction> withdrawFromCard({
     required String cardId,
     required double amount,
-    String currency = 'USD',
+    String currency = 'XAF',
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.withdrawEndpoint}');
     final headers = await _getAuthHeaders();
@@ -465,8 +450,6 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         return Transaction.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -482,7 +465,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
+      final response = await http.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -494,8 +477,6 @@ class ApiService {
           'cvv': data['cvv'] as String,
           'expiry_date': data['expiry_date'] as String,
         };
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -507,20 +488,15 @@ class ApiService {
 
   /// Get notifications
   Future<List<Map<String, dynamic>>> getNotifications({int limit = 50, int offset = 0}) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/notifications?limit=$limit&offset=$offset');
+    final url = '${ApiConfig.baseUrl}/notifications?limit=$limit&offset=$offset';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data['notifications'] ?? []);
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -532,20 +508,15 @@ class ApiService {
 
   /// Get unread notification count
   Future<int> getUnreadNotificationCount() async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/notifications/unread-count');
+    final url = '${ApiConfig.baseUrl}/notifications/unread-count';
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(
-        url,
-        headers: headers,
-      ).timeout(ApiConfig.timeout);
+      final response = await _retryGet(url, headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['count'] ?? 0;
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -568,8 +539,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         return;
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }
@@ -592,8 +561,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         return;
-      } else if (response.statusCode == 401) {
-        throw Exception('Session expirée. Veuillez vous reconnecter.');
       } else {
         throw _handleError(response);
       }

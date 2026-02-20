@@ -17,7 +17,7 @@ void main() {
       //
       // expect(find.text('Vérification KYC'), findsOneWidget);
       // expect(find.byType(Stepper), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show document type selector on first step', (WidgetTester tester) async {
       // TODO: Implement document type selector test
@@ -29,7 +29,7 @@ void main() {
       //
       // expect(find.text('Type de document'), findsOneWidget);
       // expect(find.byType(DropdownButton), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should display passport, ID card, and drivers license options', (WidgetTester tester) async {
       // TODO: Implement document options test
@@ -46,7 +46,7 @@ void main() {
       // expect(find.text('Passeport'), findsOneWidget);
       // expect(find.text('Carte d\'identité'), findsOneWidget);
       // expect(find.text('Permis de conduire'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should navigate to next step on continue button', (WidgetTester tester) async {
       // TODO: Implement step navigation test
@@ -70,7 +70,7 @@ void main() {
       //
       // // Should be on step 2
       // expect(find.text('Télécharger le document'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should navigate back to previous step', (WidgetTester tester) async {
       // TODO: Implement back navigation test
@@ -86,7 +86,7 @@ void main() {
       //
       // // Should be on step 1
       // expect(find.text('Type de document'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show camera option for document capture', (WidgetTester tester) async {
       // TODO: Implement camera option test
@@ -98,7 +98,7 @@ void main() {
       //
       // expect(find.byIcon(Icons.camera_alt), findsOneWidget);
       // expect(find.text('Prendre une photo'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show gallery option for document selection', (WidgetTester tester) async {
       // TODO: Implement gallery option test
@@ -110,7 +110,7 @@ void main() {
       //
       // expect(find.byIcon(Icons.photo_library), findsOneWidget);
       // expect(find.text('Choisir depuis la galerie'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should display selected image preview', (WidgetTester tester) async {
       // TODO: Implement image preview test
@@ -125,7 +125,7 @@ void main() {
       //
       // expect(find.byType(Image), findsOneWidget);
       // expect(find.text('test_image.jpg'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show validation error if no document selected', (WidgetTester tester) async {
       // TODO: Implement validation test
@@ -140,7 +140,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(find.text('Veuillez sélectionner un document'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show progress indicator during submission', (WidgetTester tester) async {
       // TODO: Implement loading state test
@@ -155,7 +155,7 @@ void main() {
       //
       // expect(find.byType(CircularProgressIndicator), findsOneWidget);
       // expect(find.text('Soumission en cours...'), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show success message on successful submission', (WidgetTester tester) async {
       // TODO: Implement success state test
@@ -169,7 +169,7 @@ void main() {
       //
       // expect(find.text('Document soumis avec succès'), findsOneWidget);
       // expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should show error message on submission failure', (WidgetTester tester) async {
       // TODO: Implement error state test
@@ -183,7 +183,7 @@ void main() {
       //
       // expect(find.text('Échec de la soumission'), findsOneWidget);
       // expect(find.byIcon(Icons.error), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should display KYC status badge', (WidgetTester tester) async {
       // TODO: Implement status badge test
@@ -197,7 +197,7 @@ void main() {
       //
       // expect(find.text('Approuvé'), findsOneWidget);
       // expect(find.byIcon(Icons.verified), findsOneWidget);
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
 
     testWidgets('should handle form steps correctly', (WidgetTester tester) async {
       // TODO: Implement comprehensive step flow test
@@ -205,6 +205,6 @@ void main() {
       // 1. Select document type
       // 2. Upload document
       // 3. Review and submit
-    }, skip: 'KYCScreen not yet implemented');
+    }, skip: true);
   });
 }

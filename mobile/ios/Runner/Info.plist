@@ -28,6 +28,11 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
     <key>NSCameraUsageDescription</key>
     <string>LTC vCard a besoin d'accéder à votre caméra pour scanner vos documents KYC.</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -39,5 +44,9 @@
         <string>fetch</string>
         <string>remote-notification</string>
     </array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 </dict>
 </plist>

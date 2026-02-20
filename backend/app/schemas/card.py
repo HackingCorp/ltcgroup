@@ -6,7 +6,7 @@ from app.models.card import CardType, CardStatus
 
 class CardPurchase(BaseModel):
     card_type: CardType
-    initial_balance: Decimal = Field(..., ge=0, decimal_places=2)
+    initial_balance: Decimal = Field(..., gt=0, decimal_places=2)
 
 
 class CardResponse(BaseModel):
@@ -21,10 +21,6 @@ class CardResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class CardAction(BaseModel):
-    action: str = Field(..., pattern="^(freeze|unfreeze|block)$")
 
 
 class CardListResponse(BaseModel):

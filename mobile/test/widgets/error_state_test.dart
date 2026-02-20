@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// NOTE: These tests are skeleton tests and will be implemented
 /// once the actual ErrorState widget is created
 void main() {
-  group('ErrorState Widget Tests', () => {
+  group('ErrorState Widget Tests', () {
     testWidgets('should display error icon', (WidgetTester tester) async {
       // TODO: Implement when ErrorState widget is created
       // await tester.pumpWidget(
@@ -20,7 +20,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.error_outline), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should display error message', (WidgetTester tester) async {
       // TODO: Implement error message test
@@ -35,7 +35,7 @@ void main() {
       // );
       //
       // expect(find.text('Échec de chargement des données'), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should display retry button', (WidgetTester tester) async {
       // TODO: Implement retry button test
@@ -52,7 +52,7 @@ void main() {
       //
       // expect(find.text('Réessayer'), findsOneWidget);
       // expect(find.byType(ElevatedButton), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should call retry callback when button pressed', (WidgetTester tester) async {
       // TODO: Implement callback test
@@ -77,7 +77,7 @@ void main() {
       // await tester.pumpAndSettle();
       //
       // expect(retryPressed, true);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should not show retry button when callback is null', (WidgetTester tester) async {
       // TODO: Implement no retry button test
@@ -92,7 +92,7 @@ void main() {
       // );
       //
       // expect(find.text('Réessayer'), findsNothing);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should display custom title if provided', (WidgetTester tester) async {
       // TODO: Implement custom title test
@@ -108,7 +108,7 @@ void main() {
       // );
       //
       // expect(find.text('Oups!'), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should use default title if not provided', (WidgetTester tester) async {
       // TODO: Implement default title test
@@ -123,7 +123,7 @@ void main() {
       // );
       //
       // expect(find.text('Erreur'), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should display custom icon if provided', (WidgetTester tester) async {
       // TODO: Implement custom icon test
@@ -139,7 +139,7 @@ void main() {
       // );
       //
       // expect(find.byIcon(Icons.wifi_off), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should center content vertically', (WidgetTester tester) async {
       // TODO: Implement layout test
@@ -155,7 +155,7 @@ void main() {
       //
       // final center = find.byType(Center);
       // expect(center, findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
 
     testWidgets('should have proper styling for error message', (WidgetTester tester) async {
       // TODO: Implement styling test
@@ -171,7 +171,7 @@ void main() {
       //
       // final textWidget = tester.widget<Text>(find.text('Erreur critique'));
       // expect(textWidget.style?.color, Colors.red[700]);
-    }, skip: 'ErrorState widget not yet implemented'),
+    }, skip: true);
   });
 
   group('ErrorState Network Error Tests', () {
@@ -187,7 +187,7 @@ void main() {
       //
       // expect(find.text('Aucune connexion internet'), findsOneWidget);
       // expect(find.byIcon(Icons.wifi_off), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show server error specific message', (WidgetTester tester) async {
       // TODO: Implement server error test
@@ -200,7 +200,7 @@ void main() {
       // );
       //
       // expect(find.text('Erreur du serveur'), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented');
+    }, skip: true);
 
     testWidgets('should show timeout error specific message', (WidgetTester tester) async {
       // TODO: Implement timeout error test
@@ -213,6 +213,6 @@ void main() {
       // );
       //
       // expect(find.text('Délai d\'attente dépassé'), findsOneWidget);
-    }, skip: 'ErrorState widget not yet implemented');
+    }, skip: true);
   });
 }

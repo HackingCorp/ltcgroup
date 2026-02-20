@@ -2,6 +2,7 @@
 Payment endpoints for card top-ups using S3P Mobile Money and E-nkap
 """
 
+import hmac
 from decimal import Decimal
 from typing import Literal, Optional
 import uuid
@@ -9,7 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
@@ -19,6 +20,7 @@ from app.models.transaction import Transaction, TransactionType, TransactionStat
 from app.services.auth import get_current_user
 from app.services.s3p import s3p_client, S3PError
 from app.services.enkap import enkap_client, EnkapError, verify_webhook_signature
+from app.config import settings
 from app.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -28,7 +30,7 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 # Request/Response Models
 class InitiatePaymentRequest(BaseModel):
     method: Literal["mobile_money", "enkap"]
-    amount: float = Field(gt=0, description="Amount to pay in XAF")
+    amount: Decimal = Field(gt=0, le=5000000, description="Amount to pay in XAF")
     card_id: uuid.UUID
     phone: Optional[str] = None  # Required for mobile_money
     customer_name: Optional[str] = None  # Required for enkap
@@ -93,13 +95,13 @@ async def initiate_payment(
     transaction = Transaction(
         card_id=card.id,
         user_id=current_user.id,
-        amount=Decimal(str(payment_data.amount)),
+        amount=payment_data.amount,
         currency="XAF",
         type=TransactionType.TOPUP,
         status=TransactionStatus.PENDING,
         description=f"Top-up via {payment_data.method}",
         provider_transaction_id=order_ref,
-        metadata={
+        extra_data={
             "payment_method": payment_data.method,
             "phone": payment_data.phone if payment_data.method == "mobile_money" else None,
         },
@@ -113,18 +115,19 @@ async def initiate_payment(
         if payment_data.method == "mobile_money":
             # S3P Mobile Money
             result = await s3p_client.initiate_payment(
-                amount=payment_data.amount,
+                amount=float(payment_data.amount),
                 phone=payment_data.phone,
                 order_ref=order_ref,
                 customer_name=payment_data.customer_name or f"{current_user.first_name} {current_user.last_name}",
+                email=payment_data.customer_email or current_user.email,
             )
 
             if not result.get("success"):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.get("error", "Payment failed"))
 
             # Update transaction with PTN
-            transaction.metadata = {
-                **transaction.metadata,
+            transaction.extra_data = {
+                **transaction.extra_data,
                 "ptn": result.get("ptn"),
                 "trid": result.get("trid"),
             }
@@ -139,7 +142,7 @@ async def initiate_payment(
 
         else:  # enkap
             result = await enkap_client.initiate_payment(
-                amount=payment_data.amount,
+                amount=float(payment_data.amount),
                 order_ref=order_ref,
                 customer_name=payment_data.customer_name,
                 customer_email=payment_data.customer_email,
@@ -150,8 +153,8 @@ async def initiate_payment(
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.get("error", "Payment failed"))
 
             # Update transaction with order info
-            transaction.metadata = {
-                **transaction.metadata,
+            transaction.extra_data = {
+                **transaction.extra_data,
                 "order_id": result.get("order_id"),
                 "transaction_id": result.get("transaction_id"),
             }
@@ -168,14 +171,16 @@ async def initiate_payment(
     except (S3PError, EnkapError) as e:
         # Update transaction status to failed
         transaction.status = TransactionStatus.FAILED
-        transaction.metadata = {**transaction.metadata, "error": str(e)}
+        transaction.extra_data = {**transaction.extra_data, "error": str(e)}
         await db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        logger.error(f"Payment provider error for transaction {transaction.id}: {e}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment failed. Please try again.")
     except Exception as e:
         transaction.status = TransactionStatus.FAILED
-        transaction.metadata = {**transaction.metadata, "error": str(e)}
+        transaction.extra_data = {**transaction.extra_data, "error": str(e)}
         await db.commit()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Payment error: {str(e)}")
+        logger.error(f"Unexpected payment error for transaction {transaction.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected payment error occurred")
 
 
 @router.get("/status/{transaction_id}", response_model=PaymentStatusResponse)
@@ -197,52 +202,79 @@ async def get_payment_status(
 
     # If still pending, check with provider
     if transaction.status == TransactionStatus.PENDING:
-        payment_method = transaction.metadata.get("payment_method")
+        payment_method = transaction.extra_data.get("payment_method")
 
         try:
             if payment_method == "mobile_money":
                 # Check S3P status
-                trid = transaction.metadata.get("trid")
-                ptn = transaction.metadata.get("ptn")
+                trid = transaction.extra_data.get("trid")
+                ptn = transaction.extra_data.get("ptn")
                 ref = ptn or trid
 
                 if ref:
                     verify_result = await s3p_client.verify_transaction(ref)
 
                     if verify_result.get("status") == "SUCCESS":
-                        # Update transaction and card balance
-                        transaction.status = TransactionStatus.COMPLETED
-                        transaction.metadata = {**transaction.metadata, "verification": verify_result}
-
-                        # Update card balance
-                        card_result = await db.execute(select(Card).where(Card.id == transaction.card_id))
-                        card = card_result.scalar_one()
-                        card.balance += transaction.amount
+                        # Conditional UPDATE to prevent double-credit
+                        result = await db.execute(
+                            update(Transaction)
+                            .where(
+                                Transaction.id == transaction.id,
+                                Transaction.status == TransactionStatus.PENDING,
+                            )
+                            .values(
+                                status=TransactionStatus.COMPLETED,
+                                extra_data={**transaction.extra_data, "verification": verify_result},
+                            )
+                            .returning(Transaction.id)
+                        )
+                        if result.rowcount > 0:
+                            # Only credit balance if we actually changed the status
+                            await db.execute(
+                                update(Card)
+                                .where(Card.id == transaction.card_id)
+                                .values(balance=Card.balance + transaction.amount)
+                            )
+                            transaction.status = TransactionStatus.COMPLETED
                         await db.commit()
 
                     elif verify_result.get("status") in ["FAILED", "ERRORED"]:
                         transaction.status = TransactionStatus.FAILED
-                        transaction.metadata = {
-                            **transaction.metadata,
+                        transaction.extra_data = {
+                            **transaction.extra_data,
                             "error": verify_result.get("errorMessage"),
                         }
                         await db.commit()
 
             elif payment_method == "enkap":
                 # Check E-nkap status
-                order_id = transaction.metadata.get("order_id")
+                order_id = transaction.extra_data.get("order_id")
 
                 if order_id:
                     order_status = await enkap_client.get_order_status(order_id)
 
                     if order_status.get("status") == "COMPLETED":
-                        transaction.status = TransactionStatus.COMPLETED
-                        transaction.metadata = {**transaction.metadata, "verification": order_status}
-
-                        # Update card balance
-                        card_result = await db.execute(select(Card).where(Card.id == transaction.card_id))
-                        card = card_result.scalar_one()
-                        card.balance += transaction.amount
+                        # Conditional UPDATE to prevent double-credit
+                        result = await db.execute(
+                            update(Transaction)
+                            .where(
+                                Transaction.id == transaction.id,
+                                Transaction.status == TransactionStatus.PENDING,
+                            )
+                            .values(
+                                status=TransactionStatus.COMPLETED,
+                                extra_data={**transaction.extra_data, "verification": order_status},
+                            )
+                            .returning(Transaction.id)
+                        )
+                        if result.rowcount > 0:
+                            # Only credit balance if we actually changed the status
+                            await db.execute(
+                                update(Card)
+                                .where(Card.id == transaction.card_id)
+                                .values(balance=Card.balance + transaction.amount)
+                            )
+                            transaction.status = TransactionStatus.COMPLETED
                         await db.commit()
 
                     elif order_status.get("status") in ["FAILED", "CANCELLED"]:
@@ -259,7 +291,7 @@ async def get_payment_status(
         amount=transaction.amount,
         currency=transaction.currency,
         payment_reference=transaction.provider_transaction_id,
-        message=transaction.metadata.get("error") if transaction.status == TransactionStatus.FAILED else None,
+        message=transaction.extra_data.get("error") if transaction.status == TransactionStatus.FAILED else None,
     )
 
 
@@ -269,6 +301,12 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     S3P webhook for payment notifications (idempotent)
     Expected payload: {ptn, status, amount, trid, ...}
     """
+    # Verify webhook secret
+    webhook_secret = request.headers.get("X-S3P-Webhook-Secret", "")
+    if not settings.s3p_webhook_secret or not hmac.compare_digest(webhook_secret, settings.s3p_webhook_secret):
+        logger.warning("S3P webhook: Missing or invalid webhook secret")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook secret")
+
     try:
         payload = await request.json()
         ptn = payload.get("ptn")
@@ -280,15 +318,27 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         # Find transaction by trid or ptn
         query = select(Transaction).where(
             (Transaction.provider_transaction_id == trid)
-            | (Transaction.metadata["trid"].astext == trid)
-            | (Transaction.metadata["ptn"].astext == ptn)
+            | (Transaction.extra_data["trid"].astext == trid)
+            | (Transaction.extra_data["ptn"].astext == ptn)
         )
         result = await db.execute(query)
         transaction = result.scalar_one_or_none()
 
         if not transaction:
             logger.warning(f"S3P webhook: Transaction not found for ptn={ptn}, trid={trid}")
-            return {"status": "error", "message": "Transaction not found"}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+        # Validate webhook amount vs expected amount
+        webhook_amount = payload.get("amount")
+        if webhook_amount is not None:
+            try:
+                if Decimal(str(webhook_amount)) != transaction.amount:
+                    logger.warning(
+                        f"S3P webhook: Amount mismatch for transaction {transaction.id}: "
+                        f"webhook={webhook_amount}, expected={transaction.amount}"
+                    )
+            except (ValueError, TypeError):
+                logger.warning(f"S3P webhook: Invalid amount in payload: {webhook_amount}")
 
         # Idempotency check: if already processed, return success
         if transaction.status in [TransactionStatus.COMPLETED, TransactionStatus.FAILED]:
@@ -297,13 +347,26 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         # Update transaction status
         if payment_status == "SUCCESS":
-            transaction.status = TransactionStatus.COMPLETED
-            transaction.metadata = {**transaction.metadata, "webhook_data": payload}
-
-            # Update card balance
-            card_result = await db.execute(select(Card).where(Card.id == transaction.card_id))
-            card = card_result.scalar_one()
-            card.balance += transaction.amount
+            # Conditional UPDATE to prevent double-credit from webhook+polling race
+            result = await db.execute(
+                update(Transaction)
+                .where(
+                    Transaction.id == transaction.id,
+                    Transaction.status == TransactionStatus.PENDING,
+                )
+                .values(
+                    status=TransactionStatus.COMPLETED,
+                    extra_data={**transaction.extra_data, "webhook_data": payload},
+                )
+                .returning(Transaction.id)
+            )
+            if result.rowcount > 0:
+                # Only credit balance if we actually changed the status
+                await db.execute(
+                    update(Card)
+                    .where(Card.id == transaction.card_id)
+                    .values(balance=Card.balance + transaction.amount)
+                )
             await db.commit()
 
             logger.info(f"S3P webhook: Transaction {transaction.id} marked as COMPLETED, card balance updated")
@@ -311,7 +374,7 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         elif payment_status in ["FAILED", "ERRORED"]:
             transaction.status = TransactionStatus.FAILED
-            transaction.metadata = {**transaction.metadata, "webhook_data": payload}
+            transaction.extra_data = {**transaction.extra_data, "webhook_data": payload}
             await db.commit()
 
             logger.info(f"S3P webhook: Transaction {transaction.id} marked as FAILED")
@@ -319,9 +382,11 @@ async def s3p_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         return {"status": "success", "message": "Webhook received"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"S3P webhook error: {str(e)}", exc_info=e)
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Internal error"}
 
 
 @router.post("/webhook/enkap", status_code=status.HTTP_200_OK)
@@ -335,8 +400,11 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         body = await request.body()
         signature = request.headers.get("X-Enkap-Signature", "")
 
-        # Verify signature if present
-        if signature and not verify_webhook_signature(body.decode("utf-8"), signature):
+        # Verify signature (mandatory)
+        if not signature:
+            logger.warning("E-nkap webhook: Missing signature")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
+        if not verify_webhook_signature(body.decode("utf-8"), signature):
             logger.warning("E-nkap webhook: Invalid signature")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
@@ -349,14 +417,26 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         # Find transaction
         query = select(Transaction).where(
-            (Transaction.provider_transaction_id == merchant_ref) | (Transaction.metadata["order_id"].astext == order_id)
+            (Transaction.provider_transaction_id == merchant_ref) | (Transaction.extra_data["order_id"].astext == order_id)
         )
         result = await db.execute(query)
         transaction = result.scalar_one_or_none()
 
         if not transaction:
             logger.warning(f"E-nkap webhook: Transaction not found for order_id={order_id}, merchant_ref={merchant_ref}")
-            return {"status": "error", "message": "Transaction not found"}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+        # Validate webhook amount vs expected amount
+        webhook_amount = payload.get("amount")
+        if webhook_amount is not None:
+            try:
+                if Decimal(str(webhook_amount)) != transaction.amount:
+                    logger.warning(
+                        f"E-nkap webhook: Amount mismatch for transaction {transaction.id}: "
+                        f"webhook={webhook_amount}, expected={transaction.amount}"
+                    )
+            except (ValueError, TypeError):
+                logger.warning(f"E-nkap webhook: Invalid amount in payload: {webhook_amount}")
 
         # Idempotency check: if already processed, return success
         if transaction.status in [TransactionStatus.COMPLETED, TransactionStatus.FAILED]:
@@ -365,13 +445,26 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         # Update transaction status
         if payment_status == "COMPLETED":
-            transaction.status = TransactionStatus.COMPLETED
-            transaction.metadata = {**transaction.metadata, "webhook_data": payload}
-
-            # Update card balance
-            card_result = await db.execute(select(Card).where(Card.id == transaction.card_id))
-            card = card_result.scalar_one()
-            card.balance += transaction.amount
+            # Conditional UPDATE to prevent double-credit from webhook+polling race
+            result = await db.execute(
+                update(Transaction)
+                .where(
+                    Transaction.id == transaction.id,
+                    Transaction.status == TransactionStatus.PENDING,
+                )
+                .values(
+                    status=TransactionStatus.COMPLETED,
+                    extra_data={**transaction.extra_data, "webhook_data": payload},
+                )
+                .returning(Transaction.id)
+            )
+            if result.rowcount > 0:
+                # Only credit balance if we actually changed the status
+                await db.execute(
+                    update(Card)
+                    .where(Card.id == transaction.card_id)
+                    .values(balance=Card.balance + transaction.amount)
+                )
             await db.commit()
 
             logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as COMPLETED, card balance updated")
@@ -379,7 +472,7 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         elif payment_status in ["FAILED", "CANCELLED"]:
             transaction.status = TransactionStatus.FAILED
-            transaction.metadata = {**transaction.metadata, "webhook_data": payload}
+            transaction.extra_data = {**transaction.extra_data, "webhook_data": payload}
             await db.commit()
 
             logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as FAILED")
@@ -387,6 +480,8 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         return {"status": "success", "message": "Webhook received"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"E-nkap webhook error: {str(e)}", exc_info=e)
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Internal error"}

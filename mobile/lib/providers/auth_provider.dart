@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
 /// Authentication state provider
 class AuthProvider with ChangeNotifier {
@@ -17,6 +18,9 @@ class AuthProvider with ChangeNotifier {
 
   /// Initialize auth state (check if user is logged in)
   Future<void> initialize() async {
+    // Wire up session-expired callback so any 401 triggers automatic logout
+    ApiService.onSessionExpired = () => handleSessionExpired();
+
     _isLoading = true;
     notifyListeners();
 
@@ -61,6 +65,7 @@ class AuthProvider with ChangeNotifier {
   /// Register
   Future<bool> register({
     required String email,
+    required String phone,
     required String password,
     required String firstName,
     required String lastName,
@@ -72,6 +77,7 @@ class AuthProvider with ChangeNotifier {
     try {
       _user = await _authService.register(
         email: email,
+        phone: phone,
         password: password,
         firstName: firstName,
         lastName: lastName,

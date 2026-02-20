@@ -111,13 +111,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       onTap: () async {
         if (!notification.isRead) {
           await _notificationService.markAsRead(notification.id);
-          setState(() {
-            _loadNotifications();
-          });
+          _loadNotifications();
         }
       },
       child: Container(
-        color: notification.isRead ? Colors.transparent : LTCTheme.gold.withOpacity(0.05),
+        color: notification.isRead ? Colors.transparent : LTCTheme.gold.withValues(alpha:0.05),
         child: ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -125,7 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(

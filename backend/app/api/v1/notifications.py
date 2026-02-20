@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, update
 from pydantic import BaseModel, UUID4
 
 from app.database import get_db
@@ -170,23 +170,16 @@ async def mark_all_notifications_read(
     Returns:
         MarkReadResponse with count of marked notifications
     """
-    # Get all unread notifications
+    # Bulk update all unread notifications in a single query
     result = await db.execute(
-        select(Notification).where(
-            Notification.user_id == current_user.id,
-            Notification.is_read == False
-        )
+        update(Notification)
+        .where(Notification.user_id == current_user.id, Notification.is_read == False)
+        .values(is_read=True)
     )
-    unread_notifications = result.scalars().all()
-
-    # Mark all as read
-    marked_count = 0
-    for notification in unread_notifications:
-        notification.is_read = True
-        marked_count += 1
+    marked_count = result.rowcount
+    await db.commit()
 
     if marked_count > 0:
-        await db.commit()
         logger.info(f"Marked {marked_count} notifications as read for user {current_user.id}")
 
     return MarkReadResponse(

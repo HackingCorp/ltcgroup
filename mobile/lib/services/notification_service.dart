@@ -112,8 +112,6 @@ class NotificationService {
         body: notification.body ?? '',
         data: message.data,
       );
-
-      // Store notification locally
       await _storeNotification(
         title: notification.title ?? 'LTC vCard',
         body: notification.body ?? '',
@@ -124,7 +122,6 @@ class NotificationService {
 
   /// Handle notification opened
   Future<void> _handleNotificationOpened(RemoteMessage message) async {
-    // Store notification as read
     if (message.notification != null) {
       await _storeNotification(
         title: message.notification!.title ?? 'LTC vCard',
@@ -173,7 +170,6 @@ class NotificationService {
   /// Notification tapped handler
   void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap
-    // This can be used to navigate to specific screen
   }
 
   /// Store notification locally
@@ -193,7 +189,6 @@ class NotificationService {
       notifications = decoded.map((e) => AppNotification.fromJson(e as Map<String, dynamic>)).toList();
     }
 
-    // Add new notification
     notifications.insert(
       0,
       AppNotification(
@@ -206,12 +201,10 @@ class NotificationService {
       ),
     );
 
-    // Keep only last 100 notifications
     if (notifications.length > 100) {
       notifications = notifications.sublist(0, 100);
     }
 
-    // Save to storage
     final encoded = json.encode(notifications.map((e) => e.toJson()).toList());
     await prefs.setString(_notificationsKey, encoded);
   }
@@ -266,5 +259,4 @@ class NotificationService {
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Handle background message
-  // Cannot show UI here, only data processing
 }

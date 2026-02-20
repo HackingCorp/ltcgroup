@@ -353,7 +353,7 @@ class TestWebhookIdempotency:
             status=TransactionStatus.PENDING,
             description="Test topup",
             provider_transaction_id=unique_ref,
-            metadata={"ptn": unique_ref, "trid": unique_ref}
+            extra_data={"ptn": unique_ref, "trid": unique_ref}
         )
         test_db.add(transaction)
         await test_db.commit()

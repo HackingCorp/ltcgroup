@@ -64,7 +64,7 @@ class TransactionItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getStatusColor().withOpacity(0.1),
+                color: _getStatusColor().withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -123,7 +123,7 @@ class TransactionItem extends StatelessWidget {
   }
 
   Color _getIconBackgroundColor() {
-    return _getIconColor().withOpacity(0.1);
+    return _getIconColor().withValues(alpha:0.1);
   }
 
   Color _getStatusColor() {

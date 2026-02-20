@@ -1,7 +1,8 @@
 import os
 import uuid
+import enum
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +23,17 @@ router = APIRouter(prefix="/uploads", tags=["Uploads"])
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+# Magic bytes for file type validation
+MAGIC_BYTES = {
+    ".jpg": b"\xff\xd8\xff",
+    ".jpeg": b"\xff\xd8\xff",
+    ".png": b"\x89PNG",
+    ".pdf": b"%PDF",
+}
+
+# Valid document types
+ALLOWED_DOCUMENT_TYPES = {"passport", "id_card", "driver_license", "residence_permit"}
+
 
 class UploadResponse(BaseModel):
     """Response schema for file upload."""
@@ -30,13 +42,14 @@ class UploadResponse(BaseModel):
     document_type: str
 
 
-def validate_file(filename: str, file_size: int) -> None:
+def validate_file(filename: str, file_size: int, content: bytes) -> None:
     """
     Validate uploaded file.
 
     Args:
         filename: Name of the file
         file_size: Size of the file in bytes
+        content: Raw file content for magic byte validation
 
     Raises:
         HTTPException: If file is invalid
@@ -54,6 +67,14 @@ def validate_file(filename: str, file_size: int) -> None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE / (1024 * 1024):.0f}MB",
+        )
+
+    # Validate magic bytes
+    expected_magic = MAGIC_BYTES.get(ext)
+    if expected_magic and not content[:len(expected_magic)].startswith(expected_magic):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not match its extension",
         )
 
 
@@ -76,13 +97,20 @@ async def upload_kyc_document(
     Returns:
         UploadResponse with file path and URL
     """
+    # Validate document_type against allowed values
+    if document_type not in ALLOWED_DOCUMENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid document type. Allowed types: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}",
+        )
+
     try:
         # Read file content to check size
         content = await file.read()
         file_size = len(content)
 
-        # Validate file
-        validate_file(file.filename, file_size)
+        # Validate file (including magic bytes)
+        validate_file(file.filename, file_size, content)
 
         # Create directory structure: uploads/kyc/{user_id}/
         upload_base = Path(settings.upload_dir)
@@ -90,7 +118,7 @@ async def upload_kyc_document(
         kyc_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate unique filename: {timestamp}_{original_filename}
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         ext = Path(file.filename).suffix
         safe_filename = f"{timestamp}_{document_type}{ext}"
         file_path = kyc_dir / safe_filename

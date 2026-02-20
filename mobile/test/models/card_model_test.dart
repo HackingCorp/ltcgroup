@@ -24,7 +24,7 @@ void main() {
       // expect(card.cardType, 'VISA');
       // expect(card.balance, 50000);
       // expect(card.status, CardStatus.active);
-    }, skip: 'Card model not yet implemented');
+    }, skip: true);
 
     test('should convert Card to JSON', () {
       // TODO: Implement when Card model is created
@@ -43,7 +43,7 @@ void main() {
       // expect(json['id'], 'card_123');
       // expect(json['card_type'], 'VISA');
       // expect(json['balance'], 50000);
-    }, skip: 'Card model not yet implemented');
+    }, skip: true);
 
     test('should mask card number correctly', () {
       // TODO: Implement when Card model has masking logic
@@ -55,7 +55,7 @@ void main() {
       // final masked = card.maskedCardNumber;
       //
       // expect(masked, '**** **** **** 1111');
-    }, skip: 'Card model not yet implemented');
+    }, skip: true);
 
     test('should validate card status', () {
       // TODO: Implement card status validation
@@ -63,7 +63,7 @@ void main() {
       // ACTIVE -> FROZEN (allowed)
       // FROZEN -> ACTIVE (allowed)
       // BLOCKED -> ACTIVE (not allowed)
-    }, skip: 'Card model not yet implemented');
+    }, skip: true);
 
     test('should format balance with currency', () {
       // TODO: Implement when Card model has formatting logic
@@ -72,6 +72,6 @@ void main() {
       // final formatted = card.formattedBalance;
       //
       // expect(formatted, '50,000 FCFA');
-    }, skip: 'Card model not yet implemented');
+    }, skip: true);
   });
 }

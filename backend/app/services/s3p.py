@@ -7,6 +7,7 @@ Flow: GET /cashout → POST /quotestd → POST /collectstd → GET /verifytx
 
 import hashlib
 import hmac
+import secrets
 import time
 from typing import Optional, Dict, Any, Literal
 from urllib.parse import quote
@@ -115,7 +116,7 @@ def generate_s3p_headers(method: str, url: str, params: Optional[Dict[str, Any]]
             s3pAuth_signature_method="HMAC-SHA1", s3pAuth_token="..."
     """
     timestamp = int(time.time() * 1000)
-    nonce = int(time.time() * 1000)
+    nonce = secrets.token_hex(16)
     signature_method = "HMAC-SHA1"
 
     # S3P authentication parameters
@@ -174,6 +175,10 @@ class S3PClient:
         self.base_url = settings.s3p_api_url
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
 
+    async def close(self):
+        """Close the underlying HTTP client."""
+        await self.client.aclose()
+
     async def get_services(self, service_id: S3PServiceId) -> list[Dict[str, Any]]:
         """Step 1: Get available services and payItemId"""
         endpoint = "/cashout"
@@ -191,6 +196,8 @@ class S3PClient:
                     map_s3p_error(error_data.get("respCode", 0), error_data.get("devMsg", "")),
                     error_data.get("respCode"),
                 )
+            except S3PError:
+                raise
             except Exception:
                 raise S3PError(f"Erreur de paiement: {error_text}")
 
@@ -218,13 +225,16 @@ class S3PClient:
                     map_s3p_error(error_data.get("respCode", 0), error_data.get("devMsg", "")),
                     error_data.get("respCode"),
                 )
+            except S3PError:
+                raise
             except Exception:
                 raise S3PError(f"Erreur de paiement: {error_text}")
 
         return response.json()
 
     async def collect_payment(
-        self, quote_id: str, service_number: str, external_ref: str, customer_name: Optional[str] = None
+        self, quote_id: str, service_number: str, external_ref: str,
+        phone: str, email: str, customer_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """Step 3: Initiate payment collection"""
         endpoint = "/collectstd"
@@ -232,8 +242,8 @@ class S3PClient:
 
         body = {
             "quoteId": quote_id,
-            "customerPhonenumber": "237691371922",  # Notification number
-            "customerEmailaddress": "lontsi05@gmail.com",
+            "customerPhonenumber": phone,
+            "customerEmailaddress": email,
             "customerName": customer_name or "Client LTC Finance",
             "customerAddress": "Cameroun",
             "serviceNumber": service_number,  # Customer's phone to charge (without 237)
@@ -252,6 +262,8 @@ class S3PClient:
                     map_s3p_error(error_data.get("respCode", 0), error_data.get("devMsg", "")),
                     error_data.get("respCode"),
                 )
+            except S3PError:
+                raise
             except Exception:
                 raise S3PError(f"Erreur de paiement: {error_text}")
 
@@ -277,6 +289,8 @@ class S3PClient:
                     map_s3p_error(error_data.get("respCode", 0), error_data.get("devMsg", "")),
                     error_data.get("respCode"),
                 )
+            except S3PError:
+                raise
             except Exception:
                 raise S3PError(f"Erreur de paiement: {error_text}")
 
@@ -297,7 +311,8 @@ class S3PClient:
         }
 
     async def initiate_payment(
-        self, amount: float, phone: str, order_ref: str, customer_name: Optional[str] = None
+        self, amount: float, phone: str, order_ref: str,
+        customer_name: Optional[str] = None, email: Optional[str] = None
     ) -> Dict[str, Any]:
         """Complete S3P payment flow"""
         try:
@@ -331,7 +346,14 @@ class S3PClient:
                 raise S3PError("Failed to create payment quote")
 
             # STEP 3: Initiate collection (sends push notification to customer)
-            collection = await self.collect_payment(quote["quoteId"], formatted_phone, trid, customer_name)
+            # Format the notification phone with country code for customerPhonenumber
+            notification_phone = f"237{formatted_phone}"
+            collection = await self.collect_payment(
+                quote["quoteId"], formatted_phone, trid,
+                phone=notification_phone,
+                email=email or "",
+                customer_name=customer_name,
+            )
 
             return {
                 "success": True,

@@ -3,6 +3,7 @@ from app.models.user import User, KYCStatus
 from app.models.card import Card, CardType, CardStatus
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.models.notification import Notification, NotificationType
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -16,4 +17,5 @@ __all__ = [
     "TransactionStatus",
     "Notification",
     "NotificationType",
+    "AuditLog",
 ]

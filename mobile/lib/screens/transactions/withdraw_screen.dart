@@ -72,7 +72,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final success = await transactionsProvider.withdrawFromCard(
       cardId: _selectedCardId!,
       amount: amount,
-      currency: 'USD',
+      currency: 'XAF',
     );
 
     if (!mounted) return;
@@ -172,7 +172,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 controller: _amountController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                prefixIcon: Icons.euro,
+                prefixIcon: Icons.payments,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Montant requis';
@@ -227,7 +227,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: LTCColors.warning.withOpacity(0.1),
+                  color: LTCColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -285,7 +285,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: (isSelected ? LTCColors.accent : Colors.grey)
-                    .withOpacity(0.1),
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(

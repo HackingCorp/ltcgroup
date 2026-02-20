@@ -86,7 +86,7 @@ def mock_accountpe(monkeypatch):
         async def health_check(self) -> dict:
             return {"status": "healthy", "service": "accountpe-api"}
 
-        async def register_user(self, email: str, phone: str, first_name: str, last_name: str, password: str) -> dict:
+        async def create_user(self, email: str, name: str, country: str = "CM") -> dict:
             return {"user_id": "accountpe_user_123", "status": "registered"}
 
         async def purchase_card(self, user_id: str, card_type: str, initial_balance: float) -> dict:
@@ -106,14 +106,11 @@ def mock_accountpe(monkeypatch):
         async def block_card(self, provider_card_id: str) -> dict:
             return {"status": "blocked"}
 
-        async def topup_card(self, card_id: str, amount: float, currency: str) -> dict:
+        async def recharge_card(self, card_id: str, amount: float) -> dict:
             return {"transaction_id": "accountpe_txn_123", "status": "completed"}
 
-        async def withdraw_from_card(self, card_id: str, amount: float, currency: str) -> dict:
+        async def withdraw_fund(self, card_id: str, amount: float) -> dict:
             return {"transaction_id": "accountpe_txn_456", "status": "completed"}
-
-        async def submit_kyc(self, user_id: str, document_url: str, document_type: str) -> dict:
-            return {"status": "pending"}
 
     mock_client = MockAccountPEClient()
     monkeypatch.setattr("app.services.accountpe.accountpe_client", mock_client)

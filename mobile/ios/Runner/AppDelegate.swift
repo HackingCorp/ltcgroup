@@ -8,7 +8,11 @@ import FirebaseCore
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    FirebaseApp.configure()
+    // Only configure Firebase if GoogleService-Info.plist exists
+    if let _ = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
+      FirebaseApp.configure()
+    }
+
     GeneratedPluginRegistrant.register(with: self)
 
     if #available(iOS 10.0, *) {

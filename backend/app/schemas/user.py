@@ -11,11 +11,6 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=8, max_length=100)
 
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-
 class UserResponse(BaseModel):
     id: UUID4
     email: EmailStr

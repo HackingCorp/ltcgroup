@@ -35,7 +35,7 @@ void main() {
       //
       // expect(cards.length, 1);
       // expect(cards[0].id, 'card_123');
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should make POST request to purchase card', () async {
       // TODO: Implement when ApiService is created
@@ -55,7 +55,7 @@ void main() {
       //
       // expect(result.cardId, 'card_new');
       // expect(result.status, 'ACTIVE');
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should handle authentication errors', () async {
       // TODO: Implement error handling
@@ -66,7 +66,7 @@ void main() {
       //   () => apiService.getCards(),
       //   throwsA(isA<UnauthorizedException>()),
       // );
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should handle network errors', () async {
       // TODO: Implement network error handling
@@ -77,19 +77,19 @@ void main() {
       //   () => apiService.getCards(),
       //   throwsA(isA<NetworkException>()),
       // );
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should refresh token when expired', () async {
       // TODO: Implement token refresh logic
       // Test that expired tokens trigger a refresh
       // and the original request is retried
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should include authorization header', () async {
       // TODO: Implement header validation
       // Verify that all authenticated requests include
       // the Authorization: Bearer <token> header
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should parse error responses correctly', () async {
       // TODO: Implement error response parsing
@@ -107,24 +107,24 @@ void main() {
       //     e.code == 'INVALID_CARD_TYPE'
       //   )),
       // );
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
   });
 
   group('API Service - Card Operations', () {
     test('should freeze card', () async {
       // TODO: Implement when ApiService has freeze method
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should unfreeze card', () async {
       // TODO: Implement when ApiService has unfreeze method
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should topup card', () async {
       // TODO: Implement when ApiService has topup method
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
 
     test('should get transaction history', () async {
       // TODO: Implement when ApiService has transactions method
-    }, skip: 'ApiService not yet implemented');
+    }, skip: true);
   });
 }

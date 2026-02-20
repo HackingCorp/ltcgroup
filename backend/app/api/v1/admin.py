@@ -3,17 +3,17 @@ from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from pydantic import BaseModel, UUID4
+from sqlalchemy import select, func, and_
+from pydantic import BaseModel, Field, UUID4
 
 from app.database import get_db
 from app.models.user import User, KYCStatus
 from app.models.card import Card
 from app.models.transaction import Transaction, TransactionStatus, TransactionType
-from app.models.audit_log import AuditLog
 from app.models.notification import Notification, NotificationType
 from app.services.auth import get_current_user
 from app.services.email import email_service
+from app.utils.audit import log_audit_event
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -58,8 +58,8 @@ class KYCActionRequest(BaseModel):
 
 class SendNotificationRequest(BaseModel):
     user_id: UUID4
-    title: str
-    message: str
+    title: str = Field(..., max_length=200)
+    message: str = Field(..., max_length=500)
     type: NotificationType
 
 
@@ -92,29 +92,6 @@ class AdminStats(BaseModel):
     total_volume: Decimal
     total_revenue: Decimal
     pending_kyc: int
-
-
-# Utility function to log audit events
-async def log_audit(
-    db: AsyncSession,
-    user_id: UUID4,
-    action: str,
-    resource_type: str,
-    resource_id: str,
-    details: Optional[dict] = None,
-    ip_address: Optional[str] = None,
-):
-    """Log an audit event."""
-    audit_log = AuditLog(
-        user_id=user_id,
-        action=action,
-        resource_type=resource_type,
-        resource_id=str(resource_id),
-        details=details or {},
-        ip_address=ip_address,
-    )
-    db.add(audit_log)
-    await db.commit()
 
 
 # Endpoints
@@ -196,12 +173,12 @@ async def approve_kyc(
     await email_service.send_kyc_approved(user)
 
     # Log audit event
-    await log_audit(
+    await log_audit_event(
         db=db,
         user_id=admin_user.id,
         action="kyc_approve",
         resource_type="user",
-        resource_id=user_id,
+        resource_id=str(user_id),
         details={"target_user_id": str(user_id)},
         ip_address=request.client.host if request.client else None,
     )
@@ -252,12 +229,12 @@ async def reject_kyc(
     await email_service.send_kyc_rejected(user, kyc_action.reason or "No reason provided")
 
     # Log audit event
-    await log_audit(
+    await log_audit_event(
         db=db,
         user_id=admin_user.id,
         action="kyc_reject",
         resource_type="user",
-        resource_id=user_id,
+        resource_id=str(user_id),
         details={"target_user_id": str(user_id), "reason": kyc_action.reason},
         ip_address=request.client.host if request.client else None,
     )
@@ -398,7 +375,7 @@ async def send_notification_to_user(
     await db.commit()
 
     # Log audit event
-    await log_audit(
+    await log_audit_event(
         db=db,
         user_id=admin_user.id,
         action="send_notification",

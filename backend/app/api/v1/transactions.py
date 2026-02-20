@@ -1,12 +1,15 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 
 from app.database import get_db
 from app.models.user import User
 from app.models.card import Card, CardStatus
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
+from app.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 from app.schemas.transaction import (
     TopupRequest,
     WithdrawRequest,
@@ -78,7 +81,10 @@ async def topup_card(
     """
     Add funds to a card.
     """
-    result = await db.execute(select(Card).where(Card.id == topup_data.card_id))
+    # Lock the card row to prevent concurrent balance modifications
+    result = await db.execute(
+        select(Card).where(Card.id == topup_data.card_id).with_for_update()
+    )
     card = result.scalar_one_or_none()
 
     if not card:
@@ -99,31 +105,35 @@ async def topup_card(
         type=TransactionType.TOPUP,
         status=TransactionStatus.PENDING,
         description=f"Top-up {topup_data.amount} {topup_data.currency}",
-        provider_transaction_id="",
+        provider_transaction_id=None,
     )
     db.add(transaction)
     await db.flush()
 
     # Call AccountPE to topup
     try:
-        accountpe_response = await accountpe_client.topup_card(
+        accountpe_response = await accountpe_client.recharge_card(
             card_id=card.provider_card_id,
             amount=float(topup_data.amount),
-            currency=topup_data.currency,
         )
         transaction.provider_transaction_id = accountpe_response.get("transaction_id", "")
         transaction.status = TransactionStatus.COMPLETED
 
-        # Update card balance
-        card.balance += topup_data.amount
+        # Update card balance atomically
+        await db.execute(
+            update(Card)
+            .where(Card.id == card.id)
+            .values(balance=Card.balance + topup_data.amount)
+        )
 
     except Exception as e:
         transaction.status = TransactionStatus.FAILED
-        transaction.metadata = {"error": str(e)}
+        transaction.extra_data = {"error": str(e)}
         await db.commit()
+        logger.error(f"Top-up failed for card {card.id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Top-up failed: {str(e)}",
+            detail="Top-up failed. Please try again later.",
         )
 
     await db.commit()
@@ -141,7 +151,10 @@ async def withdraw_from_card(
     """
     Withdraw funds from a card.
     """
-    result = await db.execute(select(Card).where(Card.id == withdraw_data.card_id))
+    # Lock the card row to prevent concurrent balance modifications
+    result = await db.execute(
+        select(Card).where(Card.id == withdraw_data.card_id).with_for_update()
+    )
     card = result.scalar_one_or_none()
 
     if not card:
@@ -153,7 +166,7 @@ async def withdraw_from_card(
     if card.status == CardStatus.BLOCKED:
         raise CardAlreadyBlockedException()
 
-    # Check balance
+    # Check balance (under lock, so this is safe from races)
     if card.balance < withdraw_data.amount:
         raise InsufficientBalanceException()
 
@@ -166,31 +179,35 @@ async def withdraw_from_card(
         type=TransactionType.WITHDRAW,
         status=TransactionStatus.PENDING,
         description=f"Withdrawal {withdraw_data.amount} {withdraw_data.currency}",
-        provider_transaction_id="",
+        provider_transaction_id=None,
     )
     db.add(transaction)
     await db.flush()
 
     # Call AccountPE to withdraw
     try:
-        accountpe_response = await accountpe_client.withdraw_from_card(
+        accountpe_response = await accountpe_client.withdraw_fund(
             card_id=card.provider_card_id,
             amount=float(withdraw_data.amount),
-            currency=withdraw_data.currency,
         )
         transaction.provider_transaction_id = accountpe_response.get("transaction_id", "")
         transaction.status = TransactionStatus.COMPLETED
 
-        # Update card balance
-        card.balance -= withdraw_data.amount
+        # Update card balance atomically
+        await db.execute(
+            update(Card)
+            .where(Card.id == card.id)
+            .values(balance=Card.balance - withdraw_data.amount)
+        )
 
     except Exception as e:
         transaction.status = TransactionStatus.FAILED
-        transaction.metadata = {"error": str(e)}
+        transaction.extra_data = {"error": str(e)}
         await db.commit()
+        logger.error(f"Withdrawal failed for card {card.id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Withdrawal failed: {str(e)}",
+            detail="Withdrawal failed. Please try again later.",
         )
 
     await db.commit()

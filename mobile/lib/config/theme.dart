@@ -25,6 +25,10 @@ class LTCColors {
 
 /// LTC Group Theme
 class LTCTheme {
+  // Convenience color accessors
+  static const Color gold = LTCColors.accent;
+  static const Color navy = LTCColors.primary;
+
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
 
@@ -136,7 +140,7 @@ class LTCTheme {
     ),
 
     // Card
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: Colors.white,
       elevation: 2,
       shape: RoundedRectangleBorder(

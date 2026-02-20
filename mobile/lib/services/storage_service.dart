@@ -8,6 +8,10 @@ class StorageService {
   static const String _keyToken = 'auth_token';
   static const String _keyUser = 'user_data';
   static const String _keyBiometricEnabled = 'biometric_enabled';
+  static const String _keyOnboardingSeen = 'onboarding_seen';
+  static const String _keyPushEnabled = 'push_enabled';
+  static const String _keyEmailEnabled = 'email_enabled';
+  static const String _keySmsEnabled = 'sms_enabled';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -72,5 +76,53 @@ class StorageService {
   Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// Check if onboarding has been seen
+  Future<bool> isOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOnboardingSeen) ?? false;
+  }
+
+  /// Mark onboarding as seen
+  Future<void> setOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOnboardingSeen, true);
+  }
+
+  /// Save push notification preference
+  Future<void> setPushEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyPushEnabled, enabled);
+  }
+
+  /// Get push notification preference
+  Future<bool> isPushEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyPushEnabled) ?? true;
+  }
+
+  /// Save email notification preference
+  Future<void> setEmailEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyEmailEnabled, enabled);
+  }
+
+  /// Get email notification preference
+  Future<bool> isEmailEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyEmailEnabled) ?? true;
+  }
+
+  /// Save SMS notification preference
+  Future<void> setSmsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keySmsEnabled, enabled);
+  }
+
+  /// Get SMS notification preference
+  Future<bool> isSmsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keySmsEnabled) ?? false;
   }
 }

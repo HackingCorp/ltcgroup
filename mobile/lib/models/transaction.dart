@@ -5,6 +5,7 @@ class Transaction {
   final double amount;
   final String type; // PURCHASE, TOPUP, WITHDRAWAL, REFUND
   final String status; // PENDING, SUCCESS, FAILED
+  final String currency;
   final String? merchant;
   final DateTime createdAt;
 
@@ -14,6 +15,7 @@ class Transaction {
     required this.amount,
     required this.type,
     required this.status,
+    this.currency = 'XAF',
     this.merchant,
     required this.createdAt,
   });
@@ -60,8 +62,9 @@ class Transaction {
       id: json['id'] as String,
       cardId: json['card_id'] as String,
       amount: (json['amount'] as num).toDouble(),
-      type: json['transaction_type'] as String,
+      type: json['transaction_type'] as String? ?? json['type'] as String,
       status: json['status'] as String,
+      currency: json['currency'] as String? ?? 'XAF',
       merchant: json['merchant'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -75,6 +78,7 @@ class Transaction {
       'amount': amount,
       'transaction_type': type,
       'status': status,
+      'currency': currency,
       'merchant': merchant,
       'created_at': createdAt.toIso8601String(),
     };
@@ -87,6 +91,7 @@ class Transaction {
     double? amount,
     String? type,
     String? status,
+    String? currency,
     String? merchant,
     DateTime? createdAt,
   }) {
@@ -96,6 +101,7 @@ class Transaction {
       amount: amount ?? this.amount,
       type: type ?? this.type,
       status: status ?? this.status,
+      currency: currency ?? this.currency,
       merchant: merchant ?? this.merchant,
       createdAt: createdAt ?? this.createdAt,
     );

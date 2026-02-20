@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 import '../../services/biometric_service.dart';
 import '../../config/theme.dart';
 
@@ -78,8 +77,6 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final types = [BiometricType.face, BiometricType.fingerprint];
-
     return Scaffold(
       backgroundColor: LTCTheme.navy,
       body: SafeArea(
@@ -95,7 +92,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: LTCTheme.gold.withOpacity(0.1),
+                    color: LTCTheme.gold.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
@@ -131,7 +128,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: LTCTheme.gold.withOpacity(0.2),
+                      color: LTCTheme.gold.withValues(alpha:0.2),
                       border: Border.all(
                         color: LTCTheme.gold,
                         width: 2,
@@ -163,7 +160,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.red),
                     ),

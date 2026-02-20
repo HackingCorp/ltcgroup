@@ -1,7 +1,6 @@
-from app.schemas.auth import Token, TokenData
+from app.schemas.auth import Token, TokenData, UserLogin
 from app.schemas.user import (
     UserCreate,
-    UserLogin,
     UserResponse,
     UserUpdate,
     KYCSubmit,
@@ -10,7 +9,6 @@ from app.schemas.user import (
 from app.schemas.card import (
     CardPurchase,
     CardResponse,
-    CardAction,
     CardListResponse,
 )
 from app.schemas.transaction import (
@@ -31,7 +29,6 @@ __all__ = [
     "KYCResponse",
     "CardPurchase",
     "CardResponse",
-    "CardAction",
     "CardListResponse",
     "TopupRequest",
     "WithdrawRequest",

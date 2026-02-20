@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
+
 /// API Configuration for LTC vCard Backend
 class ApiConfig {
-  // Base URL for API
-  static const String baseUrl = 'http://localhost:8000/api/v1';
+  static const String baseUrl = kDebugMode
+      ? 'http://192.168.1.26:8000/api/v1'
+      : 'https://api.ltcgroup.site/api/v1';
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login';
