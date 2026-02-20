@@ -128,7 +128,49 @@ export async function POST(request: NextRequest) {
       paymentStatus,
       paymentMethod,
       orderRef: providedOrderRef, // Accept existing orderRef if provided
+      saveOnly, // When true, only save to DB — skip all notifications
     } = body;
+
+    // Use provided orderRef or generate a new one
+    const orderRef = providedOrderRef || `LTC-${Date.now().toString(36).toUpperCase()}`;
+
+    // =====================
+    // SAVE-ONLY MODE: just persist to DB, no notifications
+    // Used when payment is still pending (mobile money / e-nkap)
+    // =====================
+    if (saveOnly) {
+      try {
+        await saveOrder({
+          order_ref: orderRef,
+          card_type: cardType,
+          first_name: firstName,
+          last_name: lastName,
+          birth_date: birthDate,
+          birth_city: birthCity,
+          city_neighborhood: cityNeighborhood,
+          phone,
+          email,
+          profession,
+          id_number: idNumber,
+          registration_number: registrationNumber || null,
+          father_name: fatherName,
+          mother_name: motherName,
+          delivery_option: deliveryOption,
+          delivery_address: deliveryAddress || null,
+          shipping_city: shippingCity || null,
+          no_niu: noNiu || false,
+          card_price: cardPrice || 0,
+          delivery_fee: deliveryFee || 0,
+          niu_fee: niuFee || 0,
+          total: total || 0,
+          payment_status: paymentStatus || 'PENDING',
+          payment_method: paymentMethod || null,
+        });
+      } catch (dbError) {
+        console.error("Database save error:", dbError);
+      }
+      return NextResponse.json({ success: true, orderRef });
+    }
 
     // Payment status labels
     const paymentStatusLabels: Record<string, string> = {
@@ -167,9 +209,6 @@ export async function POST(request: NextRequest) {
       "UBA_SEGMENT3_25000": "UBA Visa Segment 3 (Plafond 10M)",
     };
     const cardLabel = cardLabels[cardType] || cardType;
-
-    // Use provided orderRef or generate a new one
-    const orderRef = providedOrderRef || `LTC-${Date.now().toString(36).toUpperCase()}`;
 
     // =====================
     // 1. TEAM WHATSAPP MESSAGE

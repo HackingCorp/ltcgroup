@@ -347,8 +347,8 @@ export default function SolutionsFinancieresPage() {
           pendingOrderDataRef.current = orderDataForNotification;
           setPendingOrderData(orderDataForNotification);
 
-          // Save order immediately with PENDING status (in case user closes browser)
-          // This ensures order exists even if user doesn't wait for confirmation
+          // Save order to DB only (no notifications) — payment still pending
+          // Notifications will be sent only after payment confirmation
           fetch("/api/send-card-order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -356,6 +356,7 @@ export default function SolutionsFinancieresPage() {
               ...orderDataForNotification,
               paymentStatus: "PENDING",
               paymentMethod: "mobile_money",
+              saveOnly: true,
             }),
           }).catch(err => console.error("Pre-save order error:", err));
 
