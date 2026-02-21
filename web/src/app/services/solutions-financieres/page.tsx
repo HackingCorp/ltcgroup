@@ -402,6 +402,8 @@ export default function SolutionsFinancieresPage() {
       }
 
       // For "pay_later" method - send order notification only
+      const payLaterController = new AbortController();
+      const payLaterTimeout = setTimeout(() => payLaterController.abort(), 60000);
       const response = await fetch("/api/send-card-order", {
         method: "POST",
         headers: {
@@ -421,7 +423,9 @@ export default function SolutionsFinancieresPage() {
           paymentStatus: "NOT_PAID",
           paymentMethod: "pay_later",
         }),
+        signal: payLaterController.signal,
       });
+      clearTimeout(payLaterTimeout);
 
       const result = await response.json();
 
