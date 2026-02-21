@@ -5,8 +5,14 @@ const { Pool } = pg;
 // Reuse pool across hot-reloads in development
 const globalForPg = globalThis as unknown as { pgPool: pg.Pool | undefined };
 
+const dbUrl = process.env.DATABASE_URL
+  || process.env.POSTGRES_URL
+  || process.env.SUPABASE_DB_URL
+  || 'postgresql://ltcgroup:ltcgroup_secret@localhost:5432/ltcgroup';
+
 const pool = globalForPg.pgPool ?? new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://ltcgroup:ltcgroup_secret@localhost:5432/ltcgroup',
+  connectionString: dbUrl,
+  ssl: dbUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined,
 });
 
 if (process.env.NODE_ENV !== 'production') {

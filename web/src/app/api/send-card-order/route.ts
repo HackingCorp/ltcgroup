@@ -7,15 +7,17 @@ const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
 const TEAM_PHONE = "237673209375";
 const TEAM_EMAIL = "lontsi05@gmail.com";
 
-// Email transporter configuration (LTC Mail Server - no auth required)
-const transporter = nodemailer.createTransport({
-  host: "ltc-mailserver",
-  port: 587,
-  secure: false,
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+// Email transporter — uses same SMTP env vars as contact route
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "ltc-mailserver",
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === "true",
+    ...(process.env.SMTP_USER
+      ? { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } }
+      : { tls: { rejectUnauthorized: false } }),
+  });
+}
 
 // Send WhatsApp message via WazeApp API (with timeout)
 async function sendWhatsApp(to: string, message: string) {
@@ -410,7 +412,7 @@ _L'équipe LTC Finance_`;
 </html>`;
 
     try {
-      await transporter.sendMail({
+      await getTransporter().sendMail({
         from: '"LTC Finance" <noreply@ltcgroup.site>',
         to: email,
         subject: `Confirmation de commande ${orderRef} - LTC Finance`,
@@ -592,7 +594,7 @@ _L'équipe LTC Finance_`;
         }
       }
 
-      await transporter.sendMail({
+      await getTransporter().sendMail({
         from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
         to: TEAM_EMAIL,
         subject: `[LTC Finance] Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
