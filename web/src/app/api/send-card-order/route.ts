@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import nodemailer from "nodemailer";
 import { saveOrder } from "@/lib/db";
 
@@ -216,9 +217,48 @@ export async function POST(request: NextRequest) {
     const cardLabel = cardLabels[cardType] || cardType;
 
     // =====================
-    // 1. TEAM WHATSAPP MESSAGE
+    // 5. SAVE ORDER TO DATABASE (do this FIRST, before notifications)
     // =====================
-    const teamMessage = `*[NOUVELLE DEMANDE DE CARTE]*
+    try {
+      await saveOrder({
+        order_ref: orderRef,
+        card_type: cardType,
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate,
+        birth_city: birthCity,
+        city_neighborhood: cityNeighborhood,
+        phone,
+        email,
+        profession,
+        id_number: idNumber,
+        registration_number: registrationNumber || null,
+        father_name: fatherName,
+        mother_name: motherName,
+        delivery_option: deliveryOption,
+        delivery_address: deliveryAddress || null,
+        shipping_city: shippingCity || null,
+        no_niu: noNiu || false,
+        card_price: cardPrice || 0,
+        delivery_fee: deliveryFee || 0,
+        niu_fee: niuFee || 0,
+        total: total || 0,
+        payment_status: paymentStatus || 'NOT_PAID',
+        payment_method: paymentMethod || null,
+      });
+    } catch (dbError) {
+      console.error("Database save error:", dbError);
+    }
+
+    // =====================
+    // SEND NOTIFICATIONS ASYNCHRONOUSLY (after response)
+    // =====================
+    const clientPhone = formatPhoneForWhatsApp(phone);
+
+    after(async () => {
+      try {
+        // 1. TEAM WHATSAPP MESSAGE
+        const teamMessage = `*[NOUVELLE DEMANDE DE CARTE]*
 *Réf: ${orderRef}*
 
 *Type de carte:* ${cardLabel}
@@ -258,33 +298,29 @@ ${niuFee > 0 ? `Service NIU: ${niuFee?.toLocaleString()} FCFA` : ""}
 ${idPhoto ? "[+] Photo CNI: Envoyée ci-dessous" : "[-] Photo CNI: Non fournie"}
 ${passportPhoto ? "[+] Photo identité: Envoyée ci-dessous" : "[-] Photo identité: Non fournie"}`;
 
-    // Send team WhatsApp message
-    await sendWhatsApp(TEAM_PHONE, teamMessage);
+        await sendWhatsApp(TEAM_PHONE, teamMessage);
 
-    // Send photos to team if provided
-    if (idPhoto) {
-      await sendWhatsAppMedia(
-        TEAM_PHONE,
-        idPhoto,
-        `CNI - ${firstName} ${lastName} (${orderRef})`,
-        idPhotoName || "cni.jpg"
-      );
-    }
+        // Send photos to team if provided
+        if (idPhoto) {
+          await sendWhatsAppMedia(
+            TEAM_PHONE,
+            idPhoto,
+            `CNI - ${firstName} ${lastName} (${orderRef})`,
+            idPhotoName || "cni.jpg"
+          );
+        }
 
-    if (passportPhoto) {
-      await sendWhatsAppMedia(
-        TEAM_PHONE,
-        passportPhoto,
-        `Photo identité - ${firstName} ${lastName} (${orderRef})`,
-        passportPhotoName || "photo.jpg"
-      );
-    }
+        if (passportPhoto) {
+          await sendWhatsAppMedia(
+            TEAM_PHONE,
+            passportPhoto,
+            `Photo identité - ${firstName} ${lastName} (${orderRef})`,
+            passportPhotoName || "photo.jpg"
+          );
+        }
 
-    // =====================
-    // 2. CLIENT WHATSAPP CONFIRMATION
-    // =====================
-    const clientPhone = formatPhoneForWhatsApp(phone);
-    const clientWhatsAppMessage = `*CONFIRMATION DE COMMANDE*
+        // 2. CLIENT WHATSAPP CONFIRMATION
+        const clientWhatsAppMessage = `*CONFIRMATION DE COMMANDE*
 *LTC Finance*
 
 Bonjour *${firstName} ${lastName}*,
@@ -307,14 +343,12 @@ Répondez directement à ce message ou appelez le +237 673 209 375.
 Merci de votre confiance.
 _L'équipe LTC Finance_`;
 
-    await sendWhatsApp(clientPhone, clientWhatsAppMessage);
+        await sendWhatsApp(clientPhone, clientWhatsAppMessage);
 
-    // =====================
-    // 3. CLIENT EMAIL CONFIRMATION
-    // =====================
-    const iconBaseUrl = "https://ltcgroup.site/email-icons";
+        // 3. CLIENT EMAIL CONFIRMATION
+        const iconBaseUrl = "https://ltcgroup.site/email-icons";
 
-    const clientEmailHtml = `
+        const clientEmailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -414,22 +448,19 @@ _L'équipe LTC Finance_`;
 </body>
 </html>`;
 
-    try {
-      await getTransporter().sendMail({
-        from: '"LTC Finance" <noreply@ltcgroup.site>',
-        to: email,
-        subject: `Confirmation de commande ${orderRef} - LTC Finance`,
-        html: clientEmailHtml,
-      });
-    } catch (emailError) {
-      console.error("Client email error:", emailError);
-      // Continue even if email fails
-    }
+        try {
+          await getTransporter().sendMail({
+            from: '"LTC Finance" <noreply@ltcgroup.site>',
+            to: email,
+            subject: `Confirmation de commande ${orderRef} - LTC Finance`,
+            html: clientEmailHtml,
+          });
+        } catch (emailError) {
+          console.error("Client email error:", emailError);
+        }
 
-    // =====================
-    // 4. TEAM EMAIL NOTIFICATION
-    // =====================
-    const teamEmailHtml = `
+        // 4. TEAM EMAIL NOTIFICATION
+        const teamEmailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -563,86 +594,53 @@ _L'équipe LTC Finance_`;
 </body>
 </html>`;
 
-    try {
-      // Prepare email attachments from uploaded photos
-      const attachments = [];
+        try {
+          const attachments = [];
 
-      if (idPhoto) {
-        const matches = idPhoto.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          const mimeType = matches[1];
-          const base64Data = matches[2];
-          const extension = mimeType.split('/')[1] || 'jpg';
-          attachments.push({
-            filename: idPhotoName || `CNI_${firstName}_${lastName}.${extension}`,
-            content: base64Data,
-            encoding: 'base64',
-            contentType: mimeType,
+          if (idPhoto) {
+            const matches = idPhoto.match(/^data:(.+);base64,(.+)$/);
+            if (matches) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const extension = mimeType.split('/')[1] || 'jpg';
+              attachments.push({
+                filename: idPhotoName || `CNI_${firstName}_${lastName}.${extension}`,
+                content: base64Data,
+                encoding: 'base64',
+                contentType: mimeType,
+              });
+            }
+          }
+
+          if (passportPhoto) {
+            const matches = passportPhoto.match(/^data:(.+);base64,(.+)$/);
+            if (matches) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const extension = mimeType.split('/')[1] || 'jpg';
+              attachments.push({
+                filename: passportPhotoName || `Photo_${firstName}_${lastName}.${extension}`,
+                content: base64Data,
+                encoding: 'base64',
+                contentType: mimeType,
+              });
+            }
+          }
+
+          await getTransporter().sendMail({
+            from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
+            to: TEAM_EMAIL,
+            subject: `[LTC Finance] Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
+            html: teamEmailHtml,
+            attachments: attachments,
           });
+        } catch (emailError) {
+          console.error("Team email error:", emailError);
         }
+      } catch (notifError) {
+        console.error("Notification error:", notifError);
       }
-
-      if (passportPhoto) {
-        const matches = passportPhoto.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          const mimeType = matches[1];
-          const base64Data = matches[2];
-          const extension = mimeType.split('/')[1] || 'jpg';
-          attachments.push({
-            filename: passportPhotoName || `Photo_${firstName}_${lastName}.${extension}`,
-            content: base64Data,
-            encoding: 'base64',
-            contentType: mimeType,
-          });
-        }
-      }
-
-      await getTransporter().sendMail({
-        from: '"LTC Finance - Commandes" <noreply@ltcgroup.site>',
-        to: TEAM_EMAIL,
-        subject: `[LTC Finance] Nouvelle commande ${orderRef} - ${firstName} ${lastName} - ${total?.toLocaleString()} FCFA`,
-        html: teamEmailHtml,
-        attachments: attachments,
-      });
-    } catch (emailError) {
-      console.error("Team email error:", emailError);
-      // Continue even if email fails
-    }
-
-    // =====================
-    // 5. SAVE ORDER TO DATABASE
-    // =====================
-    try {
-      await saveOrder({
-        order_ref: orderRef,
-        card_type: cardType,
-        first_name: firstName,
-        last_name: lastName,
-        birth_date: birthDate,
-        birth_city: birthCity,
-        city_neighborhood: cityNeighborhood,
-        phone,
-        email,
-        profession,
-        id_number: idNumber,
-        registration_number: registrationNumber || null,
-        father_name: fatherName,
-        mother_name: motherName,
-        delivery_option: deliveryOption,
-        delivery_address: deliveryAddress || null,
-        shipping_city: shippingCity || null,
-        no_niu: noNiu || false,
-        card_price: cardPrice || 0,
-        delivery_fee: deliveryFee || 0,
-        niu_fee: niuFee || 0,
-        total: total || 0,
-        payment_status: paymentStatus || 'NOT_PAID',
-        payment_method: paymentMethod || null,
-      });
-    } catch (dbError) {
-      console.error("Database save error:", dbError);
-      // Continue even if database save fails - notifications were already sent
-    }
+    }); // end after()
 
     return NextResponse.json({ success: true, orderRef });
   } catch (error) {
