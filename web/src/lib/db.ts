@@ -1,25 +1,18 @@
-import pg from 'pg';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const { Pool } = pg;
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Reuse pool across hot-reloads in development
-const globalForPg = globalThis as unknown as { pgPool: pg.Pool | undefined };
+const globalForSupabase = globalThis as unknown as { supabase: SupabaseClient | undefined };
 
-const dbUrl = process.env.DATABASE_URL
-  || process.env.POSTGRES_URL
-  || process.env.SUPABASE_DB_URL
-  || 'postgresql://ltcgroup:ltcgroup_secret@localhost:5432/ltcgroup';
-
-const pool = globalForPg.pgPool ?? new Pool({
-  connectionString: dbUrl,
-  ssl: dbUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined,
-});
+const supabase = globalForSupabase.supabase ?? createClient(supabaseUrl, supabaseKey);
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPg.pgPool = pool;
+  globalForSupabase.supabase = supabase;
 }
 
-export { pool };
+export { supabase };
 
 // Types for database tables
 export interface Order {
@@ -35,19 +28,19 @@ export interface Order {
   email: string;
   profession: string;
   id_number: string;
-  registration_number?: string;
+  registration_number?: string | null;
   father_name: string;
   mother_name: string;
   delivery_option: string;
-  delivery_address?: string;
-  shipping_city?: string;
+  delivery_address?: string | null;
+  shipping_city?: string | null;
   no_niu: boolean;
   card_price: number;
   delivery_fee: number;
   niu_fee: number;
   total: number;
   payment_status: 'SUCCESS' | 'PENDING' | 'FAILED' | 'NOT_PAID';
-  payment_method?: string;
+  payment_method?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -55,24 +48,17 @@ export interface Order {
 // Save order to database
 export async function saveOrder(order: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<{ success: boolean; data?: Order; error?: string }> {
   try {
-    const result = await pool.query(
-      `INSERT INTO orders (
-        order_ref, card_type, first_name, last_name, birth_date, birth_city,
-        city_neighborhood, phone, email, profession, id_number, registration_number,
-        father_name, mother_name, delivery_option, delivery_address, shipping_city,
-        no_niu, card_price, delivery_fee, niu_fee, total, payment_status, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
-      RETURNING *`,
-      [
-        order.order_ref, order.card_type, order.first_name, order.last_name,
-        order.birth_date, order.birth_city, order.city_neighborhood, order.phone,
-        order.email, order.profession, order.id_number, order.registration_number,
-        order.father_name, order.mother_name, order.delivery_option, order.delivery_address,
-        order.shipping_city, order.no_niu, order.card_price, order.delivery_fee,
-        order.niu_fee, order.total, order.payment_status, order.payment_method,
-      ]
-    );
-    return { success: true, data: result.rows[0] };
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(order)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database insert error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
   } catch (err) {
     console.error('Database insert error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Database error' };
@@ -82,8 +68,17 @@ export async function saveOrder(order: Omit<Order, 'id' | 'created_at' | 'update
 // Get order by reference
 export async function getOrderByRef(orderRef: string): Promise<Order | null> {
   try {
-    const result = await pool.query('SELECT * FROM orders WHERE order_ref = $1', [orderRef]);
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_ref', orderRef)
+      .single();
+
+    if (error) {
+      console.error('Database select error:', error.message);
+      return null;
+    }
+    return data;
   } catch (err) {
     console.error('Database select error:', err);
     return null;
@@ -97,10 +92,19 @@ export async function updateOrderPaymentStatus(
   paymentMethod?: string
 ): Promise<boolean> {
   try {
-    await pool.query(
-      'UPDATE orders SET payment_status = $1, payment_method = $2, updated_at = NOW() WHERE order_ref = $3',
-      [paymentStatus, paymentMethod, orderRef]
-    );
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        payment_status: paymentStatus,
+        payment_method: paymentMethod,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('order_ref', orderRef);
+
+    if (error) {
+      console.error('Database update error:', error.message);
+      return false;
+    }
     return true;
   } catch (err) {
     console.error('Database update error:', err);
@@ -111,11 +115,17 @@ export async function updateOrderPaymentStatus(
 // Get all orders (for admin)
 export async function getAllOrders(limit = 100, offset = 0): Promise<Order[]> {
   try {
-    const result = await pool.query(
-      'SELECT * FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
-    return result.rows;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Database select error:', error.message);
+      return [];
+    }
+    return data || [];
   } catch (err) {
     console.error('Database select error:', err);
     return [];
@@ -128,41 +138,40 @@ export async function getAllOrders(limit = 100, offset = 0): Promise<Order[]> {
 
 export interface Transaction {
   id?: string;
-  ptn?: string;
-  trid?: string;
-  order_ref?: string;
+  ptn?: string | null;
+  trid?: string | null;
+  order_ref?: string | null;
   amount: number;
-  phone?: string;
-  customer_name?: string;
-  customer_email?: string;
+  phone?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
   payment_method: string;
-  provider?: string;
+  provider?: string | null;
   status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'ERRORED';
-  error_code?: string;
-  error_message?: string;
-  initiated_at?: string;
-  completed_at?: string;
+  error_code?: string | null;
+  error_message?: string | null;
+  initiated_at?: string | null;
+  completed_at?: string | null;
   created_at?: string;
 }
 
 // Save a new transaction
 export async function saveTransaction(transaction: Omit<Transaction, 'id' | 'created_at'>): Promise<{ success: boolean; data?: Transaction; error?: string }> {
   try {
-    const result = await pool.query(
-      `INSERT INTO transactions (
-        ptn, trid, order_ref, amount, phone, customer_name, customer_email,
-        payment_method, provider, status, error_code, error_message, initiated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-      RETURNING *`,
-      [
-        transaction.ptn, transaction.trid, transaction.order_ref, transaction.amount,
-        transaction.phone, transaction.customer_name, transaction.customer_email,
-        transaction.payment_method, transaction.provider, transaction.status,
-        transaction.error_code, transaction.error_message,
-        transaction.initiated_at || new Date().toISOString(),
-      ]
-    );
-    return { success: true, data: result.rows[0] };
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        ...transaction,
+        initiated_at: transaction.initiated_at || new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Transaction save error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true, data };
   } catch (err) {
     console.error('Transaction save error:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Database error' };
@@ -177,21 +186,29 @@ export async function updateTransactionStatus(
   errorMessage?: string
 ): Promise<boolean> {
   try {
-    let query: string;
-    let params: unknown[];
+    let query = supabase
+      .from('transactions')
+      .update({
+        status,
+        completed_at: new Date().toISOString(),
+        error_code: errorCode || null,
+        error_message: errorMessage || null,
+      });
 
     if (identifier.ptn) {
-      query = 'UPDATE transactions SET status = $1, completed_at = NOW(), error_code = $2, error_message = $3 WHERE ptn = $4';
-      params = [status, errorCode, errorMessage, identifier.ptn];
+      query = query.eq('ptn', identifier.ptn);
     } else if (identifier.trid) {
-      query = 'UPDATE transactions SET status = $1, completed_at = NOW(), error_code = $2, error_message = $3 WHERE trid = $4';
-      params = [status, errorCode, errorMessage, identifier.trid];
+      query = query.eq('trid', identifier.trid);
     } else {
       console.error('No identifier provided for transaction update');
       return false;
     }
 
-    await pool.query(query, params);
+    const { error } = await query;
+    if (error) {
+      console.error('Transaction update error:', error.message);
+      return false;
+    }
     return true;
   } catch (err) {
     console.error('Transaction update error:', err);
@@ -202,21 +219,22 @@ export async function updateTransactionStatus(
 // Get transaction by PTN or TRID
 export async function getTransaction(identifier: { ptn?: string; trid?: string }): Promise<Transaction | null> {
   try {
-    let query: string;
-    let params: unknown[];
+    let query = supabase.from('transactions').select('*');
 
     if (identifier.ptn) {
-      query = 'SELECT * FROM transactions WHERE ptn = $1';
-      params = [identifier.ptn];
+      query = query.eq('ptn', identifier.ptn);
     } else if (identifier.trid) {
-      query = 'SELECT * FROM transactions WHERE trid = $1';
-      params = [identifier.trid];
+      query = query.eq('trid', identifier.trid);
     } else {
       return null;
     }
 
-    const result = await pool.query(query, params);
-    return result.rows[0] || null;
+    const { data, error } = await query.single();
+    if (error) {
+      console.error('Transaction fetch error:', error.message);
+      return null;
+    }
+    return data;
   } catch (err) {
     console.error('Transaction fetch error:', err);
     return null;
@@ -226,11 +244,17 @@ export async function getTransaction(identifier: { ptn?: string; trid?: string }
 // Get all transactions (for admin)
 export async function getAllTransactions(limit = 100, offset = 0): Promise<Transaction[]> {
   try {
-    const result = await pool.query(
-      'SELECT * FROM transactions ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-      [limit, offset]
-    );
-    return result.rows;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Transactions fetch error:', error.message);
+      return [];
+    }
+    return data || [];
   } catch (err) {
     console.error('Transactions fetch error:', err);
     return [];
