@@ -158,11 +158,16 @@ export default function SolutionsFinancieresPage() {
             paymentMethod: method,
           }),
         });
-        const result = await response.json();
-        if (result.success) {
-          return true;
+        const ct = response.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) {
+          console.error(`Order notification attempt ${attempt}: non-JSON response`);
+        } else {
+          const result = await response.json();
+          if (result.success) {
+            return true;
+          }
+          console.error(`Order notification attempt ${attempt} failed:`, result.error);
         }
-        console.error(`Order notification attempt ${attempt} failed:`, result.error);
       } catch (error) {
         console.error(`Order notification attempt ${attempt} error:`, error);
       }
@@ -300,6 +305,12 @@ export default function SolutionsFinancieresPage() {
             orderDetails: { cardPrice, deliveryFee, niuFee, deliveryOption: formData.deliveryOption },
           }),
         });
+
+        // Guard against non-JSON responses (e.g. 502 Bad Gateway from reverse proxy)
+        const contentType = paymentResponse.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("Service de paiement temporairement indisponible. Veuillez réessayer dans quelques minutes.");
+        }
 
         const paymentResult = await paymentResponse.json();
 
