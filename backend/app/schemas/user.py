@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
+from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, UUID4
 from app.models.user import KYCStatus
 
@@ -9,6 +11,7 @@ class UserCreate(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=8, max_length=100)
+    country_code: str = Field("CM", min_length=2, max_length=2)
 
 
 class UserResponse(BaseModel):
@@ -19,6 +22,9 @@ class UserResponse(BaseModel):
     last_name: str
     kyc_status: KYCStatus
     kyc_rejected_reason: str | None = None
+    wallet_balance: Decimal = Decimal("0.00")
+    country_code: str = "CM"
+    local_currency: str | None = None
     created_at: datetime
 
     class Config:
@@ -32,13 +38,28 @@ class UserUpdate(BaseModel):
 
 
 class KYCSubmit(BaseModel):
-    document_url: str = Field(..., max_length=500)
-    document_type: str = Field(..., max_length=50)
+    dob: date
+    gender: str = Field(..., pattern=r'^(M|F|OTHER)$')
+    address: str = Field(..., max_length=500)
+    street: str = Field(..., max_length=255)
+    city: str = Field(..., max_length=100)
+    postal_code: str = Field(..., max_length=20)
+    document_type: str = Field(..., pattern=r'^(id_card|passport|driver_license)$')
+    id_proof_no: str = Field(..., max_length=100)
+    id_proof_expiry: date
+    document_front_url: str = Field(..., max_length=500)
+    document_back_url: Optional[str] = Field(None, max_length=500)
+    selfie_url: str = Field(..., max_length=500)
 
 
 class KYCResponse(BaseModel):
     kyc_status: KYCStatus
     kyc_submitted_at: datetime | None
+    kyc_verification_method: str | None = None
+    kyc_rejected_reason: str | None = None
+    liveness_score: float | None = None
+    face_match_score: float | None = None
+    ocr_confidence: float | None = None
 
     class Config:
         from_attributes = True

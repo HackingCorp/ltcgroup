@@ -29,12 +29,9 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
-    # S3P (Smobilpay) Payment Configuration
-    s3p_api_url: str = "https://s3pv2cm.smobilpay.com/v2"
-    s3p_api_key: str = ""
-    s3p_api_secret: str = ""
-    s3p_merchant_id: str = ""  # Optional merchant ID if needed
-    s3p_webhook_secret: str = ""
+    # Payin API Configuration (reuses swychr_email/swychr_password for auth)
+    payin_api_url: str = "https://api.accountpe.com/api/payin"
+    payin_webhook_url: str = ""  # Callback URL for Payin webhooks
 
     # E-nkap Payment Configuration
     enkap_api_url: str = "https://api-v2.enkap.cm"
@@ -51,6 +48,11 @@ class Settings(BaseSettings):
 
     # File Upload Configuration
     upload_dir: str = "./uploads"
+
+    # KYC Verifier microservice
+    kyc_verifier_url: str = "http://kyc-verifier:8001"
+    kyc_auto_approve_threshold: float = 0.70
+    kyc_manual_review_threshold: float = 0.50
 
     # S3 Configuration (optional, for production)
     aws_s3_bucket: str = ""

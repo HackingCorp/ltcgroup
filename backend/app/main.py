@@ -36,16 +36,24 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Redis not available at startup: {e}")
         app.state.redis = None
 
+    # Initialize exchange rate service with Redis
+    from app.services.exchange_rate import exchange_rate_service
+    exchange_rate_service.set_redis(app.state.redis)
+
     yield
 
     # Shutdown: cleanup HTTP clients via close() methods
     from app.services.accountpe import accountpe_client
-    from app.services.s3p import s3p_client
+    from app.services.payin import payin_client
     from app.services.enkap import enkap_client
+    from app.services.exchange_rate import exchange_rate_service as _ers
+    from app.services.kyc_verifier import kyc_verifier_client
 
     await accountpe_client.close()
-    await s3p_client.close()
+    await payin_client.close()
     await enkap_client.close()
+    await _ers.close()
+    await kyc_verifier_client.close()
 
     # Shutdown: cleanup Redis
     if getattr(app.state, "redis", None):
@@ -133,3 +141,7 @@ async def health_check():
 
 # Include API v1 router
 app.include_router(api_v1_router)
+
+# Serve uploaded files (KYC documents, etc.) — mount after API router
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory="./uploads"), name="uploads")

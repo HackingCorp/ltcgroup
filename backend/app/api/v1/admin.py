@@ -14,7 +14,9 @@ from app.models.notification import Notification, NotificationType
 from app.services.auth import get_current_user
 from app.services.email import email_service
 from app.utils.audit import log_audit_event
+from app.utils.logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
@@ -157,7 +159,16 @@ async def approve_kyc(
     # Update KYC status
     user.kyc_status = KYCStatus.APPROVED
     user.kyc_rejected_reason = None  # Clear any previous rejection reason
+    user.kyc_verification_method = "manual_approved"
     await db.commit()
+
+    # Sync to AccountPE
+    try:
+        from app.api.v1.users import _sync_kyc_to_accountpe
+        await _sync_kyc_to_accountpe(user, db)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"AccountPE sync failed during admin KYC approve: {e}")
 
     # Create notification
     notification = Notification(
@@ -213,6 +224,7 @@ async def reject_kyc(
     # Update KYC status and save rejection reason
     user.kyc_status = KYCStatus.REJECTED
     user.kyc_rejected_reason = kyc_action.reason
+    user.kyc_verification_method = "manual_rejected"
     await db.commit()
 
     # Create notification
@@ -240,6 +252,57 @@ async def reject_kyc(
     )
 
     return {"message": "KYC rejected successfully", "reason": kyc_action.reason}
+
+
+@router.get("/users/{user_id}/kyc/details")
+async def get_kyc_details(
+    user_id: UUID4,
+    admin_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get detailed KYC info for a user including verification scores."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return {
+        "user_id": str(user.id),
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "phone": user.phone,
+        "kyc_status": user.kyc_status.value,
+        "kyc_submitted_at": user.kyc_submitted_at.isoformat() if user.kyc_submitted_at else None,
+        "kyc_verification_method": user.kyc_verification_method,
+        "kyc_rejected_reason": user.kyc_rejected_reason,
+        "personal_info": {
+            "dob": user.dob.isoformat() if user.dob else None,
+            "gender": user.gender,
+            "address": user.address,
+            "street": user.street,
+            "city": user.city,
+            "postal_code": user.postal_code,
+        },
+        "document_info": {
+            "id_proof_type": user.id_proof_type,
+            "id_proof_no": user.id_proof_no,
+            "id_proof_expiry": user.id_proof_expiry.isoformat() if user.id_proof_expiry else None,
+            "document_front_url": user.kyc_document_front_url,
+            "document_back_url": user.kyc_document_back_url,
+            "selfie_url": user.kyc_selfie_url,
+        },
+        "verification_scores": {
+            "liveness_score": user.kyc_liveness_score,
+            "face_match_score": user.kyc_face_match_score,
+            "ocr_confidence": user.kyc_ocr_confidence,
+            "ocr_raw_text": user.kyc_ocr_raw_text,
+        },
+    }
 
 
 @router.get("/transactions", response_model=TransactionListResponse)

@@ -78,10 +78,14 @@ def validate_file(filename: str, file_size: int, content: bytes) -> None:
         )
 
 
+ALLOWED_SIDES = {"front", "back", "selfie"}
+
+
 @router.post("/kyc", response_model=UploadResponse)
 async def upload_kyc_document(
     file: UploadFile = File(...),
     document_type: str = Form(...),
+    side: str = Form("front"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -91,6 +95,7 @@ async def upload_kyc_document(
     Args:
         file: The file to upload (multipart/form-data)
         document_type: Type of document (e.g., "passport", "id_card", "driver_license")
+        side: Which side/type of file: "front", "back", or "selfie"
         current_user: Current authenticated user
         db: Database session
 
@@ -102,6 +107,12 @@ async def upload_kyc_document(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid document type. Allowed types: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}",
+        )
+
+    if side not in ALLOWED_SIDES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid side. Allowed values: {', '.join(sorted(ALLOWED_SIDES))}",
         )
 
     try:
@@ -117,10 +128,10 @@ async def upload_kyc_document(
         kyc_dir = upload_base / "kyc" / str(current_user.id)
         kyc_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate unique filename: {timestamp}_{original_filename}
+        # Generate unique filename: {timestamp}_{side}{ext}
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         ext = Path(file.filename).suffix
-        safe_filename = f"{timestamp}_{document_type}{ext}"
+        safe_filename = f"{timestamp}_{side}{ext}"
         file_path = kyc_dir / safe_filename
 
         # Save file
@@ -131,7 +142,7 @@ async def upload_kyc_document(
         relative_path = f"kyc/{current_user.id}/{safe_filename}"
         file_url = f"/uploads/{relative_path}"
 
-        logger.info(f"KYC document uploaded for user {current_user.id}: {file_path}")
+        logger.info(f"KYC document uploaded for user {current_user.id}: {file_path} (side={side})")
 
         return UploadResponse(
             file_path=str(file_path),

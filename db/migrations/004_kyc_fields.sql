@@ -1,0 +1,20 @@
+-- KYC automation fields
+-- Adds personal info, document details, and verification scores to users table
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS street VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS id_proof_type VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS id_proof_no VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS id_proof_expiry DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_document_front_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_document_back_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_selfie_url VARCHAR(500);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_liveness_score FLOAT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_face_match_score FLOAT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_ocr_confidence FLOAT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_verification_method VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_ocr_raw_text TEXT;
