@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../config/theme.dart';
 
-/// WebView screen to display Payin payment link.
+/// WebView screen to display Payin/Swychr payment link.
+///
+/// Redirect behavior (from Payin API spec):
+///   - Success + callback_url set → redirects to callback_url
+///   - Success + no callback_url  → redirects to https://app.swychrconnect.com/payment_success
+///   - Failure                    → redirects to https://app.swychrconnect.com/payment_failed
+///
 /// Returns true on success, false on failure, null on user dismiss.
 class PaymentWebViewScreen extends StatefulWidget {
   final String paymentUrl;
@@ -22,6 +28,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _paymentCompleted = false;
 
   @override
   void initState() {
@@ -38,7 +45,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
           },
           onWebResourceError: (error) {
             debugPrint('WebView error: ${error.description}');
-            if (mounted) {
+            // Only show error for main frame failures, not sub-resource errors
+            if (error.isForMainFrame == true && mounted) {
               setState(() {
                 _isLoading = false;
                 _hasError = true;
@@ -47,20 +55,23 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
           },
           onNavigationRequest: (request) {
             final url = request.url.toLowerCase();
-            if (url.contains('payment/success') ||
-                url.contains('payment/complete') ||
-                url.contains('status=success') ||
-                url.contains('status=completed')) {
-              Navigator.of(context).pop(true);
+
+            // Detect Swychr hosted UI redirect URLs (from Payin API spec)
+            if (url.contains('swychrconnect.com/payment_success') ||
+                url.contains('swychrconnect.com/payment/success')) {
+              debugPrint('Payin: payment success redirect detected');
+              if (mounted) Navigator.of(context).pop(true);
               return NavigationDecision.prevent;
             }
-            if (url.contains('payment/failed') ||
-                url.contains('payment/cancel') ||
-                url.contains('status=failed') ||
-                url.contains('status=cancelled')) {
-              Navigator.of(context).pop(false);
+
+            if (url.contains('swychrconnect.com/payment_failed') ||
+                url.contains('swychrconnect.com/payment/failed')) {
+              debugPrint('Payin: payment failure redirect detected');
+              if (mounted) Navigator.of(context).pop(false);
               return NavigationDecision.prevent;
             }
+
+            // Allow all other navigation (payment form, OTP pages, etc.)
             return NavigationDecision.navigate;
           },
         ),
@@ -70,36 +81,101 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: LTCColors.background,
-      appBar: AppBar(
-        backgroundColor: LTCColors.surface,
-        foregroundColor: LTCColors.textPrimary,
-        title: Text(
-          widget.title ?? 'Paiement',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: LTCColors.textPrimary,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _showCloseConfirmation();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: LTCColors.background,
+        appBar: AppBar(
+          backgroundColor: LTCColors.surface,
+          foregroundColor: LTCColors.textPrimary,
+          title: Text(
+            widget.title ?? 'Paiement',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: LTCColors.textPrimary,
+            ),
+          ),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => _showCloseConfirmation(),
           ),
         ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => _showCloseConfirmation(),
-        ),
-      ),
-      body: Stack(
-        children: [
-          if (_hasError)
-            _buildErrorView()
-          else
-            WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: LTCColors.gold),
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  if (_hasError)
+                    _buildErrorView()
+                  else
+                    WebViewWidget(controller: _controller),
+                  if (_isLoading)
+                    const Center(
+                      child: CircularProgressIndicator(color: LTCColors.gold),
+                    ),
+                ],
+              ),
             ),
-        ],
+            // Bottom bar with "Done" button (fallback if redirect detection fails)
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                12,
+                24,
+                12 + MediaQuery.of(context).padding.bottom,
+              ),
+              decoration: const BoxDecoration(
+                color: LTCColors.surface,
+                border: Border(
+                  top: BorderSide(color: LTCColors.border),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'La page se fermera automatiquement apres le paiement',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: LTCColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: LTCColors.gold,
+                        foregroundColor: LTCColors.background,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'J\'ai termine mon paiement',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

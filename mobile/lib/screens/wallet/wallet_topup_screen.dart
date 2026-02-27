@@ -164,7 +164,9 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       backgroundColor: LTCColors.background,
       body: Stack(
         children: [
@@ -208,6 +210,7 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -478,7 +481,7 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
           const Icon(Icons.currency_exchange, size: 18, color: LTCColors.gold),
           const SizedBox(width: 8),
           Text(
-            '1 USD = ${_formatLocal(wp.topupRate)} ${wp.localCurrency} (incl. 8%)',
+            '1 USD = ${_formatLocal(wp.topupRate)} ${wp.localCurrency}',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: LTCColors.gold),
           ),
         ],

@@ -124,8 +124,12 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        // Backend returns {"user": {...}, "token": {"access_token": "..."}}
+        final token = data['token'] is Map
+            ? data['token']['access_token'] as String
+            : data['access_token'] as String;
         return {
-          'token': data['access_token'] as String,
+          'token': token,
           'user': null, // We'll fetch user data separately with /users/me
         };
       } else {

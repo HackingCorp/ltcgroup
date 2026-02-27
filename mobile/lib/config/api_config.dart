@@ -2,13 +2,12 @@ import 'package:flutter/foundation.dart';
 
 /// API Configuration for Kash Pay Backend
 class ApiConfig {
-  static String get baseUrl {
-    const envUrl = String.fromEnvironment('API_BASE_URL');
-    if (envUrl.isNotEmpty) return envUrl;
-    return kDebugMode
-        ? 'http://192.168.1.111:8000/api/v1'
-        : 'https://api.ltcgroup.site/api/v1';
-  }
+  // TODO: Switch to production URL before release
+  // Pass --dart-define=API_BASE_URL=https://api.ltcgroup.site/api/v1 for production builds
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.1.111:8000/api/v1',
+  );
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login';

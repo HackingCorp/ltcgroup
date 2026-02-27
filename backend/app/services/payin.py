@@ -5,10 +5,16 @@ Payment links for Mobile Money across 18 African countries.
 Auth: POST /admin/auth → JWT token (reuses swychr credentials)
 Create: POST /create_payment_links → {data: {id, payment_link, transaction_id}}
 Status: POST /payment_link_status → {data: {data: {attributes: {status, ...}}}}
+
+Redirect behavior (hosted UI):
+  - Success + callback_url set → redirects to callback_url
+  - Success + no callback_url  → redirects to https://app.swychrconnect.com/payment_success
+  - Failure                    → redirects to https://app.swychrconnect.com/payment_failed
 """
 
 import asyncio
 import time
+import uuid
 from datetime import datetime as dt
 from decimal import Decimal
 from typing import Any, Optional
@@ -41,10 +47,6 @@ PAYIN_COUNTRIES: dict[str, dict[str, Any]] = {
     "GN": {"name": "Guinea Conakry", "provider_fee": 3.75, "total_fee": 4.25, "ltc_fee": 3.75, "currency": "GNF", "phone_code": "224"},
     "GH": {"name": "Ghana", "provider_fee": 2.50, "total_fee": 3.00, "ltc_fee": 2.50, "currency": "GHS", "phone_code": "233"},
 }
-
-# Our margin on top of provider fee
-OUR_MARGIN = Decimal("0.005")  # 0.5%
-
 
 def get_country_fee_rate(country_code: str) -> Decimal:
     """Get the LTC platform fee rate for a country (e.g. 0.025 for 2.5%)."""
@@ -85,29 +87,6 @@ class PayinError(Exception):
         self.message = message
         self.code = code
         super().__init__(message)
-
-
-def calculate_fees(amount: Decimal, country_code: str) -> dict[str, Decimal]:
-    """Calculate the total amount including our 0.5% margin.
-
-    Provider charges are handled via pass_digital_charge=true (billed to customer).
-    We add our 0.5% on top of the base amount.
-    """
-    country = PAYIN_COUNTRIES.get(country_code.upper())
-    if not country:
-        raise PayinError(f"Pays non supporté: {country_code}")
-
-    margin_amount = (amount * OUR_MARGIN).quantize(Decimal("0.01"))
-    total = amount + margin_amount
-
-    return {
-        "base_amount": amount,
-        "margin_rate": OUR_MARGIN,
-        "margin_amount": margin_amount,
-        "total_amount": total,
-        "provider_fee_rate": Decimal(str(country["provider_fee"])) / 100,
-        "total_fee_rate": Decimal(str(country["total_fee"])) / 100,
-    }
 
 
 class PayinClient:
@@ -180,14 +159,14 @@ class PayinClient:
         if not country:
             raise PayinError(f"Pays non supporté: {country_code}")
 
-        # Calculate amount with our margin, rounded to integer (XAF/XOF have no cents)
-        fees = calculate_fees(Decimal(str(amount)), country_code)
-        total_amount = int(round(float(fees["total_amount"])))
-
-        callback_url = settings.payin_webhook_url or ""
+        # Amount already includes LTC platform fees — no additional margin here
+        total_amount = int(round(amount))
 
         headers = await self._get_headers()
-        payload = {
+        # Idempotency-Key to prevent duplicate link creation on retries (spec §create_payment_links)
+        headers["Idempotency-Key"] = f"{order_ref}-{uuid.uuid4().hex[:8]}"
+
+        payload: dict[str, Any] = {
             "amount": total_amount,
             "country_code": country_code.upper(),
             "currency": country["currency"],
@@ -196,9 +175,15 @@ class PayinClient:
             "email": customer_email,
             "mobile": format_phone_e164(customer_phone, country_code),
             "description": description or f"Paiement LTC - {order_ref}",
-            "callback_url": callback_url,
             "pass_digital_charge": True,
         }
+
+        # Only include callback_url if actually configured.
+        # When omitted, hosted UI redirects to app.swychrconnect.com/payment_success|payment_failed
+        # When set, hosted UI redirects to this URL instead (also receives webhook POSTs).
+        callback_url = settings.payin_webhook_url
+        if callback_url:
+            payload["callback_url"] = callback_url
 
         response = await self.client.post(
             self._url("/create_payment_links"),
@@ -227,10 +212,6 @@ class PayinClient:
             "payment_link": payment_link,
             "transaction_id": link_data.get("transaction_id"),
             "amount": total_amount,
-            "fees": {
-                "margin": float(fees["margin_amount"]),
-                "total_fee_rate": float(fees["total_fee_rate"]),
-            },
         }
 
     async def get_payment_status(self, transaction_id: str) -> dict[str, Any]:

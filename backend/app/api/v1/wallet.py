@@ -186,7 +186,6 @@ async def topup_wallet(
                 "payment_link_id": result.get("payment_link_id"),
                 "payin_transaction_id": result.get("transaction_id"),
                 "payment_link": result.get("payment_link"),
-                "fees": result.get("fees"),
             }
             await db.commit()
 
