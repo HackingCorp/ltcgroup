@@ -5,7 +5,7 @@ import '../../models/transaction.dart';
 import '../../providers/transactions_provider.dart';
 import '../../config/theme.dart';
 
-/// Transaction history screen matching LTC Pay design
+/// Transaction history screen matching Kash Pay design
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
 
@@ -457,7 +457,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            tx.type == 'TOPUP' ? 'LTC Pay' : _getTxLocation(tx),
+                            tx.type == 'TOPUP' ? 'Kash Pay' : _getTxLocation(tx),
                             style: const TextStyle(
                               fontSize: 12,
                               color: LTCColors.textSecondary,

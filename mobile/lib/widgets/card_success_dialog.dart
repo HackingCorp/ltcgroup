@@ -188,7 +188,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
             ),
             const SizedBox(height: 8),
             const Text(
-              'Votre carte virtuelle LTC Pay est prête.',
+              'Votre carte virtuelle Kash Pay est prête.',
               style: TextStyle(
                 fontSize: 14,
                 color: LTCColors.textSecondary,
@@ -340,7 +340,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                         ),
                       ),
                       Text(
-                        'LTC Pay',
+                        'Kash Pay',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,

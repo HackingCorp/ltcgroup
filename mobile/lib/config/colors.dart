@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-/// Centralized color constants for the LTC Pay app.
+/// Centralized color constants for the Kash Pay app.
 /// Reference file -- mirrors values from [LTCColors] in theme.dart
 /// and commonly-used inline colors across screens.
 class AppColors {

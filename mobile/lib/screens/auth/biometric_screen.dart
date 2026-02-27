@@ -115,7 +115,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
 
                 // Title
                 Text(
-                  'LTC vCard',
+                  'Kash Pay',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: LTCColors.textPrimary,
                         fontWeight: FontWeight.bold,

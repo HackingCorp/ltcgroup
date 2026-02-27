@@ -5,7 +5,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/biometric_service.dart';
 
-/// Login screen — LTC Pay dark theme design
+/// Login screen — Kash Pay dark theme design
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -147,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'LTC Pay',
+              'Kash Pay',
               style: TextStyle(
                 color: LTCColors.textPrimary,
                 fontSize: 24,

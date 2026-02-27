@@ -8,7 +8,7 @@ import '../../widgets/success_dialog.dart';
 import '../../config/theme.dart';
 import '../payments/payment_webview_screen.dart';
 
-/// Card recharge screen matching LTC Pay dark/gold design
+/// Card recharge screen matching Kash Pay dark/gold design
 class TopupScreen extends StatefulWidget {
   const TopupScreen({super.key});
 
@@ -172,7 +172,7 @@ class _TopupScreenState extends State<TopupScreen> {
         method: 'enkap',
         amount: _amount,
         cardId: _selectedCardId!,
-        customerName: 'Client LTC',
+        customerName: 'Client Kash Pay',
       );
 
       if (!mounted) return;
@@ -396,7 +396,7 @@ class _TopupScreenState extends State<TopupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'LTC',
+                      'KP',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,

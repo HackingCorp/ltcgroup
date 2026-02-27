@@ -9,7 +9,7 @@ import '../../services/api_service.dart';
 import '../../widgets/success_dialog.dart';
 import '../payments/payment_webview_screen.dart';
 
-/// Purchase card screen matching LTC Pay design
+/// Purchase card screen matching Kash Pay design
 class PurchaseCardScreen extends StatefulWidget {
   const PurchaseCardScreen({super.key});
 
@@ -238,7 +238,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       final result = await _apiService.initiatePayment(
         method: 'enkap',
         amount: _total,
-        customerName: user != null ? '${user.firstName} ${user.lastName}' : 'Client LTC',
+        customerName: user != null ? '${user.firstName} ${user.lastName}' : 'Client Kash Pay',
         customerEmail: user?.email,
       );
 
@@ -579,7 +579,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'LTC Pay',
+                        'Kash Pay',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,
@@ -731,7 +731,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'LTC Pay',
+                        'Kash Pay',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,

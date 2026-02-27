@@ -4,7 +4,7 @@ import '../../config/constants.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 
-/// Registration screen matching LTC Pay dark theme design
+/// Registration screen matching Kash Pay dark theme design
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -179,7 +179,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const Text(
-                    'LTC PAY',
+                    'KASH PAY',
                     style: TextStyle(
                       color: LTCColors.gold,
                       fontSize: 18,
@@ -552,7 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  TextSpan(text: ' de LTC Pay.'),
+                  TextSpan(text: ' de Kash Pay.'),
                 ],
               ),
             ),

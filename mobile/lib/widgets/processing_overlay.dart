@@ -357,7 +357,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
           Icon(Icons.lock_rounded, size: 14, color: LTCColors.gold),
           SizedBox(width: 6),
           Text(
-            'Connexion Sécurisée LTC Pay',
+            'Connexion Sécurisée Kash Pay',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,

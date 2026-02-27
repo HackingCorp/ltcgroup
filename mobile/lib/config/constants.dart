@@ -1,7 +1,7 @@
-/// Global Constants for LTC vCard App
+/// Global Constants for Kash Pay App
 class AppConstants {
   // App info
-  static const String appName = 'LTC vCard';
+  static const String appName = 'Kash Pay';
   static const String appVersion = '0.1.0';
 
   // Storage keys

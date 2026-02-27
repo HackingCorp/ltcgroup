@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// ─── LTC Pay Design System 2025 ───
+/// ─── Kash Pay Design System 2025 ───
 /// Dark-first, Gold accent — inspired by Revolut, Cash App, Kuda
 /// Distinctive gold palette sets us apart from blue/purple/green fintech market
 

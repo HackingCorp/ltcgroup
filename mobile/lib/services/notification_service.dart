@@ -108,12 +108,12 @@ class NotificationService {
     final notification = message.notification;
     if (notification != null) {
       await showLocalNotification(
-        title: notification.title ?? 'LTC vCard',
+        title: notification.title ?? 'Kash Pay',
         body: notification.body ?? '',
         data: message.data,
       );
       await _storeNotification(
-        title: notification.title ?? 'LTC vCard',
+        title: notification.title ?? 'Kash Pay',
         body: notification.body ?? '',
         data: json.encode(message.data),
       );
@@ -124,7 +124,7 @@ class NotificationService {
   Future<void> _handleNotificationOpened(RemoteMessage message) async {
     if (message.notification != null) {
       await _storeNotification(
-        title: message.notification!.title ?? 'LTC vCard',
+        title: message.notification!.title ?? 'Kash Pay',
         body: message.notification!.body ?? '',
         data: json.encode(message.data),
         isRead: true,
@@ -139,8 +139,8 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'ltc_vcard_channel',
-      'LTC vCard Notifications',
+      'kashpay_channel',
+      'Kash Pay Notifications',
       channelDescription: 'Notifications pour les transactions et mises à jour',
       importance: Importance.high,
       priority: Priority.high,

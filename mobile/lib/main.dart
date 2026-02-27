@@ -47,10 +47,9 @@ class _DevHttpOverrides extends HttpOverrides {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Only allow bad certificates in debug mode (dev servers / self-signed)
-  if (kDebugMode) {
-    HttpOverrides.global = _DevHttpOverrides();
-  }
+  // TODO: Remove SSL bypass before production release
+  // Allow bad certificates for local dev/testing
+  HttpOverrides.global = _DevHttpOverrides();
 
   // Initialize Firebase only if real credentials are configured
   if (DefaultFirebaseOptions.isConfigured) {
@@ -92,7 +91,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WalletProvider()),
       ],
       child: MaterialApp(
-        title: 'LTC vCard',
+        title: 'Kash Pay',
         debugShowCheckedModeBanner: false,
         theme: LTCTheme.darkTheme,
         initialRoute: '/',

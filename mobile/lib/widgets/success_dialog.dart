@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/theme.dart';
 
-/// Success confirmation dialog matching LTC Pay design.
+/// Success confirmation dialog matching Kash Pay design.
 /// Shows after a successful topup/purchase with spring animation.
 class SuccessDialog extends StatefulWidget {
   final String title;

@@ -8,7 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
 
-/// Card management screen matching LTC Pay design
+/// Card management screen matching Kash Pay design
 class CardListScreen extends StatefulWidget {
   const CardListScreen({super.key});
 
@@ -545,7 +545,7 @@ class _CardListScreenState extends State<CardListScreen> {
                       ),
                     ),
                     Expanded(
-                      child: _buildInfoItem('EMETTEUR', 'LTC Bank'),
+                      child: _buildInfoItem('EMETTEUR', 'Kash Pay'),
                     ),
                   ],
                 ),

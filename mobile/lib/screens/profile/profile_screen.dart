@@ -330,7 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(width: 12),
                               const Expanded(
                                 child: Text(
-                                  'À propos de LTC Pay',
+                                  'À propos de Kash Pay',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,

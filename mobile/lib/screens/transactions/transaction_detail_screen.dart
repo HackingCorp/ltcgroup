@@ -140,7 +140,7 @@ class TransactionDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       const Text(
-                        'LTC vCard',
+                        'Kash Pay',
                         style: TextStyle(
                           fontSize: 20,
                           color: LTCColors.textPrimary,
@@ -233,7 +233,7 @@ class TransactionDetailScreen extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'LTC Group',
+                  'Kash Pay',
                   style: TextStyle(
                     fontSize: 12,
                     color: LTCColors.textSecondary,
@@ -242,7 +242,7 @@ class TransactionDetailScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'support@ltcgroup.com',
+                  'support@kashpay.app',
                   style: TextStyle(
                     fontSize: 12,
                     color: LTCColors.textTertiary,
@@ -318,7 +318,7 @@ class TransactionDetailScreen extends StatelessWidget {
   void _shareReceipt(Transaction transaction, DateFormat dateFormat, NumberFormat currencyFormat) {
     final isDebit = transaction.type == 'DEBIT' || transaction.type == 'WITHDRAWAL';
     final receiptText = '''
-Recu de transaction - LTC vCard
+Recu de transaction - Kash Pay
 
 Montant: ${isDebit ? '-' : '+'}${currencyFormat.format(transaction.amount)}
 Date: ${dateFormat.format(transaction.createdAt)}
@@ -328,10 +328,10 @@ ID: ${transaction.id}
 ${transaction.cardId != null ? 'Carte: ${transaction.cardId!.substring(0, 8)}...' : ''}
 
 ---
-LTC Group
-support@ltcgroup.com
+Kash Pay
+support@kashpay.app
     ''';
 
-    Share.share(receiptText, subject: 'Recu de transaction LTC vCard');
+    Share.share(receiptText, subject: 'Recu de transaction Kash Pay');
   }
 }
