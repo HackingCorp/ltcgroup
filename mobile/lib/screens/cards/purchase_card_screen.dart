@@ -184,6 +184,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       if (!mounted) return;
 
       final paymentUrl = result['payment_url'] as String?;
+      final transactionId = result['transaction_id'] as String?;
       if (paymentUrl == null || paymentUrl.isEmpty) {
         _showError('Le lien de paiement n\'a pas ete genere');
         return;
@@ -200,27 +201,38 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true) {
-        // Payment succeeded -- now purchase the card
-        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-        final success = await cardsProvider.purchaseCard(
-          type: _selectedType,
-          initialBalance: _amount,
-        );
-
+      if (paymentResult == true && transactionId != null) {
+        // Verify payment status with backend
+        final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
 
-        if (success) {
-          await SuccessDialog.showPurchaseSuccess(
-            context,
-            cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
-            balance: _amount,
+        if (status['status'] == 'COMPLETED') {
+          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+          final success = await cardsProvider.purchaseCard(
+            type: _selectedType,
+            initialBalance: _amount,
           );
+
           if (!mounted) return;
-          Navigator.of(context).pop();
+
+          if (success) {
+            await SuccessDialog.showPurchaseSuccess(
+              context,
+              cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+              balance: _amount,
+            );
+            if (!mounted) return;
+            Navigator.of(context).pop();
+          } else {
+            _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+          }
+        } else if (status['status'] == 'FAILED') {
+          _showError('Le paiement a echoue. Veuillez reessayer.');
         } else {
-          _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+          _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
         }
+      } else if (paymentResult == true) {
+        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
       } else if (paymentResult == false) {
         _showError('Le paiement a echoue. Veuillez reessayer.');
       }
@@ -245,6 +257,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       if (!mounted) return;
 
       final paymentUrl = result['payment_url'] as String?;
+      final transactionId = result['transaction_id'] as String?;
       if (paymentUrl == null || paymentUrl.isEmpty) {
         _showError('Le lien de paiement n\'a pas ete genere');
         return;
@@ -261,27 +274,38 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true) {
-        // Payment succeeded -- now purchase the card
-        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-        final success = await cardsProvider.purchaseCard(
-          type: _selectedType,
-          initialBalance: _amount,
-        );
-
+      if (paymentResult == true && transactionId != null) {
+        // Verify payment status with backend
+        final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
 
-        if (success) {
-          await SuccessDialog.showPurchaseSuccess(
-            context,
-            cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
-            balance: _amount,
+        if (status['status'] == 'COMPLETED') {
+          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+          final success = await cardsProvider.purchaseCard(
+            type: _selectedType,
+            initialBalance: _amount,
           );
+
           if (!mounted) return;
-          Navigator.of(context).pop();
+
+          if (success) {
+            await SuccessDialog.showPurchaseSuccess(
+              context,
+              cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+              balance: _amount,
+            );
+            if (!mounted) return;
+            Navigator.of(context).pop();
+          } else {
+            _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+          }
+        } else if (status['status'] == 'FAILED') {
+          _showError('Le paiement a echoue. Veuillez reessayer.');
         } else {
-          _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+          _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
         }
+      } else if (paymentResult == true) {
+        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
       } else if (paymentResult == false) {
         _showError('Le paiement a echoue. Veuillez reessayer.');
       }

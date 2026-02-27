@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../services/api_service.dart';
 import '../payments/payment_webview_screen.dart';
 
 /// Wallet recharge screen — top up wallet via MoMo/Orange Money
@@ -125,12 +126,13 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
 
     if (result != null && result['success'] == true) {
       final paymentUrl = result['payment_url'] as String?;
+      final transactionId = result['transaction_id'] as String?;
       if (paymentUrl != null && paymentUrl.isNotEmpty) {
         if (!mounted) return;
         final title = _selectedPayment == 'card'
             ? 'Paiement par Carte'
             : 'Paiement Mobile Money';
-        await Navigator.of(context).push<bool?>(
+        final paymentResult = await Navigator.of(context).push<bool?>(
           MaterialPageRoute(
             builder: (context) => PaymentWebViewScreen(
               paymentUrl: paymentUrl,
@@ -139,7 +141,59 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
           ),
         );
         if (!mounted) return;
+
+        if (paymentResult == true && transactionId != null) {
+          // Verify payment status with backend
+          final status = await ApiService().pollPaymentStatus(transactionId);
+          if (!mounted) return;
+
+          if (status['status'] == 'COMPLETED') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result['message'] ?? 'Paiement effectue avec succes'),
+                backgroundColor: LTCColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+            Navigator.of(context).pop();
+          } else if (status['status'] == 'FAILED') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Le paiement a echoue. Veuillez reessayer.'),
+                backgroundColor: LTCColors.error,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.'),
+                backgroundColor: LTCColors.warning,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+            Navigator.of(context).pop();
+          }
+          return;
+        } else if (paymentResult == false) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Le paiement a echoue. Veuillez reessayer.'),
+              backgroundColor: LTCColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+          return;
+        } else if (paymentResult == null) {
+          // User dismissed WebView — do nothing
+          return;
+        }
       }
+      // No payment URL (shouldn't happen) — show generic success
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

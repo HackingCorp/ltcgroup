@@ -801,6 +801,25 @@ class ApiService {
     }
   }
 
+  /// Poll payment status until COMPLETED, FAILED, or timeout
+  Future<Map<String, dynamic>> pollPaymentStatus(
+    String transactionId, {
+    int maxAttempts = 15,
+    Duration interval = const Duration(seconds: 2),
+  }) async {
+    for (int i = 0; i < maxAttempts; i++) {
+      try {
+        final result = await getPaymentStatus(transactionId);
+        final status = result['status'] as String?;
+        if (status == 'COMPLETED' || status == 'FAILED') return result;
+      } catch (_) {
+        // Ignore transient errors during polling
+      }
+      if (i < maxAttempts - 1) await Future.delayed(interval);
+    }
+    return {'status': 'PENDING', 'transaction_id': transactionId};
+  }
+
   /// Get supported countries for Mobile Money (Payin)
   Future<List<Map<String, dynamic>>> getPaymentCountries() async {
     final url = '${ApiConfig.baseUrl}${ApiConfig.paymentCountriesEndpoint}';

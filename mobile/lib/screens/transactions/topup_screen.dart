@@ -121,6 +121,7 @@ class _TopupScreenState extends State<TopupScreen> {
       if (!mounted) return;
 
       final paymentUrl = result['payment_url'] as String?;
+      final transactionId = result['transaction_id'] as String?;
       if (paymentUrl == null || paymentUrl.isEmpty) {
         _showError('Le lien de paiement n\'a pas ete genere');
         return;
@@ -138,23 +139,35 @@ class _TopupScreenState extends State<TopupScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true) {
-        // Payment succeeded
-        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-        final card = cardsProvider.getCardById(_selectedCardId!);
-        final newBalance = (card?.balance ?? 0) + _amount;
-        if (card != null) {
-          cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
-        }
-
-        await SuccessDialog.showTopupSuccess(
-          context,
-          amount: _amount,
-          newBalance: newBalance,
-        );
-
+      if (paymentResult == true && transactionId != null) {
+        // Verify payment status with backend
+        final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
-        Navigator.of(context).pop();
+
+        if (status['status'] == 'COMPLETED') {
+          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+          final card = cardsProvider.getCardById(_selectedCardId!);
+          final newBalance = (card?.balance ?? 0) + _amount;
+          if (card != null) {
+            cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
+          }
+
+          await SuccessDialog.showTopupSuccess(
+            context,
+            amount: _amount,
+            newBalance: newBalance,
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop();
+        } else if (status['status'] == 'FAILED') {
+          _showError('Le paiement a echoue. Veuillez reessayer.');
+        } else {
+          _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        }
+      } else if (paymentResult == true) {
+        // No transaction_id — fallback to old behavior
+        _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
       } else if (paymentResult == false) {
         _showError('Le paiement a echoue. Veuillez reessayer.');
       }
@@ -178,6 +191,7 @@ class _TopupScreenState extends State<TopupScreen> {
       if (!mounted) return;
 
       final paymentUrl = result['payment_url'] as String?;
+      final transactionId = result['transaction_id'] as String?;
       if (paymentUrl == null || paymentUrl.isEmpty) {
         _showError('Le lien de paiement n\'a pas ete genere');
         return;
@@ -194,22 +208,34 @@ class _TopupScreenState extends State<TopupScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true) {
-        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-        final card = cardsProvider.getCardById(_selectedCardId!);
-        final newBalance = (card?.balance ?? 0) + _amount;
-        if (card != null) {
-          cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
-        }
-
-        await SuccessDialog.showTopupSuccess(
-          context,
-          amount: _amount,
-          newBalance: newBalance,
-        );
-
+      if (paymentResult == true && transactionId != null) {
+        // Verify payment status with backend
+        final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
-        Navigator.of(context).pop();
+
+        if (status['status'] == 'COMPLETED') {
+          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+          final card = cardsProvider.getCardById(_selectedCardId!);
+          final newBalance = (card?.balance ?? 0) + _amount;
+          if (card != null) {
+            cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
+          }
+
+          await SuccessDialog.showTopupSuccess(
+            context,
+            amount: _amount,
+            newBalance: newBalance,
+          );
+
+          if (!mounted) return;
+          Navigator.of(context).pop();
+        } else if (status['status'] == 'FAILED') {
+          _showError('Le paiement a echoue. Veuillez reessayer.');
+        } else {
+          _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        }
+      } else if (paymentResult == true) {
+        _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
       } else if (paymentResult == false) {
         _showError('Le paiement a echoue. Veuillez reessayer.');
       }
