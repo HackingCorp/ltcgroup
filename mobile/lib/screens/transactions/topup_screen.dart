@@ -128,7 +128,8 @@ class _TopupScreenState extends State<TopupScreen> {
       }
 
       // Open WebView for payment
-      final paymentResult = await Navigator.of(context).push<bool?>(
+      // WebView returns: 'completed', 'failed', 'pending', or null (user dismiss)
+      final paymentResult = await Navigator.of(context).push<String?>(
         MaterialPageRoute(
           builder: (context) => PaymentWebViewScreen(
             paymentUrl: paymentUrl,
@@ -139,7 +140,7 @@ class _TopupScreenState extends State<TopupScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true && transactionId != null) {
+      if (paymentResult == 'completed' && transactionId != null) {
         // Verify payment status with backend
         final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
@@ -165,11 +166,13 @@ class _TopupScreenState extends State<TopupScreen> {
         } else {
           _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
         }
-      } else if (paymentResult == true) {
-        // No transaction_id — fallback to old behavior
+      } else if (paymentResult == 'completed') {
+        // No transaction_id — can't verify
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
-      } else if (paymentResult == false) {
+      } else if (paymentResult == 'failed') {
         _showError('Le paiement a echoue. Veuillez reessayer.');
+      } else if (paymentResult == 'pending') {
+        _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
       }
       // null = user dismissed, do nothing
     } catch (e) {
@@ -197,7 +200,8 @@ class _TopupScreenState extends State<TopupScreen> {
         return;
       }
 
-      final paymentResult = await Navigator.of(context).push<bool?>(
+      // WebView returns: 'completed', 'failed', 'pending', or null (user dismiss)
+      final paymentResult = await Navigator.of(context).push<String?>(
         MaterialPageRoute(
           builder: (context) => PaymentWebViewScreen(
             paymentUrl: paymentUrl,
@@ -208,7 +212,7 @@ class _TopupScreenState extends State<TopupScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true && transactionId != null) {
+      if (paymentResult == 'completed' && transactionId != null) {
         // Verify payment status with backend
         final status = await _apiService.pollPaymentStatus(transactionId);
         if (!mounted) return;
@@ -234,10 +238,12 @@ class _TopupScreenState extends State<TopupScreen> {
         } else {
           _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
         }
-      } else if (paymentResult == true) {
+      } else if (paymentResult == 'completed') {
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
-      } else if (paymentResult == false) {
+      } else if (paymentResult == 'failed') {
         _showError('Le paiement a echoue. Veuillez reessayer.');
+      } else if (paymentResult == 'pending') {
+        _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
       }
     } catch (e) {
       if (!mounted) return;
