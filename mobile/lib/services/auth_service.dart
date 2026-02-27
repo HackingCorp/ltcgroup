@@ -21,13 +21,16 @@ class AuthService {
     // Save token first
     await _storageService.saveToken(token);
 
-    // Now fetch user profile using the token
-    final user = await _apiService.getCurrentUser();
-
-    // Save user to local storage
-    await _storageService.saveUser(user);
-
-    return user;
+    // Fetch user profile — if this fails, clear the token so we don't
+    // leave a half-authenticated state.
+    try {
+      final user = await _apiService.getCurrentUser();
+      await _storageService.saveUser(user);
+      return user;
+    } catch (e) {
+      await _storageService.removeToken();
+      rethrow;
+    }
   }
 
   /// Register user
@@ -37,6 +40,7 @@ class AuthService {
     required String password,
     required String firstName,
     required String lastName,
+    String countryCode = 'CM',
   }) async {
     // Call API
     final response = await _apiService.register(
@@ -45,6 +49,7 @@ class AuthService {
       firstName: firstName,
       lastName: lastName,
       phone: phone,
+      countryCode: countryCode,
     );
 
     // Extract token and user

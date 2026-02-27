@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -16,6 +17,30 @@ class AuthProvider with ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _user != null;
 
+  /// Extract a human-readable error message from an exception.
+  String _extractError(Object e) {
+    final raw = e.toString();
+    // Strip the leading "Exception: " prefix if present
+    final msg = raw.startsWith('Exception: ')
+        ? raw.substring('Exception: '.length)
+        : raw;
+    // Try to parse as JSON (some errors come back as '{"detail":"..."}')
+    try {
+      final decoded = json.decode(msg);
+      if (decoded is Map && decoded.containsKey('detail')) {
+        final detail = decoded['detail'];
+        if (detail is String) return detail;
+        if (detail is List && detail.isNotEmpty) {
+          return detail.map((d) => d['msg'] ?? d.toString()).join(', ');
+        }
+        return detail.toString();
+      }
+    } catch (_) {
+      // Not JSON — just use the string as-is
+    }
+    return msg;
+  }
+
   /// Initialize auth state (check if user is logged in)
   Future<void> initialize() async {
     // Wire up session-expired callback so any 401 triggers automatic logout
@@ -25,7 +50,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final isLoggedIn = await _authService.isLoggedIn();
+      final isLoggedIn = await _authService.isLoggedIn()
+          .timeout(const Duration(seconds: 3), onTimeout: () => false);
       if (isLoggedIn) {
         _user = await _authService.getCurrentUser();
       }
@@ -53,8 +79,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      // Extract error message from exception
-      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      final errorMessage = _extractError(e);
       _error = errorMessage;
       _isLoading = false;
       notifyListeners();
@@ -69,6 +94,7 @@ class AuthProvider with ChangeNotifier {
     required String password,
     required String firstName,
     required String lastName,
+    String countryCode = 'CM',
   }) async {
     _isLoading = true;
     _error = null;
@@ -81,13 +107,13 @@ class AuthProvider with ChangeNotifier {
         password: password,
         firstName: firstName,
         lastName: lastName,
+        countryCode: countryCode,
       );
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      // Extract error message from exception
-      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      final errorMessage = _extractError(e);
       _error = errorMessage;
       _isLoading = false;
       notifyListeners();
@@ -109,6 +135,18 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Refresh user data from server (e.g. after KYC submission)
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+    try {
+      final apiService = ApiService();
+      _user = await apiService.getCurrentUser();
+      notifyListeners();
+    } catch (_) {
+      // Silently ignore — user stays cached
     }
   }
 

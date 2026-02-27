@@ -2,9 +2,12 @@ import 'package:flutter/foundation.dart';
 
 /// API Configuration for LTC vCard Backend
 class ApiConfig {
-  static const String baseUrl = kDebugMode
-      ? 'http://192.168.1.26:8000/api/v1'
-      : 'https://api.ltcgroup.site/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: kDebugMode
+        ? 'http://192.168.1.111:8000/api/v1'
+        : 'https://api.ltcgroup.site/api/v1',
+  );
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login';
@@ -17,8 +20,21 @@ class ApiConfig {
   static const String profileEndpoint = '/users/me';
   static const String kycEndpoint = '/users/kyc';
 
+  // Payment endpoints
+  static const String paymentInitiateEndpoint = '/payments/initiate';
+  static const String paymentStatusEndpoint = '/payments/status';
+  static const String paymentCountriesEndpoint = '/payments/countries';
+
+  // Wallet endpoints
+  static const String walletBalanceEndpoint = '/wallet/balance';
+  static const String walletTopupEndpoint = '/wallet/topup';
+  static const String walletTransferEndpoint = '/wallet/transfer-to-card';
+  static const String walletWithdrawEndpoint = '/wallet/withdraw';
+  static const String exchangeRateEndpoint = '/wallet/exchange-rate';
+
   // Timeout duration
   static const Duration timeout = Duration(seconds: 30);
+  static const Duration uploadTimeout = Duration(seconds: 60);
 
   // Headers
   static Map<String, String> headers({String? token}) {

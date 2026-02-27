@@ -34,13 +34,13 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
     """
     Register a new user locally and with AccountPE provider.
     """
-    # Check if user already exists
-    existing_user = await db.execute(
+    # Check if user already exists (single query, distinguish email vs phone conflict)
+    result = await db.execute(
         select(User).where((User.email == user_data.email) | (User.phone == user_data.phone))
     )
-    if existing_user.scalar_one_or_none():
-        existing_email = await db.execute(select(User).where(User.email == user_data.email))
-        if existing_email.scalar_one_or_none():
+    existing_user = result.scalar_one_or_none()
+    if existing_user:
+        if existing_user.email == user_data.email:
             raise UserAlreadyExistsException("email")
         raise UserAlreadyExistsException("phone")
 
@@ -52,6 +52,7 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         hashed_password=hashed_pwd,
+        country_code=user_data.country_code,
     )
     db.add(new_user)
     await db.commit()
@@ -62,7 +63,7 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
         await accountpe_client.create_user(
             email=user_data.email,
             name=f"{user_data.first_name} {user_data.last_name}",
-            country="CM",
+            country=user_data.country_code,
         )
     except Exception as e:
         # Log error but don't fail registration if AccountPE is down
@@ -85,11 +86,12 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
     }
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=dict)
 @limiter.limit("10/minute")
 async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depends(get_db)):
     """
-    Authenticate user and return JWT token.
+    Authenticate user and return JWT token + user data.
+    # TODO: Add OTP/phone login support in a future phase.
     """
     result = await db.execute(select(User).where(User.email == login_data.email))
     user = result.scalar_one_or_none()
@@ -110,11 +112,14 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
         expires_delta=access_token_expires,
     )
 
-    return Token(
-        access_token=access_token,
-        token_type="bearer",
-        expires_in=settings.access_token_expire_minutes * 60,
-    )
+    return {
+        "user": UserResponse.model_validate(user),
+        "token": Token(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=settings.access_token_expire_minutes * 60,
+        ),
+    }
 
 
 @router.post("/refresh", response_model=Token)

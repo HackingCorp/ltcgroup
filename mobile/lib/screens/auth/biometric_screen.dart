@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/biometric_service.dart';
+import '../../services/api_service.dart';
 import '../../config/theme.dart';
 
 class BiometricScreen extends StatefulWidget {
@@ -60,8 +61,17 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
     );
 
     if (authenticated) {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/main');
+      // Verify the stored token is still valid before proceeding
+      try {
+        await ApiService().getCurrentUser();
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/main');
+        }
+      } catch (_) {
+        // Token expired or invalid — redirect to login
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/');
+        }
       }
     } else {
       setState(() {
@@ -78,7 +88,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: LTCTheme.navy,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -92,13 +102,13 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: LTCTheme.gold.withValues(alpha:0.1),
+                    color: LTCColors.gold.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.account_balance,
                     size: 48,
-                    color: LTCTheme.gold,
+                    color: LTCColors.gold,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -107,7 +117,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                 Text(
                   'LTC vCard',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
+                        color: LTCColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -115,7 +125,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                 Text(
                   'Authentification sécurisée',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white70,
+                        color: LTCColors.textSecondary,
                       ),
                 ),
                 const SizedBox(height: 64),
@@ -128,16 +138,16 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: LTCTheme.gold.withValues(alpha:0.2),
+                      color: LTCColors.gold.withValues(alpha: 0.2),
                       border: Border.all(
-                        color: LTCTheme.gold,
+                        color: LTCColors.gold,
                         width: 2,
                       ),
                     ),
                     child: Icon(
                       _biometricType.contains('Face') ? Icons.face : Icons.fingerprint,
                       size: 64,
-                      color: LTCTheme.gold,
+                      color: LTCColors.gold,
                     ),
                   ),
                 ),
@@ -149,7 +159,7 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                       ? 'Authentification en cours...'
                       : 'Touchez le capteur pour vous authentifier',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white,
+                        color: LTCColors.textPrimary,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -160,19 +170,19 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha:0.1),
+                      color: LTCColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red),
+                      border: Border.all(color: LTCColors.error),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                        const Icon(Icons.error_outline, color: LTCColors.error, size: 20),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             _errorMessage,
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: LTCColors.error),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -187,8 +197,8 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                   ElevatedButton(
                     onPressed: _authenticate,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: LTCTheme.gold,
-                      foregroundColor: LTCTheme.navy,
+                      backgroundColor: LTCColors.gold,
+                      foregroundColor: LTCColors.background,
                       padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -201,10 +211,10 @@ class _BiometricScreenState extends State<BiometricScreen> with SingleTickerProv
                 // Use password link
                 TextButton(
                   onPressed: _usePassword,
-                  child: Text(
+                  child: const Text(
                     'Utiliser le mot de passe',
                     style: TextStyle(
-                      color: LTCTheme.gold,
+                      color: LTCColors.gold,
                       decoration: TextDecoration.underline,
                     ),
                   ),

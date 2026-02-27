@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../config/constants.dart';
+import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
+import '../../services/api_service.dart';
 import '../../widgets/success_dialog.dart';
+import '../payments/payment_webview_screen.dart';
 
 /// Purchase card screen matching LTC Pay design
 class PurchaseCardScreen extends StatefulWidget {
@@ -14,19 +18,49 @@ class PurchaseCardScreen extends StatefulWidget {
 }
 
 class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _bgLight = Color(0xFFF6F6F8);
-  static const _serviceFee = 1500.0;
-
   String _selectedType = 'VISA';
   int _selectedAmountIndex = 1;
-  String _selectedPayment = 'orange';
-  final _amountController = TextEditingController(text: '10000');
+  String _selectedPayment = 'mobile_money';
+  String _selectedCountry = 'CM';
+  bool _isProcessing = false;
+  final _amountController = TextEditingController(text: '');
+  final _apiService = ApiService();
 
-  final _amounts = [5000, 10000, 25000, 50000, 100000];
-  final _amountLabels = ['5,000', '10,000', '25,000', '50,000', '100k'];
+  static const _countries = [
+    {'code': 'CM', 'name': 'Cameroun', 'fee': 3.0},
+    {'code': 'SN', 'name': 'Senegal', 'fee': 3.0},
+    {'code': 'CI', 'name': "Cote d'Ivoire", 'fee': 3.5},
+    {'code': 'GA', 'name': 'Gabon', 'fee': 3.5},
+    {'code': 'CD', 'name': 'Congo RDC', 'fee': 4.0},
+    {'code': 'KE', 'name': 'Kenya', 'fee': 2.0},
+    {'code': 'NG', 'name': 'Nigeria', 'fee': 2.5},
+    {'code': 'GH', 'name': 'Ghana', 'fee': 3.0},
+    {'code': 'BF', 'name': 'Burkina Faso', 'fee': 3.5},
+    {'code': 'ML', 'name': 'Mali', 'fee': 3.5},
+    {'code': 'BJ', 'name': 'Benin', 'fee': 3.5},
+    {'code': 'TG', 'name': 'Togo', 'fee': 3.5},
+    {'code': 'TZ', 'name': 'Tanzanie', 'fee': 3.5},
+    {'code': 'UG', 'name': 'Ouganda', 'fee': 3.5},
+    {'code': 'NE', 'name': 'Niger', 'fee': 4.0},
+    {'code': 'RW', 'name': 'Rwanda', 'fee': 4.25},
+    {'code': 'CG', 'name': 'Congo Brazza', 'fee': 5.0},
+    {'code': 'GN', 'name': 'Guinee', 'fee': 4.25},
+  ];
+
+  final _amounts = [5, 10, 25, 50, 100];
+  final _amountLabels = ['\$5', '\$10', '\$25', '\$50', '\$100'];
 
   double get _amount => double.tryParse(_amountController.text) ?? 0;
+
+  double get _countryFeeRate {
+    final country = _countries.firstWhere(
+      (c) => c['code'] == _selectedCountry,
+      orElse: () => _countries.first,
+    );
+    return (country['fee'] as num).toDouble();
+  }
+
+  double get _serviceFee => _amount * (_countryFeeRate / 100);
   double get _total => _amount + _serviceFee;
 
   @override
@@ -43,42 +77,235 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   }
 
   Future<void> _handlePurchase() async {
-    if (_amount <= 0) return;
+    if (_amount <= 0 || _isProcessing) return;
+    setState(() => _isProcessing = true);
 
-    final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-    final success = await cardsProvider.purchaseCard(
-      type: _selectedType,
-      initialBalance: _amount,
+    if (_amount < AppConstants.minTopupAmount) {
+      _showError('Le montant minimum est de \$${AppConstants.minTopupAmount.toStringAsFixed(0)}');
+      setState(() => _isProcessing = false);
+      return;
+    }
+    if (_amount > AppConstants.maxTopupAmount) {
+      _showError('Le montant maximum est de \$${AppConstants.maxTopupAmount.toStringAsFixed(0)}');
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    // Show confirmation dialog before proceeding
+    final confirmed = await _showConfirmationDialog();
+    if (confirmed != true) {
+      if (mounted) setState(() => _isProcessing = false);
+      return;
+    }
+
+    try {
+      if (_selectedPayment == 'mobile_money') {
+        await _handleMobileMoneyPurchase();
+      } else {
+        await _handleCardPurchase();
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<bool?> _showConfirmationDialog() {
+    final cardType = _selectedType == 'VISA' ? 'Visa' : 'Mastercard';
+    final paymentLabel = _selectedPayment == 'mobile_money'
+        ? 'Mobile Money'
+        : 'Carte Bancaire';
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LTCColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Confirmer l\'achat',
+          style: TextStyle(color: LTCColors.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _dialogRow('Carte', '$cardType virtuelle'),
+            const SizedBox(height: 8),
+            _dialogRow('Montant', '\$${_amount.toStringAsFixed(2)}'),
+            const SizedBox(height: 8),
+            _dialogRow('Frais (${_countryFeeRate.toStringAsFixed(1)}%)', '\$${_serviceFee.toStringAsFixed(2)}'),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(color: LTCColors.border, height: 1),
+            ),
+            _dialogRow('Total', '\$${_total.toStringAsFixed(2)}', bold: true),
+            const SizedBox(height: 8),
+            _dialogRow('Paiement', paymentLabel),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmer', style: TextStyle(color: LTCColors.gold)),
+          ),
+        ],
+      ),
     );
+  }
 
-    if (!mounted) return;
+  Widget _dialogRow(String label, String value, {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: LTCColors.textSecondary)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+            color: bold ? LTCColors.gold : LTCColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
 
-    if (success) {
-      await SuccessDialog.showPurchaseSuccess(
-        context,
-        cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
-        balance: _amount,
+  Future<void> _handleMobileMoneyPurchase() async {
+    try {
+      final result = await _apiService.initiatePayment(
+        method: 'mobile_money',
+        amount: _total,
+        countryCode: _selectedCountry,
       );
 
       if (!mounted) return;
-      Navigator.of(context).pop();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(cardsProvider.error ?? "Erreur lors de l'achat"),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+      final paymentUrl = result['payment_url'] as String?;
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        _showError('Le lien de paiement n\'a pas ete genere');
+        return;
+      }
+
+      final paymentResult = await Navigator.of(context).push<bool?>(
+        MaterialPageRoute(
+          builder: (context) => PaymentWebViewScreen(
+            paymentUrl: paymentUrl,
+            title: 'Paiement Mobile Money',
+          ),
         ),
       );
+
+      if (!mounted) return;
+
+      if (paymentResult == true) {
+        // Payment succeeded -- now purchase the card
+        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+        final success = await cardsProvider.purchaseCard(
+          type: _selectedType,
+          initialBalance: _amount,
+        );
+
+        if (!mounted) return;
+
+        if (success) {
+          await SuccessDialog.showPurchaseSuccess(
+            context,
+            cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+            balance: _amount,
+          );
+          if (!mounted) return;
+          Navigator.of(context).pop();
+        } else {
+          _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+        }
+      } else if (paymentResult == false) {
+        _showError('Le paiement a echoue. Veuillez reessayer.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  Future<void> _handleCardPurchase() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+
+      final result = await _apiService.initiatePayment(
+        method: 'enkap',
+        amount: _total,
+        customerName: user != null ? '${user.firstName} ${user.lastName}' : 'Client LTC',
+        customerEmail: user?.email,
+      );
+
+      if (!mounted) return;
+
+      final paymentUrl = result['payment_url'] as String?;
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        _showError('Le lien de paiement n\'a pas ete genere');
+        return;
+      }
+
+      final paymentResult = await Navigator.of(context).push<bool?>(
+        MaterialPageRoute(
+          builder: (context) => PaymentWebViewScreen(
+            paymentUrl: paymentUrl,
+            title: 'Paiement par Carte',
+          ),
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (paymentResult == true) {
+        // Payment succeeded -- now purchase the card
+        final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+        final success = await cardsProvider.purchaseCard(
+          type: _selectedType,
+          initialBalance: _amount,
+        );
+
+        if (!mounted) return;
+
+        if (success) {
+          await SuccessDialog.showPurchaseSuccess(
+            context,
+            cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+            balance: _amount,
+          );
+          if (!mounted) return;
+          Navigator.of(context).pop();
+        } else {
+          _showError(cardsProvider.error ?? "Erreur lors de l'achat");
+        }
+      } else if (paymentResult == false) {
+        _showError('Le paiement a echoue. Veuillez reessayer.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: LTCColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: Stack(
         children: [
           Column(
@@ -127,7 +354,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
+            icon: const Icon(Icons.arrow_back, color: LTCColors.textPrimary),
           ),
           const Expanded(
             child: Text(
@@ -136,7 +363,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111827),
+                color: LTCColors.textPrimary,
               ),
             ),
           ),
@@ -156,20 +383,20 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Étape 1 sur 3',
+              const Text(
+                'Etape 1 sur 3',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[500],
+                  color: LTCColors.textSecondary,
                 ),
               ),
               const Text(
-                'Détails de la carte',
+                'Details de la carte',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: _primaryBlue,
+                  color: LTCColors.gold,
                 ),
               ),
             ],
@@ -180,8 +407,8 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             child: const LinearProgressIndicator(
               value: 0.33,
               minHeight: 6,
-              backgroundColor: Color(0xFFF3F4F6),
-              valueColor: AlwaysStoppedAnimation<Color>(_primaryBlue),
+              backgroundColor: LTCColors.surfaceLight,
+              valueColor: AlwaysStoppedAnimation<Color>(LTCColors.gold),
             ),
           ),
           const SizedBox(height: 24),
@@ -206,7 +433,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111827),
+                color: LTCColors.textPrimary,
               ),
             ),
             _buildToggle(),
@@ -234,8 +461,9 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: _bgLight,
+        color: LTCColors.surfaceLight,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: LTCColors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -251,12 +479,12 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: active ? Colors.white : Colors.transparent,
+        color: active ? LTCColors.surfaceElevated : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         boxShadow: active
             ? [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 4,
                   offset: const Offset(0, 1),
                 )
@@ -268,7 +496,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: active ? const Color(0xFF111827) : Colors.grey[500],
+          color: active ? LTCColors.textPrimary : LTCColors.textTertiary,
         ),
       ),
     );
@@ -289,11 +517,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF2563EB), _primaryBlue, Color(0xFF312E81)],
+            colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
           ),
+          border: isSelected
+              ? Border.all(color: LTCColors.goldLight, width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
+              color: LTCColors.goldDark.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -301,7 +532,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
         ),
         child: Stack(
           children: [
-            // Background decoration
+            // Background decoration -- glassmorphism
             Positioned(
               top: -60,
               right: -60,
@@ -310,7 +541,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: Colors.white.withValues(alpha: 0.07),
                 ),
               ),
             ),
@@ -322,7 +553,18 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF60A5FA).withValues(alpha: 0.2),
+                  color: Colors.black.withValues(alpha: 0.15),
+                ),
+              ),
+            ),
+            // Glass border overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
               ),
             ),
@@ -339,7 +581,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                       Text(
                         'LTC Pay',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 1,
@@ -360,11 +602,11 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(4),
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+                          color: Colors.white.withValues(alpha: 0.15),
                         ),
                       ),
                       Text(
-                        '•••• •••• •••• 4289',
+                        '**** **** **** 4289',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 17,
@@ -426,7 +668,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check, size: 16, color: _primaryBlue),
+                  child: Icon(Icons.check, size: 16, color: LTCColors.goldDark),
                 ),
               ),
           ],
@@ -453,14 +695,17 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFF97316),
-                  Color(0xFFEF4444),
-                  Color(0xFFE11D48)
+                  LTCColors.cardGold1,
+                  LTCColors.cardGold2,
+                  LTCColors.cardGold3,
                 ],
               ),
+              border: isSelected
+                  ? Border.all(color: LTCColors.goldLight, width: 2)
+                  : null,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF97316).withValues(alpha: 0.2),
+                  color: LTCColors.goldDark.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -468,6 +713,17 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             ),
             child: Stack(
               children: [
+                // Glass border overlay
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -477,14 +733,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                       Text(
                         'LTC Pay',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 1,
                         ),
                       ),
                       Text(
-                        '•••• •••• •••• ••••',
+                        '**** **** **** ****',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 17,
@@ -565,8 +821,8 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check,
-                          size: 16, color: _primaryBlue),
+                      child: Icon(Icons.check,
+                          size: 16, color: LTCColors.goldDark),
                     ),
                   ),
               ],
@@ -588,7 +844,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF111827),
+            color: LTCColors.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
@@ -596,19 +852,19 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
         Container(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           decoration: BoxDecoration(
-            color: _bgLight,
+            color: LTCColors.surfaceLight,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.transparent, width: 2),
+            border: Border.all(color: LTCColors.border, width: 2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Montant à créditer',
+              const Text(
+                'Montant a crediter',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[500],
+                  color: LTCColors.textSecondary,
                 ),
               ),
               Row(
@@ -620,14 +876,18 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF111827),
+                        color: LTCColors.textPrimary,
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                         hintText: '0',
-                        hintStyle: TextStyle(color: Color(0xFFD1D5DB)),
+                        hintStyle: TextStyle(color: LTCColors.textTertiary),
+                        fillColor: Colors.transparent,
+                        filled: true,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       ),
                       onChanged: (val) {
                         setState(() {
@@ -639,12 +899,12 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                       },
                     ),
                   ),
-                  Text(
-                    'FCFA',
+                  const Text(
+                    'USD',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[400],
+                      color: LTCColors.textTertiary,
                     ),
                   ),
                 ],
@@ -668,12 +928,15 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isActive ? _primaryBlue : _bgLight,
+                    color: isActive ? LTCColors.gold : LTCColors.surfaceLight,
                     borderRadius: BorderRadius.circular(20),
+                    border: isActive
+                        ? null
+                        : Border.all(color: LTCColors.border),
                     boxShadow: isActive
                         ? [
                             BoxShadow(
-                              color: _primaryBlue.withValues(alpha: 0.3),
+                              color: LTCColors.goldDark.withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             )
@@ -685,7 +948,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: isActive ? Colors.white : Colors.grey[600],
+                      color: isActive ? LTCColors.background : LTCColors.textSecondary,
                     ),
                   ),
                 ),
@@ -708,39 +971,31 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF111827),
+            color: LTCColors.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
         _buildPaymentOption(
-          id: 'mtn',
-          title: 'MTN MoMo',
-          subtitle: 'Mobile Money',
-          color: const Color(0xFFFBBF24),
-          iconWidget: const Text(
-            'MTN',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildPaymentOption(
-          id: 'orange',
-          title: 'Orange Money',
-          subtitle: 'Paiement mobile',
-          color: const Color(0xFFF97316),
-          iconWidget: const Icon(Icons.currency_exchange,
-              size: 18, color: Colors.white),
+          id: 'mobile_money',
+          title: 'Mobile Money',
+          subtitle: '18 pays africains',
+          color: LTCColors.warning.withValues(alpha: 0.15),
+          iconWidget: const Icon(Icons.phone_android_rounded,
+              size: 18, color: LTCColors.warning),
         ),
         const SizedBox(height: 12),
         _buildPaymentOption(
           id: 'card',
           title: 'Carte Bancaire',
           subtitle: 'Visa / Mastercard',
-          color: const Color(0xFFDBEAFE),
+          color: LTCColors.gold.withValues(alpha: 0.12),
           iconWidget: const Icon(Icons.credit_card,
-              size: 18, color: _primaryBlue),
+              size: 18, color: LTCColors.gold),
         ),
+        if (_selectedPayment == 'mobile_money') ...[
+          const SizedBox(height: 16),
+          _buildCountrySelector(),
+        ],
       ],
     );
   }
@@ -759,27 +1014,21 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: LTCColors.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? _primaryBlue : const Color(0xFFF3F4F6),
+            color: isSelected ? LTCColors.gold : LTCColors.border,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _primaryBlue.withValues(alpha: 0.05),
+                    color: LTCColors.goldDark.withValues(alpha: 0.1),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+              : null,
         ),
         child: Row(
           children: [
@@ -790,7 +1039,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? _primaryBlue : Colors.grey[300]!,
+                  color: isSelected ? LTCColors.gold : LTCColors.textTertiary,
                   width: 2,
                 ),
               ),
@@ -801,7 +1050,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                         height: 10,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _primaryBlue,
+                          color: LTCColors.gold,
                         ),
                       ),
                     )
@@ -828,20 +1077,69 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
+                    color: LTCColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: LTCColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Country Selector ──────────────────────────────────────
+
+  Widget _buildCountrySelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: LTCColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LTCColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedCountry,
+          isExpanded: true,
+          dropdownColor: LTCColors.surfaceElevated,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LTCColors.textSecondary),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: LTCColors.textPrimary,
+          ),
+          items: _countries.map((country) {
+            return DropdownMenuItem<String>(
+              value: country['code'] as String,
+              child: Row(
+                children: [
+                  const Icon(Icons.public, size: 18, color: LTCColors.textSecondary),
+                  const SizedBox(width: 12),
+                  Text(country['name'] as String),
+                  const Spacer(),
+                  Text(
+                    '${country['fee']}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: LTCColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _selectedCountry = value);
+          },
         ),
       ),
     );
@@ -855,9 +1153,9 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _bgLight,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: LTCColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,14 +1163,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           const Row(
             children: [
               Icon(Icons.receipt_long_rounded,
-                  size: 16, color: _primaryBlue),
+                  size: 16, color: LTCColors.gold),
               SizedBox(width: 8),
               Text(
-                'Résumé du paiement',
+                'Resume du paiement',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: LTCColors.textPrimary,
                 ),
               ),
             ],
@@ -880,35 +1178,35 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           const SizedBox(height: 16),
           _buildSummaryRow(
             'Montant recharge',
-            '${fmt.format(_amount.round())} FCFA',
+            '\$${_amount.toStringAsFixed(2)}',
           ),
           const SizedBox(height: 8),
           _buildSummaryRow(
-            'Frais de service',
-            '+ ${fmt.format(_serviceFee.round())} FCFA',
-            valueColor: const Color(0xFFF97316),
+            'Frais de service (${_countryFeeRate.toStringAsFixed(1)}%)',
+            '+ \$${_serviceFee.toStringAsFixed(2)}',
+            valueColor: LTCColors.warning,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: Colors.grey[200], height: 1),
+            child: Divider(color: LTCColors.border, height: 1),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Total à payer',
+                'Total a payer',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: LTCColors.textPrimary,
                 ),
               ),
               Text(
-                '${fmt.format(_total.round())} FCFA',
+                '\$${_total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: LTCColors.gold,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -925,14 +1223,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: const TextStyle(fontSize: 14, color: LTCColors.textSecondary),
         ),
         Text(
           value,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: valueColor ?? Colors.grey[600],
+            color: valueColor ?? LTCColors.textSecondary,
             fontFamily: 'monospace',
           ),
         ),
@@ -950,25 +1248,27 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withValues(alpha: 0),
-            Colors.white.withValues(alpha: 0.9),
-            Colors.white,
+            LTCColors.background.withValues(alpha: 0),
+            LTCColors.background.withValues(alpha: 0.9),
+            LTCColors.background,
           ],
         ),
       ),
-      child: Consumer<CardsProvider>(
-        builder: (context, cardsProvider, _) {
-          return GestureDetector(
-            onTap: cardsProvider.isLoading ? null : _handlePurchase,
+      child: GestureDetector(
+            onTap: _isProcessing ? null : _handlePurchase,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 18),
               decoration: BoxDecoration(
-                color: _primaryBlue,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
+                ),
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: _primaryBlue.withValues(alpha: 0.4),
+                    color: LTCColors.goldDark.withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -977,34 +1277,32 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (cardsProvider.isLoading)
-                    const SizedBox(
+                  if (_isProcessing)
+                    SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: LTCColors.background,
                         strokeWidth: 2.5,
                       ),
                     )
                   else ...[
-                    const Text(
+                    Text(
                       'Acheter ma carte',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: LTCColors.background,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward,
-                        color: Colors.white, size: 18),
+                    Icon(Icons.arrow_forward,
+                        color: LTCColors.background, size: 18),
                   ],
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
     );
   }
 }

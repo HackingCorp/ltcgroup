@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../models/transaction.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -14,10 +16,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const _headerColor = Color(0xFF1A365D);
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _surfaceDark = Color(0xFF15152D);
-  static const _bgDark = Color(0xFF101022);
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -26,37 +25,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-    final transactionsProvider =
-        Provider.of<TransactionsProvider>(context, listen: false);
-    await Future.wait([
-      cardsProvider.fetchCards(),
-      transactionsProvider.fetchTransactions(),
-    ]);
+    try {
+      setState(() => _hasError = false);
+      final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+      final transactionsProvider =
+          Provider.of<TransactionsProvider>(context, listen: false);
+      final walletProvider =
+          Provider.of<WalletProvider>(context, listen: false);
+      await Future.wait([
+        cardsProvider.fetchCards(),
+        transactionsProvider.fetchTransactions(),
+        walletProvider.fetchBalance(),
+      ]);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _hasError = true);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: LTCColors.background,
       body: RefreshIndicator(
         onRefresh: _loadData,
-        color: _primaryBlue,
+        color: LTCColors.gold,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // Header
             SliverToBoxAdapter(child: _buildHeader()),
-            // Virtual card
-            SliverToBoxAdapter(child: _buildVirtualCard()),
-            // Quick actions
-            SliverToBoxAdapter(child: _buildQuickActions()),
-            // Transactions header
-            SliverToBoxAdapter(child: _buildTransactionsHeader()),
-            // Transactions list
-            _buildTransactionsList(),
-            // Bottom padding for nav bar
-            const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
+            if (_hasError)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          size: 48, color: LTCColors.textTertiary),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Erreur de chargement',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: LTCColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: _loadData,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: LTCColors.gold,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Reessayer',
+                            style: TextStyle(
+                              color: LTCColors.background,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              // Wallet balance
+              SliverToBoxAdapter(child: _buildWalletBalance()),
+              // Virtual card
+              SliverToBoxAdapter(child: _buildVirtualCard()),
+              // Quick actions
+              SliverToBoxAdapter(child: _buildQuickActions()),
+              // Transactions header
+              SliverToBoxAdapter(child: _buildTransactionsHeader()),
+              // Transactions list
+              _buildTransactionsList(),
+              // Bottom padding for nav bar
+              const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
+            ],
           ],
         ),
       ),
@@ -69,26 +122,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final firstName = authProvider.user?.firstName ?? 'Utilisateur';
 
-    return Container(
+    return Padding(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 16,
         left: 24,
         right: 24,
         bottom: 24,
-      ),
-      decoration: const BoxDecoration(
-        color: _headerColor,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -96,10 +135,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Bienvenue,',
                 style: TextStyle(
-                  color: Colors.blue[200],
+                  color: LTCColors.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -108,7 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 'Bonjour, $firstName',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: LTCColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.3,
@@ -122,16 +161,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1),
+                color: LTCColors.surface,
               ),
               child: Stack(
                 children: [
                   const Center(
                     child: Icon(
                       Icons.notifications_rounded,
-                      color: Colors.white,
+                      color: LTCColors.textPrimary,
                       size: 24,
                     ),
                   ),
@@ -145,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       decoration: BoxDecoration(
                         color: Colors.red[500],
                         shape: BoxShape.circle,
-                        border: Border.all(color: _headerColor, width: 2),
+                        border: Border.all(color: LTCColors.surface, width: 2),
                       ),
                     ),
                   ),
@@ -158,16 +197,112 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ─── Wallet Balance ───
+
+  Widget _buildWalletBalance() {
+    final walletProvider = Provider.of<WalletProvider>(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: LTCColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: LTCColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: LTCColors.gold.withValues(alpha: 0.15),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: LTCColors.gold,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Solde Wallet',
+                    style: TextStyle(
+                      color: LTCColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '\$${_formatUsd(walletProvider.balance)}',
+                    style: const TextStyle(
+                      color: LTCColors.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pushNamed('/wallet-topup'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [LTCColors.goldDark, LTCColors.gold],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, color: LTCColors.background, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Recharger',
+                      style: TextStyle(
+                        color: LTCColors.background,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Virtual Card ───
 
   Widget _buildVirtualCard() {
     final cardsProvider = Provider.of<CardsProvider>(context);
-    final card = cardsProvider.cards.isNotEmpty ? cardsProvider.cards.first : null;
 
-    final balance = card?.balance ?? cardsProvider.totalBalance;
-    final maskedNumber = card?.maskedNumber ?? '•••• •••• •••• ----';
-    final holderName = Provider.of<AuthProvider>(context).user?.firstName.toUpperCase() ?? 'UTILISATEUR';
-    final expiry = card?.expiryFormatted ?? '--/--';
+    // No cards — show prompt to buy one
+    if (cardsProvider.cards.isEmpty) {
+      return _buildNoCardPrompt();
+    }
+
+    final card = cardsProvider.cards.first;
+    final balance = card.balance;
+    final maskedNumber = card.maskedNumber;
+    final holderName =
+        Provider.of<AuthProvider>(context).user?.firstName.toUpperCase() ??
+            'UTILISATEUR';
+    final expiry = card.expiryFormatted;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
@@ -180,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 250,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: _primaryBlue.withValues(alpha: 0.4),
+                  color: LTCColors.gold.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(100),
                 ),
               ),
@@ -190,199 +325,278 @@ class _DashboardScreenState extends State<DashboardScreen> {
           AspectRatio(
             aspectRatio: 1.586,
             child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF2B2BEE),
-                  Color(0xFF5B2BEE),
-                  Color(0xFF8E2BEE),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    LTCColors.cardGold1,
+                    LTCColors.cardGold2,
+                    LTCColors.cardGold3,
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 40,
+                    offset: const Offset(0, 20),
+                  ),
                 ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Glass overlay
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
+              child: Stack(
+                children: [
+                  // Glass overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: LTCColors.glassBorder,
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          LTCColors.glassWhite,
+                          Colors.white.withValues(alpha: 0.05),
+                        ],
+                      ),
                     ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.1),
-                        Colors.white.withValues(alpha: 0.05),
+                  ),
+
+                  // Decorative blurred circles
+                  Positioned(
+                    top: -40,
+                    right: -40,
+                    child: Container(
+                      width: 160,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 40,
+                    left: -40,
+                    child: Container(
+                      width: 128,
+                      height: 128,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: LTCColors.goldDark.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ),
+
+                  // Card content
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top row: VISA + chip
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // VISA logo
+                            Text(
+                              'VISA',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FontStyle.italic,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                            // Chip
+                            _buildChip(),
+                          ],
+                        ),
+
+                        const Spacer(),
+
+                        // Balance
+                        Text(
+                          'Solde disponible',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '\$${_formatUsd(balance)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        // Card number
+                        Text(
+                          maskedNumber,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 3,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Bottom row: holder + expiry
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'TITULAIRE',
+                                  style: TextStyle(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.5),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  holderName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'EXPIRE',
+                                  style: TextStyle(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.5),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  expiry,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ),
-
-                // Decorative blurred circles
-                Positioned(
-                  top: -40,
-                  right: -40,
-                  child: Container(
-                    width: 160,
-                    height: 160,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 40,
-                  left: -40,
-                  child: Container(
-                    width: 128,
-                    height: 128,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _primaryBlue.withValues(alpha: 0.3),
-                    ),
-                  ),
-                ),
-
-                // Card content
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top row: VISA + chip
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // VISA logo
-                          Text(
-                            'VISA',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              fontStyle: FontStyle.italic,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          // Chip
-                          _buildChip(),
-                        ],
-                      ),
-
-                      const Spacer(),
-
-                      // Balance
-                      Text(
-                        'Solde disponible',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_formatAmount(balance)} FCFA',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      // Card number
-                      Text(
-                        maskedNumber,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 3,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Bottom row: holder + expiry
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'TITULAIRE',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                holderName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'EXPIRE',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                expiry,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoCardPrompt() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).pushNamed('/purchase-card'),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: LTCColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: LTCColors.border),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: LTCColors.gold.withValues(alpha: 0.15),
+                ),
+                child: const Icon(
+                  Icons.credit_card_rounded,
+                  color: LTCColors.gold,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Aucune carte virtuelle',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: LTCColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Achetez votre premiere carte virtuelle VISA pour effectuer des paiements en ligne',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: LTCColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [LTCColors.goldDark, LTCColors.gold],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, color: LTCColors.background, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Acheter une carte',
+                      style: TextStyle(
+                        color: LTCColors.background,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -393,9 +607,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       height: 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+        color: LTCColors.goldLight.withValues(alpha: 0.25),
         border: Border.all(
-          color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+          color: LTCColors.goldLight.withValues(alpha: 0.5),
         ),
       ),
       child: Stack(
@@ -406,7 +620,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             right: 0,
             child: Container(
               height: 1,
-              color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              color: LTCColors.goldLight.withValues(alpha: 0.5),
             ),
           ),
           Positioned(
@@ -415,7 +629,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             right: 0,
             child: Container(
               height: 1,
-              color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              color: LTCColors.goldLight.withValues(alpha: 0.5),
             ),
           ),
           Positioned(
@@ -424,7 +638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             bottom: 0,
             child: Container(
               width: 1,
-              color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              color: LTCColors.goldLight.withValues(alpha: 0.5),
             ),
           ),
           Center(
@@ -434,7 +648,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.6),
+                  color: LTCColors.goldLight.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -453,30 +667,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildActionButton(
-            icon: Icons.shopping_bag_rounded,
-            label: 'Acheter',
-            isPrimary: false,
-            onTap: () => Navigator.of(context).pushNamed('/purchase-card'),
-          ),
-          _buildActionButton(
             icon: Icons.add_rounded,
             label: 'Recharger',
             isPrimary: true,
-            onTap: () => Navigator.of(context).pushNamed('/topup'),
+            onTap: () => Navigator.of(context).pushNamed('/wallet-topup'),
+          ),
+          _buildActionButton(
+            icon: Icons.credit_card_rounded,
+            label: 'Vers Carte',
+            isPrimary: false,
+            onTap: () => Navigator.of(context).pushNamed('/wallet-transfer'),
           ),
           _buildActionButton(
             icon: Icons.south_rounded,
             label: 'Retirer',
             isPrimary: false,
-            onTap: () => Navigator.of(context).pushNamed('/withdraw'),
+            onTap: () => Navigator.of(context).pushNamed('/wallet-withdraw'),
           ),
           _buildActionButton(
-            icon: Icons.history_rounded,
-            label: 'Historique',
+            icon: Icons.shopping_bag_rounded,
+            label: 'Acheter',
             isPrimary: false,
-            onTap: () {
-              // Switch to transactions tab handled by parent
-            },
+            onTap: () => Navigator.of(context).pushNamed('/purchase-card'),
           ),
         ],
       ),
@@ -498,14 +710,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isPrimary ? _primaryBlue : _surfaceDark,
+              gradient: isPrimary
+                  ? const LinearGradient(
+                      colors: [LTCColors.goldDark, LTCColors.gold],
+                    )
+                  : null,
+              color: isPrimary ? null : LTCColors.surface,
               border: isPrimary
                   ? null
-                  : Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  : Border.all(color: LTCColors.border),
               boxShadow: isPrimary
                   ? [
                       BoxShadow(
-                        color: _primaryBlue.withValues(alpha: 0.3),
+                        color: LTCColors.gold.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -519,17 +736,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Icon(
               icon,
-              color: isPrimary ? Colors.white : _primaryBlue,
+              color: isPrimary ? LTCColors.background : LTCColors.gold,
               size: 24,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[500],
+              color: LTCColors.textSecondary,
             ),
           ),
         ],
@@ -550,19 +767,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: LTCColors.textPrimary,
             ),
           ),
           GestureDetector(
-            onTap: () {
-              // Navigate to full transactions
-            },
+            onTap: () => Navigator.of(context).pushNamed('/transactions'),
             child: const Text(
               'Voir tout',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: _primaryBlue,
+                color: LTCColors.gold,
               ),
             ),
           ),
@@ -578,18 +793,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (transactions.isEmpty) {
       return SliverList(
         delegate: SliverChildListDelegate([
-          Padding(
-            padding: const EdgeInsets.all(32),
+          const Padding(
+            padding: EdgeInsets.all(32),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.receipt_long, size: 48, color: Colors.grey[700]),
-                  const SizedBox(height: 12),
+                  Icon(
+                    Icons.receipt_long,
+                    size: 48,
+                    color: LTCColors.textTertiary,
+                  ),
+                  SizedBox(height: 12),
                   Text(
                     'Aucune transaction récente',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: LTCColors.textTertiary,
                     ),
                   ),
                 ],
@@ -627,19 +846,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     switch (tx.type) {
       case 'TOPUP':
+      case 'WALLET_TOPUP':
         iconData = Icons.account_balance_wallet_rounded;
-        iconBg = Colors.orange;
-        iconFg = Colors.white;
+        iconBg = LTCColors.gold;
+        iconFg = LTCColors.background;
         break;
       case 'WITHDRAWAL':
+      case 'WALLET_WITHDRAWAL':
         iconData = Icons.south_rounded;
-        iconBg = _surfaceDark;
-        iconFg = _primaryBlue;
+        iconBg = LTCColors.surface;
+        iconFg = LTCColors.gold;
+        break;
+      case 'WALLET_TO_CARD':
+        iconData = Icons.credit_card_rounded;
+        iconBg = LTCColors.gold.withValues(alpha: 0.15);
+        iconFg = LTCColors.gold;
         break;
       default:
         iconData = Icons.shopping_bag_rounded;
-        iconBg = _surfaceDark;
-        iconFg = _primaryBlue;
+        iconBg = LTCColors.surface;
+        iconFg = LTCColors.gold;
     }
 
     // Status badge
@@ -648,15 +874,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (tx.status) {
       case 'SUCCESS':
       case 'COMPLETED':
-        statusColor = const Color(0xFF22C55E);
+        statusColor = LTCColors.success;
         statusLabel = isCredit ? 'Reçu' : 'Complété';
         break;
       case 'PENDING':
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = LTCColors.warning;
         statusLabel = 'En attente';
         break;
       default:
-        statusColor = const Color(0xFFEF4444);
+        statusColor = LTCColors.error;
         statusLabel = 'Échoué';
     }
 
@@ -670,9 +896,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _surfaceDark,
+          color: LTCColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          border: Border.all(color: LTCColors.border),
         ),
         child: Row(
           children: [
@@ -684,7 +910,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 shape: BoxShape.circle,
                 color: iconBg,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: LTCColors.border,
                 ),
               ),
               child: Icon(iconData, color: iconFg, size: 22),
@@ -698,7 +924,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     tx.description,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: LTCColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -706,8 +932,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 4),
                   Text(
                     dateFormat.format(tx.createdAt),
-                    style: TextStyle(
-                      color: Colors.grey[500],
+                    style: const TextStyle(
+                      color: LTCColors.textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -719,16 +945,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '${isCredit ? '+' : '-'} ${_formatAmount(tx.absoluteAmount)} F',
+                  '${isCredit ? '+' : '-'} \$${_formatUsd(tx.absoluteAmount)}',
                   style: TextStyle(
-                    color: isCredit ? const Color(0xFF22C55E) : Colors.white,
+                    color: isCredit ? LTCColors.success : LTCColors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -758,5 +985,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _formatAmount(double amount) {
     final formatter = NumberFormat('#,###', 'fr_FR');
     return formatter.format(amount.round());
+  }
+
+  String _formatUsd(double amount) {
+    return NumberFormat('#,##0.00', 'en_US').format(amount);
   }
 }

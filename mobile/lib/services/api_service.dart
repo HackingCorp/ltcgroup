@@ -21,10 +21,19 @@ class ApiService {
   }
 
   /// Retry helper for GET requests (retries on 5xx or network errors).
+  /// Also attempts token refresh on 401 before giving up.
   Future<http.Response> _retryGet(String url, {Map<String, String>? headers, int maxRetries = 2}) async {
     for (int i = 0; i <= maxRetries; i++) {
       try {
         final response = await http.get(Uri.parse(url), headers: headers).timeout(ApiConfig.timeout);
+        // On 401, try refreshing the token once
+        if (response.statusCode == 401 && i == 0) {
+          final refreshed = await _refreshToken();
+          if (refreshed) {
+            headers = await _getAuthHeaders();
+            continue;
+          }
+        }
         if (response.statusCode < 500) return response;
         if (i < maxRetries) await Future.delayed(const Duration(seconds: 1));
       } catch (e) {
@@ -35,10 +44,45 @@ class ApiService {
     throw Exception('Request failed after retries');
   }
 
-  /// Handle API errors
+  /// Track whether a refresh is already in progress to avoid loops.
+  static bool _isRefreshing = false;
+
+  /// Attempt to refresh the access token using the current (expired) token.
+  /// Returns `true` if the token was refreshed successfully.
+  Future<bool> _refreshToken() async {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+    try {
+      final oldToken = await _storageService.getToken();
+      if (oldToken == null) return false;
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/auth/refresh');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $oldToken',
+        },
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final newToken = data['access_token'] as String;
+        await _storageService.saveToken(newToken);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  /// Handle API errors (non-401).
   Exception _handleError(http.Response response) {
     if (response.statusCode == 401) {
-      // Session expired - clear token and notify the app
       _storageService.removeToken();
       onSessionExpired?.call();
       return Exception('Session expirée. Veuillez vous reconnecter.');
@@ -51,6 +95,20 @@ class ApiService {
     } catch (e) {
       return Exception('Erreur ${response.statusCode}: ${response.reasonPhrase}');
     }
+  }
+
+  /// Handle 401 with automatic token refresh. Returns `null` if refresh
+  /// succeeded (caller should retry the request). Returns an Exception
+  /// if the error is final.
+  Future<Exception?> _handleErrorWithRefresh(http.Response response) async {
+    if (response.statusCode == 401) {
+      final refreshed = await _refreshToken();
+      if (refreshed) return null; // signal caller to retry
+      _storageService.removeToken();
+      onSessionExpired?.call();
+      return Exception('Session expirée. Veuillez vous reconnecter.');
+    }
+    return _handleError(response);
   }
 
   /// Login - Returns user and token
@@ -190,7 +248,7 @@ class ApiService {
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
 
     try {
-      final streamedResponse = await request.send().timeout(ApiConfig.timeout);
+      final streamedResponse = await request.send().timeout(ApiConfig.uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -551,7 +609,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return (data['balance'] as num).toDouble();
+        final bal = data['balance'];
+        return bal is num ? bal.toDouble() : double.tryParse(bal.toString()) ?? 0.0;
       } else {
         throw _handleError(response);
       }
@@ -682,7 +741,7 @@ class ApiService {
   Future<Map<String, dynamic>> initiatePayment({
     required String method,
     required double amount,
-    required String cardId,
+    String? cardId,
     String? phone,
     String? customerName,
     String? customerEmail,
@@ -694,8 +753,8 @@ class ApiService {
     final body = <String, dynamic>{
       'method': method,
       'amount': amount,
-      'card_id': cardId,
     };
+    if (cardId != null && cardId.isNotEmpty) body['card_id'] = cardId;
     if (phone != null) body['phone'] = phone;
     if (customerName != null) body['customer_name'] = customerName;
     if (customerEmail != null) body['customer_email'] = customerEmail;

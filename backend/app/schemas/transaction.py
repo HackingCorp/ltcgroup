@@ -18,7 +18,7 @@ class WithdrawRequest(BaseModel):
 
 class TransactionResponse(BaseModel):
     id: UUID4
-    card_id: UUID4
+    card_id: UUID4 | None = None
     amount: Decimal
     currency: str
     type: TransactionType

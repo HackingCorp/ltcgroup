@@ -8,7 +8,7 @@ from app.models.user import User, KYCStatus
 from app.models.card import Card, CardStatus
 from app.schemas.card import CardPurchase, CardResponse, CardListResponse, CardRevealResponse
 from app.services.auth import get_current_user, verify_token
-from app.services.accountpe import accountpe_client
+from app.services.accountpe import accountpe_client, AccountPEError
 from app.utils.exceptions import (
     CardNotFoundException,
     UnauthorizedCardAccessException,
@@ -36,7 +36,25 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/cards", tags=["Cards"])
 
 
+def _map_accountpe_error(error: AccountPEError) -> HTTPException:
+    """Map AccountPE business errors to appropriate HTTP status codes."""
+    msg = str(error).lower()
+    if "insufficient" in msg or "balance" in msg or "not enough" in msg:
+        return HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(error))
+    if "invalid" in msg or "not valid" in msg or "bad request" in msg:
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+    if "not found" in msg or "no card" in msg or "no user" in msg:
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+    if "unauthorized" in msg or "auth" in msg or "token" in msg:
+        return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Card provider authentication failed")
+    # Default: use the status_code from AccountPE if it maps to a 4xx, otherwise 400
+    if 400 <= error.status_code < 500:
+        return HTTPException(status_code=error.status_code, detail=str(error))
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+
+
 @router.post("/purchase", response_model=CardResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
 async def purchase_card(
     request: Request,
     card_data: CardPurchase,
@@ -98,19 +116,14 @@ async def purchase_card(
             card_type=card_data.card_type.value.lower(),
             amount=float(card_data.initial_balance),
         )
+    except AccountPEError as e:
+        logger.warning(f"AccountPE purchase_card business error: {e}")
+        raise _map_accountpe_error(e)
     except Exception as e:
         logger.error(f"AccountPE purchase_card failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Card provider is temporarily unavailable",
-        )
-
-    # Check for business errors from AccountPE (e.g. "Insufficient Wallet Balance")
-    ape_status = purchase_resp.get("status", 200)
-    if ape_status != 200:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=purchase_resp.get("message", "Card purchase failed"),
         )
 
     provider_card_id = str(purchase_resp.get("card_id", ""))
@@ -256,6 +269,8 @@ async def freeze_card(
     # Call AccountPE to freeze card
     try:
         await accountpe_client.freeze_card(card.provider_card_id)
+    except AccountPEError as e:
+        raise _map_accountpe_error(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -312,6 +327,8 @@ async def unfreeze_card(
     # Call AccountPE to unfreeze card
     try:
         await accountpe_client.unfreeze_card(card.provider_card_id)
+    except AccountPEError as e:
+        raise _map_accountpe_error(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -362,6 +379,8 @@ async def block_card(
     # Call AccountPE to block card
     try:
         await accountpe_client.block_card(card.provider_card_id)
+    except AccountPEError as e:
+        raise _map_accountpe_error(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -387,7 +406,7 @@ async def block_card(
     return CardResponse.model_validate(card)
 
 
-@router.get("/{card_id}/reveal", response_model=CardRevealResponse)
+@router.post("/{card_id}/reveal", response_model=CardRevealResponse)
 @limiter.limit("5/minute", key_func=_reveal_rate_key)
 async def reveal_card_details(
     request: Request,

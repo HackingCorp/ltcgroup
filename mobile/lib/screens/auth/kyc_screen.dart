@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:math' as math;
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../config/theme.dart';
 
 class KycScreen extends StatefulWidget {
   const KycScreen({super.key});
@@ -40,6 +43,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
 
   // Verification progress
   int _verifyStep = 0; // 0=uploading, 1=liveness, 2=faceMatch, 3=ocr, 4=done
+  int _uploadStep = 0; // 0=idle, 1=front, 2=back, 3=selfie, 4=submitting
   final List<String> _verifyLabels = [
     'Upload des documents...',
     'Verification de vitalite...',
@@ -50,8 +54,6 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
 
   late final AnimationController _scanController;
   late final AnimationController _pulseController;
-
-  static const _primaryBlue = Color(0xFF258CF4);
 
   final Map<String, Map<String, dynamic>> _documentTypes = {
     'id_card': {
@@ -68,6 +70,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       'label': 'Permis de conduire',
       'subtitle': 'Format europeen',
       'icon': Icons.directions_car_outlined,
+    },
+    'residence_permit': {
+      'label': 'Titre de sejour',
+      'subtitle': 'Carte de resident',
+      'icon': Icons.home_outlined,
     },
   };
 
@@ -116,11 +123,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── Step 0: Document Type Selection ───
+  // --- Step 0: Document Type Selection ---
 
   Widget _buildStep0DocumentSelect() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -142,13 +149,13 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: LTCColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Selectionnez le type de document que vous souhaitez scanner pour verifier votre identite.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+                      style: TextStyle(fontSize: 14, color: LTCColors.textSecondary, height: 1.5),
                     ),
                     const SizedBox(height: 24),
                     ..._documentTypes.entries.map((entry) {
@@ -166,12 +173,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.lock_outlined, size: 18, color: Colors.grey[400]),
-                          const SizedBox(width: 8),
+                        children: const [
+                          Icon(Icons.lock_outlined, size: 18, color: LTCColors.textTertiary),
+                          SizedBox(width: 8),
                           Text(
                             'Vos donnees sont cryptees et securisees',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[400]),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: LTCColors.textTertiary),
                           ),
                         ],
                       ),
@@ -206,10 +213,10 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? _primaryBlue.withValues(alpha: 0.05) : Colors.white,
+          color: isSelected ? LTCColors.gold.withValues(alpha: 0.05) : LTCColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? _primaryBlue : const Color(0xFFE5E7EB),
+            color: isSelected ? LTCColors.gold : LTCColors.border,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -218,19 +225,19 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
             Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
-                color: isSelected ? _primaryBlue.withValues(alpha: 0.1) : const Color(0xFFEFF6FF),
+                color: isSelected ? LTCColors.gold.withValues(alpha: 0.1) : LTCColors.surfaceLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: _primaryBlue, size: 24),
+              child: Icon(icon, color: LTCColors.gold, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+                  Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: LTCColors.textPrimary)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: LTCColors.textSecondary)),
                 ],
               ),
             ),
@@ -238,10 +245,10 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               width: 24, height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? _primaryBlue : Colors.transparent,
-                border: Border.all(color: isSelected ? _primaryBlue : const Color(0xFFD1D5DB), width: 2),
+                color: isSelected ? LTCColors.gold : Colors.transparent,
+                border: Border.all(color: isSelected ? LTCColors.gold : LTCColors.textTertiary, width: 2),
               ),
-              child: isSelected ? const Center(child: Icon(Icons.circle, color: Colors.white, size: 10)) : null,
+              child: isSelected ? const Center(child: Icon(Icons.circle, color: LTCColors.background, size: 10)) : null,
             ),
           ],
         ),
@@ -249,11 +256,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Step 1: Personal Info ───
+  // --- Step 1: Personal Info ---
 
   Widget _buildStep1PersonalInfo() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -272,12 +279,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     const SizedBox(height: 24),
                     const Text(
                       'Vos informations',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: LTCColors.textPrimary),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       'Ces informations sont necessaires pour la verification de votre identite.',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 14, color: LTCColors.textSecondary),
                     ),
                     const SizedBox(height: 24),
 
@@ -394,7 +401,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: LTCColors.textSecondary),
       ),
     );
   }
@@ -407,23 +414,24 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     return TextField(
       controller: controller,
       onChanged: (_) => setState(() {}),
+      style: const TextStyle(color: LTCColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
-        suffixIcon: icon != null ? Icon(icon, color: Colors.grey[400], size: 20) : null,
+        hintStyle: const TextStyle(color: LTCColors.textTertiary),
+        suffixIcon: icon != null ? const Icon(Icons.calendar_today, color: LTCColors.textSecondary, size: 20) : null,
         filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+        fillColor: LTCColors.surfaceLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: const BorderSide(color: LTCColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: const BorderSide(color: LTCColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _primaryBlue, width: 1.5),
+          borderSide: const BorderSide(color: LTCColors.gold, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -437,10 +445,10 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? _primaryBlue.withValues(alpha: 0.1) : const Color(0xFFF9FAFB),
+          color: isSelected ? LTCColors.gold.withValues(alpha: 0.1) : LTCColors.surfaceLight,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? _primaryBlue : const Color(0xFFE5E7EB),
+            color: isSelected ? LTCColors.gold : LTCColors.border,
           ),
         ),
         child: Text(
@@ -448,7 +456,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: isSelected ? _primaryBlue : const Color(0xFF6B7280),
+            color: isSelected ? LTCColors.gold : LTCColors.textSecondary,
           ),
         ),
       ),
@@ -465,7 +473,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: _primaryBlue),
+            colorScheme: const ColorScheme.dark(
+              primary: LTCColors.gold,
+              onPrimary: LTCColors.background,
+              surface: LTCColors.surface,
+              onSurface: LTCColors.textPrimary,
+            ),
           ),
           child: child!,
         );
@@ -489,7 +502,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: _primaryBlue),
+            colorScheme: const ColorScheme.dark(
+              primary: LTCColors.gold,
+              onPrimary: LTCColors.background,
+              surface: LTCColors.surface,
+              onSurface: LTCColors.textPrimary,
+            ),
           ),
           child: child!,
         );
@@ -503,11 +521,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── Step 2: ID Document Scan ───
+  // --- Step 2: ID Document Scan ---
 
   Widget _buildStep2IdScan() {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: LTCColors.background,
       body: Stack(
         children: [
           SafeArea(
@@ -529,14 +547,14 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 24),
                 _buildDarkProgressBar(step: 3, total: 4),
                 const Spacer(),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 32),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Text(
                     "Placez votre piece d'identite dans le cadre",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 8)],
+                      fontSize: 20, fontWeight: FontWeight.w600, color: LTCColors.textPrimary,
+                      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.54), blurRadius: 8)],
                     ),
                   ),
                 ),
@@ -546,14 +564,14 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: LTCColors.surfaceLight.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _frontImage == null ? 'Recto' : 'Verso',
                     style: TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: LTCColors.textPrimary.withValues(alpha: 0.8),
                     ),
                   ),
                 ),
@@ -563,7 +581,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                   child: Text(
                     "Assurez-vous que l'image est nette et sans reflets.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
+                    style: TextStyle(fontSize: 12, color: LTCColors.textSecondary.withValues(alpha: 0.6)),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -588,8 +606,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-            color: Colors.white.withValues(alpha: 0.05),
+            border: Border.all(color: LTCColors.textPrimary.withValues(alpha: 0.3), width: 2),
+            color: LTCColors.textPrimary.withValues(alpha: 0.05),
           ),
           child: Stack(
             children: [
@@ -604,16 +622,16 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                       height: 2,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(colors: [
-                          _primaryBlue.withValues(alpha: 0.0),
-                          _primaryBlue.withValues(alpha: 0.8),
-                          _primaryBlue.withValues(alpha: 0.0),
+                          LTCColors.gold.withValues(alpha: 0.0),
+                          LTCColors.gold.withValues(alpha: 0.8),
+                          LTCColors.gold.withValues(alpha: 0.0),
                         ]),
                       ),
                     ),
                   );
                 },
               ),
-              Center(child: Icon(Icons.crop_free, size: 56, color: Colors.white.withValues(alpha: 0.15))),
+              Center(child: Icon(Icons.crop_free, size: 56, color: LTCColors.textPrimary.withValues(alpha: 0.15))),
               if (_frontImage != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
@@ -627,7 +645,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
   }
 
   List<Widget> _buildCornerBrackets() {
-    const color = _primaryBlue;
+    const color = LTCColors.gold;
     return [
       Positioned(top: 0, left: 0, child: Container(width: 32, height: 32, decoration: const BoxDecoration(border: Border(top: BorderSide(color: color, width: 4), left: BorderSide(color: color, width: 4)), borderRadius: BorderRadius.only(topLeft: Radius.circular(8))))),
       Positioned(top: 0, right: 0, child: Container(width: 32, height: 32, decoration: const BoxDecoration(border: Border(top: BorderSide(color: color, width: 4), right: BorderSide(color: color, width: 4)), borderRadius: BorderRadius.only(topRight: Radius.circular(8))))),
@@ -645,12 +663,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
 
       if (_frontImage == null) {
         setState(() => _frontImage = image);
-        final needsBack = _selectedDocumentType == 'id_card' || _selectedDocumentType == 'driver_license';
+        final needsBack = _selectedDocumentType == 'id_card' || _selectedDocumentType == 'driver_license' || _selectedDocumentType == 'residence_permit';
         if (needsBack && _backImage == null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Recto capture. Prenez maintenant le verso.'),
-              backgroundColor: _primaryBlue,
+              backgroundColor: LTCColors.gold,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -671,11 +689,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── Step 3: Selfie / Liveness ───
+  // --- Step 3: Selfie / Liveness ---
 
   Widget _buildStep3Selfie() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -687,7 +705,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildNavCircleButton(icon: Icons.chevron_left, onTap: () => setState(() => _currentStep = 2)),
-                      Text('Etape 4 sur 4', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[500])),
+                      const Text('Etape 4 sur 4', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: LTCColors.textSecondary)),
                       _buildNavCircleButton(icon: Icons.close, onTap: () => Navigator.of(context).pop()),
                     ],
                   ),
@@ -707,16 +725,16 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: LTCColors.surfaceLight,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: LTCColors.border),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.light_mode, color: Color(0xFFF59E0B), size: 16),
-                          const SizedBox(width: 8),
-                          Text('Eclairage optimal detecte', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600])),
+                          Icon(Icons.light_mode, color: LTCColors.warning, size: 16),
+                          SizedBox(width: 8),
+                          Text('Eclairage optimal detecte', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: LTCColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -728,9 +746,27 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
               child: Column(
                 children: [
-                  const Text('Verification de vitalite', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  const Text('Verification de vitalite', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: LTCColors.textPrimary)),
                   const SizedBox(height: 8),
-                  Text('Regardez la camera et souriez', style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+                  const Text('Regardez la camera et souriez', style: TextStyle(fontSize: 16, color: LTCColors.textSecondary)),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: LTCColors.error.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: LTCColors.error.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: LTCColors.error, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(_errorMessage!, style: const TextStyle(color: LTCColors.error, fontSize: 13))),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   GestureDetector(
                     onTap: _isLoading ? null : _takeSelfie,
@@ -738,29 +774,29 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                       width: 72, height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE2E8F0), width: 4),
+                        border: Border.all(color: LTCColors.border, width: 4),
                       ),
                       child: Center(
                         child: Container(
                           width: 56, height: 56,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _isLoading ? Colors.grey : _primaryBlue,
+                            color: _isLoading ? LTCColors.textTertiary : LTCColors.gold,
                           ),
                           child: _isLoading
-                              ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)))
+                              ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: LTCColors.background, strokeWidth: 2.5)))
                               : null,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.lock, size: 14, color: Colors.grey[400]),
-                      const SizedBox(width: 6),
-                      Text('Crypte de bout en bout', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                      Icon(Icons.lock, size: 14, color: LTCColors.textTertiary),
+                      SizedBox(width: 6),
+                      Text('Crypte de bout en bout', style: TextStyle(fontSize: 12, color: LTCColors.textTertiary)),
                     ],
                   ),
                 ],
@@ -791,7 +827,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     width: 240, height: 240,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: _primaryBlue.withValues(alpha: 0.2), width: 2),
+                      border: Border.all(color: LTCColors.gold.withValues(alpha: 0.2), width: 2),
                     ),
                   ),
                 ),
@@ -805,7 +841,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 angle: _scanController.value * 2 * math.pi,
                 child: CustomPaint(
                   size: const Size(230, 230),
-                  painter: _DashedCirclePainter(color: _primaryBlue.withValues(alpha: 0.3)),
+                  painter: _DashedCirclePainter(color: LTCColors.gold.withValues(alpha: 0.3)),
                 ),
               );
             },
@@ -814,14 +850,14 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
             width: 210, height: 210,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF0F172A),
-              border: Border.all(color: Colors.white, width: 4),
-              boxShadow: [BoxShadow(color: _primaryBlue.withValues(alpha: 0.3), blurRadius: 16)],
+              color: LTCColors.surface,
+              border: Border.all(color: LTCColors.gold, width: 4),
+              boxShadow: [BoxShadow(color: LTCColors.gold.withValues(alpha: 0.3), blurRadius: 16)],
             ),
             child: ClipOval(
               child: _selfieImage != null
                   ? Image.file(File(_selfieImage!.path), fit: BoxFit.cover)
-                  : Icon(Icons.face, size: 80, color: Colors.white.withValues(alpha: 0.15)),
+                  : Icon(Icons.face, size: 80, color: LTCColors.textPrimary.withValues(alpha: 0.15)),
             ),
           ),
         ],
@@ -846,11 +882,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ─── Step 4: Verification Progress ───
+  // --- Step 4: Verification Progress ---
 
   Widget _buildStep4Verifying() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -863,20 +899,20 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 width: 80, height: 80,
                 child: CircularProgressIndicator(
                   strokeWidth: 4,
-                  color: _primaryBlue,
-                  backgroundColor: _primaryBlue.withValues(alpha: 0.1),
+                  color: LTCColors.gold,
+                  backgroundColor: LTCColors.gold.withValues(alpha: 0.1),
                 ),
               ),
               const SizedBox(height: 32),
               const Text(
                 'Verification en cours...',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: LTCColors.textPrimary),
               ),
               const SizedBox(height: 12),
-              Text(
+              const Text(
                 'Veuillez patienter pendant que nous verifions votre identite.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+                style: TextStyle(fontSize: 14, color: LTCColors.textSecondary, height: 1.5),
               ),
               const SizedBox(height: 40),
 
@@ -884,6 +920,16 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               ...List.generate(_verifyLabels.length, (i) {
                 final isDone = i < _verifyStep;
                 final isCurrent = i == _verifyStep;
+                String label = _verifyLabels[i];
+                // Show per-file detail for the upload step
+                if (i == 0 && isCurrent) {
+                  switch (_uploadStep) {
+                    case 1: label = 'Upload du recto...'; break;
+                    case 2: label = 'Upload du verso...'; break;
+                    case 3: label = 'Upload du selfie...'; break;
+                    case 4: label = 'Upload termine'; break;
+                  }
+                }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Row(
@@ -893,30 +939,30 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isDone
-                              ? const Color(0xFF22C55E)
+                              ? LTCColors.success
                               : isCurrent
-                                  ? _primaryBlue
-                                  : const Color(0xFFF3F4F6),
+                                  ? LTCColors.gold
+                                  : LTCColors.surfaceLight,
                         ),
                         child: Center(
                           child: isDone
-                              ? const Icon(Icons.check, color: Colors.white, size: 16)
+                              ? const Icon(Icons.check, color: LTCColors.background, size: 16)
                               : isCurrent
-                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text('${i + 1}', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: LTCColors.background, strokeWidth: 2))
+                                  : Text('${i + 1}', style: const TextStyle(fontSize: 12, color: LTCColors.textTertiary)),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        _verifyLabels[i],
+                        label,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
                           color: isDone
-                              ? const Color(0xFF22C55E)
+                              ? LTCColors.success
                               : isCurrent
-                                  ? const Color(0xFF0F172A)
-                                  : Colors.grey[400],
+                                  ? LTCColors.textPrimary
+                                  : LTCColors.textTertiary,
                         ),
                       ),
                     ],
@@ -925,12 +971,12 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               }),
 
               const Spacer(),
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.shield_outlined, size: 16, color: Colors.grey[400]),
-                  const SizedBox(width: 8),
-                  Text('Verification securisee par IA', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                  Icon(Icons.shield_outlined, size: 16, color: LTCColors.textTertiary),
+                  SizedBox(width: 8),
+                  Text('Verification securisee par IA', style: TextStyle(fontSize: 12, color: LTCColors.textTertiary)),
                 ],
               ),
             ],
@@ -940,7 +986,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Step 5: Result ───
+  // --- Step 5: Result ---
 
   Widget _buildStep5Result() {
     Color statusColor;
@@ -950,19 +996,19 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
 
     switch (_kycStatus) {
       case 'APPROVED':
-        statusColor = const Color(0xFF22C55E);
+        statusColor = LTCColors.success;
         statusIcon = Icons.check_circle;
         statusText = 'Approuve';
         statusMessage = 'Votre identite a ete verifiee automatiquement. Vous pouvez utiliser tous les services.';
         break;
       case 'REJECTED':
-        statusColor = const Color(0xFFEF4444);
+        statusColor = LTCColors.error;
         statusIcon = Icons.cancel;
         statusText = 'Rejete';
         statusMessage = 'Votre demande a ete rejetee. Veuillez soumettre de nouveaux documents.';
         break;
       default:
-        statusColor = const Color(0xFFF59E0B);
+        statusColor = LTCColors.warning;
         statusIcon = Icons.pending;
         if (_verificationMethod == 'manual_review') {
           statusText = 'En cours d\'examen';
@@ -974,7 +1020,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -987,28 +1033,28 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               Text(
                 statusText,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: LTCColors.textPrimary),
               ),
               const SizedBox(height: 16),
               Text(
                 statusMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Colors.grey[500], height: 1.5),
+                style: const TextStyle(fontSize: 15, color: LTCColors.textSecondary, height: 1.5),
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.05),
+                    color: LTCColors.error.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                    border: Border.all(color: LTCColors.error.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(Icons.error_outline, color: LTCColors.error, size: 20),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 13))),
+                      Expanded(child: Text(_errorMessage!, style: const TextStyle(color: LTCColors.error, fontSize: 13))),
                     ],
                   ),
                 ),
@@ -1019,8 +1065,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pushReplacementNamed('/main'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryBlue,
-                    foregroundColor: Colors.white,
+                    backgroundColor: LTCColors.gold,
+                    foregroundColor: LTCColors.background,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                     textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -1035,7 +1081,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Submit KYC ───
+  // --- Submit KYC ---
 
   Future<void> _submitKyc() async {
     setState(() {
@@ -1043,6 +1089,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       _errorMessage = null;
       _currentStep = 4; // Show verification progress
       _verifyStep = 0;
+      _uploadStep = 0;
     });
 
     try {
@@ -1052,6 +1099,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       String? selfieUrl;
 
       if (_frontImage != null) {
+        if (mounted) setState(() => _uploadStep = 1);
         frontUrl = await _apiService.uploadKycFile(
           filePath: _frontImage!.path,
           documentType: _selectedDocumentType!,
@@ -1060,6 +1108,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       }
 
       if (_backImage != null) {
+        if (mounted) setState(() => _uploadStep = 2);
         backUrl = await _apiService.uploadKycFile(
           filePath: _backImage!.path,
           documentType: _selectedDocumentType!,
@@ -1067,8 +1116,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         );
       }
 
-      // Upload selfie (this was the missing critical bug)
       if (_selfieImage != null) {
+        if (mounted) setState(() => _uploadStep = 3);
         selfieUrl = await _apiService.uploadKycFile(
           filePath: _selfieImage!.path,
           documentType: _selectedDocumentType!,
@@ -1080,7 +1129,13 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         throw Exception("Erreur lors de l'upload des documents");
       }
 
-      if (mounted) setState(() => _verifyStep = 1);
+      // All uploads succeeded — advance to verification steps
+      if (mounted) {
+        setState(() {
+          _uploadStep = 4;
+          _verifyStep = 1;
+        });
+      }
 
       // Step 1-4: Submit KYC (backend runs liveness, face match, OCR)
       final result = await _apiService.submitKyc(
@@ -1109,6 +1164,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       final status = result['kyc_status'] ?? 'PENDING';
       final method = result['kyc_verification_method'];
 
+      // Refresh user so KYC status is up-to-date everywhere
+      if (mounted) {
+        context.read<AuthProvider>().refreshUser();
+      }
+
       setState(() {
         _isLoading = false;
         _kycStatus = status;
@@ -1120,23 +1180,24 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         _isLoading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _kycStatus = 'PENDING';
-        _currentStep = 5;
+        _uploadStep = 0;
+        _currentStep = 3; // Go back to selfie so user can retry
       });
     }
   }
 
-  // ─── Shared Widgets ───
+  // --- Shared Widgets ---
 
   Widget _buildNavBar({required String title, required VoidCallback onBack}) {
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey[100]!))),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: LTCColors.border))),
       child: Row(
         children: [
-          IconButton(icon: const Icon(Icons.chevron_left, color: _primaryBlue), onPressed: onBack),
+          IconButton(icon: const Icon(Icons.chevron_left, color: LTCColors.gold), onPressed: onBack),
           Expanded(
-            child: Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+            child: Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: LTCColors.textPrimary)),
           ),
           const SizedBox(width: 48),
         ],
@@ -1151,8 +1212,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Etape $step sur $total', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _primaryBlue)),
-            Text('$percent%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[500])),
+            Text('Etape $step sur $total', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: LTCColors.gold)),
+            Text('$percent%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: LTCColors.textSecondary)),
           ],
         ),
         const SizedBox(height: 8),
@@ -1160,8 +1221,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: step / total,
-            backgroundColor: const Color(0xFFF3F4F6),
-            valueColor: const AlwaysStoppedAnimation<Color>(_primaryBlue),
+            backgroundColor: LTCColors.surfaceLight,
+            valueColor: const AlwaysStoppedAnimation<Color>(LTCColors.gold),
             minHeight: 8,
           ),
         ),
@@ -1182,10 +1243,10 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
               height: 6,
               decoration: BoxDecoration(
                 color: isCurrent
-                    ? _primaryBlue
+                    ? LTCColors.gold
                     : isCompleted
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : Colors.white.withValues(alpha: 0.2),
+                        ? LTCColors.textPrimary.withValues(alpha: 0.5)
+                        : LTCColors.textPrimary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -1199,18 +1260,18 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        border: Border(top: BorderSide(color: Colors.grey[100]!)),
+        color: LTCColors.surface.withValues(alpha: 0.9),
+        border: const Border(top: BorderSide(color: LTCColors.border)),
       ),
       child: SizedBox(
         width: double.infinity, height: 52,
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: _primaryBlue,
-            disabledBackgroundColor: _primaryBlue.withValues(alpha: 0.4),
-            foregroundColor: Colors.white,
-            disabledForegroundColor: Colors.white70,
+            backgroundColor: LTCColors.gold,
+            disabledBackgroundColor: LTCColors.gold.withValues(alpha: 0.4),
+            foregroundColor: LTCColors.background,
+            disabledForegroundColor: LTCColors.background.withValues(alpha: 0.7),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 0,
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -1226,8 +1287,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       onTap: onTap,
       child: Container(
         width: 44, height: 44,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
-        child: Icon(icon, color: Colors.white, size: 24),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: LTCColors.surfaceLight.withValues(alpha: 0.5)),
+        child: Icon(icon, color: LTCColors.textPrimary, size: 24),
       ),
     );
   }
@@ -1237,8 +1298,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       onTap: onTap,
       child: Container(
         width: 40, height: 40,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.transparent, border: Border.all(color: Colors.transparent)),
-        child: Icon(icon, color: Colors.grey[600], size: 24),
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent),
+        child: Icon(icon, color: LTCColors.textSecondary, size: 24),
       ),
     );
   }
@@ -1253,8 +1314,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
             onTap: onGallery,
             child: Container(
               width: 52, height: 52,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
-              child: const Icon(Icons.photo_library, color: Colors.white, size: 24),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: LTCColors.surfaceLight.withValues(alpha: 0.5)),
+              child: const Icon(Icons.photo_library, color: LTCColors.textPrimary, size: 24),
             ),
           ),
           const SizedBox(width: 32),
@@ -1262,8 +1323,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
             onTap: onShutter,
             child: Container(
               width: 80, height: 80,
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-              child: Center(child: Container(width: 64, height: 64, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white))),
+              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: LTCColors.gold, width: 4)),
+              child: Center(child: Container(width: 64, height: 64, decoration: const BoxDecoration(shape: BoxShape.circle, color: LTCColors.gold))),
             ),
           ),
           const SizedBox(width: 32),
@@ -1271,8 +1332,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
             onTap: () {},
             child: Container(
               width: 52, height: 52,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.1)),
-              child: const Icon(Icons.help_outline, color: Colors.white, size: 24),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: LTCColors.surfaceLight.withValues(alpha: 0.5)),
+              child: const Icon(Icons.help_outline, color: LTCColors.textPrimary, size: 24),
             ),
           ),
         ],
@@ -1281,7 +1342,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
   }
 }
 
-// ─── Dashed Circle Painter ───
+// --- Dashed Circle Painter ---
 
 class _DashedCirclePainter extends CustomPainter {
   final Color color;

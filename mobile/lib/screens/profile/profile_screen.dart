@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/constants.dart';
+import '../../config/theme.dart';
 import '../../services/storage_service.dart';
 import '../../services/biometric_service.dart';
 
@@ -13,9 +14,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _bgLight = Color(0xFFF6F6F8);
-
   final StorageService _storageService = StorageService();
   final BiometricService _biometricService = BiometricService();
 
@@ -79,24 +77,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: LTCColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Déconnexion',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: LTCColors.textPrimary,
+          ),
         ),
-        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+        content: const Text(
+          'Êtes-vous sûr de vouloir vous déconnecter ?',
+          style: TextStyle(color: LTCColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
+            style: TextButton.styleFrom(
+              foregroundColor: LTCColors.gold,
+            ),
+            child: const Text(
               'Annuler',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
+              backgroundColor: LTCColors.error,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -116,6 +124,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bientot disponible')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -123,12 +137,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text('Utilisateur non connecté')),
+        backgroundColor: LTCColors.background,
+        body: Center(
+          child: Text(
+            'Utilisateur non connecté',
+            style: TextStyle(color: LTCColors.textSecondary),
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: _bgLight,
+      backgroundColor: LTCColors.background,
       body: Column(
         children: [
           // ── Header ──
@@ -139,29 +159,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               left: 4,
               right: 4,
             ),
-            decoration: BoxDecoration(
-              color: _bgLight.withValues(alpha: 0.8),
+            decoration: const BoxDecoration(
+              color: LTCColors.background,
               border: Border(
-                bottom: BorderSide(
-                  color: _primaryBlue.withValues(alpha: 0.1),
-                ),
+                bottom: BorderSide(color: LTCColors.border),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
-                const SizedBox(width: 48),
-                const Expanded(
+                SizedBox(width: 48),
+                Expanded(
                   child: Text(
                     'Profil',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
+                      color: LTCColors.textPrimary,
                     ),
                   ),
                 ),
-                const SizedBox(width: 48), // balance right side
+                SizedBox(width: 48),
               ],
             ),
           ),
@@ -182,26 +200,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _buildNavItem(
                         icon: Icons.lock_rounded,
-                        iconBg: const Color(0xFFEFF6FF),
-                        iconColor: _primaryBlue,
+                        iconBg: LTCColors.gold.withValues(alpha: 0.12),
+                        iconColor: LTCColors.gold,
                         label: 'Code PIN',
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                       ),
                       if (_biometricAvailable)
                         _buildToggleItem(
                           icon: Icons.face_rounded,
-                          iconBg: const Color(0xFFF3E8FF),
-                          iconColor: const Color(0xFF9333EA),
+                          iconBg: LTCColors.goldLight.withValues(alpha: 0.10),
+                          iconColor: LTCColors.goldLight,
                           label: 'Biométrie',
                           value: _biometricEnabled,
                           onChanged: _toggleBiometric,
                         ),
                       _buildNavItem(
                         icon: Icons.vpn_key_rounded,
-                        iconBg: const Color(0xFFEEF2FF),
-                        iconColor: const Color(0xFF4F46E5),
+                        iconBg: LTCColors.gold.withValues(alpha: 0.12),
+                        iconColor: LTCColors.gold,
                         label: 'Changer mot de passe',
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                       ),
                     ],
                   ),
@@ -213,8 +231,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _buildToggleItem(
                         icon: Icons.notifications_rounded,
-                        iconBg: const Color(0xFFFFF7ED),
-                        iconColor: const Color(0xFFEA580C),
+                        iconBg: LTCColors.warning.withValues(alpha: 0.12),
+                        iconColor: LTCColors.warning,
                         label: 'Push',
                         value: _pushEnabled,
                         onChanged: (v) {
@@ -224,8 +242,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _buildToggleItem(
                         icon: Icons.email_rounded,
-                        iconBg: const Color(0xFFF0F9FF),
-                        iconColor: const Color(0xFF0284C7),
+                        iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                        iconColor: const Color(0xFF60A5FA),
                         label: 'Email',
                         value: _emailEnabled,
                         onChanged: (v) {
@@ -235,8 +253,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _buildToggleItem(
                         icon: Icons.sms_rounded,
-                        iconBg: const Color(0xFFECFDF5),
-                        iconColor: const Color(0xFF059669),
+                        iconBg: LTCColors.success.withValues(alpha: 0.12),
+                        iconColor: LTCColors.success,
                         label: 'SMS',
                         value: _smsEnabled,
                         onChanged: (v) {
@@ -258,24 +276,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _buildNavItem(
                         icon: Icons.help_outline_rounded,
-                        iconBg: const Color(0xFFF0FDFA),
-                        iconColor: const Color(0xFF0D9488),
+                        iconBg: LTCColors.success.withValues(alpha: 0.12),
+                        iconColor: LTCColors.success,
                         label: 'FAQ',
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                       ),
                       _buildNavItem(
                         icon: Icons.support_agent_rounded,
-                        iconBg: const Color(0xFFECFEFF),
-                        iconColor: const Color(0xFF0891B2),
+                        iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                        iconColor: const Color(0xFF60A5FA),
                         label: 'Contactez-nous',
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                       ),
                       _buildNavItem(
                         icon: Icons.report_problem_rounded,
-                        iconBg: const Color(0xFFFFF1F2),
-                        iconColor: const Color(0xFFE11D48),
+                        iconBg: LTCColors.error.withValues(alpha: 0.12),
+                        iconColor: LTCColors.error,
                         label: 'Signaler un problème',
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                       ),
                     ],
                   ),
@@ -284,24 +302,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // ── À propos ──
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: LTCColors.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: _primaryBlue.withValues(alpha: 0.05)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      border: Border.all(color: LTCColors.border),
                     ),
                     child: Material(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(16),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-                        onTap: () {},
+                        onTap: () => _showComingSoon(),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 16),
@@ -311,11 +321,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF9FAFB),
+                                  color: LTCColors.gold.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(Icons.info_rounded,
-                                    size: 18, color: Color(0xFF6B7280)),
+                                    size: 18, color: LTCColors.textSecondary),
                               ),
                               const SizedBox(width: 12),
                               const Expanded(
@@ -324,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: Color(0xFF374151),
+                                    color: LTCColors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -332,12 +342,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 'v${AppConstants.appVersion}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF9CA3AF),
+                                  color: LTCColors.textSecondary,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               const Icon(Icons.chevron_right_rounded,
-                                  color: Color(0xFFD1D5DB), size: 22),
+                                  color: LTCColors.textTertiary, size: 22),
                             ],
                           ),
                         ),
@@ -353,28 +363,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: LTCColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.logout_rounded,
-                              color: Color(0xFFDC2626), size: 20),
+                              color: LTCColors.error, size: 20),
                           SizedBox(width: 8),
                           Text(
                             'Déconnexion',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFFDC2626),
+                              color: LTCColors.error,
                             ),
                           ),
                         ],
@@ -393,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── Profile Avatar + Name + Badge ──
   Widget _buildProfileHeader(user) {
-    final initials = '${user.firstName[0]}${user.lastName[0]}'.toUpperCase();
+    final initials = '${user.firstName.isNotEmpty ? user.firstName[0] : '?'}${user.lastName.isNotEmpty ? user.lastName[0] : '?'}'.toUpperCase();
     final kycVerified = user.kycStatus == AppConstants.kycStatusVerified;
 
     return Column(
@@ -406,15 +409,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 112,
               padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: LTCColors.surface,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
               ),
               child: Container(
                 decoration: BoxDecoration(
@@ -423,8 +419,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _primaryBlue.withValues(alpha: 0.15),
-                      _primaryBlue.withValues(alpha: 0.08),
+                      LTCColors.gold.withValues(alpha: 0.15),
+                      LTCColors.gold.withValues(alpha: 0.08),
                     ],
                   ),
                 ),
@@ -434,7 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w800,
-                      color: _primaryBlue,
+                      color: LTCColors.gold,
                     ),
                   ),
                 ),
@@ -444,24 +440,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               bottom: 4,
               right: 4,
               child: GestureDetector(
-                onTap: () {},
+                onTap: () => _showComingSoon(),
                 child: Container(
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: _primaryBlue,
+                    color: LTCColors.gold,
                     shape: BoxShape.circle,
-                    border: Border.all(color: _bgLight, width: 2),
+                    border: Border.all(color: LTCColors.background, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: _primaryBlue.withValues(alpha: 0.3),
+                        color: LTCColors.gold.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: const Icon(Icons.camera_alt_rounded,
-                      color: Colors.white, size: 16),
+                      color: LTCColors.background, size: 16),
                 ),
               ),
             ),
@@ -474,7 +470,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            color: LTCColors.textPrimary,
           ),
         ),
         const SizedBox(height: 4),
@@ -484,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF64748B),
+            color: LTCColors.textSecondary,
           ),
         ),
         const SizedBox(height: 12),
@@ -493,13 +489,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
             color: kycVerified
-                ? const Color(0xFFDCFCE7)
-                : const Color(0xFFFEF9C3),
+                ? LTCColors.success.withValues(alpha: 0.12)
+                : LTCColors.warning.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: kycVerified
-                  ? const Color(0xFFBBF7D0)
-                  : const Color(0xFFFDE68A),
+                  ? LTCColors.success.withValues(alpha: 0.3)
+                  : LTCColors.warning.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -508,9 +504,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(
                 kycVerified ? Icons.verified_rounded : Icons.schedule_rounded,
                 size: 14,
-                color: kycVerified
-                    ? const Color(0xFF15803D)
-                    : const Color(0xFFCA8A04),
+                color: kycVerified ? LTCColors.success : LTCColors.warning,
               ),
               const SizedBox(width: 6),
               Text(
@@ -519,9 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
-                  color: kycVerified
-                      ? const Color(0xFF15803D)
-                      : const Color(0xFFCA8A04),
+                  color: kycVerified ? LTCColors.success : LTCColors.warning,
                 ),
               ),
             ],
@@ -540,16 +532,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _primaryBlue.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: LTCColors.border),
       ),
       child: Column(
         children: [
@@ -558,12 +543,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: _primaryBlue.withValues(alpha: 0.05),
+              color: LTCColors.gold.withValues(alpha: 0.08),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(
-                bottom: BorderSide(
-                    color: _primaryBlue.withValues(alpha: 0.05)),
+              border: const Border(
+                bottom: BorderSide(color: LTCColors.border),
               ),
             ),
             child: Row(
@@ -574,7 +558,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: _primaryBlue,
+                    color: LTCColors.gold,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -586,7 +570,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: _primaryBlue.withValues(alpha: 0.7),
+                        color: LTCColors.gold.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -596,11 +580,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Items
           for (int i = 0; i < children.length; i++) ...[
             if (i > 0)
-              Divider(
+              const Divider(
                 height: 1,
                 indent: 16,
                 endIndent: 16,
-                color: _primaryBlue.withValues(alpha: 0.05),
+                color: LTCColors.border,
               ),
             children[i],
           ],
@@ -641,12 +625,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF374151),
+                    color: LTCColors.textPrimary,
                   ),
                 ),
               ),
               const Icon(Icons.chevron_right_rounded,
-                  color: Color(0xFFD1D5DB), size: 22),
+                  color: LTCColors.textTertiary, size: 22),
             ],
           ),
         ),
@@ -683,7 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF374151),
+                color: LTCColors.textPrimary,
               ),
             ),
           ),
@@ -694,9 +678,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               value: value,
               onChanged: onChanged,
               activeThumbColor: Colors.white,
-              activeTrackColor: _primaryBlue,
+              activeTrackColor: LTCColors.gold,
               inactiveThumbColor: Colors.white,
-              inactiveTrackColor: const Color(0xFFE2E8F0),
+              inactiveTrackColor: LTCColors.surfaceLight,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
@@ -710,7 +694,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return _buildSettingsGroup(
       title: 'Limites',
       trailing: 'Modifier',
-      onTrailingTap: () {},
+      onTrailingTap: () => _showComingSoon(),
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
@@ -762,15 +746,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF374151),
+                color: LTCColors.textPrimary,
               ),
             ),
             Text(
-              '${formatAmount(current)} / ${formatAmount(max)} XAF',
+              '\$${formatAmount(current)} / \$${formatAmount(max)}',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: _primaryBlue,
+                color: LTCColors.gold,
               ),
             ),
           ],
@@ -780,7 +764,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           height: 8,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: LTCColors.surfaceLight,
             borderRadius: BorderRadius.circular(4),
           ),
           child: FractionallySizedBox(
@@ -788,7 +772,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             widthFactor: progress.clamp(0.0, 1.0),
             child: Container(
               decoration: BoxDecoration(
-                color: _primaryBlue,
+                color: LTCColors.gold,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
