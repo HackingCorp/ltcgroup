@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 from pydantic import BaseModel, Field, UUID4
 from app.models.card import CardType, CardStatus
 
@@ -7,6 +8,7 @@ from app.models.card import CardType, CardStatus
 class CardPurchase(BaseModel):
     card_type: CardType
     initial_balance: Decimal = Field(..., gt=0, decimal_places=2)
+    transaction_id: Optional[UUID4] = None
 
 
 class CardResponse(BaseModel):

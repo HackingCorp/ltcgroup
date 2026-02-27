@@ -92,17 +92,19 @@ async def initiate_payment(
     """
     Initiate a payment for card top-up using Mobile Money (Payin) or E-nkap
     """
-    # Validate card ownership
-    result = await db.execute(
-        select(Card).where(Card.id == payment_data.card_id, Card.user_id == current_user.id)
-    )
-    card = result.scalar_one_or_none()
-
-    if not card:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Card not found or you don't have permission to access it",
+    # Validate card ownership (optional — card_id may be None for PURCHASE)
+    card = None
+    if payment_data.card_id:
+        result = await db.execute(
+            select(Card).where(Card.id == payment_data.card_id, Card.user_id == current_user.id)
         )
+        card = result.scalar_one_or_none()
+
+        if not card:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Card not found or you don't have permission to access it",
+            )
 
     # Validate payment method requirements
     if payment_data.method == "mobile_money":
@@ -130,7 +132,10 @@ async def initiate_payment(
             )
 
     # Generate unique order reference
-    order_ref = f"CARD-{card.id.hex[:8]}-{uuid.uuid4().hex[:8]}"
+    if card:
+        order_ref = f"CARD-{card.id.hex[:8]}-{uuid.uuid4().hex[:8]}"
+    else:
+        order_ref = f"PURCHASE-{current_user.id.hex[:8]}-{uuid.uuid4().hex[:8]}"
 
     # Determine currency and compute fee server-side based on country
     currency = "XAF"
@@ -148,14 +153,14 @@ async def initiate_payment(
 
     # Create pending transaction record
     transaction = Transaction(
-        card_id=card.id,
+        card_id=card.id if card else None,
         user_id=current_user.id,
         amount=payment_data.amount,
         fee=fee,
         currency=currency,
-        type=TransactionType.TOPUP,
+        type=TransactionType.TOPUP if card else TransactionType.PURCHASE,
         status=TransactionStatus.PENDING,
-        description=f"Top-up via {payment_data.method}",
+        description=f"{'Top-up' if card else 'Card purchase'} via {payment_data.method}",
         provider_transaction_id=order_ref,
         extra_data={
             "payment_method": payment_data.method,
@@ -303,12 +308,13 @@ async def get_payment_status(
                                     .where(User.id == transaction.user_id)
                                     .values(wallet_balance=User.wallet_balance + transaction.amount)
                                 )
-                            else:
+                            elif transaction.card_id:
                                 await db.execute(
                                     update(Card)
                                     .where(Card.id == transaction.card_id)
                                     .values(balance=Card.balance + transaction.amount)
                                 )
+                            # PURCHASE without card_id: nothing to credit yet
                             transaction.status = TransactionStatus.COMPLETED
                         await db.commit()
 
@@ -347,12 +353,13 @@ async def get_payment_status(
                                     .where(User.id == transaction.user_id)
                                     .values(wallet_balance=User.wallet_balance + transaction.amount)
                                 )
-                            else:
+                            elif transaction.card_id:
                                 await db.execute(
                                     update(Card)
                                     .where(Card.id == transaction.card_id)
                                     .values(balance=Card.balance + transaction.amount)
                                 )
+                            # PURCHASE without card_id: nothing to credit yet
                             transaction.status = TransactionStatus.COMPLETED
                         await db.commit()
 
@@ -467,12 +474,13 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                         .values(wallet_balance=User.wallet_balance + transaction.amount)
                     )
                     logger.info(f"Payin webhook: Wallet credited {transaction.amount} for user {transaction.user_id}")
-                else:
+                elif transaction.card_id:
                     await db.execute(
                         update(Card)
                         .where(Card.id == transaction.card_id)
                         .values(balance=Card.balance + transaction.amount)
                     )
+                # PURCHASE without card_id: nothing to credit yet
             await db.commit()
 
             logger.info(f"Payin webhook: Transaction {transaction.id} marked as COMPLETED")
@@ -598,12 +606,13 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                         .values(wallet_balance=User.wallet_balance + transaction.amount)
                     )
                     logger.info(f"E-nkap webhook: Wallet credited {transaction.amount} for user {transaction.user_id}")
-                else:
+                elif transaction.card_id:
                     await db.execute(
                         update(Card)
                         .where(Card.id == transaction.card_id)
                         .values(balance=Card.balance + transaction.amount)
                     )
+                # PURCHASE without card_id: nothing to credit yet
             await db.commit()
 
             logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as COMPLETED")

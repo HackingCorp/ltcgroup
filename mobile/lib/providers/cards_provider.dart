@@ -61,6 +61,7 @@ class CardsProvider with ChangeNotifier {
     required String type,
     required double initialBalance,
     String currency = 'XAF',
+    String? transactionId,
   }) async {
     _isLoading = true;
     _error = null;
@@ -70,6 +71,7 @@ class CardsProvider with ChangeNotifier {
       final newCard = await _apiService.purchaseCard(
         type: type,
         initialBalance: initialBalance,
+        transactionId: transactionId,
       );
       _cards = [..._cards, newCard];
       _isLoading = false;

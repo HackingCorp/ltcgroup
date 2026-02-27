@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.user import User, KYCStatus
 from app.models.card import Card, CardStatus
+from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.schemas.card import CardPurchase, CardResponse, CardListResponse, CardRevealResponse
 from app.services.auth import get_current_user, verify_token
 from app.services.accountpe import accountpe_client, AccountPEError
@@ -70,6 +71,33 @@ async def purchase_card(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="KYC approval required to purchase cards",
         )
+
+    # Verify prior payment if transaction_id provided
+    tx = None
+    if card_data.transaction_id:
+        tx_result = await db.execute(
+            select(Transaction).where(
+                Transaction.id == card_data.transaction_id,
+                Transaction.user_id == current_user.id,
+                Transaction.type == TransactionType.PURCHASE,
+            )
+        )
+        tx = tx_result.scalar_one_or_none()
+        if not tx:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Purchase transaction not found",
+            )
+        if tx.status != TransactionStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transaction is not completed",
+            )
+        if tx.card_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Transaction already used for a card purchase",
+            )
 
     # Get or create AccountPE user ID
     provider_user_id = current_user.accountpe_user_id
@@ -173,6 +201,11 @@ async def purchase_card(
     db.add(new_card)
     await db.commit()
     await db.refresh(new_card)
+
+    # Link the purchase transaction to the new card
+    if tx:
+        tx.card_id = new_card.id
+        await db.commit()
 
     # Log audit event
     await log_audit_event(

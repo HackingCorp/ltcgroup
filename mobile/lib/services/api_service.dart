@@ -363,6 +363,7 @@ class ApiService {
   Future<VirtualCard> purchaseCard({
     required String type,
     required double initialBalance,
+    String? transactionId,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/purchase');
     final headers = await _getAuthHeaders();
@@ -370,6 +371,7 @@ class ApiService {
     final body = {
       'card_type': type,
       'initial_balance': initialBalance,
+      if (transactionId != null) 'transaction_id': transactionId,
     };
 
     try {
@@ -477,9 +479,10 @@ class ApiService {
     }
   }
 
-  /// Get transactions for a card
+  /// Get transactions for a card or by category
   Future<List<Transaction>> getTransactions({
     String? cardId,
+    String? category,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -487,7 +490,10 @@ class ApiService {
         ? '${ApiConfig.transactionsEndpoint}/cards/$cardId/transactions'
         : ApiConfig.transactionsEndpoint;
 
-    final url = '${ApiConfig.baseUrl}$path?limit=$limit&offset=$offset';
+    var url = '${ApiConfig.baseUrl}$path?limit=$limit&offset=$offset';
+    if (category != null && cardId == null) {
+      url += '&category=$category';
+    }
     final headers = await _getAuthHeaders();
 
     try {
@@ -675,6 +681,28 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Erreur de recharge wallet: $e');
+    }
+  }
+
+  /// Verify a wallet topup payment status and credit wallet if confirmed
+  Future<Map<String, dynamic>> verifyWalletTopup(String transactionId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.walletTopupVerifyEndpoint}/$transactionId');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de verification du paiement: $e');
     }
   }
 

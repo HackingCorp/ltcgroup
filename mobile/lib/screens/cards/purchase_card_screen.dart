@@ -177,7 +177,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     try {
       final result = await _apiService.initiatePayment(
         method: 'mobile_money',
-        amount: _total,
+        amount: _amount,
         countryCode: _selectedCountry,
       );
 
@@ -212,6 +212,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           final success = await cardsProvider.purchaseCard(
             type: _selectedType,
             initialBalance: _amount,
+            transactionId: transactionId,
           );
 
           if (!mounted) return;
@@ -252,7 +253,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
 
       final result = await _apiService.initiatePayment(
         method: 'enkap',
-        amount: _total,
+        amount: _amount,
         customerName: user != null ? '${user.firstName} ${user.lastName}' : 'Client Kash Pay',
         customerEmail: user?.email,
       );
@@ -288,6 +289,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           final success = await cardsProvider.purchaseCard(
             type: _selectedType,
             initialBalance: _amount,
+            transactionId: transactionId,
           );
 
           if (!mounted) return;
