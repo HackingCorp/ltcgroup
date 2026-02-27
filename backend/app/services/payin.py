@@ -26,34 +26,42 @@ from app.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# 18 supported countries with provider fee, LTC platform fee, and 0.5% margin
+# 18 supported countries — provider_fee is what Payin/Swychr charges per country
 PAYIN_COUNTRIES: dict[str, dict[str, Any]] = {
-    "CM": {"name": "Cameroon", "provider_fee": 2.50, "total_fee": 3.00, "ltc_fee": 2.50, "currency": "XAF", "phone_code": "237"},
-    "KE": {"name": "Kenya", "provider_fee": 1.50, "total_fee": 2.00, "ltc_fee": 1.50, "currency": "KES", "phone_code": "254"},
-    "GA": {"name": "Gabon", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XAF", "phone_code": "241"},
-    "CD": {"name": "Congo DRC", "provider_fee": 3.50, "total_fee": 4.00, "ltc_fee": 3.50, "currency": "CDF", "phone_code": "243"},
-    "SN": {"name": "Senegal", "provider_fee": 2.50, "total_fee": 3.00, "ltc_fee": 2.50, "currency": "XOF", "phone_code": "221"},
-    "CI": {"name": "Cote D'Ivoire", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XOF", "phone_code": "225"},
-    "BF": {"name": "Burkina Faso", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XOF", "phone_code": "226"},
-    "ML": {"name": "Mali", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XOF", "phone_code": "223"},
-    "BJ": {"name": "Benin", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XOF", "phone_code": "229"},
-    "TG": {"name": "Togo", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "XOF", "phone_code": "228"},
-    "TZ": {"name": "Tanzania", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "TZS", "phone_code": "255"},
-    "UG": {"name": "Uganda", "provider_fee": 3.00, "total_fee": 3.50, "ltc_fee": 3.00, "currency": "UGX", "phone_code": "256"},
-    "NG": {"name": "Nigeria", "provider_fee": 2.00, "total_fee": 2.50, "ltc_fee": 2.00, "currency": "NGN", "phone_code": "234"},
-    "NE": {"name": "Niger", "provider_fee": 3.50, "total_fee": 4.00, "ltc_fee": 3.50, "currency": "XOF", "phone_code": "227"},
-    "RW": {"name": "Rwanda", "provider_fee": 3.75, "total_fee": 4.25, "ltc_fee": 3.75, "currency": "RWF", "phone_code": "250"},
-    "CG": {"name": "Congo Brazzaville", "provider_fee": 4.50, "total_fee": 5.00, "ltc_fee": 4.50, "currency": "XAF", "phone_code": "242"},
-    "GN": {"name": "Guinea Conakry", "provider_fee": 3.75, "total_fee": 4.25, "ltc_fee": 3.75, "currency": "GNF", "phone_code": "224"},
-    "GH": {"name": "Ghana", "provider_fee": 2.50, "total_fee": 3.00, "ltc_fee": 2.50, "currency": "GHS", "phone_code": "233"},
+    "CM": {"name": "Cameroon", "provider_fee": 2.50, "currency": "XAF", "phone_code": "237"},
+    "KE": {"name": "Kenya", "provider_fee": 1.50, "currency": "KES", "phone_code": "254"},
+    "GA": {"name": "Gabon", "provider_fee": 3.00, "currency": "XAF", "phone_code": "241"},
+    "CD": {"name": "Congo DRC", "provider_fee": 3.50, "currency": "CDF", "phone_code": "243"},
+    "SN": {"name": "Senegal", "provider_fee": 2.50, "currency": "XOF", "phone_code": "221"},
+    "CI": {"name": "Cote D'Ivoire", "provider_fee": 3.00, "currency": "XOF", "phone_code": "225"},
+    "BF": {"name": "Burkina Faso", "provider_fee": 3.00, "currency": "XOF", "phone_code": "226"},
+    "ML": {"name": "Mali", "provider_fee": 3.00, "currency": "XOF", "phone_code": "223"},
+    "BJ": {"name": "Benin", "provider_fee": 3.00, "currency": "XOF", "phone_code": "229"},
+    "TG": {"name": "Togo", "provider_fee": 3.00, "currency": "XOF", "phone_code": "228"},
+    "TZ": {"name": "Tanzania", "provider_fee": 3.00, "currency": "TZS", "phone_code": "255"},
+    "UG": {"name": "Uganda", "provider_fee": 3.00, "currency": "UGX", "phone_code": "256"},
+    "NG": {"name": "Nigeria", "provider_fee": 2.00, "currency": "NGN", "phone_code": "234"},
+    "NE": {"name": "Niger", "provider_fee": 3.50, "currency": "XOF", "phone_code": "227"},
+    "RW": {"name": "Rwanda", "provider_fee": 3.75, "currency": "RWF", "phone_code": "250"},
+    "CG": {"name": "Congo Brazzaville", "provider_fee": 4.50, "currency": "XAF", "phone_code": "242"},
+    "GN": {"name": "Guinea Conakry", "provider_fee": 3.75, "currency": "GNF", "phone_code": "224"},
+    "GH": {"name": "Ghana", "provider_fee": 2.50, "currency": "GHS", "phone_code": "233"},
 }
 
+# LTC platform margin added on top of provider fees
+LTC_MARGIN = Decimal("0.005")  # 0.5%
+
+
 def get_country_fee_rate(country_code: str) -> Decimal:
-    """Get the LTC platform fee rate for a country (e.g. 0.025 for 2.5%)."""
+    """Get the total fee rate for a country = provider_fee + 0.5% LTC margin.
+
+    Example: Cameroon = 2.50% provider + 0.50% LTC = 3.00% → returns Decimal('0.030')
+    """
     country = PAYIN_COUNTRIES.get(country_code.upper())
     if not country:
         raise ValueError(f"Unsupported country: {country_code}")
-    return Decimal(str(country["ltc_fee"])) / 100
+    provider_rate = Decimal(str(country["provider_fee"])) / 100
+    return provider_rate + LTC_MARGIN
 
 
 def get_country_currency(country_code: str) -> str:
@@ -146,20 +154,25 @@ class PayinClient:
         amount: float,
         country_code: str,
         order_ref: str,
-        customer_name: str = "Client LTC Finance",
-        customer_email: str = "",
-        customer_phone: str = "",
+        customer_name: str,
+        customer_email: str,
+        customer_phone: str,
         description: str = "",
     ) -> dict[str, Any]:
         """Create a Payin payment link.
 
-        Returns: {id, payment_link, transaction_id}
+        Amount should already include all fees (provider + LTC margin).
+        pass_digital_charge=false because we calculate fees ourselves.
+
+        Returns: {success, payment_link_id, payment_link, transaction_id, amount}
         """
         country = PAYIN_COUNTRIES.get(country_code.upper())
         if not country:
             raise PayinError(f"Pays non supporté: {country_code}")
 
-        # Amount already includes LTC platform fees — no additional margin here
+        if not customer_phone:
+            raise PayinError("Le numéro de téléphone est requis")
+
         total_amount = int(round(amount))
 
         headers = await self._get_headers()
@@ -175,7 +188,7 @@ class PayinClient:
             "email": customer_email,
             "mobile": format_phone_e164(customer_phone, country_code),
             "description": description or f"Paiement LTC - {order_ref}",
-            "pass_digital_charge": True,
+            "pass_digital_charge": False,
         }
 
         # Only include callback_url if actually configured.
