@@ -28,8 +28,6 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasError = false;
-  bool _paymentCompleted = false;
-
   @override
   void initState() {
     super.initState();
@@ -107,73 +105,16 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
             onPressed: () => _showCloseConfirmation(),
           ),
         ),
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  if (_hasError)
-                    _buildErrorView()
-                  else
-                    WebViewWidget(controller: _controller),
-                  if (_isLoading)
-                    const Center(
-                      child: CircularProgressIndicator(color: LTCColors.gold),
-                    ),
-                ],
+            if (_hasError)
+              _buildErrorView()
+            else
+              WebViewWidget(controller: _controller),
+            if (_isLoading)
+              const Center(
+                child: CircularProgressIndicator(color: LTCColors.gold),
               ),
-            ),
-            // Bottom bar with "Done" button (fallback if redirect detection fails)
-            Container(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                12,
-                24,
-                12 + MediaQuery.of(context).padding.bottom,
-              ),
-              decoration: const BoxDecoration(
-                color: LTCColors.surface,
-                border: Border(
-                  top: BorderSide(color: LTCColors.border),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'La page se fermera automatiquement apres le paiement',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: LTCColors.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LTCColors.gold,
-                        foregroundColor: LTCColors.background,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'J\'ai termine mon paiement',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
