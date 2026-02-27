@@ -11,15 +11,26 @@ class TransactionDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final transaction = ModalRoute.of(context)?.settings.arguments as Transaction? ??
         (throw Exception('Transaction argument missing'));
-    final dateFormat = DateFormat('dd MMMM yyyy à HH:mm', 'fr_FR');
-    final currencyFormat = NumberFormat.currency(symbol: 'FCFA ', decimalDigits: 0);
+    final dateFormat = DateFormat('dd MMMM yyyy a HH:mm', 'fr_FR');
+    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
     return Scaffold(
+      backgroundColor: LTCColors.background,
       appBar: AppBar(
-        title: const Text('Détails de la transaction'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: LTCColors.textPrimary,
+        elevation: 0,
+        title: const Text(
+          'Details de la transaction',
+          style: TextStyle(
+            color: LTCColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: const Icon(Icons.share, color: LTCColors.textSecondary),
             onPressed: () => _shareReceipt(transaction, dateFormat, currencyFormat),
           ),
         ],
@@ -34,17 +45,38 @@ class TransactionDetailScreen extends StatelessWidget {
             // Share button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ElevatedButton.icon(
-                onPressed: () => _shareReceipt(transaction, dateFormat, currencyFormat),
-                icon: const Icon(Icons.share),
-                label: const Text('Partager le reçu'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LTCTheme.gold,
-                  foregroundColor: LTCTheme.navy,
+              child: GestureDetector(
+                onTap: () => _shareReceipt(transaction, dateFormat, currencyFormat),
+                child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [LTCColors.goldDark, LTCColors.gold, LTCColors.goldLight],
+                    ),
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: LTCColors.gold.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.share, color: LTCColors.background, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Partager le recu',
+                        style: TextStyle(
+                          color: LTCColors.background,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -62,38 +94,32 @@ class TransactionDetailScreen extends StatelessWidget {
 
     switch (transaction.status.toUpperCase()) {
       case 'COMPLETED':
-        statusColor = Colors.green;
+        statusColor = LTCColors.success;
         statusIcon = Icons.check_circle;
         break;
       case 'PENDING':
-        statusColor = Colors.orange;
+        statusColor = LTCColors.warning;
         statusIcon = Icons.pending;
         break;
       case 'FAILED':
-        statusColor = Colors.red;
+        statusColor = LTCColors.error;
         statusIcon = Icons.cancel;
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = LTCColors.textSecondary;
         statusIcon = Icons.help_outline;
     }
 
     final isDebit = transaction.type == 'DEBIT' || transaction.type == 'WITHDRAWAL';
-    final amountColor = isDebit ? Colors.red : Colors.green;
+    final amountColor = isDebit ? LTCColors.error : LTCColors.success;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: LTCColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,36 +133,38 @@ class TransactionDetailScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.account_balance,
-                        color: LTCTheme.gold,
+                        color: LTCColors.gold,
                         size: 32,
                       ),
                       const SizedBox(width: 8),
-                      Text(
+                      const Text(
                         'LTC vCard',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: LTCTheme.navy,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: LTCColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Reçu de transaction',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
+                  const Text(
+                    'Recu de transaction',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: LTCColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -157,32 +185,35 @@ class TransactionDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          const Divider(),
+          Container(height: 1, color: LTCColors.border),
           const SizedBox(height: 24),
 
           // Amount
           Center(
             child: Column(
               children: [
-                Text(
+                const Text(
                   'Montant',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: LTCColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '${isDebit ? '-' : '+'}${currencyFormat.format(transaction.amount)}',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: amountColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: LTCColors.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          const Divider(),
+          Container(height: 1, color: LTCColors.border),
           const SizedBox(height: 16),
 
           // Transaction details
@@ -194,26 +225,28 @@ class TransactionDetailScreen extends StatelessWidget {
           _buildDetailRow('Devise', transaction.currency),
 
           const SizedBox(height: 24),
-          const Divider(),
+          Container(height: 1, color: LTCColors.border),
           const SizedBox(height: 16),
 
           // Footer
-          Center(
+          const Center(
             child: Column(
               children: [
                 Text(
                   'LTC Group',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: LTCColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   'support@ltcgroup.com',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade400,
-                      ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: LTCColors.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -232,7 +265,7 @@ class TransactionDetailScreen extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Colors.grey,
+              color: LTCColors.textSecondary,
               fontSize: 14,
             ),
           ),
@@ -242,6 +275,7 @@ class TransactionDetailScreen extends StatelessWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
+                color: LTCColors.textPrimary,
               ),
               textAlign: TextAlign.right,
             ),
@@ -254,11 +288,11 @@ class TransactionDetailScreen extends StatelessWidget {
   String _getStatusText(String status) {
     switch (status.toUpperCase()) {
       case 'COMPLETED':
-        return 'Terminé';
+        return 'Termine';
       case 'PENDING':
         return 'En attente';
       case 'FAILED':
-        return 'Échoué';
+        return 'Echoue';
       default:
         return status;
     }
@@ -273,9 +307,9 @@ class TransactionDetailScreen extends StatelessWidget {
       case 'PURCHASE':
         return 'Achat';
       case 'DEBIT':
-        return 'Débit';
+        return 'Debit';
       case 'CREDIT':
-        return 'Crédit';
+        return 'Credit';
       default:
         return type;
     }
@@ -284,20 +318,20 @@ class TransactionDetailScreen extends StatelessWidget {
   void _shareReceipt(Transaction transaction, DateFormat dateFormat, NumberFormat currencyFormat) {
     final isDebit = transaction.type == 'DEBIT' || transaction.type == 'WITHDRAWAL';
     final receiptText = '''
-🧾 Reçu de transaction - LTC vCard
+Recu de transaction - LTC vCard
 
-💰 Montant: ${isDebit ? '-' : '+'}${currencyFormat.format(transaction.amount)}
-📅 Date: ${dateFormat.format(transaction.createdAt)}
-🏷️ Type: ${_getTypeText(transaction.type)}
-✅ Statut: ${_getStatusText(transaction.status)}
-🆔 ID: ${transaction.id}
-${transaction.cardId != null ? '💳 Carte: ${transaction.cardId!.substring(0, 8)}...' : ''}
+Montant: ${isDebit ? '-' : '+'}${currencyFormat.format(transaction.amount)}
+Date: ${dateFormat.format(transaction.createdAt)}
+Type: ${_getTypeText(transaction.type)}
+Statut: ${_getStatusText(transaction.status)}
+ID: ${transaction.id}
+${transaction.cardId != null ? 'Carte: ${transaction.cardId!.substring(0, 8)}...' : ''}
 
 ---
 LTC Group
 support@ltcgroup.com
     ''';
 
-    Share.share(receiptText, subject: 'Reçu de transaction LTC vCard');
+    Share.share(receiptText, subject: 'Recu de transaction LTC vCard');
   }
 }

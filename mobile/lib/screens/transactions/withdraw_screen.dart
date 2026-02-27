@@ -44,7 +44,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     if (_selectedCardId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez sélectionner une carte'),
+          content: Text('Veuillez selectionner une carte'),
           backgroundColor: LTCColors.error,
         ),
       );
@@ -85,7 +85,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Retrait effectué avec succès'),
+          content: Text('Retrait effectue avec succes'),
           backgroundColor: LTCColors.success,
         ),
       );
@@ -107,8 +107,19 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     final transactionsProvider = Provider.of<TransactionsProvider>(context);
 
     return Scaffold(
+      backgroundColor: LTCColors.background,
       appBar: AppBar(
-        title: const Text('Retirer des fonds'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: LTCColors.textPrimary,
+        elevation: 0,
+        title: const Text(
+          'Retirer des fonds',
+          style: TextStyle(
+            color: LTCColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -123,51 +134,78 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: LTCColors.textPrimary,
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                value: _selectedCardId,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.credit_card),
+              Container(
+                decoration: BoxDecoration(
+                  color: LTCColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LTCColors.border),
                 ),
-                hint: const Text('Sélectionner une carte'),
-                items: cardsProvider.cards
-                    .where((card) => card.isActive && card.balance > 0)
-                    .map(
-                      (card) => DropdownMenuItem(
-                        value: card.id,
-                        child: Text(
-                          '${card.type} ${card.maskedNumber.substring(15)} - ${card.balance.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
+                child: DropdownButtonFormField<String>(
+                  value: _selectedCardId,
+                  dropdownColor: LTCColors.surfaceElevated,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: LTCColors.surfaceLight,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LTCColors.gold),
+                    ),
+                    prefixIcon: const Icon(Icons.credit_card,
+                        color: LTCColors.textSecondary),
+                  ),
+                  hint: const Text(
+                    'Selectionner une carte',
+                    style: TextStyle(color: LTCColors.textTertiary),
+                  ),
+                  style: const TextStyle(
+                    color: LTCColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                  items: cardsProvider.cards
+                      .where((card) => card.isActive && card.balance > 0)
+                      .map(
+                        (card) => DropdownMenuItem(
+                          value: card.id,
+                          child: Text(
+                            '${card.type} ${card.maskedNumber.substring(15)} - ${card.balance.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
+                            style: const TextStyle(color: LTCColors.textPrimary),
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCardId = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Veuillez sélectionner une carte';
-                  }
-                  return null;
-                },
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCardId = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Veuillez selectionner une carte';
+                    }
+                    return null;
+                  },
+                ),
               ),
 
               const SizedBox(height: 24),
 
               // Amount
               CustomInput(
-                label: 'Montant à retirer',
+                label: 'Montant a retirer',
                 hint: '50.00',
                 controller: _amountController,
                 keyboardType:
@@ -202,6 +240,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: LTCColors.textPrimary,
                 ),
               ),
 
@@ -228,17 +267,24 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: LTCColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: LTCColors.warning.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: LTCColors.warning, size: 20),
+                    const Icon(Icons.info_outline,
+                        color: LTCColors.warning, size: 20),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Les retraits peuvent prendre 24-48h pour être traités',
-                        style: TextStyle(fontSize: 12),
+                        'Les retraits peuvent prendre 24-48h pour etre traites',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: LTCColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -272,11 +318,11 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          color: LTCColors.surface,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? LTCColors.accent : const Color(0xFFE0E0E0),
-            width: isSelected ? 2 : 1,
+            color: isSelected ? LTCColors.gold : LTCColors.border,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
@@ -284,13 +330,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: (isSelected ? LTCColors.accent : Colors.grey)
-                    .withValues(alpha: 0.1),
+                color: isSelected
+                    ? LTCColors.gold.withValues(alpha: 0.15)
+                    : LTCColors.surfaceLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: isSelected ? LTCColors.accent : Colors.grey,
+                color: isSelected ? LTCColors.gold : LTCColors.textSecondary,
               ),
             ),
             const SizedBox(width: 12),
@@ -300,14 +347,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: isSelected ? LTCColors.accent : LTCColors.textPrimary,
+                  color: isSelected ? LTCColors.gold : LTCColors.textPrimary,
                 ),
               ),
             ),
             if (isSelected)
               const Icon(
                 Icons.check_circle,
-                color: LTCColors.accent,
+                color: LTCColors.gold,
               ),
           ],
         ),

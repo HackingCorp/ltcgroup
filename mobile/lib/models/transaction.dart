@@ -1,9 +1,9 @@
 /// Transaction model
 class Transaction {
   final String id;
-  final String cardId;
+  final String? cardId;
   final double amount;
-  final String type; // PURCHASE, TOPUP, WITHDRAWAL, REFUND
+  final String type; // PURCHASE, TOPUP, WITHDRAWAL, REFUND, WALLET_TOPUP, WALLET_TO_CARD, WALLET_WITHDRAWAL
   final String status; // PENDING, SUCCESS, FAILED
   final String currency;
   final String? merchant;
@@ -11,11 +11,11 @@ class Transaction {
 
   Transaction({
     required this.id,
-    required this.cardId,
+    this.cardId,
     required this.amount,
     required this.type,
     required this.status,
-    this.currency = 'XAF',
+    this.currency = 'USD',
     this.merchant,
     required this.createdAt,
   });
@@ -45,9 +45,15 @@ class Transaction {
     }
     switch (type) {
       case 'TOPUP':
-        return 'Recharge';
+        return 'Recharge carte';
       case 'WITHDRAWAL':
-        return 'Retrait';
+        return 'Retrait carte';
+      case 'WALLET_TOPUP':
+        return 'Recharge wallet';
+      case 'WALLET_TO_CARD':
+        return 'Wallet → Carte';
+      case 'WALLET_WITHDRAWAL':
+        return 'Retrait wallet';
       case 'REFUND':
         return 'Remboursement';
       case 'PURCHASE':
@@ -60,11 +66,11 @@ class Transaction {
   factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
       id: json['id'] as String,
-      cardId: json['card_id'] as String,
+      cardId: json['card_id'] as String?,
       amount: (json['amount'] as num).toDouble(),
       type: json['transaction_type'] as String? ?? json['type'] as String,
       status: json['status'] as String,
-      currency: json['currency'] as String? ?? 'XAF',
+      currency: json['currency'] as String? ?? 'USD',
       merchant: json['merchant'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );

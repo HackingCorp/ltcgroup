@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../config/theme.dart';
 
 /// Success confirmation dialog matching LTC Pay design.
 /// Shows after a successful topup/purchase with spring animation.
@@ -61,7 +62,7 @@ class SuccessDialog extends StatefulWidget {
     required double amount,
     required double newBalance,
   }) {
-    final fmt = NumberFormat('#,###', 'fr_FR');
+    final fmt = NumberFormat('#,##0.00', 'en_US');
     return show(
       context,
       title: 'Recharge réussie !',
@@ -69,11 +70,11 @@ class SuccessDialog extends StatefulWidget {
       details: [
         SuccessDialogDetail(
           label: 'Montant rechargé',
-          value: '${fmt.format(amount.round())} FCFA',
+          value: '\$${fmt.format(amount)}',
         ),
         SuccessDialogDetail(
           label: 'Nouveau solde',
-          value: '${fmt.format(newBalance.round())} FCFA',
+          value: '\$${fmt.format(newBalance)}',
           isPrimary: true,
         ),
       ],
@@ -87,7 +88,7 @@ class SuccessDialog extends StatefulWidget {
     required String cardType,
     required double balance,
   }) {
-    final fmt = NumberFormat('#,###', 'fr_FR');
+    final fmt = NumberFormat('#,##0.00', 'en_US');
     return show(
       context,
       title: 'Carte créée !',
@@ -99,7 +100,7 @@ class SuccessDialog extends StatefulWidget {
         ),
         SuccessDialogDetail(
           label: 'Solde initial',
-          value: '${fmt.format(balance.round())} FCFA',
+          value: '\$${fmt.format(balance)}',
           isPrimary: true,
         ),
       ],
@@ -109,9 +110,6 @@ class SuccessDialog extends StatefulWidget {
 
 class _SuccessDialogState extends State<SuccessDialog>
     with TickerProviderStateMixin {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _successGreen = Color(0xFF22C55E);
-  static const _bgLight = Color(0xFFF6F6F8);
 
   late final AnimationController _backdropController;
   late final AnimationController _modalController;
@@ -238,17 +236,18 @@ class _SuccessDialogState extends State<SuccessDialog>
       width: 340,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: LTCColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 40,
             offset: const Offset(0, 20),
             spreadRadius: -5,
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
             spreadRadius: -5,
@@ -257,7 +256,7 @@ class _SuccessDialogState extends State<SuccessDialog>
       ),
       child: Stack(
         children: [
-          // Top green gradient line
+          // Top gold gradient line
           Positioned(
             top: 0,
             left: 0,
@@ -270,7 +269,7 @@ class _SuccessDialogState extends State<SuccessDialog>
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    _successGreen.withValues(alpha: 0.5),
+                    LTCColors.success.withValues(alpha: 0.5),
                     Colors.transparent,
                   ],
                 ),
@@ -290,7 +289,7 @@ class _SuccessDialogState extends State<SuccessDialog>
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+                    color: LTCColors.textPrimary,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -298,10 +297,10 @@ class _SuccessDialogState extends State<SuccessDialog>
                 Text(
                   widget.subtitle,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[500],
+                    color: LTCColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -338,7 +337,7 @@ class _SuccessDialogState extends State<SuccessDialog>
                       height: 80,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _successGreen,
+                        color: LTCColors.success,
                       ),
                     ),
                   ),
@@ -351,14 +350,14 @@ class _SuccessDialogState extends State<SuccessDialog>
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _successGreen.withValues(alpha: 0.1),
+                color: LTCColors.success.withValues(alpha: 0.1),
               ),
             ),
             // Check icon
             const Icon(
               Icons.check_rounded,
               size: 48,
-              color: _successGreen,
+              color: LTCColors.success,
             ),
           ],
         ),
@@ -370,8 +369,9 @@ class _SuccessDialogState extends State<SuccessDialog>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _bgLight,
+        color: LTCColors.surfaceLight,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LTCColors.border),
       ),
       child: Column(
         children: [
@@ -382,7 +382,7 @@ class _SuccessDialogState extends State<SuccessDialog>
                 child: CustomPaint(
                   size: const Size(double.infinity, 1),
                   painter: _DashedLinePainter(
-                    color: const Color(0xFFE5E7EB),
+                    color: LTCColors.border,
                   ),
                 ),
               ),
@@ -392,9 +392,9 @@ class _SuccessDialogState extends State<SuccessDialog>
               children: [
                 Text(
                   widget.details[i].label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[500],
+                    color: LTCColors.textSecondary,
                   ),
                 ),
                 Text(
@@ -403,8 +403,8 @@ class _SuccessDialogState extends State<SuccessDialog>
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: widget.details[i].isPrimary
-                        ? _primaryBlue
-                        : const Color(0xFF111827),
+                        ? LTCColors.gold
+                        : LTCColors.textPrimary,
                   ),
                 ),
               ],
@@ -425,11 +425,11 @@ class _SuccessDialogState extends State<SuccessDialog>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              color: _primaryBlue,
+              color: LTCColors.gold,
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
-                  color: _primaryBlue.withValues(alpha: 0.15),
+                  color: LTCColors.gold.withValues(alpha: 0.15),
                   blurRadius: 20,
                   spreadRadius: 0,
                 ),
@@ -441,14 +441,14 @@ class _SuccessDialogState extends State<SuccessDialog>
                 Text(
                   widget.primaryButtonText,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: LTCColors.background,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(width: 4),
                 const Icon(Icons.arrow_forward_rounded,
-                    color: Colors.white, size: 18),
+                    color: LTCColors.background, size: 18),
               ],
             ),
           ),
@@ -464,10 +464,10 @@ class _SuccessDialogState extends State<SuccessDialog>
               child: Text(
                 widget.secondaryButtonText!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
+                  color: LTCColors.textSecondary,
                 ),
               ),
             ),

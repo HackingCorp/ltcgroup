@@ -367,7 +367,7 @@ class TestWebhookIdempotency:
 
         # First webhook call
         response1 = await test_client.post(
-            "/api/v1/payments/webhook/s3p",
+            "/api/v1/payments/webhook/payin",
             json=webhook_payload
         )
         assert response1.status_code == 200
@@ -382,7 +382,7 @@ class TestWebhookIdempotency:
 
         # Second webhook call with same reference (idempotency check)
         response2 = await test_client.post(
-            "/api/v1/payments/webhook/s3p",
+            "/api/v1/payments/webhook/payin",
             json=webhook_payload
         )
         assert response2.status_code == 200

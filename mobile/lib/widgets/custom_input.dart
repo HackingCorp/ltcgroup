@@ -53,7 +53,7 @@ class _CustomInputState extends State<CustomInput> {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: LTCColors.textPrimary,
+            color: LTCColors.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
@@ -64,8 +64,24 @@ class _CustomInputState extends State<CustomInput> {
           validator: widget.validator,
           enabled: widget.enabled,
           maxLines: widget.maxLines,
+          style: const TextStyle(color: LTCColors.textPrimary),
           decoration: InputDecoration(
             hintText: widget.hint,
+            hintStyle: const TextStyle(color: LTCColors.textTertiary),
+            filled: true,
+            fillColor: LTCColors.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: LTCColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: LTCColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: LTCColors.gold, width: 1.5),
+            ),
             prefixIcon: widget.prefixIcon != null
                 ? Icon(widget.prefixIcon, color: LTCColors.textSecondary)
                 : null,

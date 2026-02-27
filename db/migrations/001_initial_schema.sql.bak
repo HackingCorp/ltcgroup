@@ -1,3 +1,4 @@
+-- LEGACY: This migration is outdated. Use Alembic (backend/alembic/) for current schema.
 -- =============================================
 -- LTC Group - Initial Database Schema
 -- PostgreSQL 16+ (Docker)

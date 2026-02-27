@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/transaction.dart';
 import '../../providers/transactions_provider.dart';
+import '../../config/theme.dart';
 
 /// Transaction history screen matching LTC Pay design
 class TransactionListScreen extends StatefulWidget {
@@ -13,11 +14,6 @@ class TransactionListScreen extends StatefulWidget {
 }
 
 class _TransactionListScreenState extends State<TransactionListScreen> {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _successGreen = Color(0xFF34C759);
-  static const _dangerRed = Color(0xFFFF3B30);
-  static const _bgLight = Color(0xFFF6F6F8);
-
   int _activeFilter = 0; // 0=all, 1=debits, 2=credits, 3=pending
   String _searchQuery = '';
   final _searchController = TextEditingController();
@@ -60,10 +56,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
     // Filter by type
     switch (_activeFilter) {
-      case 1: // Débits
+      case 1: // Debits
         txns = txns.where((tx) => tx.isDebit).toList();
         break;
-      case 2: // Crédits
+      case 2: // Credits
         txns = txns.where((tx) => tx.isCredit).toList();
         break;
       case 3: // En attente
@@ -118,11 +114,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgLight,
+      backgroundColor: LTCColors.background,
       body: Consumer<TransactionsProvider>(
         builder: (context, txProvider, _) {
           if (txProvider.isLoading && txProvider.transactions.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: LTCColors.gold),
+            );
           }
 
           final filtered = _filteredTransactions;
@@ -135,6 +133,8 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   _buildHeader(),
                   Expanded(
                     child: RefreshIndicator(
+                      color: LTCColors.gold,
+                      backgroundColor: LTCColors.surface,
                       onRefresh: _loadTransactions,
                       child: filtered.isEmpty
                           ? _buildEmptyState()
@@ -168,7 +168,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────
+  // --- Header ---
 
   Widget _buildHeader() {
     return Container(
@@ -183,24 +183,24 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF111827),
+              color: LTCColors.textPrimary,
               letterSpacing: -0.3,
             ),
           ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.more_horiz,
-                color: Color(0xFF1F2937)),
+                color: LTCColors.textSecondary),
           ),
         ],
       ),
     );
   }
 
-  // ─── Filters ──────────────────────────────────────────────
+  // --- Filters ---
 
   Widget _buildFilters() {
-    const labels = ['Toutes', 'Débits', 'Crédits', 'En attente'];
+    const labels = ['Toutes', 'Debits', 'Credits', 'En attente'];
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: SizedBox(
@@ -217,15 +217,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isActive ? _primaryBlue : Colors.white,
+                  color: isActive ? LTCColors.gold : LTCColors.surface,
                   borderRadius: BorderRadius.circular(21),
                   border: isActive
                       ? null
-                      : Border.all(color: const Color(0xFFF3F4F6)),
+                      : Border.all(color: LTCColors.border),
                   boxShadow: isActive
                       ? [
                           BoxShadow(
-                            color: _primaryBlue.withValues(alpha: 0.3),
+                            color: LTCColors.gold.withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           )
@@ -237,7 +237,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: isActive ? Colors.white : Colors.grey[600],
+                    color: isActive
+                        ? LTCColors.background
+                        : LTCColors.textSecondary,
                   ),
                 ),
               ),
@@ -248,43 +250,40 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Search Bar ───────────────────────────────────────────
+  // --- Search Bar ---
 
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: LTCColors.surfaceLight,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: LTCColors.border),
         ),
         child: TextField(
           controller: _searchController,
           onChanged: (val) => setState(() => _searchQuery = val),
-          style: const TextStyle(fontSize: 14, color: Color(0xFF111827)),
+          style: const TextStyle(fontSize: 14, color: LTCColors.textPrimary),
           decoration: InputDecoration(
             hintText: 'Rechercher une transaction...',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-            prefixIcon:
-                Icon(Icons.search, color: Colors.grey[400], size: 22),
+            hintStyle: const TextStyle(
+                color: LTCColors.textTertiary, fontSize: 14),
+            prefixIcon: const Icon(Icons.search,
+                color: LTCColors.textSecondary, size: 22),
             suffixIcon: Container(
               margin: const EdgeInsets.all(8),
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: _primaryBlue.withValues(alpha: 0.1),
+                color: LTCColors.gold.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.calendar_today,
-                  color: _primaryBlue, size: 18),
+                  color: LTCColors.gold, size: 18),
             ),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
@@ -293,7 +292,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Date Group ───────────────────────────────────────────
+  // --- Date Group ---
 
   Widget _buildDateGroup(String label, List<Transaction> txns) {
     return Padding(
@@ -305,26 +304,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             padding: const EdgeInsets.only(left: 8, bottom: 16),
             child: Text(
               label.toUpperCase(),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[400],
+                color: LTCColors.textTertiary,
                 letterSpacing: 1.2,
               ),
             ),
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: LTCColors.surface,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFF3F4F6)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: LTCColors.border),
             ),
             child: Padding(
               padding: const EdgeInsets.all(8),
@@ -335,7 +327,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Divider(
-                            color: Color(0xFFF3F4F6), height: 1),
+                            color: LTCColors.border, height: 1),
                       ),
                     _buildTransactionItem(txns[i]),
                   ],
@@ -348,7 +340,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Transaction Item ─────────────────────────────────────
+  // --- Transaction Item ---
 
   Widget _buildTransactionItem(Transaction tx) {
     final iconInfo = _getTxIcon(tx);
@@ -397,7 +389,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: LTCColors.surface,
                         shape: BoxShape.circle,
                       ),
                       child: Container(
@@ -432,18 +424,20 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827),
+                            color: LTCColors.textPrimary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${tx.isDebit ? '-' : '+'}${_formatAmount(tx.absoluteAmount)} FCFA',
+                        '${tx.isDebit ? '-' : '+'}\$${_formatUsd(tx.absoluteAmount)}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: tx.isDebit ? _dangerRed : _successGreen,
+                          color: tx.isDebit
+                              ? LTCColors.textPrimary
+                              : LTCColors.success,
                         ),
                       ),
                     ],
@@ -459,14 +453,14 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 ? Icons.account_balance_wallet
                                 : Icons.place,
                             size: 12,
-                            color: Colors.grey[400],
+                            color: LTCColors.textTertiary,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             tx.type == 'TOPUP' ? 'LTC Pay' : _getTxLocation(tx),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[500],
+                              color: LTCColors.textSecondary,
                             ),
                           ),
                         ],
@@ -498,19 +492,18 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Summary Footer ───────────────────────────────────────
+  // --- Summary Footer ---
 
   Widget _buildSummaryFooter() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: LTCColors.surfaceElevated.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: Colors.black.withValues(alpha: 0.05)),
+        border: Border.all(color: LTCColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 30,
             offset: const Offset(0, 8),
           ),
@@ -523,12 +516,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Dépenses ce mois',
+              const Text(
+                'Depenses ce mois',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey[500],
+                  color: LTCColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -537,20 +530,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
-                    _formatAmount(_monthlySpending),
+                    '\$${_formatUsd(_monthlySpending)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF111827),
+                      color: LTCColors.textPrimary,
                       letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'FCFA',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[400],
                     ),
                   ),
                 ],
@@ -561,25 +546,25 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _primaryBlue,
+              color: LTCColors.gold,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: _primaryBlue.withValues(alpha: 0.3),
+                  color: LTCColors.gold.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: const Icon(Icons.bar_chart_rounded,
-                color: Colors.white, size: 20),
+                color: LTCColors.background, size: 20),
           ),
         ],
       ),
     );
   }
 
-  // ─── Empty State ──────────────────────────────────────────
+  // --- Empty State ---
 
   Widget _buildEmptyState() {
     return ListView(
@@ -592,20 +577,21 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
             children: [
               const SizedBox(height: 48),
               Icon(Icons.receipt_long_outlined,
-                  size: 80, color: Colors.grey[300]),
+                  size: 80, color: LTCColors.textTertiary),
               const SizedBox(height: 24),
               const Text(
                 'Aucune transaction',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+                  color: LTCColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Vos transactions apparaîtront ici',
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              const Text(
+                'Vos transactions apparaitront ici',
+                style: TextStyle(
+                    fontSize: 14, color: LTCColors.textSecondary),
               ),
             ],
           ),
@@ -614,30 +600,30 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
   }
 
-  // ─── Helpers ──────────────────────────────────────────────
+  // --- Helpers ---
 
-  String _formatAmount(double amount) {
-    return NumberFormat('#,###', 'fr_FR').format(amount.round());
+  String _formatUsd(double amount) {
+    return NumberFormat('#,##0.00', 'en_US').format(amount);
   }
 
   _TxIconInfo _getTxIcon(Transaction tx) {
     switch (tx.type) {
       case 'TOPUP':
         return _TxIconInfo(
-          bgColor: _primaryBlue.withValues(alpha: 0.1),
-          textColor: _primaryBlue,
+          bgColor: LTCColors.gold.withValues(alpha: 0.15),
+          textColor: LTCColors.gold,
           icon: Icons.add_card,
         );
       case 'WITHDRAWAL':
         return _TxIconInfo(
-          bgColor: _dangerRed.withValues(alpha: 0.1),
-          textColor: _dangerRed,
+          bgColor: LTCColors.error.withValues(alpha: 0.15),
+          textColor: LTCColors.error,
           icon: Icons.arrow_upward_rounded,
         );
       case 'REFUND':
         return _TxIconInfo(
-          bgColor: _successGreen.withValues(alpha: 0.1),
-          textColor: _successGreen,
+          bgColor: LTCColors.success.withValues(alpha: 0.15),
+          textColor: LTCColors.success,
           icon: Icons.replay_rounded,
         );
       default:
@@ -655,7 +641,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Color _getMerchantColor(String name) {
     final colors = [
-      Colors.black,
+      const Color(0xFF1C2233),
       const Color(0xFFF97316),
       const Color(0xFF8B5CF6),
       const Color(0xFF06B6D4),
@@ -667,23 +653,23 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   _TxStatusInfo _getTxStatus(Transaction tx) {
     if (tx.isSuccess) {
-      return const _TxStatusInfo(
+      return _TxStatusInfo(
         icon: Icons.check,
-        iconColor: _successGreen,
-        bgColor: Color(0xFFDCFCE7),
+        iconColor: LTCColors.success,
+        bgColor: LTCColors.success.withValues(alpha: 0.2),
       );
     }
     if (tx.isPending) {
-      return const _TxStatusInfo(
+      return _TxStatusInfo(
         icon: Icons.schedule,
-        iconColor: Color(0xFFEAB308),
-        bgColor: Color(0xFFFEF9C3),
+        iconColor: LTCColors.warning,
+        bgColor: LTCColors.warning.withValues(alpha: 0.2),
       );
     }
-    return const _TxStatusInfo(
+    return _TxStatusInfo(
       icon: Icons.close,
-      iconColor: _dangerRed,
-      bgColor: Color(0xFFFEE2E2),
+      iconColor: LTCColors.error,
+      bgColor: LTCColors.error.withValues(alpha: 0.2),
     );
   }
 
@@ -701,7 +687,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   String _getCategoryLabel(Transaction tx) {
     switch (tx.type) {
       case 'TOPUP':
-        return 'Dépôt';
+        return 'Depot';
       case 'WITHDRAWAL':
         return 'Retrait';
       case 'REFUND':
@@ -715,19 +701,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Color _getCategoryColor(Transaction tx) {
     switch (tx.type) {
       case 'TOPUP':
-        return _primaryBlue;
+        return LTCColors.gold;
       case 'WITHDRAWAL':
-        return _dangerRed;
+        return LTCColors.error;
       case 'REFUND':
-        return _successGreen;
+        return LTCColors.success;
       default:
-        if (tx.isPending) return Colors.grey;
-        return Colors.grey;
+        if (tx.isPending) return LTCColors.warning;
+        return LTCColors.textSecondary;
     }
   }
 }
 
-// ─── Private data classes ─────────────────────────────────────
+// --- Private data classes ---
 
 class _TxIconInfo {
   final Color bgColor;

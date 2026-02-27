@@ -142,6 +142,5 @@ async def health_check():
 # Include API v1 router
 app.include_router(api_v1_router)
 
-# Serve uploaded files (KYC documents, etc.) — mount after API router
-from fastapi.staticfiles import StaticFiles
-app.mount("/uploads", StaticFiles(directory="./uploads"), name="uploads")
+# KYC uploads are served via authenticated endpoint at /api/v1/uploads/kyc/{user_id}/{filename}
+# Do NOT use StaticFiles mount — that would expose KYC documents without authentication.

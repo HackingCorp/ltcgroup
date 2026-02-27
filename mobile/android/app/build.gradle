@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace "site.ltcgroup.vcard"
+    namespace "ltc.group.kashpay"
     compileSdk 34
     ndkVersion flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "site.ltcgroup.vcard"
+        applicationId "ltc.group.kashpay"
         minSdk 21
         targetSdk 34
         versionCode 1

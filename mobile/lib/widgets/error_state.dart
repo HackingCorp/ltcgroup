@@ -22,20 +22,21 @@ class ErrorState extends StatelessWidget {
             Icon(
               Icons.error_outline,
               size: 80,
-              color: Colors.red.shade300,
+              color: LTCColors.error.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 24),
             Text(
               'Oups !',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: LTCColors.textPrimary,
                   ),
             ),
             const SizedBox(height: 12),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: LTCColors.textSecondary,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -46,8 +47,8 @@ class ErrorState extends StatelessWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Réessayer'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: LTCTheme.gold,
-                  foregroundColor: LTCTheme.navy,
+                  backgroundColor: LTCColors.gold,
+                  foregroundColor: LTCColors.background,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

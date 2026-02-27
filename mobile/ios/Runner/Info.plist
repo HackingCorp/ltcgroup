@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>LTC vCard</string>
+    <string>Kash Pay</string>
     <key>CFBundleDisplayName</key>
-    <string>LTC vCard</string>
+    <string>Kash Pay</string>
     <key>CFBundleIdentifier</key>
-    <string>site.ltcgroup.vcard</string>
+    <string>ltc.group.kashpay</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -34,11 +34,11 @@
         <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>LTC vCard a besoin d'accéder à votre caméra pour scanner vos documents KYC.</string>
+    <string>Kash Pay a besoin d'acceder a votre camera pour scanner vos documents KYC.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>LTC vCard a besoin d'accéder à vos photos pour sélectionner vos documents KYC.</string>
+    <string>Kash Pay a besoin d'acceder a vos photos pour selectionner vos documents KYC.</string>
     <key>NSFaceIDUsageDescription</key>
-    <string>LTC vCard utilise Face ID pour sécuriser l'accès à votre compte.</string>
+    <string>Kash Pay utilise Face ID pour securiser l'acces a votre compte.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>

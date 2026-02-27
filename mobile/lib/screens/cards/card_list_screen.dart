@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../config/theme.dart';
 import '../../models/card.dart';
 import '../../models/transaction.dart';
 import '../../providers/auth_provider.dart';
@@ -18,9 +19,6 @@ class CardListScreen extends StatefulWidget {
 class _CardListScreenState extends State<CardListScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.88);
   int _currentCardIndex = 0;
-
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _bgLight = Color(0xFFF6F6F8);
 
   @override
   void initState() {
@@ -47,11 +45,13 @@ class _CardListScreenState extends State<CardListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgLight,
+      backgroundColor: LTCColors.background,
       body: Consumer<CardsProvider>(
         builder: (context, cardsProvider, _) {
           if (cardsProvider.isLoading && cardsProvider.cards.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: LTCColors.gold),
+            );
           }
 
           if (cardsProvider.cards.isEmpty) {
@@ -65,6 +65,8 @@ class _CardListScreenState extends State<CardListScreen> {
           return Stack(
             children: [
               RefreshIndicator(
+                color: LTCColors.gold,
+                backgroundColor: LTCColors.surface,
                 onRefresh: _loadData,
                 child: ListView(
                   padding: EdgeInsets.zero,
@@ -115,15 +117,15 @@ class _CardListScreenState extends State<CardListScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: LTCColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                'Gérez vos moyens de paiement',
+              const Text(
+                'Gerez vos moyens de paiement',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[500],
+                  color: LTCColors.textSecondary,
                 ),
               ),
             ],
@@ -133,8 +135,8 @@ class _CardListScreenState extends State<CardListScreen> {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.grey[300]!, width: 2),
+              color: LTCColors.surfaceLight,
+              border: Border.all(color: LTCColors.border, width: 2),
             ),
             child: ClipOval(
               child: Center(
@@ -143,7 +145,7 @@ class _CardListScreenState extends State<CardListScreen> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: Color(0xFF0F172A),
+                    color: LTCColors.gold,
                   ),
                 ),
               ),
@@ -186,14 +188,14 @@ class _CardListScreenState extends State<CardListScreen> {
         boxShadow: [
           if (card.isActive)
             BoxShadow(
-              color: _primaryBlue.withValues(alpha: 0.25),
+              color: LTCColors.goldDark.withValues(alpha: 0.3),
               blurRadius: 50,
               offset: const Offset(0, 20),
               spreadRadius: -12,
             )
           else
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -201,7 +203,7 @@ class _CardListScreenState extends State<CardListScreen> {
       ),
       child: Stack(
         children: [
-          // Background decoration
+          // Background decoration — glassmorphism overlay
           Positioned(
             top: -60,
             right: -60,
@@ -210,7 +212,7 @@ class _CardListScreenState extends State<CardListScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+                color: Colors.white.withValues(alpha: 0.07),
               ),
             ),
           ),
@@ -222,7 +224,18 @@ class _CardListScreenState extends State<CardListScreen> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black.withValues(alpha: 0.1),
+                color: Colors.black.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          // Glassmorphism overlay bar
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
               ),
             ),
           ),
@@ -240,7 +253,7 @@ class _CardListScreenState extends State<CardListScreen> {
                     Text(
                       _getCardLabel(card),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         letterSpacing: 1,
@@ -262,7 +275,7 @@ class _CardListScreenState extends State<CardListScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_formatAmount(card.balance)} FCFA',
+                      '\$${_formatUsd(card.balance)}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -281,7 +294,7 @@ class _CardListScreenState extends State<CardListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Numéro de carte',
+                          'Numero de carte',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 11,
@@ -413,7 +426,7 @@ class _CardListScreenState extends State<CardListScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? _primaryBlue : Colors.grey[300],
+            color: isActive ? LTCColors.gold : LTCColors.surfaceLight,
           ),
         );
       }),
@@ -430,7 +443,7 @@ class _CardListScreenState extends State<CardListScreen> {
         children: [
           _buildActionBtn(
             Icons.ac_unit_rounded,
-            card.isFrozen ? 'Dégeler' : 'Geler',
+            card.isFrozen ? 'Degeler' : 'Geler',
             () => _handleFreeze(card),
           ),
           _buildActionBtn(
@@ -445,7 +458,7 @@ class _CardListScreenState extends State<CardListScreen> {
           ),
           _buildActionBtn(
             Icons.visibility_outlined,
-            'Détails',
+            'Details',
             () => Navigator.of(context)
                 .pushNamed('/card-detail', arguments: card.id),
           ),
@@ -464,17 +477,18 @@ class _CardListScreenState extends State<CardListScreen> {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _primaryBlue.withValues(alpha: 0.1),
+              color: LTCColors.surface,
+              border: Border.all(color: LTCColors.border),
             ),
-            child: Icon(icon, color: _primaryBlue, size: 24),
+            child: Icon(icon, color: LTCColors.gold, size: 24),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+              color: LTCColors.textSecondary,
             ),
           ),
         ],
@@ -487,7 +501,7 @@ class _CardListScreenState extends State<CardListScreen> {
   Widget _buildInfoSection(VirtualCard card) {
     final createdFormatted =
         DateFormat('dd MMM, yyyy', 'fr_FR').format(card.createdAt);
-    final usedPercent = (card.balance / 500000).clamp(0.0, 1.0);
+    final usedPercent = (card.balance / 500).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -499,19 +513,19 @@ class _CardListScreenState extends State<CardListScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: LTCColors.textPrimary,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: LTCColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF1F5F9)),
+              border: Border.all(color: LTCColors.border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 40,
                   offset: const Offset(0, 10),
                   spreadRadius: -10,
@@ -531,7 +545,7 @@ class _CardListScreenState extends State<CardListScreen> {
                       ),
                     ),
                     Expanded(
-                      child: _buildInfoItem('ÉMETTEUR', 'LTC Bank'),
+                      child: _buildInfoItem('EMETTEUR', 'LTC Bank'),
                     ),
                   ],
                 ),
@@ -543,7 +557,7 @@ class _CardListScreenState extends State<CardListScreen> {
                           'EXPIRE LE', card.expiryFormatted),
                     ),
                     Expanded(
-                      child: _buildInfoItem('CRÉÉE LE', createdFormatted),
+                      child: _buildInfoItem('CREEE LE', createdFormatted),
                     ),
                   ],
                 ),
@@ -553,7 +567,7 @@ class _CardListScreenState extends State<CardListScreen> {
                   padding: const EdgeInsets.only(top: 24),
                   decoration: const BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: Color(0xFFF1F5F9)),
+                      top: BorderSide(color: LTCColors.border),
                     ),
                   ),
                   child: Column(
@@ -561,20 +575,20 @@ class _CardListScreenState extends State<CardListScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
+                          const Text(
                             'Plafond mensuel',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey[500],
+                              color: LTCColors.textSecondary,
                             ),
                           ),
                           Text(
-                            '${_formatAmountShort(card.balance)} / 500k FCFA',
+                            '\$${_formatUsd(card.balance)} / \$500',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: _primaryBlue,
+                              color: LTCColors.gold,
                             ),
                           ),
                         ],
@@ -585,9 +599,9 @@ class _CardListScreenState extends State<CardListScreen> {
                         child: LinearProgressIndicator(
                           value: usedPercent,
                           minHeight: 8,
-                          backgroundColor: const Color(0xFFF1F5F9),
+                          backgroundColor: LTCColors.surfaceLight,
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                              _primaryBlue),
+                              LTCColors.gold),
                         ),
                       ),
                     ],
@@ -607,10 +621,10 @@ class _CardListScreenState extends State<CardListScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Colors.grey[400],
+            color: LTCColors.textTertiary,
             letterSpacing: 1.2,
           ),
         ),
@@ -618,7 +632,7 @@ class _CardListScreenState extends State<CardListScreen> {
         Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: _primaryBlue),
+              Icon(icon, size: 16, color: LTCColors.gold),
               const SizedBox(width: 6),
             ],
             Flexible(
@@ -627,7 +641,7 @@ class _CardListScreenState extends State<CardListScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1E293B),
+                  color: LTCColors.textPrimary,
                 ),
               ),
             ),
@@ -656,11 +670,11 @@ class _CardListScreenState extends State<CardListScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Dernières Activités',
+                    'Dernieres Activites',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: LTCColors.textPrimary,
                     ),
                   ),
                   GestureDetector(
@@ -672,7 +686,7 @@ class _CardListScreenState extends State<CardListScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _primaryBlue,
+                        color: LTCColors.gold,
                       ),
                     ),
                   ),
@@ -698,20 +712,20 @@ class _CardListScreenState extends State<CardListScreen> {
       padding: const EdgeInsets.symmetric(vertical: 32),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: LTCColors.border),
       ),
-      child: Column(
+      child: const Column(
         children: [
           Icon(Icons.receipt_long_outlined,
-              size: 40, color: Colors.grey[300]),
-          const SizedBox(height: 8),
+              size: 40, color: LTCColors.textTertiary),
+          SizedBox(height: 8),
           Text(
-            'Aucune activité récente',
+            'Aucune activite recente',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[400],
+              color: LTCColors.textTertiary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -727,9 +741,9 @@ class _CardListScreenState extends State<CardListScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: LTCColors.border),
       ),
       child: Row(
         children: [
@@ -752,26 +766,26 @@ class _CardListScreenState extends State<CardListScreen> {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
+                    color: LTCColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   dateFormatted,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[500],
+                    color: LTCColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
           Text(
-            '${tx.isDebit ? '-' : '+'} ${_formatAmount(tx.absoluteAmount)} F',
-            style: const TextStyle(
+            '${tx.isDebit ? '-' : '+'} \$${_formatUsd(tx.absoluteAmount)}',
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: tx.isDebit ? LTCColors.error : LTCColors.success,
             ),
           ),
         ],
@@ -787,25 +801,29 @@ class _CardListScreenState extends State<CardListScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         decoration: BoxDecoration(
-          color: _primaryBlue,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
+          ),
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: _primaryBlue.withValues(alpha: 0.3),
+              color: LTCColors.goldDark.withValues(alpha: 0.4),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, color: Colors.white, size: 22),
-            SizedBox(width: 8),
+            Icon(Icons.add_rounded, color: LTCColors.background, size: 22),
+            const SizedBox(width: 8),
             Text(
               'Nouvelle carte',
               style: TextStyle(
-                color: Colors.white,
+                color: LTCColors.background,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -825,22 +843,22 @@ class _CardListScreenState extends State<CardListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.credit_card_off_rounded,
-                size: 80, color: Colors.grey[300]),
+            const Icon(Icons.credit_card_off_rounded,
+                size: 80, color: LTCColors.textTertiary),
             const SizedBox(height: 24),
             const Text(
               'Aucune carte disponible',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
+                color: LTCColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Commencez par créer votre première carte virtuelle',
+            const Text(
+              'Commencez par creer votre premiere carte virtuelle',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 14, color: LTCColors.textSecondary),
             ),
             const SizedBox(height: 32),
             GestureDetector(
@@ -849,13 +867,15 @@ class _CardListScreenState extends State<CardListScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 decoration: BoxDecoration(
-                  color: _primaryBlue,
+                  gradient: const LinearGradient(
+                    colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text(
-                  'Créer une carte',
+                child: Text(
+                  'Creer une carte',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: LTCColors.background,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -871,6 +891,37 @@ class _CardListScreenState extends State<CardListScreen> {
   // ─── Actions ──────────────────────────────────────────────
 
   Future<void> _handleFreeze(VirtualCard card) async {
+    final actionLabel = card.isFrozen ? 'degeler' : 'geler';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LTCColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Voulez-vous $actionLabel cette carte ?',
+          style: const TextStyle(color: LTCColors.textPrimary),
+        ),
+        content: Text(
+          card.isFrozen
+              ? 'La carte sera reactive et utilisable.'
+              : 'La carte sera temporairement desactivee.',
+          style: const TextStyle(color: LTCColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Confirmer', style: TextStyle(color: card.isFrozen ? LTCColors.success : LTCColors.warning)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
     final newStatus = card.isFrozen ? 'ACTIVE' : 'FROZEN';
     final success = await cardsProvider.updateCardStatus(
@@ -882,8 +933,8 @@ class _CardListScreenState extends State<CardListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              card.isFrozen ? 'Carte dégelée' : 'Carte gelée'),
-          backgroundColor: const Color(0xFF10B981),
+              card.isFrozen ? 'Carte degelee' : 'Carte gelee'),
+          backgroundColor: LTCColors.success,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -896,18 +947,25 @@ class _CardListScreenState extends State<CardListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Bloquer la carte ?'),
+        backgroundColor: LTCColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Bloquer la carte ?',
+          style: TextStyle(color: LTCColors.textPrimary),
+        ),
         content: const Text(
-            'Cette action est irréversible. Voulez-vous vraiment bloquer cette carte ?'),
+          'Cette action est irreversible. Voulez-vous vraiment bloquer cette carte ?',
+          style: TextStyle(color: LTCColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child:
-                const Text('Bloquer', style: TextStyle(color: Colors.red)),
+                const Text('Bloquer', style: TextStyle(color: LTCColors.error)),
           ),
         ],
       ),
@@ -924,8 +982,8 @@ class _CardListScreenState extends State<CardListScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Carte bloquée'),
-          backgroundColor: Colors.red[700],
+          content: const Text('Carte bloquee'),
+          backgroundColor: LTCColors.error,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -938,105 +996,105 @@ class _CardListScreenState extends State<CardListScreen> {
 
   LinearGradient _getCardGradient(VirtualCard card) {
     if (card.isFrozen) {
-      return const LinearGradient(
+      return LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFF97316), Color(0xFFE11D48)],
+        colors: [
+          LTCColors.warning.withValues(alpha: 0.9),
+          LTCColors.error.withValues(alpha: 0.8),
+        ],
       );
     }
     if (card.isBlocked) {
-      return const LinearGradient(
+      return LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF9333EA), Color(0xFF312E81)],
+        colors: [
+          LTCColors.textTertiary,
+          LTCColors.surfaceElevated,
+        ],
       );
     }
+    // Active card: gold gradient
     return const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF2B2BEE), Color(0xFF60A5FA)],
+      colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
     );
   }
 
   _StatusInfo _getStatusInfo(VirtualCard card) {
     if (card.isFrozen) {
       return _StatusInfo(
-        label: 'Gelée',
-        bgColor: const Color(0xFFF97316).withValues(alpha: 0.2),
-        borderColor: const Color(0xFFFED7AA).withValues(alpha: 0.3),
-        textColor: const Color(0xFFFFF7ED),
+        label: 'Gelee',
+        bgColor: LTCColors.warning.withValues(alpha: 0.2),
+        borderColor: LTCColors.warning.withValues(alpha: 0.3),
+        textColor: LTCColors.warning,
         dotColor: Colors.transparent,
         icon: Icons.ac_unit_rounded,
       );
     }
     if (card.isBlocked) {
       return _StatusInfo(
-        label: 'Bloquée',
-        bgColor: Colors.red.withValues(alpha: 0.3),
-        borderColor: const Color(0xFFFECACA).withValues(alpha: 0.3),
-        textColor: const Color(0xFFFEE2E2),
+        label: 'Bloquee',
+        bgColor: LTCColors.error.withValues(alpha: 0.2),
+        borderColor: LTCColors.error.withValues(alpha: 0.3),
+        textColor: LTCColors.error,
         dotColor: Colors.transparent,
         icon: Icons.block_rounded,
       );
     }
     return _StatusInfo(
       label: 'Active',
-      bgColor: const Color(0xFF10B981).withValues(alpha: 0.2),
-      borderColor: const Color(0xFF34D399).withValues(alpha: 0.3),
-      textColor: const Color(0xFFD1FAE5),
-      dotColor: const Color(0xFF34D399),
+      bgColor: LTCColors.success.withValues(alpha: 0.2),
+      borderColor: LTCColors.success.withValues(alpha: 0.3),
+      textColor: LTCColors.success,
+      dotColor: LTCColors.success,
     );
   }
 
   String _getCardLabel(VirtualCard card) {
-    if (card.type == 'VISA') return 'Débit Virtuelle';
-    if (card.type == 'MASTERCARD') return 'Prépayée';
+    if (card.type == 'VISA') return 'Debit Virtuelle';
+    if (card.type == 'MASTERCARD') return 'Prepayee';
     return 'Business';
   }
 
   String _getShortMasked(String masked) {
     if (masked.length >= 4) {
-      return '•••• ${masked.substring(masked.length - 4)}';
+      return '**** ${masked.substring(masked.length - 4)}';
     }
     return masked;
   }
 
-  String _formatAmount(double amount) {
-    return NumberFormat('#,###', 'fr_FR').format(amount.round());
-  }
-
-  String _formatAmountShort(double amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).round()}k';
-    }
-    return amount.round().toString();
+  String _formatUsd(double amount) {
+    return NumberFormat('#,##0.00', 'en_US').format(amount);
   }
 
   _TxIconInfo _getTxIcon(Transaction tx) {
     switch (tx.type) {
       case 'PURCHASE':
-        return const _TxIconInfo(
+        return _TxIconInfo(
           icon: Icons.shopping_bag_rounded,
-          iconColor: Color(0xFFEA580C),
-          bgColor: Color(0xFFFFF7ED),
+          iconColor: LTCColors.warning,
+          bgColor: LTCColors.warning.withValues(alpha: 0.12),
         );
       case 'TOPUP':
-        return const _TxIconInfo(
+        return _TxIconInfo(
           icon: Icons.arrow_downward_rounded,
-          iconColor: Color(0xFF10B981),
-          bgColor: Color(0xFFECFDF5),
+          iconColor: LTCColors.success,
+          bgColor: LTCColors.success.withValues(alpha: 0.12),
         );
       case 'WITHDRAWAL':
-        return const _TxIconInfo(
+        return _TxIconInfo(
           icon: Icons.arrow_upward_rounded,
-          iconColor: Color(0xFFEF4444),
-          bgColor: Color(0xFFFEF2F2),
+          iconColor: LTCColors.error,
+          bgColor: LTCColors.error.withValues(alpha: 0.12),
         );
       default:
-        return const _TxIconInfo(
+        return _TxIconInfo(
           icon: Icons.subscriptions_rounded,
-          iconColor: Color(0xFF2563EB),
-          bgColor: Color(0xFFEFF6FF),
+          iconColor: LTCColors.gold,
+          bgColor: LTCColors.gold.withValues(alpha: 0.12),
         );
     }
   }

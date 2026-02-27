@@ -28,20 +28,21 @@ class EmptyState extends StatelessWidget {
             Icon(
               icon,
               size: 80,
-              color: Colors.grey.shade300,
+              color: LTCColors.textTertiary,
             ),
             const SizedBox(height: 24),
             Text(
               title,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: LTCColors.textPrimary,
                   ),
             ),
             const SizedBox(height: 12),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: LTCColors.textSecondary,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -50,8 +51,8 @@ class EmptyState extends StatelessWidget {
               ElevatedButton(
                 onPressed: onAction,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: LTCTheme.gold,
-                  foregroundColor: LTCTheme.navy,
+                  backgroundColor: LTCColors.gold,
+                  foregroundColor: LTCColors.background,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

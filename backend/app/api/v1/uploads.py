@@ -1,4 +1,6 @@
+import io
 import os
+import re
 import uuid
 import enum
 import logging
@@ -7,13 +9,17 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+
+from PIL import Image
 
 from app.database import get_db
 from app.models.user import User
 from app.services.auth import get_current_user
 from app.config import settings
+from app.utils.encryption import encrypt_bytes, decrypt_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -134,9 +140,20 @@ async def upload_kyc_document(
         safe_filename = f"{timestamp}_{side}{ext}"
         file_path = kyc_dir / safe_filename
 
-        # Save file
+        # Strip EXIF metadata from images
+        ext_lower = ext.lower()
+        if ext_lower in {".jpg", ".jpeg", ".png"}:
+            img = Image.open(io.BytesIO(content))
+            clean_buffer = io.BytesIO()
+            img.save(clean_buffer, format=img.format or "JPEG", quality=95)
+            content = clean_buffer.getvalue()
+
+        # Encrypt file data at rest
+        encrypted_data = encrypt_bytes(content)
+
+        # Save encrypted file
         with open(file_path, "wb") as f:
-            f.write(content)
+            f.write(encrypted_data)
 
         # Generate file URL (relative path from uploads directory)
         relative_path = f"kyc/{current_user.id}/{safe_filename}"
@@ -160,3 +177,65 @@ async def upload_kyc_document(
         )
     finally:
         await file.close()
+
+
+# Filename regex: timestamp_side.ext — only allow safe characters
+_SAFE_FILENAME = re.compile(r"^[a-zA-Z0-9_\-]+\.[a-z]{3,4}$")
+
+
+@router.get("/kyc/{user_id}/{filename}")
+async def serve_kyc_file(
+    user_id: str,
+    filename: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Serve a KYC document file with authentication and ownership check.
+    Only the file owner or an admin can access the file.
+    """
+    # Ownership / admin check
+    if str(current_user.id) != user_id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this file",
+        )
+
+    # Validate filename to prevent path traversal
+    if not _SAFE_FILENAME.match(filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename",
+        )
+
+    file_path = Path(settings.upload_dir) / "kyc" / user_id / filename
+    resolved = file_path.resolve()
+
+    # Ensure resolved path is still inside upload_dir
+    upload_root = Path(settings.upload_dir).resolve()
+    if not str(resolved).startswith(str(upload_root)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file path",
+        )
+
+    if not resolved.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    # Decrypt file before serving
+    from fastapi.responses import Response
+    with open(resolved, "rb") as f:
+        encrypted_data = f.read()
+    try:
+        decrypted_data = decrypt_bytes(encrypted_data)
+    except Exception:
+        # File may not be encrypted (legacy upload) — serve as-is
+        return FileResponse(str(resolved))
+
+    # Determine media type from extension
+    ext = resolved.suffix.lower()
+    media_types = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".pdf": "application/pdf"}
+    media_type = media_types.get(ext, "application/octet-stream")
+    return Response(content=decrypted_data, media_type=media_type)

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 /// Fullscreen processing overlay with animated card icon and spinner ring.
 /// Shows a glassmorphism background with floating card animation,
@@ -65,7 +66,6 @@ class ProcessingOverlay extends StatefulWidget {
 
 class _ProcessingOverlayState extends State<ProcessingOverlay>
     with TickerProviderStateMixin {
-  static const _primaryBlue = Color(0xFF2B2BEE);
 
   late final AnimationController _fadeController;
   late final AnimationController _floatController;
@@ -130,7 +130,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          color: Colors.white.withValues(alpha: 0.85),
+          color: LTCColors.background.withValues(alpha: 0.92),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -165,7 +165,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                   height: 128,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _primaryBlue.withValues(alpha: 0.08),
+                    color: LTCColors.gold.withValues(alpha: 0.08),
                   ),
                 ),
               );
@@ -184,7 +184,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                     height: 96,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _primaryBlue.withValues(alpha: 0.1),
+                      color: LTCColors.gold.withValues(alpha: 0.1),
                     ),
                   ),
                 ),
@@ -201,8 +201,8 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                 return CustomPaint(
                   painter: _SpinnerRingPainter(
                     progress: _spinController.value,
-                    color: _primaryBlue,
-                    trackColor: const Color(0xFFE2E8F0),
+                    color: LTCColors.gold,
+                    trackColor: LTCColors.surfaceLight,
                   ),
                 );
               },
@@ -242,7 +242,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                 height: 36,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  color: _primaryBlue.withValues(alpha: 0.25),
+                  color: LTCColors.gold.withValues(alpha: 0.25),
                 ),
               ),
             ),
@@ -261,11 +261,11 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [_primaryBlue, Color(0xFF4F4FFF)],
+                    colors: [LTCColors.goldDark, LTCColors.gold],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _primaryBlue.withValues(alpha: 0.3),
+                      color: LTCColors.gold.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -322,7 +322,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF0F172A),
+              color: LTCColors.textPrimary,
               letterSpacing: -0.3,
             ),
           ),
@@ -330,10 +330,10 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
           Text(
             widget.subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[500],
+              color: LTCColors.textSecondary,
             ),
           ),
         ],
@@ -345,23 +345,23 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: LTCColors.surfaceLight,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+          color: LTCColors.border,
         ),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.lock_rounded, size: 14, color: _primaryBlue),
-          const SizedBox(width: 6),
+          Icon(Icons.lock_rounded, size: 14, color: LTCColors.gold),
+          SizedBox(width: 6),
           Text(
             'Connexion Sécurisée LTC Pay',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+              color: LTCColors.textSecondary,
             ),
           ),
         ],

@@ -80,16 +80,21 @@ class TestPaymentFlow:
         assert transaction is not None
         assert transaction.status == TransactionStatus.PENDING
 
-        # Step 2: Simulate successful S3P webhook callback
+        # Step 2: Simulate successful Payin webhook callback
         webhook_payload = {
-            "ptn": payment_ref,
-            "trid": payment_ref,
-            "amount": 100.0,
-            "status": "SUCCESS",
-            "currency": "XAF"
+            "data": {
+                "data": {
+                    "attributes": {
+                        "status": 1,
+                        "transaction_id": payment_ref,
+                        "amount": 100.0,
+                        "currency": "XAF"
+                    }
+                }
+            }
         }
         webhook_response = await test_client.post(
-            "/api/v1/payments/webhook/s3p",
+            "/api/v1/payments/webhook/payin",
             json=webhook_payload
         )
         assert webhook_response.status_code == 200
@@ -122,16 +127,21 @@ class TestPaymentFlow:
         payment_data = response.json()
         payment_ref = payment_data.get("payment_reference") or payment_data.get("reference")
 
-        # Step 2: Simulate failed S3P webhook callback
+        # Step 2: Simulate failed Payin webhook callback
         webhook_payload = {
-            "ptn": payment_ref,
-            "trid": payment_ref,
-            "amount": 100.0,
-            "status": "FAILED",
-            "currency": "XAF"
+            "data": {
+                "data": {
+                    "attributes": {
+                        "status": 2,
+                        "transaction_id": payment_ref,
+                        "amount": 100.0,
+                        "currency": "XAF"
+                    }
+                }
+            }
         }
         webhook_response = await test_client.post(
-            "/api/v1/payments/webhook/s3p",
+            "/api/v1/payments/webhook/payin",
             json=webhook_payload
         )
         assert webhook_response.status_code == 200
@@ -234,15 +244,15 @@ class TestKYCFlow:
 
 
 @pytest.mark.asyncio
-class TestS3PIntegration:
-    """Integration tests with mocked S3P payment service."""
+class TestPayinIntegration:
+    """Integration tests with mocked Payin payment service."""
 
-    async def test_s3p_payment_initiation(
+    async def test_payin_payment_initiation(
         self,
         test_client: AsyncClient,
         test_user_token: tuple[str, User],
     ):
-        """Test S3P payment initiation returns correct response format."""
+        """Test Payin payment initiation returns correct response format."""
         token, user = test_user_token
 
         response = await test_client.post(
@@ -251,15 +261,16 @@ class TestS3PIntegration:
             json={
                 "amount": 50.0,
                 "currency": "XAF",
-                "payment_method": "MOMO"
+                "payment_method": "mobile_money",
+                "country_code": "CM"
             }
         )
         assert response.status_code == 200
         data = response.json()
 
-        # Check expected fields in S3P response
+        # Check expected fields in Payin response
         assert "payment_reference" in data or "reference" in data
-        assert "payment_url" in data or "url" in data or "qr_code" in data
+        assert "payment_url" in data
 
 
 @pytest.mark.asyncio

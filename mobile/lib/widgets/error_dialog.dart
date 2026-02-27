@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 /// Error modal overlay shown when a payment or operation fails.
 /// Features animated red X icon with ping, error message, and retry/support actions.
@@ -73,8 +74,6 @@ class ErrorDialog extends StatefulWidget {
 
 class _ErrorDialogState extends State<ErrorDialog>
     with TickerProviderStateMixin {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _dangerRed = Color(0xFFEF4444);
 
   late final AnimationController _backdropController;
   late final AnimationController _modalController;
@@ -184,11 +183,12 @@ class _ErrorDialogState extends State<ErrorDialog>
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: LTCColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -207,7 +207,7 @@ class _ErrorDialogState extends State<ErrorDialog>
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: LTCColors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -216,10 +216,10 @@ class _ErrorDialogState extends State<ErrorDialog>
               child: Text(
                 widget.message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   height: 1.5,
-                  color: Colors.grey[500],
+                  color: LTCColors.textSecondary,
                 ),
               ),
             ),
@@ -253,7 +253,7 @@ class _ErrorDialogState extends State<ErrorDialog>
                       height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _dangerRed.withValues(alpha: 0.15),
+                        color: LTCColors.error.withValues(alpha: 0.15),
                       ),
                     ),
                   ),
@@ -266,15 +266,15 @@ class _ErrorDialogState extends State<ErrorDialog>
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _dangerRed.withValues(alpha: 0.08),
-                border: Border.all(color: Colors.white, width: 4),
+                color: LTCColors.error.withValues(alpha: 0.08),
+                border: Border.all(color: LTCColors.surface, width: 4),
               ),
             ),
             // X icon
             const Icon(
               Icons.close_rounded,
               size: 40,
-              color: _dangerRed,
+              color: LTCColors.error,
             ),
           ],
         ),
@@ -292,11 +292,11 @@ class _ErrorDialogState extends State<ErrorDialog>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: _primaryBlue,
+              color: LTCColors.gold,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: _primaryBlue.withValues(alpha: 0.3),
+                  color: LTCColors.gold.withValues(alpha: 0.3),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -306,14 +306,14 @@ class _ErrorDialogState extends State<ErrorDialog>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.refresh_rounded,
-                    color: Colors.white, size: 18),
+                    color: LTCColors.background, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   widget.primaryButtonText,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: LTCColors.background,
                   ),
                 ),
               ],
@@ -334,7 +334,7 @@ class _ErrorDialogState extends State<ErrorDialog>
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: _primaryBlue,
+                  color: LTCColors.gold,
                 ),
               ),
             ),

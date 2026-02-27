@@ -68,3 +68,19 @@ def decrypt_field(ciphertext: str) -> str:
     # Decrypt and return as string
     decrypted_bytes = cipher.decrypt(ciphertext.encode())
     return decrypted_bytes.decode()
+
+
+def encrypt_bytes(data: bytes) -> bytes:
+    """Encrypt raw bytes using Fernet symmetric encryption."""
+    if not data:
+        return data
+    cipher = _get_cipher()
+    return cipher.encrypt(data)
+
+
+def decrypt_bytes(data: bytes) -> bytes:
+    """Decrypt raw bytes using Fernet symmetric encryption."""
+    if not data:
+        return data
+    cipher = _get_cipher()
+    return cipher.decrypt(data)

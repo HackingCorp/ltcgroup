@@ -20,20 +20,21 @@ class NetworkError extends StatelessWidget {
             Icon(
               Icons.wifi_off,
               size: 80,
-              color: Colors.orange.shade300,
+              color: LTCColors.warning.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 24),
             Text(
               'Pas de connexion',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: LTCColors.textPrimary,
                   ),
             ),
             const SizedBox(height: 12),
             Text(
               'Veuillez vérifier votre connexion internet et réessayer.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey.shade600,
+                    color: LTCColors.textSecondary,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -44,8 +45,8 @@ class NetworkError extends StatelessWidget {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Réessayer'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: LTCTheme.gold,
-                  foregroundColor: LTCTheme.navy,
+                  backgroundColor: LTCColors.gold,
+                  foregroundColor: LTCColors.background,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

@@ -7,9 +7,11 @@ Calls the kyc-verifier Docker service for:
 - OCR text extraction from ID documents
 """
 
+import io
 import httpx
 from pathlib import Path
 from app.config import settings
+from app.utils.encryption import decrypt_bytes
 from app.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -22,10 +24,22 @@ class KYCVerifierError(Exception):
 class KYCVerifierClient:
     def __init__(self):
         self.base_url = settings.kyc_verifier_url.rstrip("/")
-        self.client = httpx.AsyncClient(timeout=120.0)
+        headers = {}
+        if settings.kyc_verifier_api_key:
+            headers["X-API-Key"] = settings.kyc_verifier_api_key
+        self.client = httpx.AsyncClient(timeout=120.0, headers=headers)
 
     def _url(self, path: str) -> str:
         return f"{self.base_url}/{path.lstrip('/')}"
+
+    def _read_file(self, file_path: Path) -> bytes:
+        """Read a file from disk, decrypting if encrypted at rest."""
+        with open(file_path, "rb") as f:
+            data = f.read()
+        try:
+            return decrypt_bytes(data)
+        except Exception:
+            return data  # Not encrypted (legacy file)
 
     async def close(self):
         await self.client.aclose()
@@ -40,9 +54,9 @@ class KYCVerifierClient:
             raise KYCVerifierError(f"Image file not found: {image_path}")
 
         try:
-            with open(path, "rb") as f:
-                files = {"file": (path.name, f, "image/jpeg")}
-                response = await self.client.post(self._url("/liveness"), files=files)
+            file_data = self._read_file(path)
+            files = {"file": (path.name, io.BytesIO(file_data), "image/jpeg")}
+            response = await self.client.post(self._url("/liveness"), files=files)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -65,12 +79,13 @@ class KYCVerifierClient:
             raise KYCVerifierError(f"ID image file not found: {id_image_path}")
 
         try:
-            with open(selfie, "rb") as sf, open(id_img, "rb") as idf:
-                files = {
-                    "selfie": (selfie.name, sf, "image/jpeg"),
-                    "id_image": (id_img.name, idf, "image/jpeg"),
-                }
-                response = await self.client.post(self._url("/face-match"), files=files)
+            selfie_data = self._read_file(selfie)
+            id_data = self._read_file(id_img)
+            files = {
+                "selfie": (selfie.name, io.BytesIO(selfie_data), "image/jpeg"),
+                "id_image": (id_img.name, io.BytesIO(id_data), "image/jpeg"),
+            }
+            response = await self.client.post(self._url("/face-match"), files=files)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -90,9 +105,9 @@ class KYCVerifierClient:
             raise KYCVerifierError(f"Image file not found: {image_path}")
 
         try:
-            with open(path, "rb") as f:
-                files = {"file": (path.name, f, "image/jpeg")}
-                response = await self.client.post(self._url("/ocr"), files=files)
+            file_data = self._read_file(path)
+            files = {"file": (path.name, io.BytesIO(file_data), "image/jpeg")}
+            response = await self.client.post(self._url("/ocr"), files=files)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,7 @@ from app.services.kyc_verifier import kyc_verifier_client, KYCVerifierError
 from app.services.email import email_service
 from app.services.payin import PAYIN_COUNTRIES
 from app.config import settings
+from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -34,7 +36,11 @@ def _url_to_filepath(file_url: str) -> str:
     """Convert a /uploads/... URL to an absolute file path."""
     # file_url looks like /uploads/kyc/{user_id}/{filename}
     relative = file_url.lstrip("/")  # uploads/kyc/...
-    return str(Path(settings.upload_dir).parent / relative)
+    filepath = (Path(settings.upload_dir).parent / relative).resolve()
+    uploads_dir = Path(settings.upload_dir).resolve()
+    if not str(filepath).startswith(str(uploads_dir)):
+        raise HTTPException(status_code=400, detail="Invalid document URL")
+    return str(filepath)
 
 
 async def _sync_kyc_to_accountpe(user: User, db: AsyncSession) -> None:
@@ -136,7 +142,9 @@ async def update_user_profile(
 
 
 @router.post("/kyc", response_model=KYCResponse)
+@limiter.limit("3/hour")
 async def submit_kyc(
+    request: Request,
     kyc_data: KYCSubmit,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -147,6 +155,13 @@ async def submit_kyc(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="KYC already approved",
         )
+
+    # Clear old verification scores on resubmission
+    current_user.kyc_liveness_score = None
+    current_user.kyc_face_match_score = None
+    current_user.kyc_ocr_confidence = None
+    current_user.kyc_ocr_raw_text = None
+    current_user.kyc_verification_method = None
 
     # 1. Save personal info
     current_user.dob = kyc_data.dob
@@ -201,6 +216,30 @@ async def submit_kyc(
         current_user.kyc_ocr_confidence = ocr_confidence
         current_user.kyc_ocr_raw_text = ocr_result.get("raw_text", "")
         logger.info(f"KYC OCR for {current_user.email}: confidence={ocr_confidence}")
+
+        # 3d. Cross-validate OCR data against user-supplied data
+        ocr_fields = ocr_result.get("extracted_fields", {})
+        if ocr_fields:
+            user_full_name = f"{current_user.first_name} {current_user.last_name}".lower()
+            ocr_name = ocr_fields.get("name", "").lower()
+            if ocr_name:
+                name_ratio = SequenceMatcher(None, user_full_name, ocr_name).ratio()
+                if name_ratio < 0.6:
+                    rejection_reasons.append(f"Name mismatch between submission and document (similarity: {name_ratio:.0%})")
+                    logger.warning(f"KYC name mismatch for {current_user.email}: user='{user_full_name}' ocr='{ocr_name}' ratio={name_ratio:.2f}")
+
+            ocr_dob = ocr_fields.get("dob", "")
+            if ocr_dob and kyc_data.dob:
+                user_dob_str = kyc_data.dob.strftime("%Y-%m-%d")
+                if ocr_dob != user_dob_str:
+                    rejection_reasons.append("Date of birth mismatch between submission and document")
+                    logger.warning(f"KYC DOB mismatch for {current_user.email}: user='{user_dob_str}' ocr='{ocr_dob}'")
+
+            ocr_id_no = ocr_fields.get("id_number", "")
+            if ocr_id_no and kyc_data.id_proof_no:
+                if ocr_id_no.strip() != kyc_data.id_proof_no.strip():
+                    rejection_reasons.append("ID number mismatch between submission and document")
+                    logger.warning(f"KYC ID number mismatch for {current_user.email}")
 
     except KYCVerifierError as e:
         logger.warning(f"KYC verifier unavailable for {current_user.email}: {e}")
@@ -315,7 +354,4 @@ async def submit_kyc(
         kyc_submitted_at=current_user.kyc_submitted_at,
         kyc_verification_method=current_user.kyc_verification_method,
         kyc_rejected_reason=current_user.kyc_rejected_reason,
-        liveness_score=current_user.kyc_liveness_score,
-        face_match_score=current_user.kyc_face_match_score,
-        ocr_confidence=current_user.kyc_ocr_confidence,
     )

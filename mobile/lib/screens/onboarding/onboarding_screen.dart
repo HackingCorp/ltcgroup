@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../config/theme.dart';
 import '../../services/storage_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -17,10 +18,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late final AnimationController _floatController;
   late final AnimationController _scanController;
   int _currentPage = 0;
-
-  static const _bgColor = Color(0xFF101922);
-  static const _primaryBlue = Color(0xFF258CF4);
-  static const _secondaryText = Color(0xFF9CA3AF);
 
   @override
   void initState() {
@@ -63,7 +60,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgColor,
+      backgroundColor: LTCColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -82,7 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Text(
                         'Passer',
                         style: TextStyle(
-                          color: _secondaryText,
+                          color: LTCColors.textSecondary,
                           fontSize: 16,
                         ),
                       ),
@@ -146,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     width: isActive ? 28 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: isActive ? _primaryBlue : const Color(0xFF374151),
+                      color: isActive ? LTCColors.gold : LTCColors.surfaceLight,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -163,10 +160,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: ElevatedButton(
                   onPressed: _nextPage,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryBlue,
-                    foregroundColor: Colors.white,
+                    backgroundColor: LTCColors.gold,
+                    foregroundColor: LTCColors.background,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
                     textStyle: const TextStyle(
@@ -212,14 +209,14 @@ class _OnboardingPage extends StatelessWidget {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: const TextStyle(fontSize: 32, color: Colors.white),
+              style: const TextStyle(fontSize: 32, color: LTCColors.textPrimary),
               children: [
                 TextSpan(text: title),
                 TextSpan(
                   text: titleBold,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF258CF4),
+                    color: LTCColors.gold,
                   ),
                 ),
               ],
@@ -231,7 +228,7 @@ class _OnboardingPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 16,
-              color: Color(0xFF9CA3AF),
+              color: LTCColors.textSecondary,
               height: 1.5,
             ),
           ),
@@ -269,8 +266,8 @@ class _CardIllustration extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF1E3A5F).withValues(alpha: 0.9),
-                const Color(0xFF258CF4).withValues(alpha: 0.4),
+                LTCColors.goldDark.withValues(alpha: 0.9),
+                LTCColors.gold.withValues(alpha: 0.4),
               ],
             ),
             border: Border.all(
@@ -278,7 +275,7 @@ class _CardIllustration extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF258CF4).withValues(alpha: 0.3),
+                color: LTCColors.gold.withValues(alpha: 0.3),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -309,7 +306,7 @@ class _CardIllustration extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFD4A855), Color(0xFFF0D78C)],
+                      colors: [LTCColors.gold, LTCColors.goldLight],
                     ),
                   ),
                   child: Center(
@@ -319,7 +316,7 @@ class _CardIllustration extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(2),
                         border: Border.all(
-                          color: const Color(0xFFC49B30),
+                          color: LTCColors.goldDark,
                           width: 0.5,
                         ),
                       ),
@@ -461,10 +458,10 @@ class _ScannerIllustration extends StatelessWidget {
                     width: 120,
                     height: 76,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: LTCColors.surface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFF374151),
+                        color: LTCColors.border,
                       ),
                     ),
                     child: Padding(
@@ -515,10 +512,10 @@ class _ScannerIllustration extends StatelessWidget {
                 width: 140,
                 height: 180,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A2332),
+                  color: LTCColors.surfaceLight,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFF374151),
+                    color: LTCColors.border,
                     width: 2,
                   ),
                 ),
@@ -528,7 +525,7 @@ class _ScannerIllustration extends StatelessWidget {
                     children: [
                       // Screen
                       Container(
-                        color: const Color(0xFF0F1923),
+                        color: LTCColors.background,
                       ),
 
                       // Viewfinder corners
@@ -547,14 +544,14 @@ class _ScannerIllustration extends StatelessWidget {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    const Color(0xFF258CF4).withValues(alpha: 0.0),
-                                    const Color(0xFF258CF4),
-                                    const Color(0xFF258CF4).withValues(alpha: 0.0),
+                                    LTCColors.gold.withValues(alpha: 0.0),
+                                    LTCColors.gold,
+                                    LTCColors.gold.withValues(alpha: 0.0),
                                   ],
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF258CF4)
+                                    color: LTCColors.gold
                                         .withValues(alpha: 0.5),
                                     blurRadius: 8,
                                     spreadRadius: 2,
@@ -579,14 +576,14 @@ class _ScannerIllustration extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF258CF4).withValues(alpha: 0.15),
+                    color: LTCColors.gold.withValues(alpha: 0.15),
                     border: Border.all(
-                      color: const Color(0xFF258CF4).withValues(alpha: 0.4),
+                      color: LTCColors.gold.withValues(alpha: 0.4),
                     ),
                   ),
                   child: const Icon(
                     Icons.fingerprint,
-                    color: Color(0xFF258CF4),
+                    color: LTCColors.gold,
                     size: 24,
                   ),
                 ),
@@ -599,7 +596,7 @@ class _ScannerIllustration extends StatelessWidget {
   }
 
   List<Widget> _buildViewfinderCorners() {
-    const color = Color(0xFF258CF4);
+    const color = LTCColors.gold;
     const len = 20.0;
     const thickness = 2.5;
     const inset = 16.0;
@@ -727,11 +724,11 @@ class _WalletIllustration extends StatelessWidget {
                 height: 88,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF258CF4).withValues(alpha: 0.15),
+                  color: LTCColors.gold.withValues(alpha: 0.15),
                 ),
                 child: const Icon(
                   Icons.account_balance_wallet,
-                  color: Color(0xFF258CF4),
+                  color: LTCColors.gold,
                   size: 44,
                 ),
               ),

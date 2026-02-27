@@ -19,6 +19,7 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint('wallet_balance >= 0', name='ck_users_wallet_balance_positive'),
+        CheckConstraint("country_code ~ '^[A-Z]{2}$'", name='ck_users_country_code_format'),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -69,7 +70,7 @@ class User(Base):
     country_code: Mapped[str] = mapped_column(String(2), default="CM", server_default="CM", nullable=False)
 
     # AccountPE provider user ID (set on first card purchase)
-    accountpe_user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    accountpe_user_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
 
     # Password reset fields (columns created by Base.metadata.create_all in dev)
     reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -90,7 +91,7 @@ class User(Base):
         "Card", back_populates="user", cascade="all, delete-orphan"
     )
     transactions: Mapped[list["Transaction"]] = relationship(
-        "Transaction", back_populates="user", cascade="all, delete-orphan"
+        "Transaction", back_populates="user"
     )
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification", back_populates="user", cascade="all, delete-orphan"

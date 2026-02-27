@@ -56,8 +56,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           ENVIRONMENT: test
           SECRET_KEY: test-secret-key-for-ci
-          S3P_API_KEY: test-s3p-key
-          S3P_API_SECRET: test-s3p-secret
+          PAYIN_API_URL: https://api.accountpe.com/api/payin
           ENKAP_API_KEY: test-enkap-key
           ACCOUNTPE_API_KEY: test-accountpe-key
 

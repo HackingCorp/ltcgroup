@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * E2E tests for payment flows (S3P Mobile Money and E-nkap)
+ * E2E tests for payment flows (Payin Mobile Money and E-nkap)
  *
  * NOTE: These tests verify the payment integration flows.
  * Some tests may need mocking for external payment providers.
  */
 
-test.describe('Mobile Money Payment Flow (S3P)', () => {
+test.describe('Mobile Money Payment Flow (Payin)', () => {
   test('should detect MTN number correctly', async ({ page }) => {
     await page.goto('/services/solutions-financieres/vcard/purchase');
 
@@ -30,7 +30,7 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     await expect(providerLabel).toBeVisible();
   });
 
-  test('should initiate S3P payment with MTN', async ({ page }) => {
+  test('should initiate Payin payment with Mobile Money', async ({ page }) => {
     // Mock the payment API endpoint
     await page.route('/api/payments/initiate', async (route) => {
       await route.fulfill({
@@ -39,10 +39,10 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
         body: JSON.stringify({
           success: true,
           paymentMethod: 'mobile_money',
-          ptn: 'PTN123456',
-          trid: 'TRID789012',
+          paymentUrl: 'https://pay.accountpe.com/link/abc123',
+          transactionId: 'TXN789012',
           status: 'PENDING',
-          message: 'Veuillez confirmer le paiement sur votre téléphone',
+          message: 'Redirection vers la page de paiement',
         }),
       });
     });
@@ -58,11 +58,8 @@ test.describe('Mobile Money Payment Flow (S3P)', () => {
     // Submit
     await page.click('button[type="submit"]');
 
-    // Should show confirmation message
-    await expect(page.locator('text=/confirmer.*téléphone/i')).toBeVisible();
-
-    // Should show PTN or TRID reference
-    await expect(page.locator('text=/(PTN|TRID).*\\w+/i')).toBeVisible();
+    // Should redirect to payment URL or show redirect message
+    await expect(page.locator('text=/redirection|paiement/i')).toBeVisible();
   });
 
   test('should poll payment status after initiation', async ({ page }) => {

@@ -1,7 +1,8 @@
+import re
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, UUID4
+from pydantic import BaseModel, EmailStr, Field, UUID4, field_validator
 from app.models.user import KYCStatus
 
 
@@ -10,8 +11,21 @@ class UserCreate(BaseModel):
     phone: str = Field(..., min_length=10, max_length=20)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str = Field(..., min_length=8, max_length=72)
     country_code: str = Field("CM", min_length=2, max_length=2)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            raise ValueError("Password must contain at least one special character")
+        return v
 
 
 class UserResponse(BaseModel):
@@ -57,9 +71,6 @@ class KYCResponse(BaseModel):
     kyc_submitted_at: datetime | None
     kyc_verification_method: str | None = None
     kyc_rejected_reason: str | None = None
-    liveness_score: float | None = None
-    face_match_score: float | None = None
-    ocr_confidence: float | None = None
 
     class Config:
         from_attributes = True

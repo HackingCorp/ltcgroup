@@ -4,7 +4,6 @@ import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
 import '../../widgets/card_widget.dart';
 import '../../widgets/transaction_item.dart';
-import '../../widgets/custom_button.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
 import '../../services/api_service.dart';
@@ -56,11 +55,11 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     switch (action) {
       case 'freeze':
         newStatus = AppConstants.cardStatusFrozen;
-        message = 'Carte gelée avec succès';
+        message = 'Carte gelee avec succes';
         break;
       case 'unfreeze':
         newStatus = AppConstants.cardStatusActive;
-        message = 'Carte dégelée avec succès';
+        message = 'Carte degelee avec succes';
         break;
       case 'block':
         // Show confirmation dialog
@@ -68,7 +67,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
         if (!confirmed) return;
 
         newStatus = AppConstants.cardStatusBlocked;
-        message = 'Carte bloquée avec succès';
+        message = 'Carte bloquee avec succes';
         break;
     }
 
@@ -102,21 +101,27 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Bloquer la carte'),
+            backgroundColor: LTCColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Bloquer la carte',
+              style: TextStyle(color: LTCColors.textPrimary),
+            ),
             content: const Text(
-              'Êtes-vous sûr de vouloir bloquer cette carte ? Cette action est irréversible.',
+              'Etes-vous sur de vouloir bloquer cette carte ? Cette action est irreversible.',
+              style: TextStyle(color: LTCColors.textSecondary),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Annuler'),
+                child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LTCColors.error,
                 ),
-                child: const Text('Bloquer'),
+                child: const Text('Bloquer', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -128,18 +133,27 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Geler la carte'),
+            backgroundColor: LTCColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text(
+              'Geler la carte',
+              style: TextStyle(color: LTCColors.textPrimary),
+            ),
             content: const Text(
-              'Êtes-vous sûr de vouloir geler cette carte ? Vous pourrez la dégeler plus tard.',
+              'Etes-vous sur de vouloir geler cette carte ? Vous pourrez la degeler plus tard.',
+              style: TextStyle(color: LTCColors.textSecondary),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Annuler'),
+                child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Geler'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: LTCColors.warning,
+                ),
+                child: Text('Geler', style: TextStyle(color: LTCColors.background)),
               ),
             ],
           ),
@@ -233,8 +247,15 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
 
     if (cardId == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Erreur')),
-        body: const Center(child: Text('Carte non trouvée')),
+        backgroundColor: LTCColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('Erreur', style: TextStyle(color: LTCColors.textPrimary)),
+          iconTheme: const IconThemeData(color: LTCColors.textPrimary),
+        ),
+        body: const Center(
+          child: Text('Carte non trouvee', style: TextStyle(color: LTCColors.textSecondary)),
+        ),
       );
     }
 
@@ -242,16 +263,34 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
 
     if (card == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Erreur')),
-        body: const Center(child: Text('Carte non trouvée')),
+        backgroundColor: LTCColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          title: const Text('Erreur', style: TextStyle(color: LTCColors.textPrimary)),
+          iconTheme: const IconThemeData(color: LTCColors.textPrimary),
+        ),
+        body: const Center(
+          child: Text('Carte non trouvee', style: TextStyle(color: LTCColors.textSecondary)),
+        ),
       );
     }
 
     final cardTransactions = transactionsProvider.getTransactionsForCard(cardId);
 
     return Scaffold(
+      backgroundColor: LTCColors.background,
       appBar: AppBar(
-        title: const Text('Détails de la carte'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Details de la carte',
+          style: TextStyle(
+            color: LTCColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: LTCColors.textPrimary),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -268,29 +307,30 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: LTCColors.surface,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LTCColors.border),
               ),
               child: Column(
                 children: [
                   _buildRevealableRow(
-                    'Numéro',
+                    'Numero',
                     _isCardNumberRevealed ? _revealedCardNumber! : card.maskedNumber,
                     _isCardNumberRevealed,
                     () => _toggleCardNumberReveal(card.id),
                   ),
-                  const Divider(height: 24),
+                  const Divider(height: 24, color: LTCColors.border),
                   _buildDetailRow('Expire le', card.expiryFormatted),
-                  const Divider(height: 24),
+                  const Divider(height: 24, color: LTCColors.border),
                   _buildRevealableRow(
                     'CVV',
                     _isCvvRevealed ? _revealedCvv! : '***',
                     _isCvvRevealed,
                     () => _toggleCvvReveal(card.id),
                   ),
-                  const Divider(height: 24),
+                  const Divider(height: 24, color: LTCColors.border),
                   _buildDetailRow('Type', card.type),
-                  const Divider(height: 24),
+                  const Divider(height: 24, color: LTCColors.border),
                   _buildDetailRow('Devise', card.currency),
                 ],
               ),
@@ -306,10 +346,10 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: CustomButton(
-                          text: 'Recharger',
-                          icon: Icons.arrow_downward,
-                          variant: ButtonVariant.primary,
+                        child: _buildDarkActionButton(
+                          'Recharger',
+                          Icons.arrow_downward,
+                          isPrimary: true,
                           onPressed: () {
                             Navigator.of(context).pushNamed(
                               '/topup',
@@ -320,10 +360,10 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: CustomButton(
-                          text: 'Retirer',
-                          icon: Icons.arrow_upward,
-                          variant: ButtonVariant.secondary,
+                        child: _buildDarkActionButton(
+                          'Retirer',
+                          Icons.arrow_upward,
+                          isPrimary: false,
                           onPressed: () {
                             Navigator.of(context).pushNamed(
                               '/withdraw',
@@ -336,10 +376,11 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   if (card.isActive)
-                    CustomButton(
-                      text: 'Geler la carte',
-                      icon: Icons.ac_unit,
-                      variant: ButtonVariant.outline,
+                    _buildDarkActionButton(
+                      'Geler la carte',
+                      Icons.ac_unit,
+                      isPrimary: false,
+                      isOutline: true,
                       onPressed: () async {
                         final confirmed = await _showFreezeConfirmation();
                         if (confirmed) {
@@ -348,18 +389,21 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                       },
                     ),
                   if (card.isFrozen)
-                    CustomButton(
-                      text: 'Dégeler la carte',
-                      icon: Icons.lock_open,
-                      variant: ButtonVariant.outline,
+                    _buildDarkActionButton(
+                      'Degeler la carte',
+                      Icons.lock_open,
+                      isPrimary: false,
+                      isOutline: true,
                       onPressed: () => _handleCardAction('unfreeze', card.id),
                     ),
                   const SizedBox(height: 12),
                   if (!card.isBlocked)
-                    CustomButton(
-                      text: 'Bloquer définitivement',
-                      icon: Icons.block,
-                      variant: ButtonVariant.outline,
+                    _buildDarkActionButton(
+                      'Bloquer definitivement',
+                      Icons.block,
+                      isPrimary: false,
+                      isOutline: true,
+                      isDanger: true,
                       onPressed: () => _handleCardAction('block', card.id),
                     ),
                 ],
@@ -376,6 +420,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: LTCColors.textPrimary,
                 ),
               ),
             ),
@@ -384,15 +429,29 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
 
             // Transactions list
             if (cardTransactions.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(
-                  child: Text(
-                    'Aucune transaction pour cette carte',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: LTCColors.textSecondary,
-                    ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  decoration: BoxDecoration(
+                    color: LTCColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: LTCColors.border),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.receipt_long_outlined,
+                          size: 40, color: LTCColors.textTertiary),
+                      SizedBox(height: 8),
+                      Text(
+                        'Aucune transaction pour cette carte',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: LTCColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               )
@@ -408,6 +467,70 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
               ),
 
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDarkActionButton(
+    String text,
+    IconData icon, {
+    bool isPrimary = false,
+    bool isOutline = false,
+    bool isDanger = false,
+    required VoidCallback onPressed,
+  }) {
+    final Color bgColor;
+    final Color textColor;
+    final Color iconColor;
+    final Border? border;
+
+    if (isPrimary) {
+      bgColor = LTCColors.gold;
+      textColor = LTCColors.background;
+      iconColor = LTCColors.background;
+      border = null;
+    } else if (isDanger) {
+      bgColor = LTCColors.error.withValues(alpha: 0.12);
+      textColor = LTCColors.error;
+      iconColor = LTCColors.error;
+      border = Border.all(color: LTCColors.error.withValues(alpha: 0.3));
+    } else if (isOutline) {
+      bgColor = LTCColors.surface;
+      textColor = LTCColors.gold;
+      iconColor = LTCColors.gold;
+      border = Border.all(color: LTCColors.border);
+    } else {
+      bgColor = LTCColors.surfaceLight;
+      textColor = LTCColors.textPrimary;
+      iconColor = LTCColors.gold;
+      border = Border.all(color: LTCColors.border);
+    }
+
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: border,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
           ],
         ),
       ),
@@ -463,6 +586,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
               icon: Icon(
                 isRevealed ? Icons.visibility_off : Icons.visibility,
                 size: 20,
+                color: LTCColors.gold,
               ),
               onPressed: onToggle,
               padding: EdgeInsets.zero,

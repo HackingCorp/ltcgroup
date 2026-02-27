@@ -158,7 +158,7 @@ class CardWidget extends StatelessWidget {
       case AppConstants.cardStatusBlocked:
         return LTCColors.error;
       default:
-        return Colors.grey;
+        return LTCColors.textTertiary;
     }
   }
 

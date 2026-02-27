@@ -64,7 +64,7 @@ class TransactionItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getStatusColor().withValues(alpha:0.1),
+                color: _getStatusColor().withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -110,7 +110,7 @@ class TransactionItem extends StatelessWidget {
   Color _getIconColor() {
     switch (transaction.type) {
       case AppConstants.transactionTypePurchase:
-        return LTCColors.primary;
+        return LTCColors.gold;
       case AppConstants.transactionTypeTopup:
         return LTCColors.success;
       case AppConstants.transactionTypeWithdrawal:
@@ -118,12 +118,12 @@ class TransactionItem extends StatelessWidget {
       case AppConstants.transactionTypeRefund:
         return LTCColors.info;
       default:
-        return Colors.grey;
+        return LTCColors.textTertiary;
     }
   }
 
   Color _getIconBackgroundColor() {
-    return _getIconColor().withValues(alpha:0.1);
+    return _getIconColor().withValues(alpha: 0.1);
   }
 
   Color _getStatusColor() {
@@ -135,7 +135,7 @@ class TransactionItem extends StatelessWidget {
       case AppConstants.transactionStatusFailed:
         return LTCColors.error;
       default:
-        return Colors.grey;
+        return LTCColors.textTertiary;
     }
   }
 

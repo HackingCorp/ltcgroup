@@ -30,27 +30,24 @@ class StorageService {
     await _secureStorage.delete(key: _keyToken);
   }
 
-  /// Save user data
+  /// Save user data (secure)
   Future<void> saveUser(User user) async {
-    final prefs = await SharedPreferences.getInstance();
     final userJson = json.encode(user.toJson());
-    await prefs.setString(_keyUser, userJson);
+    await _secureStorage.write(key: _keyUser, value: userJson);
   }
 
-  /// Get user data
+  /// Get user data (secure)
   Future<User?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userJson = prefs.getString(_keyUser);
+    final userJson = await _secureStorage.read(key: _keyUser);
     if (userJson == null) return null;
 
     final userMap = json.decode(userJson) as Map<String, dynamic>;
     return User.fromJson(userMap);
   }
 
-  /// Remove user data
+  /// Remove user data (secure)
   Future<void> removeUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyUser);
+    await _secureStorage.delete(key: _keyUser);
   }
 
   /// Clear all stored data

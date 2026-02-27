@@ -216,11 +216,13 @@ class EnkapClient:
 
 def verify_webhook_signature(payload: str, signature: str) -> bool:
     """
-    Verify E-nkap webhook signature
-    The signature is typically HMAC-SHA256 of the payload
+    Verify E-nkap webhook signature using dedicated webhook secret.
+    Falls back to consumer_secret if webhook secret is not configured.
+    The signature is HMAC-SHA256 of the payload.
     """
+    secret = settings.enkap_webhook_secret or settings.enkap_consumer_secret
     expected_signature = hmac.new(
-        settings.enkap_consumer_secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
+        secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
     ).hexdigest()
 
     return hmac.compare_digest(signature, expected_signature)

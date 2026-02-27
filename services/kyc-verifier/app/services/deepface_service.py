@@ -57,13 +57,17 @@ async def face_match(selfie_bytes: bytes, id_image_bytes: bytes) -> dict:
                 img1_path=img1,
                 img2_path=img2,
                 model_name="Facenet",
-                enforce_detection=False,
+                enforce_detection=True,
             )
             return {
                 "match": bool(result.get("verified", False)),
                 "distance": float(result.get("distance", 1.0)),
                 "threshold": float(result.get("threshold", 0.4)),
             }
+        except ValueError as e:
+            # No face detected in one or both images
+            logger.warning(f"Face not detected during match: {e}")
+            return {"match": False, "distance": 1.0, "threshold": 0.4, "message": "No face detected in image"}
         except Exception as e:
             logger.warning(f"Face match failed: {e}")
             return {"match": False, "distance": 1.0, "threshold": 0.4}

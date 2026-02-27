@@ -31,17 +31,17 @@ class CustomButton extends StatelessWidget {
 
     switch (variant) {
       case ButtonVariant.primary:
-        backgroundColor = LTCColors.accent;
-        foregroundColor = Colors.white;
+        backgroundColor = LTCColors.gold;
+        foregroundColor = LTCColors.background;
         break;
       case ButtonVariant.secondary:
-        backgroundColor = LTCColors.primary;
-        foregroundColor = Colors.white;
+        backgroundColor = LTCColors.surface;
+        foregroundColor = LTCColors.textPrimary;
         break;
       case ButtonVariant.outline:
         backgroundColor = Colors.transparent;
-        foregroundColor = LTCColors.accent;
-        borderSide = const BorderSide(color: LTCColors.accent, width: 2);
+        foregroundColor = LTCColors.gold;
+        borderSide = const BorderSide(color: LTCColors.gold, width: 2);
         break;
     }
 
@@ -53,8 +53,8 @@ class CustomButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
-          disabledBackgroundColor: Colors.grey[300],
-          disabledForegroundColor: Colors.grey[600],
+          disabledBackgroundColor: LTCColors.surfaceLight,
+          disabledForegroundColor: LTCColors.textTertiary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: borderSide ?? BorderSide.none,
@@ -62,12 +62,12 @@ class CustomButton extends StatelessWidget {
           elevation: variant == ButtonVariant.outline ? 0 : 2,
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
                 ),
               )
             : Row(

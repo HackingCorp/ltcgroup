@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initiateS3PPayment, verifyTransaction, detectService, S3P_SERVICES } from "@/lib/payments/s3p";
+import { createPaymentLink, getPaymentLinkStatus, PAYIN_COUNTRIES } from "@/lib/payments/payin";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
 import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus } from "@/lib/db";
 
@@ -13,6 +13,7 @@ interface PaymentRequest {
   email: string;
   customerName: string;
   cardType: string;
+  countryCode?: string; // ISO 2-letter code, required for mobile_money
   orderDetails: {
     cardPrice: number;
     deliveryFee: number;
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: PaymentRequest = await request.json();
 
-    const { method, amount, orderRef, phone, email, customerName, cardType, orderDetails } = body;
+    const { method, amount, orderRef, phone, email, customerName, cardType, countryCode, orderDetails } = body;
 
     // Validate required fields
     if (!method || !amount || !orderRef || !phone) {
@@ -35,21 +36,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store order details in session/database for later verification
-    // For now, we'll include them in the transaction reference
-
     if (method === 'mobile_money') {
-      // Detect provider (MTN or Orange)
-      let provider = 'MTN';
-      try {
-        const serviceId = detectService(phone);
-        provider = serviceId === S3P_SERVICES.ORANGE_MONEY ? 'ORANGE' : 'MTN';
-      } catch {
-        // Default to MTN if detection fails
+      // Validate country code
+      if (!countryCode || !PAYIN_COUNTRIES[countryCode.toUpperCase()]) {
+        return NextResponse.json(
+          { success: false, error: "Invalid or missing country code for Mobile Money payment" },
+          { status: 400 }
+        );
       }
 
-      // Use S3P for Mobile Money (MTN, Orange Money)
-      const result = await initiateS3PPayment(amount, phone, orderRef, customerName);
+      // Use Payin for Mobile Money (payment link)
+      const result = await createPaymentLink({
+        amount,
+        countryCode,
+        orderRef,
+        customerName,
+        customerEmail: email,
+        customerPhone: phone,
+        description: `Carte ${cardType} - ${orderRef}`,
+        callbackUrl: process.env.PAYIN_WEBHOOK_URL || '',
+      });
 
       if (!result.success) {
         // Save failed transaction attempt
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
           customer_name: customerName,
           customer_email: email,
           payment_method: 'mobile_money',
-          provider,
+          provider: countryCode.toUpperCase(),
           status: 'FAILED',
           error_message: result.error,
         });
@@ -73,30 +79,29 @@ export async function POST(request: NextRequest) {
 
       // Save transaction to database
       await saveTransaction({
-        ptn: result.ptn,
-        trid: result.trid,
+        trid: result.transactionId,
         order_ref: orderRef,
         amount,
         phone,
         customer_name: customerName,
         customer_email: email,
         payment_method: 'mobile_money',
-        provider,
+        provider: countryCode.toUpperCase(),
         status: 'PENDING',
       });
 
       return NextResponse.json({
         success: true,
         paymentMethod: 'mobile_money',
-        ptn: result.ptn,
-        trid: result.trid, // Transaction reference for verification
-        status: result.status,
-        message: result.message || "Veuillez confirmer le paiement sur votre téléphone",
+        paymentUrl: result.paymentLink,
+        transactionId: result.transactionId,
+        paymentLinkId: result.paymentLinkId,
+        totalAmount: result.totalAmount,
         orderRef,
       });
 
     } else if (method === 'enkap') {
-      // Use E-nkap for card/multi-channel payments
+      // Use E-nkap for card/multi-channel payments (unchanged)
       const result = await initiateEnkapPayment({
         amount,
         orderRef,
@@ -107,7 +112,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (!result.success) {
-        // Save failed transaction attempt
         await saveTransaction({
           order_ref: orderRef,
           amount,
@@ -125,7 +129,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Save transaction to database
       await saveTransaction({
         trid: result.transactionId,
         order_ref: orderRef,
@@ -162,39 +165,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint to check Mobile Money payment status
+// GET endpoint to check Mobile Money payment status (Payin)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const trid = searchParams.get('trid');
-    const ptn = searchParams.get('ptn');
+    const transactionId = searchParams.get('transactionId');
     const orderRef = searchParams.get('orderRef');
 
-    // Prefer TRID for verification (more reliable)
-    const transactionRef = trid || ptn;
-
-    if (!transactionRef) {
+    if (!transactionId) {
       return NextResponse.json(
-        { success: false, error: "Missing transaction reference" },
+        { success: false, error: "Missing transaction ID" },
         { status: 400 }
       );
     }
 
-    const result = await verifyTransaction(transactionRef);
+    const result = await getPaymentLinkStatus(transactionId);
 
     // Update transaction and order status in database
-    if (result.status === 'SUCCESS' || result.status === 'FAILED' || result.status === 'ERRORED') {
-      const dbStatus = result.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+    if (result.status === 'COMPLETED' || result.status === 'FAILED' || result.status === 'REFUNDED') {
+      const dbStatus = result.status === 'COMPLETED' ? 'SUCCESS' : 'FAILED';
 
-      // Update transaction status
       await updateTransactionStatus(
-        { trid: trid || undefined, ptn: ptn || undefined },
+        { trid: transactionId },
         dbStatus,
-        undefined,
-        result.errorMessage
       );
 
-      // Update order status if we have the order reference
       if (orderRef) {
         await updateOrderPaymentStatus(orderRef, dbStatus, 'mobile_money');
       }
@@ -204,7 +199,6 @@ export async function GET(request: NextRequest) {
       success: true,
       status: result.status,
       amount: result.amount,
-      errorMessage: result.errorMessage,
     });
 
   } catch (error) {

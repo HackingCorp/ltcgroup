@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     enkap_consumer_key: str = ""
     enkap_consumer_secret: str = ""
     enkap_merchant_code: str = ""  # Optional merchant code if needed
+    enkap_webhook_secret: str = ""  # Dedicated secret for E-nkap webhook signature verification
+
+    # Payin Webhook Secret (separate from OAuth credentials)
+    payin_webhook_secret: str = ""
 
     # SMTP Email Configuration
     smtp_host: str = "mail.ltcgroup.site"
@@ -51,7 +55,8 @@ class Settings(BaseSettings):
 
     # KYC Verifier microservice
     kyc_verifier_url: str = "http://kyc-verifier:8001"
-    kyc_auto_approve_threshold: float = 0.70
+    kyc_verifier_api_key: str = ""
+    kyc_auto_approve_threshold: float = 0.85
     kyc_manual_review_threshold: float = 0.50
 
     # S3 Configuration (optional, for production)

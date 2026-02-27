@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 /// Success modal shown after a virtual card is created.
 /// Displays an animated checkmark, card preview, and action buttons.
@@ -50,8 +51,6 @@ class CardSuccessDialog extends StatefulWidget {
 
 class _CardSuccessDialogState extends State<CardSuccessDialog>
     with TickerProviderStateMixin {
-  static const _primaryBlue = Color(0xFF2B2BEE);
-  static const _successGreen = Color(0xFF10B981);
 
   late final AnimationController _backdropController;
   late final AnimationController _modalController;
@@ -161,11 +160,12 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
       width: 340,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: LTCColors.surface,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: LTCColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -183,15 +183,15 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: LTCColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Votre carte virtuelle LTC Pay est prête.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[500],
+                color: LTCColors.textSecondary,
               ),
             ),
             const SizedBox(height: 28),
@@ -226,7 +226,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                       height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _successGreen.withValues(alpha: 0.15),
+                        color: LTCColors.success.withValues(alpha: 0.15),
                       ),
                     ),
                   ),
@@ -239,14 +239,14 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _successGreen.withValues(alpha: 0.1),
+                color: LTCColors.success.withValues(alpha: 0.1),
               ),
             ),
             // Icon
             const Icon(
               Icons.check_circle_rounded,
               size: 50,
-              color: _successGreen,
+              color: LTCColors.success,
             ),
           ],
         ),
@@ -267,11 +267,11 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_primaryBlue, Color(0xFF1A1AB8)],
+            colors: [LTCColors.goldDark, LTCColors.gold],
           ),
           boxShadow: [
             BoxShadow(
-              color: _primaryBlue.withValues(alpha: 0.3),
+              color: LTCColors.gold.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -344,7 +344,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: LTCColors.background.withValues(alpha: 0.9),
                           letterSpacing: 1,
                         ),
                       ),
@@ -355,11 +355,11 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                     children: [
                       for (int i = 0; i < 3; i++) ...[
                         Text(
-                          '••••',
+                          '.....',
                           style: TextStyle(
                             fontSize: 16,
                             letterSpacing: 2,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: LTCColors.background.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -371,7 +371,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.w500,
                           letterSpacing: 2,
-                          color: Colors.white,
+                          color: LTCColors.background,
                         ),
                       ),
                     ],
@@ -389,7 +389,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                             style: TextStyle(
                               fontSize: 8,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: LTCColors.background.withValues(alpha: 0.5),
                               letterSpacing: 1,
                             ),
                           ),
@@ -399,7 +399,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                              color: LTCColors.background,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -456,7 +456,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
         fontSize: 20,
         fontWeight: FontWeight.w700,
         fontStyle: FontStyle.italic,
-        color: Colors.white.withValues(alpha: 0.9),
+        color: LTCColors.background.withValues(alpha: 0.9),
         letterSpacing: -0.5,
       ),
     );
@@ -471,11 +471,11 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: _primaryBlue,
+              color: LTCColors.gold,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: _primaryBlue.withValues(alpha: 0.2),
+                  color: LTCColors.gold.withValues(alpha: 0.2),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -489,12 +489,12 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: LTCColors.background,
                   ),
                 ),
                 SizedBox(width: 6),
                 Icon(Icons.arrow_forward_rounded,
-                    color: Colors.white, size: 18),
+                    color: LTCColors.background, size: 18),
               ],
             ),
           ),
@@ -505,13 +505,13 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
+            child: const Text(
               'Retour à l\'accueil',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[500],
+                color: LTCColors.textSecondary,
               ),
             ),
           ),

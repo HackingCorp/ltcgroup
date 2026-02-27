@@ -64,6 +64,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       KYC_VERIFIER_URL: http://kyc-verifier:8001
+      KYC_VERIFIER_API_KEY: ${KYC_VERIFIER_API_KEY:-}
     volumes:
       - ./backend/app:/app/app
       - ./uploads:/app/uploads
@@ -90,6 +91,8 @@ services:
     build: ./services/kyc-verifier
     container_name: ltc-kyc-verifier
     restart: unless-stopped
+    environment:
+      KYC_VERIFIER_API_KEY: ${KYC_VERIFIER_API_KEY:-}
     expose:
       - "8001"
     volumes:

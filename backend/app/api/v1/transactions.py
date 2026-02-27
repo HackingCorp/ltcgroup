@@ -17,7 +17,7 @@ from app.schemas.transaction import (
     TransactionListResponse,
 )
 from app.services.auth import get_current_user
-from app.services.accountpe import accountpe_client
+from app.services.accountpe import accountpe_client, AccountPEError
 from app.utils.exceptions import (
     CardNotFoundException,
     UnauthorizedCardAccessException,
@@ -126,7 +126,18 @@ async def topup_card(
             .values(balance=Card.balance + topup_data.amount)
         )
 
+    except AccountPEError as e:
+        # Business error from AccountPE (e.g. insufficient wallet balance)
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {"error": str(e), "provider_status": e.status_code}
+        await db.commit()
+        logger.warning(f"Top-up business error for card {card.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
+        # Transient / network error
         transaction.status = TransactionStatus.FAILED
         transaction.extra_data = {"error": str(e)}
         await db.commit()
@@ -200,7 +211,18 @@ async def withdraw_from_card(
             .values(balance=Card.balance - withdraw_data.amount)
         )
 
+    except AccountPEError as e:
+        # Business error from AccountPE (e.g. insufficient balance on provider side)
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {"error": str(e), "provider_status": e.status_code}
+        await db.commit()
+        logger.warning(f"Withdrawal business error for card {card.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     except Exception as e:
+        # Transient / network error
         transaction.status = TransactionStatus.FAILED
         transaction.extra_data = {"error": str(e)}
         await db.commit()

@@ -16,10 +16,17 @@ from app.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+_MAX_RETRIES = 2
+_RETRY_BACKOFF_BASE = 0.5  # seconds; retries at 0.5s, 1.0s
+
 
 class AccountPEError(Exception):
-    """Dedicated error for AccountPE API failures."""
-    pass
+    """Business-logic error returned by AccountPE (HTTP 200 with non-200 status field)."""
+
+    def __init__(self, message: str, status_code: int = 400, raw_response: dict | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.raw_response = raw_response or {}
 
 
 class AccountPEClient:
@@ -33,6 +40,7 @@ class AccountPEClient:
         self.client = httpx.AsyncClient(
             timeout=30.0,
         )
+        self._validate_credentials()
 
     async def _ensure_token(self) -> str:
         """Authenticate with /admin/login and cache the JWT token."""
@@ -80,22 +88,74 @@ class AccountPEClient:
         base = self.base_url.rstrip("/")
         return f"{base}/{path.lstrip('/')}"
 
-    async def _post(self, path: str, payload: dict) -> dict:
-        """POST helper with auto-auth and retry on 401."""
+    def _validate_credentials(self):
+        """Verify AccountPE credentials are configured at startup."""
+        if not self.email or not self.password:
+            logger.warning(
+                "AccountPE credentials not configured (swychr_email / swychr_password). "
+                "Card operations will fail until credentials are set."
+            )
+
+    async def _post(
+        self, path: str, payload: dict, *, raise_on_business_error: bool = True
+    ) -> dict:
+        """POST helper with auto-auth, retry on 401, transient-error retry, and business error checking.
+
+        Args:
+            path: API endpoint path.
+            payload: JSON body.
+            raise_on_business_error: If True (default), raise AccountPEError when
+                the response JSON contains a non-200 ``status`` field.  Set to False
+                when the caller needs to inspect the raw response (e.g. to handle
+                "Email id already exist").
+        """
         url = self._url(path)
-        headers = await self._get_headers()
-        response = await self.client.post(url, json=payload, headers=headers)
+        last_exc: Exception | None = None
 
-        # If 401, invalidate token under lock and retry once
-        if response.status_code == 401:
-            async with self._token_lock:
-                self._token = None
-                self._token_expires_at = 0
-            headers = await self._get_headers()
-            response = await self.client.post(url, json=payload, headers=headers)
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                headers = await self._get_headers()
+                response = await self.client.post(url, json=payload, headers=headers)
 
-        response.raise_for_status()
-        return response.json()
+                # If 401, invalidate token under lock and retry once
+                if response.status_code == 401:
+                    async with self._token_lock:
+                        self._token = None
+                        self._token_expires_at = 0
+                    headers = await self._get_headers()
+                    response = await self.client.post(url, json=payload, headers=headers)
+
+                response.raise_for_status()
+                data = response.json()
+
+                # Check for AccountPE business errors (HTTP 200 but status != 200)
+                ape_status = data.get("status", 200)
+                if isinstance(ape_status, str):
+                    try:
+                        ape_status = int(ape_status)
+                    except (ValueError, TypeError):
+                        ape_status = 200
+                if ape_status != 200 and raise_on_business_error:
+                    msg = data.get("message", "AccountPE business error")
+                    logger.warning(f"AccountPE business error on {path}: {msg} (status={ape_status})")
+                    raise AccountPEError(msg, status_code=ape_status, raw_response=data)
+
+                return data
+
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning(
+                        f"AccountPE transient error on {path} (attempt {attempt + 1}/{_MAX_RETRIES + 1}), "
+                        f"retrying in {wait:.1f}s: {exc}"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+
+        # Should not reach here, but satisfy the type checker
+        raise last_exc  # type: ignore[misc]
 
     async def close(self):
         """Close the underlying HTTP client."""
@@ -104,12 +164,16 @@ class AccountPEClient:
     # ── Users ──
 
     async def create_user(self, email: str, name: str, country: str = "CM") -> dict:
-        """Create a user on AccountPE platform."""
+        """Create a user on AccountPE platform.
+
+        Note: Uses raise_on_business_error=False because callers need to inspect
+        the response to handle "Email id already exist" gracefully.
+        """
         return await self._post("/create_user", {
             "email": email,
             "name": name,
             "country": country,
-        })
+        }, raise_on_business_error=False)
 
     async def update_user(
         self,
@@ -198,14 +262,24 @@ class AccountPEClient:
         })
 
     async def purchase_contactless_card(
-        self, user_id: str, card_type: str, amount: float
+        self,
+        user_id: str,
+        card_type: str,
+        amount: float,
+        daily_limit: float | None = None,
+        transaction_limit: float | None = None,
     ) -> dict:
-        """Purchase a contactless virtual card."""
-        return await self._post("/contactless_purchase_card", {
+        """Purchase a contactless virtual card with optional spending limits."""
+        payload: dict = {
             "user_id": user_id,
             "card_type": card_type,
             "amount": amount,
-        })
+        }
+        if daily_limit is not None:
+            payload["daily_limit"] = daily_limit
+        if transaction_limit is not None:
+            payload["transaction_limit"] = transaction_limit
+        return await self._post("/contactless_purchase_card", payload)
 
     async def get_all_cards(self, user_id: str) -> dict:
         """
