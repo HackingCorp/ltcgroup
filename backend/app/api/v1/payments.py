@@ -17,7 +17,7 @@ from app.models.user import User
 from app.models.card import Card
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.services.auth import get_current_user
-from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, calculate_fees
+from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate
 from app.services.enkap import enkap_client, EnkapError, verify_webhook_signature
 from app.config import settings
 from app.middleware.rate_limit import limiter
@@ -74,7 +74,7 @@ async def list_supported_countries():
             code=code,
             name=info["name"],
             provider_fee=info["provider_fee"],
-            total_fee=info["total_fee"],
+            total_fee=info["provider_fee"] + 0.5,  # provider + 0.5% LTC margin
             currency=info["currency"],
         )
         for code, info in PAYIN_COUNTRIES.items()
@@ -138,8 +138,8 @@ async def initiate_payment(
     if payment_data.method == "mobile_money" and payment_data.country_code:
         country_info = PAYIN_COUNTRIES.get(payment_data.country_code.upper(), {})
         currency = country_info.get("currency", "XAF")
-        fees = calculate_fees(payment_data.amount, payment_data.country_code)
-        fee = fees["margin_amount"]
+        fee_rate = get_country_fee_rate(payment_data.country_code)
+        fee = (payment_data.amount * fee_rate).quantize(Decimal("0.01"))
     elif payment_data.method == "enkap":
         # E-nkap: apply a flat 0.5% platform fee
         fee = (payment_data.amount * Decimal("0.005")).quantize(Decimal("0.01"))
