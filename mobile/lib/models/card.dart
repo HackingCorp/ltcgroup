@@ -2,6 +2,7 @@
 class VirtualCard {
   final String id;
   final String type; // VISA, MASTERCARD
+  final String tier; // STANDARD, PREMIUM, GOLD
   final double balance;
   final String status; // ACTIVE, FROZEN, BLOCKED
   final String maskedNumber; // **** **** **** 1234
@@ -12,6 +13,7 @@ class VirtualCard {
   VirtualCard({
     required this.id,
     required this.type,
+    this.tier = 'STANDARD',
     required this.balance,
     required this.status,
     required this.maskedNumber,
@@ -41,6 +43,7 @@ class VirtualCard {
     return VirtualCard(
       id: json['id'] as String,
       type: json['card_type'] as String,
+      tier: (json['card_tier'] as String?) ?? 'STANDARD',
       balance: (json['balance'] as num).toDouble(),
       status: json['status'] as String,
       maskedNumber: json['card_number_masked'] as String,
@@ -55,6 +58,7 @@ class VirtualCard {
     return {
       'id': id,
       'card_type': type,
+      'card_tier': tier,
       'balance': balance,
       'status': status,
       'card_number_masked': maskedNumber,
@@ -68,6 +72,7 @@ class VirtualCard {
   VirtualCard copyWith({
     String? id,
     String? type,
+    String? tier,
     double? balance,
     String? status,
     String? maskedNumber,
@@ -78,6 +83,7 @@ class VirtualCard {
     return VirtualCard(
       id: id ?? this.id,
       type: type ?? this.type,
+      tier: tier ?? this.tier,
       balance: balance ?? this.balance,
       status: status ?? this.status,
       maskedNumber: maskedNumber ?? this.maskedNumber,

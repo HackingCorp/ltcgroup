@@ -2,18 +2,27 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field, UUID4
-from app.models.card import CardType, CardStatus
+from pydantic import model_validator
+from app.models.card import CardType, CardStatus, CardTier
 
 
 class CardPurchase(BaseModel):
     card_type: CardType
+    card_tier: CardTier = CardTier.STANDARD
     initial_balance: Decimal = Field(..., gt=0, decimal_places=2)
     transaction_id: Optional[UUID4] = None
+
+    @model_validator(mode="after")
+    def validate_tier_type(self):
+        if self.card_tier in (CardTier.STANDARD, CardTier.PREMIUM) and self.card_type != CardType.VISA:
+            raise ValueError("Standard and Premium tiers only support VISA cards")
+        return self
 
 
 class CardResponse(BaseModel):
     id: UUID4
     card_type: CardType
+    card_tier: CardTier
     card_number_masked: str
     status: CardStatus
     balance: Decimal

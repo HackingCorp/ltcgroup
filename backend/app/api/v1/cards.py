@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 
 from app.database import get_db
 from app.models.user import User, KYCStatus
-from app.models.card import Card, CardStatus
+from app.models.card import Card, CardStatus, CardTier
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.schemas.card import CardPurchase, CardResponse, CardListResponse, CardRevealResponse
 from app.services.auth import get_current_user, verify_token
@@ -137,13 +137,28 @@ async def purchase_card(
                 detail="Card provider is temporarily unavailable",
             )
 
-    # Call AccountPE to purchase card
+    # Call AccountPE to purchase card — route by tier
     try:
-        purchase_resp = await accountpe_client.purchase_card(
-            user_id=provider_user_id,
-            card_type=card_data.card_type.value.lower(),
-            amount=float(card_data.initial_balance),
-        )
+        card_type_lower = card_data.card_type.value.lower()
+        amount = float(card_data.initial_balance)
+        if card_data.card_tier == CardTier.PREMIUM:
+            purchase_resp = await accountpe_client.purchase_credit_card(
+                user_id=provider_user_id,
+                card_type=card_type_lower,
+                amount=amount,
+            )
+        elif card_data.card_tier == CardTier.GOLD:
+            purchase_resp = await accountpe_client.purchase_contactless_card(
+                user_id=provider_user_id,
+                card_type=card_type_lower,
+                amount=amount,
+            )
+        else:
+            purchase_resp = await accountpe_client.purchase_card(
+                user_id=provider_user_id,
+                card_type=card_type_lower,
+                amount=amount,
+            )
     except AccountPEError as e:
         logger.warning(f"AccountPE purchase_card business error: {e}")
         raise _map_accountpe_error(e)
@@ -188,6 +203,7 @@ async def purchase_card(
     new_card = Card(
         user_id=current_user.id,
         card_type=card_data.card_type,
+        card_tier=card_data.card_tier,
         card_number_masked=card_number_masked,
         card_number_full_encrypted=encrypt_field(card_number_full),
         status=CardStatus.ACTIVE,
@@ -216,6 +232,7 @@ async def purchase_card(
         resource_id=str(new_card.id),
         details={
             "card_type": card_data.card_type.value,
+            "card_tier": card_data.card_tier.value,
             "initial_balance": str(card_data.initial_balance),
         },
         ip_address=request.client.host if request.client else None,

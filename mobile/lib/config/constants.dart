@@ -13,6 +13,11 @@ class AppConstants {
   static const String cardTypeVisa = 'VISA';
   static const String cardTypeMastercard = 'MASTERCARD';
 
+  // Card tiers
+  static const String cardTierStandard = 'STANDARD';
+  static const String cardTierPremium = 'PREMIUM';
+  static const String cardTierGold = 'GOLD';
+
   // Card status
   static const String cardStatusActive = 'ACTIVE';
   static const String cardStatusFrozen = 'FROZEN';

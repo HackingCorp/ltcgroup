@@ -19,6 +19,7 @@ class PurchaseCardScreen extends StatefulWidget {
 
 class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   String _selectedType = 'VISA';
+  String _selectedTier = 'STANDARD';
   int _selectedAmountIndex = 1;
   String _selectedPayment = 'mobile_money';
   String _selectedCountry = 'CM';
@@ -109,8 +110,29 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     }
   }
 
+  String get _tierLabel {
+    switch (_selectedTier) {
+      case 'PREMIUM':
+        return 'VISA Premium';
+      case 'GOLD':
+        return 'Gold Contactless';
+      default:
+        return 'VISA Standard';
+    }
+  }
+
+  double get _tierPrice {
+    switch (_selectedTier) {
+      case 'PREMIUM':
+        return 10.0;
+      case 'GOLD':
+        return 15.0;
+      default:
+        return 5.0;
+    }
+  }
+
   Future<bool?> _showConfirmationDialog() {
-    final cardType = _selectedType == 'VISA' ? 'Visa' : 'Mastercard';
     final paymentLabel = _selectedPayment == 'mobile_money'
         ? 'Mobile Money'
         : 'Carte Bancaire';
@@ -128,7 +150,9 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _dialogRow('Carte', '$cardType virtuelle'),
+            _dialogRow('Carte', _tierLabel),
+            const SizedBox(height: 8),
+            _dialogRow('Prix carte', '\$${_tierPrice.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
             _dialogRow('Montant', '\$${_amount.toStringAsFixed(2)}'),
             const SizedBox(height: 8),
@@ -213,6 +237,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             type: _selectedType,
             initialBalance: _amount,
             transactionId: transactionId,
+            cardTier: _selectedTier,
           );
 
           if (!mounted) return;
@@ -220,7 +245,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           if (success) {
             await SuccessDialog.showPurchaseSuccess(
               context,
-              cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+              cardType: _tierLabel,
               balance: _amount,
             );
             if (!mounted) return;
@@ -290,6 +315,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             type: _selectedType,
             initialBalance: _amount,
             transactionId: transactionId,
+            cardTier: _selectedTier,
           );
 
           if (!mounted) return;
@@ -297,7 +323,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           if (success) {
             await SuccessDialog.showPurchaseSuccess(
               context,
-              cardType: _selectedType == 'VISA' ? 'Visa' : 'Mastercard',
+              cardType: _tierLabel,
               balance: _amount,
             );
             if (!mounted) return;
@@ -455,409 +481,271 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title + toggle
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            const Text(
-              'Type de Carte',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: LTCColors.textPrimary,
-              ),
-            ),
-            _buildToggle(),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Card carousel
-        SizedBox(
-          height: 175,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            children: [
-              _buildVisaCard(),
-              const SizedBox(width: 16),
-              _buildMastercardCard(),
-            ],
+        const Text(
+          'Choisir votre carte',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: LTCColors.textPrimary,
           ),
         ),
+        const SizedBox(height: 16),
+        _buildTierCard(
+          tier: 'STANDARD',
+          name: 'VISA Standard',
+          price: '\$5',
+          cardTypes: 'VISA uniquement',
+          icon: Icons.credit_card_rounded,
+          features: const [
+            'Carte prepayee Debit',
+            'Paiements en ligne',
+            '85% taux de succes',
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildTierCard(
+          tier: 'PREMIUM',
+          name: 'VISA Premium',
+          price: '\$10',
+          cardTypes: 'VISA uniquement',
+          icon: Icons.star_rounded,
+          features: const [
+            'Carte prepayee Credit',
+            '95% taux de succes',
+            'Marchands premium',
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildTierCard(
+          tier: 'GOLD',
+          name: 'Gold Contactless',
+          price: '\$15',
+          cardTypes: 'VISA ou Mastercard',
+          icon: Icons.contactless_rounded,
+          features: const [
+            '99% taux de succes',
+            'Apple / Samsung / Google Pay',
+            'Paiements sans contact',
+          ],
+        ),
+        if (_selectedTier == 'GOLD') ...[
+          const SizedBox(height: 16),
+          _buildGoldTypeSelector(),
+        ],
       ],
     );
   }
 
-  Widget _buildToggle() {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: LTCColors.surfaceLight,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: LTCColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildToggleBtn('Classique', true),
-          _buildToggleBtn('Contactless', false),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleBtn(String label, bool active) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: active ? LTCColors.surfaceElevated : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: active
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                )
-              ]
-            : null,
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: active ? LTCColors.textPrimary : LTCColors.textTertiary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisaCard() {
-    final isSelected = _selectedType == 'VISA';
-    final user = Provider.of<AuthProvider>(context, listen: false).user;
-    final name = user?.firstName ?? 'Votre Nom';
+  Widget _buildTierCard({
+    required String tier,
+    required String name,
+    required String price,
+    required String cardTypes,
+    required IconData icon,
+    required List<String> features,
+  }) {
+    final isSelected = _selectedTier == tier;
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedType = 'VISA'),
+      onTap: () {
+        setState(() {
+          _selectedTier = tier;
+          if (tier != 'GOLD') {
+            _selectedType = 'VISA';
+          }
+        });
+      },
       child: Container(
-        width: 280,
-        height: 170,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
+          color: LTCColors.surface,
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
+          border: Border.all(
+            color: isSelected ? LTCColors.gold : LTCColors.border,
+            width: isSelected ? 1.5 : 1,
           ),
-          border: isSelected
-              ? Border.all(color: LTCColors.goldLight, width: 2)
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: LTCColors.goldDark.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
               : null,
-          boxShadow: [
-            BoxShadow(
-              color: LTCColors.goldDark.withValues(alpha: 0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
-        child: Stack(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Background decoration -- glassmorphism
-            Positioned(
-              top: -60,
-              right: -60,
+            // Radio
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
               child: Container(
-                width: 180,
-                height: 180,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.07),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -40,
-              left: -40,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-            // Glass border overlay
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: isSelected ? LTCColors.gold : LTCColors.textTertiary,
+                    width: 2,
                   ),
                 ),
+                child: isSelected
+                    ? Center(
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: LTCColors.gold,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ),
+            const SizedBox(width: 12),
+            // Icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? LTCColors.gold.withValues(alpha: 0.15)
+                    : LTCColors.surfaceLight,
+              ),
+              child: Icon(icon, size: 20, color: isSelected ? LTCColors.gold : LTCColors.textSecondary),
+            ),
+            const SizedBox(width: 12),
             // Content
-            Padding(
-              padding: const EdgeInsets.all(20),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Kash Pay',
+                        name,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? LTCColors.textPrimary : LTCColors.textSecondary,
                         ),
                       ),
-                      Icon(Icons.contactless_rounded,
-                          color: Colors.white.withValues(alpha: 0.5),
-                          size: 20),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Chip
                       Container(
-                        width: 40,
-                        height: 24,
-                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: isSelected ? LTCColors.gold : LTCColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                      Text(
-                        '**** **** **** 4289',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 17,
-                          letterSpacing: 3,
-                          fontFamily: 'monospace',
+                        child: Text(
+                          price,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? LTCColors.background : LTCColors.textSecondary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'TITULAIRE',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 9,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'VISA',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          fontStyle: FontStyle.italic,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 2),
+                  Text(
+                    cardTypes,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: LTCColors.textTertiary,
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  ...features.map((f) => Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline_rounded,
+                              size: 14,
+                              color: isSelected ? LTCColors.success : LTCColors.textTertiary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              f,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isSelected ? LTCColors.textSecondary : LTCColors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
                 ],
               ),
             ),
-            // Selected check
-            if (isSelected)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.check, size: 16, color: LTCColors.goldDark),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMastercardCard() {
-    final isSelected = _selectedType == 'MASTERCARD';
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedType = 'MASTERCARD'),
-      child: Opacity(
-        opacity: isSelected ? 1.0 : 0.6,
-        child: Transform.scale(
-          scale: isSelected ? 1.0 : 0.95,
-          child: Container(
-            width: 280,
-            height: 170,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  LTCColors.cardGold1,
-                  LTCColors.cardGold2,
-                  LTCColors.cardGold3,
-                ],
-              ),
-              border: isSelected
-                  ? Border.all(color: LTCColors.goldLight, width: 2)
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: LTCColors.goldDark.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+  Widget _buildGoldTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: LTCColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LTCColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Reseau de carte',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: LTCColors.textSecondary,
             ),
-            child: Stack(
-              children: [
-                // Glass border overlay
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Kash Pay',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      Text(
-                        '**** **** **** ****',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 17,
-                          letterSpacing: 3,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'TITULAIRE',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 9,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'Votre Nom',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          // Mastercard circles
-                          SizedBox(
-                            width: 40,
-                            height: 24,
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  left: 0,
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.red.withValues(alpha: 0.9),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 14,
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.yellow
-                                          .withValues(alpha: 0.9),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.check,
-                          size: 16, color: LTCColors.goldDark),
-                    ),
-                  ),
-              ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildNetworkChip('VISA', 'VISA'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildNetworkChip('MASTERCARD', 'Mastercard'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkChip(String value, String label) {
+    final isSelected = _selectedType == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? LTCColors.gold.withValues(alpha: 0.15) : LTCColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? LTCColors.gold : LTCColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? LTCColors.gold : LTCColors.textSecondary,
             ),
           ),
         ),

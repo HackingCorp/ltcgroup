@@ -62,6 +62,7 @@ class CardsProvider with ChangeNotifier {
     required double initialBalance,
     String currency = 'XAF',
     String? transactionId,
+    String? cardTier,
   }) async {
     _isLoading = true;
     _error = null;
@@ -72,6 +73,7 @@ class CardsProvider with ChangeNotifier {
         type: type,
         initialBalance: initialBalance,
         transactionId: transactionId,
+        cardTier: cardTier,
       );
       _cards = [..._cards, newCard];
       _isLoading = false;

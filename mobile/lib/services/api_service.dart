@@ -364,6 +364,7 @@ class ApiService {
     required String type,
     required double initialBalance,
     String? transactionId,
+    String? cardTier,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/purchase');
     final headers = await _getAuthHeaders();
@@ -372,6 +373,7 @@ class ApiService {
       'card_type': type,
       'initial_balance': initialBalance,
       if (transactionId != null) 'transaction_id': transactionId,
+      if (cardTier != null) 'card_tier': cardTier,
     };
 
     try {

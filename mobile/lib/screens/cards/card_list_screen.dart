@@ -1054,9 +1054,14 @@ class _CardListScreenState extends State<CardListScreen> {
   }
 
   String _getCardLabel(VirtualCard card) {
-    if (card.type == 'VISA') return 'Debit Virtuelle';
-    if (card.type == 'MASTERCARD') return 'Prepayee';
-    return 'Business';
+    switch (card.tier) {
+      case 'PREMIUM':
+        return 'VISA Premium';
+      case 'GOLD':
+        return 'Gold Contactless';
+      default:
+        return 'VISA Standard';
+    }
   }
 
   String _getShortMasked(String masked) {
@@ -1089,6 +1094,24 @@ class _CardListScreenState extends State<CardListScreen> {
           icon: Icons.arrow_upward_rounded,
           iconColor: LTCColors.error,
           bgColor: LTCColors.error.withValues(alpha: 0.12),
+        );
+      case 'WALLET_TOPUP':
+        return _TxIconInfo(
+          icon: Icons.account_balance_wallet_rounded,
+          iconColor: LTCColors.success,
+          bgColor: LTCColors.success.withValues(alpha: 0.12),
+        );
+      case 'WALLET_TO_CARD':
+        return _TxIconInfo(
+          icon: Icons.credit_card_rounded,
+          iconColor: LTCColors.gold,
+          bgColor: LTCColors.gold.withValues(alpha: 0.12),
+        );
+      case 'WALLET_WITHDRAWAL':
+        return _TxIconInfo(
+          icon: Icons.phone_android_rounded,
+          iconColor: LTCColors.warning,
+          bgColor: LTCColors.warning.withValues(alpha: 0.12),
         );
       default:
         return _TxIconInfo(

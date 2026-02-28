@@ -261,6 +261,19 @@ class AccountPEClient:
             "amount": amount,
         })
 
+    async def purchase_credit_card(
+        self, user_id: str, card_type: str, amount: float
+    ) -> dict:
+        """
+        Purchase a premium virtual credit card.
+        POST /vcard_purchase_credit_card {user_id, card_type, amount}
+        """
+        return await self._post("/vcard_purchase_credit_card", {
+            "user_id": user_id,
+            "card_type": card_type,
+            "amount": amount,
+        })
+
     async def purchase_contactless_card(
         self,
         user_id: str,

@@ -14,6 +14,12 @@ class CardType(str, enum.Enum):
     MASTERCARD = "MASTERCARD"
 
 
+class CardTier(str, enum.Enum):
+    STANDARD = "STANDARD"
+    PREMIUM = "PREMIUM"
+    GOLD = "GOLD"
+
+
 class CardStatus(str, enum.Enum):
     ACTIVE = "ACTIVE"
     FROZEN = "FROZEN"
@@ -35,6 +41,9 @@ class Card(Base):
     )
 
     card_type: Mapped[CardType] = mapped_column(SQLEnum(CardType), nullable=False)
+    card_tier: Mapped[CardTier] = mapped_column(
+        SQLEnum(CardTier), default=CardTier.STANDARD, nullable=False, server_default="STANDARD"
+    )
     card_number_masked: Mapped[str] = mapped_column(String(20), nullable=False)
     card_number_full_encrypted: Mapped[str] = mapped_column(String(500), nullable=False)
 
