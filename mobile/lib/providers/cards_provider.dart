@@ -60,8 +60,6 @@ class CardsProvider with ChangeNotifier {
   Future<bool> purchaseCard({
     required String type,
     required double initialBalance,
-    String currency = 'XAF',
-    String? transactionId,
     String? cardTier,
   }) async {
     _isLoading = true;
@@ -72,7 +70,6 @@ class CardsProvider with ChangeNotifier {
       final newCard = await _apiService.purchaseCard(
         type: type,
         initialBalance: initialBalance,
-        transactionId: transactionId,
         cardTier: cardTier,
       );
       _cards = [..._cards, newCard];

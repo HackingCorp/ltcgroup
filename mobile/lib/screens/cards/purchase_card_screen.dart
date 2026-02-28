@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/constants.dart';
 import '../../config/theme.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
-import '../../services/api_service.dart';
+import '../../providers/wallet_provider.dart';
 import '../../widgets/success_dialog.dart';
-import '../payments/payment_webview_screen.dart';
 
 /// Purchase card screen matching Kash Pay design
 class PurchaseCardScreen extends StatefulWidget {
@@ -21,48 +18,13 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   String _selectedType = 'VISA';
   String _selectedTier = 'STANDARD';
   int _selectedAmountIndex = 1;
-  String _selectedPayment = 'mobile_money';
-  String _selectedCountry = 'CM';
   bool _isProcessing = false;
   final _amountController = TextEditingController(text: '');
-  final _apiService = ApiService();
-
-  static const _countries = [
-    {'code': 'CM', 'name': 'Cameroun', 'fee': 3.0},
-    {'code': 'SN', 'name': 'Senegal', 'fee': 3.0},
-    {'code': 'CI', 'name': "Cote d'Ivoire", 'fee': 3.5},
-    {'code': 'GA', 'name': 'Gabon', 'fee': 3.5},
-    {'code': 'CD', 'name': 'Congo RDC', 'fee': 4.0},
-    {'code': 'KE', 'name': 'Kenya', 'fee': 2.0},
-    {'code': 'NG', 'name': 'Nigeria', 'fee': 2.5},
-    {'code': 'GH', 'name': 'Ghana', 'fee': 3.0},
-    {'code': 'BF', 'name': 'Burkina Faso', 'fee': 3.5},
-    {'code': 'ML', 'name': 'Mali', 'fee': 3.5},
-    {'code': 'BJ', 'name': 'Benin', 'fee': 3.5},
-    {'code': 'TG', 'name': 'Togo', 'fee': 3.5},
-    {'code': 'TZ', 'name': 'Tanzanie', 'fee': 3.5},
-    {'code': 'UG', 'name': 'Ouganda', 'fee': 3.5},
-    {'code': 'NE', 'name': 'Niger', 'fee': 4.0},
-    {'code': 'RW', 'name': 'Rwanda', 'fee': 4.25},
-    {'code': 'CG', 'name': 'Congo Brazza', 'fee': 5.0},
-    {'code': 'GN', 'name': 'Guinee', 'fee': 4.25},
-  ];
 
   final _amounts = [5, 10, 25, 50, 100];
   final _amountLabels = ['\$5', '\$10', '\$25', '\$50', '\$100'];
 
   double get _amount => double.tryParse(_amountController.text) ?? 0;
-
-  double get _countryFeeRate {
-    final country = _countries.firstWhere(
-      (c) => c['code'] == _selectedCountry,
-      orElse: () => _countries.first,
-    );
-    return (country['fee'] as num).toDouble();
-  }
-
-  double get _serviceFee => _amount * (_countryFeeRate / 100);
-  double get _total => _amount + _serviceFee;
 
   @override
   void dispose() {
@@ -92,6 +54,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
       return;
     }
 
+    // Check wallet balance
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    if (walletProvider.balance < _amount) {
+      _showError('Solde insuffisant. Votre solde est de \$${walletProvider.balance.toStringAsFixed(2)}');
+      setState(() => _isProcessing = false);
+      return;
+    }
+
     // Show confirmation dialog before proceeding
     final confirmed = await _showConfirmationDialog();
     if (confirmed != true) {
@@ -100,10 +70,28 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     }
 
     try {
-      if (_selectedPayment == 'mobile_money') {
-        await _handleMobileMoneyPurchase();
+      final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+      final success = await cardsProvider.purchaseCard(
+        type: _selectedType,
+        initialBalance: _amount,
+        cardTier: _selectedTier,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        // Refresh wallet balance
+        walletProvider.fetchBalance();
+
+        await SuccessDialog.showPurchaseSuccess(
+          context,
+          cardType: _tierLabel,
+          balance: _amount,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pop();
       } else {
-        await _handleCardPurchase();
+        _showError(cardsProvider.error ?? "Erreur lors de l'achat");
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -133,9 +121,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   }
 
   Future<bool?> _showConfirmationDialog() {
-    final paymentLabel = _selectedPayment == 'mobile_money'
-        ? 'Mobile Money'
-        : 'Carte Bancaire';
+    final walletBalance = Provider.of<WalletProvider>(context, listen: false).balance;
 
     return showDialog<bool>(
       context: context,
@@ -152,18 +138,14 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           children: [
             _dialogRow('Carte', _tierLabel),
             const SizedBox(height: 8),
-            _dialogRow('Prix carte', '\$${_tierPrice.toStringAsFixed(2)}'),
-            const SizedBox(height: 8),
-            _dialogRow('Montant', '\$${_amount.toStringAsFixed(2)}'),
-            const SizedBox(height: 8),
-            _dialogRow('Frais (${_countryFeeRate.toStringAsFixed(1)}%)', '\$${_serviceFee.toStringAsFixed(2)}'),
+            _dialogRow('Solde initial', '\$${_amount.toStringAsFixed(2)}'),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(color: LTCColors.border, height: 1),
             ),
-            _dialogRow('Total', '\$${_total.toStringAsFixed(2)}', bold: true),
+            _dialogRow('Total', '\$${_amount.toStringAsFixed(2)}', bold: true),
             const SizedBox(height: 8),
-            _dialogRow('Paiement', paymentLabel),
+            _dialogRow('Solde compte', '\$${walletBalance.toStringAsFixed(2)}'),
           ],
         ),
         actions: [
@@ -197,158 +179,6 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     );
   }
 
-  Future<void> _handleMobileMoneyPurchase() async {
-    try {
-      final result = await _apiService.initiatePayment(
-        method: 'mobile_money',
-        amount: _amount,
-        countryCode: _selectedCountry,
-      );
-
-      if (!mounted) return;
-
-      final paymentUrl = result['payment_url'] as String?;
-      final transactionId = result['transaction_id'] as String?;
-      if (paymentUrl == null || paymentUrl.isEmpty) {
-        _showError('Le lien de paiement n\'a pas ete genere');
-        return;
-      }
-
-      // WebView returns: 'completed', 'failed', 'pending', or null (user dismiss)
-      final paymentResult = await Navigator.of(context).push<String?>(
-        MaterialPageRoute(
-          builder: (context) => PaymentWebViewScreen(
-            paymentUrl: paymentUrl,
-            title: 'Paiement Mobile Money',
-          ),
-        ),
-      );
-
-      if (!mounted) return;
-
-      if (paymentResult == 'completed' && transactionId != null) {
-        // Verify payment status with backend
-        final status = await _apiService.pollPaymentStatus(transactionId);
-        if (!mounted) return;
-
-        if (status['status'] == 'COMPLETED') {
-          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-          final success = await cardsProvider.purchaseCard(
-            type: _selectedType,
-            initialBalance: _amount,
-            transactionId: transactionId,
-            cardTier: _selectedTier,
-          );
-
-          if (!mounted) return;
-
-          if (success) {
-            await SuccessDialog.showPurchaseSuccess(
-              context,
-              cardType: _tierLabel,
-              balance: _amount,
-            );
-            if (!mounted) return;
-            Navigator.of(context).pop();
-          } else {
-            _showError(cardsProvider.error ?? "Erreur lors de l'achat");
-          }
-        } else if (status['status'] == 'FAILED') {
-          _showError('Le paiement a echoue. Veuillez reessayer.');
-        } else {
-          _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-        }
-      } else if (paymentResult == 'completed') {
-        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-      } else if (paymentResult == 'failed') {
-        _showError('Le paiement a echoue. Veuillez reessayer.');
-      } else if (paymentResult == 'pending') {
-        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showError(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
-  Future<void> _handleCardPurchase() async {
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
-
-      final result = await _apiService.initiatePayment(
-        method: 'enkap',
-        amount: _amount,
-        customerName: user != null ? '${user.firstName} ${user.lastName}' : 'Client Kash Pay',
-        customerEmail: user?.email,
-      );
-
-      if (!mounted) return;
-
-      final paymentUrl = result['payment_url'] as String?;
-      final transactionId = result['transaction_id'] as String?;
-      if (paymentUrl == null || paymentUrl.isEmpty) {
-        _showError('Le lien de paiement n\'a pas ete genere');
-        return;
-      }
-
-      // WebView returns: 'completed', 'failed', 'pending', or null (user dismiss)
-      final paymentResult = await Navigator.of(context).push<String?>(
-        MaterialPageRoute(
-          builder: (context) => PaymentWebViewScreen(
-            paymentUrl: paymentUrl,
-            title: 'Paiement par Carte',
-          ),
-        ),
-      );
-
-      if (!mounted) return;
-
-      if (paymentResult == 'completed' && transactionId != null) {
-        // Verify payment status with backend
-        final status = await _apiService.pollPaymentStatus(transactionId);
-        if (!mounted) return;
-
-        if (status['status'] == 'COMPLETED') {
-          final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-          final success = await cardsProvider.purchaseCard(
-            type: _selectedType,
-            initialBalance: _amount,
-            transactionId: transactionId,
-            cardTier: _selectedTier,
-          );
-
-          if (!mounted) return;
-
-          if (success) {
-            await SuccessDialog.showPurchaseSuccess(
-              context,
-              cardType: _tierLabel,
-              balance: _amount,
-            );
-            if (!mounted) return;
-            Navigator.of(context).pop();
-          } else {
-            _showError(cardsProvider.error ?? "Erreur lors de l'achat");
-          }
-        } else if (status['status'] == 'FAILED') {
-          _showError('Le paiement a echoue. Veuillez reessayer.');
-        } else {
-          _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-        }
-      } else if (paymentResult == 'completed') {
-        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-      } else if (paymentResult == 'failed') {
-        _showError('Le paiement a echoue. Veuillez reessayer.');
-      } else if (paymentResult == 'pending') {
-        _showError('Le paiement est en cours de traitement. Votre carte sera creee automatiquement.');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showError(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -380,8 +210,6 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                       _buildCardTypeSection(),
                       const SizedBox(height: 32),
                       _buildAmountSection(),
-                      const SizedBox(height: 32),
-                      _buildPaymentSection(),
                       const SizedBox(height: 32),
                       _buildSummary(),
                     ],
@@ -880,195 +708,10 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
     );
   }
 
-  // ─── Payment Section ──────────────────────────────────────
-
-  Widget _buildPaymentSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Moyen de paiement',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: LTCColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildPaymentOption(
-          id: 'mobile_money',
-          title: 'Mobile Money',
-          subtitle: '18 pays africains',
-          color: LTCColors.warning.withValues(alpha: 0.15),
-          iconWidget: const Icon(Icons.phone_android_rounded,
-              size: 18, color: LTCColors.warning),
-        ),
-        const SizedBox(height: 12),
-        _buildPaymentOption(
-          id: 'card',
-          title: 'Carte Bancaire',
-          subtitle: 'Visa / Mastercard',
-          color: LTCColors.gold.withValues(alpha: 0.12),
-          iconWidget: const Icon(Icons.credit_card,
-              size: 18, color: LTCColors.gold),
-        ),
-        if (_selectedPayment == 'mobile_money') ...[
-          const SizedBox(height: 16),
-          _buildCountrySelector(),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildPaymentOption({
-    required String id,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required Widget iconWidget,
-  }) {
-    final isSelected = _selectedPayment == id;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPayment = id),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: LTCColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? LTCColors.gold : LTCColors.border,
-            width: isSelected ? 1.5 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: LTCColors.goldDark.withValues(alpha: 0.1),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            // Radio
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? LTCColors.gold : LTCColors.textTertiary,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: LTCColors.gold,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            // Icon circle
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-              ),
-              child: Center(child: iconWidget),
-            ),
-            const SizedBox(width: 12),
-            // Text
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: LTCColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: LTCColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── Country Selector ──────────────────────────────────────
-
-  Widget _buildCountrySelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: LTCColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: LTCColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedCountry,
-          isExpanded: true,
-          dropdownColor: LTCColors.surfaceElevated,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LTCColors.textSecondary),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: LTCColors.textPrimary,
-          ),
-          items: _countries.map((country) {
-            return DropdownMenuItem<String>(
-              value: country['code'] as String,
-              child: Row(
-                children: [
-                  const Icon(Icons.public, size: 18, color: LTCColors.textSecondary),
-                  const SizedBox(width: 12),
-                  Text(country['name'] as String),
-                  const Spacer(),
-                  Text(
-                    '${country['fee']}%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: LTCColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => _selectedCountry = value);
-          },
-        ),
-      ),
-    );
-  }
-
   // ─── Summary ──────────────────────────────────────────────
 
   Widget _buildSummary() {
-    final fmt = NumberFormat('#,###', 'fr_FR');
+    final walletBalance = Provider.of<WalletProvider>(context).balance;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1086,7 +729,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                   size: 16, color: LTCColors.gold),
               SizedBox(width: 8),
               Text(
-                'Resume du paiement',
+                'Resume',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -1096,15 +739,11 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow(
-            'Montant recharge',
-            '\$${_amount.toStringAsFixed(2)}',
-          ),
+          _buildSummaryRow('Carte', _tierLabel),
           const SizedBox(height: 8),
           _buildSummaryRow(
-            'Frais de service (${_countryFeeRate.toStringAsFixed(1)}%)',
-            '+ \$${_serviceFee.toStringAsFixed(2)}',
-            valueColor: LTCColors.warning,
+            'Solde initial',
+            '\$${_amount.toStringAsFixed(2)}',
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1114,7 +753,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Total a payer',
+                'Total',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1122,7 +761,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 ),
               ),
               Text(
-                '\$${_total.toStringAsFixed(2)}',
+                '\$${_amount.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1131,6 +770,37 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: LTCColors.surfaceLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_rounded,
+                    size: 18, color: LTCColors.gold),
+                const SizedBox(width: 10),
+                const Text(
+                  'Solde du compte',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: LTCColors.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '\$${walletBalance.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: walletBalance >= _amount ? LTCColors.success : LTCColors.error,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
