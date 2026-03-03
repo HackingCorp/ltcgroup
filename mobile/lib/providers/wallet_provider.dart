@@ -98,6 +98,56 @@ class WalletProvider with ChangeNotifier {
     }
   }
 
+  /// Verify topup payment with Payin and credit wallet if confirmed.
+  /// Polls up to [maxAttempts] times with [delay] between attempts.
+  Future<Map<String, dynamic>?> verifyTopup(
+    String transactionId, {
+    int maxAttempts = 10,
+    Duration delay = const Duration(seconds: 3),
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      for (int i = 0; i < maxAttempts; i++) {
+        final result = await _apiService.verifyWalletTopup(transactionId);
+        final status = result['status'] as String?;
+
+        if (status == 'COMPLETED') {
+          if (result['wallet_balance'] != null) {
+            _balance = _toDouble(result['wallet_balance']);
+          }
+          _isLoading = false;
+          notifyListeners();
+          return result;
+        }
+
+        if (status == 'FAILED') {
+          _isLoading = false;
+          _error = result['message'] as String? ?? 'Le paiement a échoué';
+          notifyListeners();
+          return result;
+        }
+
+        // Still PENDING — wait and retry
+        if (i < maxAttempts - 1) {
+          await Future.delayed(delay);
+        }
+      }
+
+      // Timed out — still pending
+      _isLoading = false;
+      notifyListeners();
+      return {'status': 'PENDING', 'message': 'Paiement en cours de traitement'};
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
   /// Transfer from wallet to card
   Future<Map<String, dynamic>?> transferToCard({
     required String cardId,
@@ -119,6 +169,60 @@ class WalletProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return result;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Verify withdrawal payout with AccountPE and update wallet on completion.
+  /// Polls up to [maxAttempts] times with [delay] between attempts.
+  Future<Map<String, dynamic>?> verifyWithdraw(
+    String transactionId, {
+    int maxAttempts = 10,
+    Duration delay = const Duration(seconds: 3),
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      for (int i = 0; i < maxAttempts; i++) {
+        final result = await _apiService.verifyWithdrawFromWallet(transactionId);
+        final status = result['status'] as String?;
+
+        if (status == 'COMPLETED') {
+          if (result['wallet_balance'] != null) {
+            _balance = _toDouble(result['wallet_balance']);
+          }
+          _isLoading = false;
+          notifyListeners();
+          return result;
+        }
+
+        if (status == 'FAILED') {
+          // Check if wallet was refunded
+          if (result['wallet_balance'] != null) {
+            _balance = _toDouble(result['wallet_balance']);
+          }
+          _isLoading = false;
+          _error = result['message'] as String? ?? 'Le retrait a échoué';
+          notifyListeners();
+          return result;
+        }
+
+        // Still PENDING — wait and retry
+        if (i < maxAttempts - 1) {
+          await Future.delayed(delay);
+        }
+      }
+
+      // Timed out — still pending
+      _isLoading = false;
+      notifyListeners();
+      return {'status': 'PENDING', 'message': 'Retrait en cours de traitement'};
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;

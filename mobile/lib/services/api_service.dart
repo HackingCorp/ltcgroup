@@ -318,6 +318,26 @@ class ApiService {
     }
   }
 
+  /// Check KYC verification status (polls AccountPE)
+  Future<Map<String, dynamic>> checkKycStatus() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.kycEndpoint}/check-status');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers)
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de verification du statut KYC: $e');
+    }
+  }
+
   /// Get all cards
   Future<List<VirtualCard>> getCards() async {
     final url = '${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/';
@@ -390,6 +410,30 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Erreur d\'achat de carte: $e');
+    }
+  }
+
+  /// Update card spending limit
+  Future<VirtualCard> updateCardLimit(String cardId, double limit) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/limit');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.patch(
+        url,
+        headers: headers,
+        body: json.encode({'spending_limit': limit}),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de mise a jour du plafond: $e');
     }
   }
 
@@ -580,6 +624,26 @@ class ApiService {
     }
   }
 
+  /// Get card provider transaction history (AccountPE)
+  Future<List<Map<String, dynamic>>> getCardHistory(String cardId) async {
+    final url = '${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/history';
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await _retryGet(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['transactions'] ?? []);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de recuperation de l\'historique: $e');
+    }
+  }
+
   /// Reveal card sensitive data (card number, CVV, expiry)
   Future<Map<String, dynamic>> revealCard(String cardId) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/reveal');
@@ -594,9 +658,9 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return {
-          'card_number': data['card_number'] as String,
-          'cvv': data['cvv'] as String,
-          'expiry_date': data['expiry_date'] as String,
+          'card_number': (data['card_number_full'] ?? data['card_number'] ?? '') as String,
+          'cvv': (data['cvv'] ?? '') as String,
+          'expiry_date': (data['expiry_date'] ?? '') as String,
         };
       } else {
         throw _handleError(response);
@@ -734,6 +798,28 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Erreur de transfert vers carte: $e');
+    }
+  }
+
+  /// Verify a wallet withdrawal payout status
+  Future<Map<String, dynamic>> verifyWithdrawFromWallet(String transactionId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.walletWithdrawVerifyEndpoint}/$transactionId');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de vérification du retrait: $e');
     }
   }
 

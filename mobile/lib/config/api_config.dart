@@ -6,7 +6,7 @@ class ApiConfig {
   // Pass --dart-define=API_BASE_URL=https://api.ltcgroup.site/api/v1 for production builds
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.111:8000/api/v1',
+    defaultValue: 'http://192.168.1.2:8000/api/v1',
   );
 
   // API Endpoints
@@ -28,8 +28,10 @@ class ApiConfig {
   // Wallet endpoints
   static const String walletBalanceEndpoint = '/wallet/balance';
   static const String walletTopupEndpoint = '/wallet/topup';
+  static const String walletTopupVerifyEndpoint = '/wallet/topup/verify';
   static const String walletTransferEndpoint = '/wallet/transfer-to-card';
   static const String walletWithdrawEndpoint = '/wallet/withdraw';
+  static const String walletWithdrawVerifyEndpoint = '/wallet/withdraw/verify';
   static const String exchangeRateEndpoint = '/wallet/exchange-rate';
 
   // Timeout duration

@@ -4,6 +4,7 @@ Supports: balance check, top-up via MoMo (local currency), transfer to card (USD
 withdraw to MoMo (USD→local).
 """
 
+from datetime import datetime, timezone
 from decimal import Decimal
 import uuid
 
@@ -26,8 +27,10 @@ from app.schemas.wallet import (
     ExchangeRateResponse,
 )
 from app.services.auth import get_current_user
-from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate, get_country_currency
+from app.services.accountpe import accountpe_client
+from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate, get_country_currency, format_phone_e164
 from app.services.enkap import enkap_client, EnkapError
+from app.services.payout import payout_client, PayoutError
 from app.services.exchange_rate import exchange_rate_service
 from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
@@ -263,6 +266,126 @@ async def topup_wallet(
         )
 
 
+@router.post("/topup/verify/{transaction_id}")
+@limiter.limit("30/minute")
+async def verify_topup(
+    request: Request,
+    transaction_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verify a wallet top-up payment status with Payin and credit wallet if confirmed.
+    Called by the mobile app after the payment WebView closes.
+    Polls Payin's /payment_link_status endpoint and updates the transaction accordingly.
+    """
+    # Find the pending transaction
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.id == transaction_id,
+            Transaction.user_id == current_user.id,
+            Transaction.type == TransactionType.WALLET_TOPUP,
+        )
+    )
+    transaction = result.scalar_one_or_none()
+
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction non trouvée",
+        )
+
+    # Already completed or failed — return current status
+    if transaction.status == TransactionStatus.COMPLETED:
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one()
+        return {
+            "status": "COMPLETED",
+            "message": "Paiement déjà confirmé",
+            "wallet_balance": str(user.wallet_balance),
+            "amount_usd": str(transaction.amount),
+        }
+
+    if transaction.status == TransactionStatus.FAILED:
+        return {
+            "status": "FAILED",
+            "message": "Ce paiement a échoué",
+        }
+
+    # Check with Payin API — use Payin's own transaction_id (not our order_ref)
+    payin_tx_id = (transaction.extra_data or {}).get("payin_transaction_id")
+    if not payin_tx_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Référence de paiement Payin manquante",
+        )
+
+    try:
+        payin_status = await payin_client.get_payment_status(payin_tx_id)
+    except PayinError as e:
+        logger.warning(f"Payin status check failed for {payin_tx_id}: {e}")
+        return {
+            "status": "PENDING",
+            "message": "Vérification en cours, veuillez patienter",
+        }
+
+    status_str = payin_status.get("status", "UNKNOWN")
+
+    if status_str == "COMPLETED":
+        # Credit wallet — lock user row to prevent race conditions
+        result = await db.execute(
+            select(User).where(User.id == current_user.id).with_for_update()
+        )
+        user = result.scalar_one()
+
+        amount_usd = transaction.amount
+        await db.execute(
+            update(User)
+            .where(User.id == current_user.id)
+            .values(wallet_balance=User.wallet_balance + amount_usd)
+        )
+
+        transaction.status = TransactionStatus.COMPLETED
+        transaction.extra_data = {
+            **transaction.extra_data,
+            "payin_status": status_str,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.commit()
+
+        # Re-fetch updated balance
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        updated_user = result.scalar_one()
+
+        logger.info(
+            f"Wallet topup verified: user={current_user.id}, "
+            f"amount={amount_usd} USD, new_balance={updated_user.wallet_balance}"
+        )
+
+        return {
+            "status": "COMPLETED",
+            "message": "Paiement confirmé, wallet rechargé",
+            "wallet_balance": str(updated_user.wallet_balance),
+            "amount_usd": str(amount_usd),
+        }
+
+    elif status_str == "FAILED":
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {**transaction.extra_data, "payin_status": status_str}
+        await db.commit()
+        return {
+            "status": "FAILED",
+            "message": "Le paiement a échoué",
+        }
+
+    else:
+        # Still pending
+        return {
+            "status": "PENDING",
+            "message": "Paiement en cours de traitement",
+        }
+
+
 @router.post("/transfer-to-card", response_model=WalletTransferResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def transfer_to_card(
@@ -308,6 +431,28 @@ async def transfer_to_card(
             detail="Cette carte est bloquee",
         )
 
+    # Recharge the card on AccountPE first — fail before touching local balances
+    try:
+        recharge_result = await accountpe_client.recharge_card(
+            card_id=str(card.provider_card_id),
+            amount=float(data.amount),
+        )
+        if recharge_result.get("status") not in (200, "200"):
+            msg = recharge_result.get("message", "Recharge failed on provider")
+            logger.error(f"AccountPE recharge failed: {recharge_result}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Echec de la recharge chez le fournisseur: {msg}",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"AccountPE recharge error for card {card.id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Erreur de communication avec le fournisseur de cartes",
+        )
+
     # Debit wallet atomically
     await db.execute(
         update(User)
@@ -315,7 +460,7 @@ async def transfer_to_card(
         .values(wallet_balance=User.wallet_balance - total_debit)
     )
 
-    # Credit card atomically
+    # Credit card locally (mirrors AccountPE)
     await db.execute(
         update(Card)
         .where(Card.id == card.id)
@@ -419,6 +564,9 @@ async def withdraw_from_wallet(
         .values(wallet_balance=User.wallet_balance - amount_usd)
     )
 
+    # Generate unique payout reference
+    payout_ref = f"PAYOUT-{current_user.id.hex[:8]}-{uuid.uuid4().hex[:8]}"
+
     # Create transaction (PENDING until payout confirmed)
     transaction = Transaction(
         card_id=None,
@@ -436,11 +584,66 @@ async def withdraw_from_wallet(
             "local_currency": currency,
             "exchange_rate": str(real_rate),
             "country_code": country_code,
+            "payout_ref": payout_ref,
         },
     )
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
+
+    # Initiate payout via AccountPE Payout API
+    try:
+        beneficiary_name = f"{current_user.first_name} {current_user.last_name}".strip()
+        phone_e164 = format_phone_e164(data.phone, country_code)
+
+        payout_result = await payout_client.create_transaction(
+            country_code=country_code,
+            beneficiary_name=beneficiary_name,
+            mobile_no=phone_e164,
+            amount=float(amount_local),
+            transaction_id=payout_ref,
+            payment_method="mobile_money",
+            remarks=f"Retrait LTC wallet - {payout_ref}",
+        )
+
+        # Store payout provider details
+        transaction.extra_data = {
+            **transaction.extra_data,
+            "payout_transaction_id": payout_result.get("data", {}).get("transaction_id", payout_ref),
+            "payout_provider_response": payout_result,
+        }
+        await db.commit()
+
+    except PayoutError as e:
+        # Refund wallet on payout failure
+        await db.execute(
+            update(User)
+            .where(User.id == current_user.id)
+            .values(wallet_balance=User.wallet_balance + amount_usd)
+        )
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
+        await db.commit()
+        logger.error(f"Payout failed for transaction {transaction.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le retrait a échoué: {e.message}. Votre solde a été recrédité.",
+        )
+    except Exception as e:
+        # Refund wallet on unexpected error
+        await db.execute(
+            update(User)
+            .where(User.id == current_user.id)
+            .values(wallet_balance=User.wallet_balance + amount_usd)
+        )
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
+        await db.commit()
+        logger.error(f"Unexpected payout error for transaction {transaction.id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Une erreur inattendue est survenue. Votre solde a été recrédité.",
+        )
 
     # Re-fetch updated balance
     result = await db.execute(select(User).where(User.id == current_user.id))
@@ -460,5 +663,142 @@ async def withdraw_from_wallet(
         local_currency=currency,
         exchange_rate=real_rate,
         new_wallet_balance=updated_user.wallet_balance,
-        message="Retrait en cours de traitement",
+        message="Retrait initié, vérification en cours",
     )
+
+
+@router.post("/withdraw/verify/{transaction_id}")
+@limiter.limit("30/minute")
+async def verify_withdrawal(
+    request: Request,
+    transaction_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verify a wallet withdrawal payout status with AccountPE Payout API.
+    Called by the mobile app after initiating a withdrawal.
+    Polls the payout /transaction_status endpoint and updates the transaction accordingly.
+    """
+    # Find the transaction
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.id == transaction_id,
+            Transaction.user_id == current_user.id,
+            Transaction.type == TransactionType.WALLET_WITHDRAWAL,
+        )
+    )
+    transaction = result.scalar_one_or_none()
+
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction non trouvée",
+        )
+
+    # Already completed or failed — return current status
+    if transaction.status == TransactionStatus.COMPLETED:
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one()
+        return {
+            "status": "COMPLETED",
+            "message": "Retrait confirmé",
+            "wallet_balance": str(user.wallet_balance),
+            "amount_usd": str(transaction.amount),
+        }
+
+    if transaction.status == TransactionStatus.FAILED:
+        return {
+            "status": "FAILED",
+            "message": transaction.extra_data.get("error", "Ce retrait a échoué"),
+            "refunded": transaction.extra_data.get("refunded", False),
+        }
+
+    # Get payout reference from extra_data
+    payout_tx_id = (transaction.extra_data or {}).get("payout_transaction_id")
+    if not payout_tx_id:
+        payout_tx_id = (transaction.extra_data or {}).get("payout_ref")
+    if not payout_tx_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Référence de paiement manquante",
+        )
+
+    try:
+        payout_status = await payout_client.get_transaction_status(payout_tx_id)
+    except PayoutError as e:
+        logger.warning(f"Payout status check failed for {payout_tx_id}: {e}")
+        return {
+            "status": "PENDING",
+            "message": "Vérification en cours, veuillez patienter",
+        }
+
+    # Extract status from provider response
+    status_data = payout_status.get("data", {})
+    status_str = status_data.get("status", payout_status.get("status", ""))
+    if isinstance(status_str, str):
+        status_str = status_str.lower()
+
+    if status_str in ("success", "completed"):
+        transaction.status = TransactionStatus.COMPLETED
+        transaction.extra_data = {
+            **transaction.extra_data,
+            "payout_status": status_str,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.commit()
+
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        updated_user = result.scalar_one()
+
+        logger.info(
+            f"Wallet withdrawal verified: user={current_user.id}, "
+            f"amount={transaction.amount} USD, balance={updated_user.wallet_balance}"
+        )
+
+        return {
+            "status": "COMPLETED",
+            "message": "Retrait confirmé, fonds envoyés",
+            "wallet_balance": str(updated_user.wallet_balance),
+            "amount_usd": str(transaction.amount),
+        }
+
+    elif status_str in ("failed", "cancelled", "refunded", "rejected"):
+        # Refund wallet balance
+        amount_usd = transaction.amount
+        await db.execute(
+            update(User)
+            .where(User.id == current_user.id)
+            .values(wallet_balance=User.wallet_balance + amount_usd)
+        )
+
+        transaction.status = TransactionStatus.FAILED
+        transaction.extra_data = {
+            **transaction.extra_data,
+            "payout_status": status_str,
+            "refunded": True,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.commit()
+
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        updated_user = result.scalar_one()
+
+        logger.info(
+            f"Wallet withdrawal failed+refunded: user={current_user.id}, "
+            f"amount={amount_usd} USD, new_balance={updated_user.wallet_balance}"
+        )
+
+        return {
+            "status": "FAILED",
+            "message": "Le retrait a échoué. Votre solde a été recrédité.",
+            "wallet_balance": str(updated_user.wallet_balance),
+            "refunded": True,
+        }
+
+    else:
+        # Still pending/processing
+        return {
+            "status": "PENDING",
+            "message": "Retrait en cours de traitement",
+        }

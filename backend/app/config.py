@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     enkap_merchant_code: str = ""  # Optional merchant code if needed
     enkap_webhook_secret: str = ""  # Dedicated secret for E-nkap webhook signature verification
 
+    # Payout API Configuration (reuses swychr_email/swychr_password for auth)
+    payout_api_url: str = "https://api.accountpe.com/api/payout"
+
     # Payin Webhook Secret (separate from OAuth credentials)
     payin_webhook_secret: str = ""
 

@@ -70,15 +70,63 @@ class _WalletWithdrawScreenState extends State<WalletWithdrawScreen> {
     if (!mounted) return;
 
     if (result != null && result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Retrait en cours de traitement'),
-          backgroundColor: LTCColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      Navigator.of(context).pop();
+      final transactionId = result['transaction_id'] as String?;
+
+      if (transactionId != null) {
+        // Poll for payout verification
+        final verifyResult = await walletProvider.verifyWithdraw(transactionId);
+
+        if (!mounted) return;
+
+        final verifyStatus = verifyResult?['status'] as String?;
+
+        if (verifyStatus == 'COMPLETED') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(verifyResult?['message'] ?? 'Retrait confirmé'),
+              backgroundColor: LTCColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+          Navigator.of(context).pop();
+        } else if (verifyStatus == 'FAILED') {
+          final refunded = verifyResult?['refunded'] == true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(refunded
+                  ? 'Le retrait a échoué. Votre solde a été recrédité.'
+                  : (verifyResult?['message'] ?? 'Le retrait a échoué')),
+              backgroundColor: LTCColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+          if (refunded) Navigator.of(context).pop();
+        } else {
+          // Still pending after polling — inform user and pop
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Retrait en cours de traitement. Vous serez notifié.'),
+              backgroundColor: LTCColors.gold,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      } else {
+        // No transaction ID — fallback to old behavior
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Retrait en cours de traitement'),
+            backgroundColor: LTCColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
