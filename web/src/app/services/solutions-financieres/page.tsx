@@ -319,8 +319,8 @@ export default function SolutionsFinancieresPage() {
           throw new Error(paymentResult.error || "Payment initiation failed");
         }
 
-        if (finalPaymentMethod === "enkap" && paymentResult.paymentUrl) {
-          // Store order data before redirect
+        if (paymentResult.paymentUrl) {
+          // Store order data before redirect (works for both e-nkap and mobile_money payment links)
           sessionStorage.setItem("pendingOrder", JSON.stringify({
             ...formData,
             noNiu,
@@ -335,7 +335,29 @@ export default function SolutionsFinancieresPage() {
             passportPhotoName: passportPhotoFile?.name,
           }));
 
-          // Redirect to E-nkap payment page
+          // Also save order to DB before redirect
+          fetch("/api/send-card-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...formData,
+              noNiu,
+              cardPrice,
+              deliveryFee,
+              niuFee,
+              total,
+              orderRef,
+              idPhoto: idPhotoBase64,
+              idPhotoName: idPhotoFile?.name,
+              passportPhoto: passportPhotoBase64,
+              passportPhotoName: passportPhotoFile?.name,
+              paymentStatus: "PENDING",
+              paymentMethod: finalPaymentMethod,
+              saveOnly: true,
+            }),
+          }).catch(err => console.error("Pre-save order error:", err));
+
+          // Redirect to payment page
           window.location.href = paymentResult.paymentUrl;
           return;
         }
