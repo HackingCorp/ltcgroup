@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Use Payin for Mobile Money (payment link)
+      // Build the redirect URL for after payment (user-facing callback page)
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
+      const redirectUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${orderRef}&method=mobile_money`;
+
       const result = await createPaymentLink({
         amount,
         countryCode,
@@ -55,6 +59,7 @@ export async function POST(request: NextRequest) {
         customerPhone: phone,
         description: `Carte ${cardType} - ${orderRef}`,
         callbackUrl: process.env.PAYIN_WEBHOOK_URL || '',
+        redirectUrl,
       });
 
       if (!result.success) {

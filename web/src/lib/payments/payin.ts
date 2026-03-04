@@ -172,6 +172,7 @@ export async function createPaymentLink(params: {
   customerPhone?: string;
   description?: string;
   callbackUrl?: string;
+  redirectUrl?: string;
 }): Promise<{
   success: boolean;
   paymentLinkId?: string;
@@ -205,6 +206,7 @@ export async function createPaymentLink(params: {
         customer_phone: params.customerPhone || '',
         description: params.description || `Paiement LTC - ${params.orderRef}`,
         callback_url: params.callbackUrl || '',
+        redirect_url: params.redirectUrl || '',
         pass_digital_charge: true,
       }),
     });

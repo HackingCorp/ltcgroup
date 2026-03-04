@@ -10,8 +10,9 @@ function PaymentCallbackContent() {
   const [orderSent, setOrderSent] = useState(false);
 
   useEffect(() => {
-    // E-nkap returns status in query params
+    // Status and method from query params (set by redirect URL)
     const paymentStatus = searchParams.get("status");
+    const paymentMethod = searchParams.get("method") || "enkap";
 
     let finalStatus: "success" | "failed" | "cancelled" = "success";
 
@@ -50,7 +51,7 @@ function PaymentCallbackContent() {
             body: JSON.stringify({
               ...pendingOrder,
               paymentStatus: "SUCCESS",
-              paymentMethod: "enkap",
+              paymentMethod,
             }),
           });
 
