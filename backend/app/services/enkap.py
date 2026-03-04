@@ -49,7 +49,13 @@ class EnkapClient:
         self.consumer_secret = settings.enkap_consumer_secret
         self._token_lock = asyncio.Lock()
         self._cached_token: Optional[Dict[str, Any]] = None
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
+        self.client = httpx.AsyncClient(timeout=30.0)
+
+    def _url(self, path: str) -> str:
+        """Build full URL manually (avoid httpx base_url issues)."""
+        base = self.base_url.rstrip("/")
+        path = path if path.startswith("/") else f"/{path}"
+        return f"{base}{path}"
 
     async def close(self):
         """Close the underlying HTTP client."""
@@ -66,7 +72,7 @@ class EnkapClient:
             if self._cached_token and time.time() < self._cached_token["expires_at"]:
                 return self._cached_token["token"]
 
-            url = "/token"
+            url = self._url("/token")
 
             # Basic Auth header
             credentials = base64.b64encode(
@@ -114,7 +120,7 @@ class EnkapClient:
         """Create payment order"""
         token = await self.get_access_token()
 
-        url = "/api/order"
+        url = self._url("/api/order")
 
         body = {
             "merchant_reference": merchant_reference,
@@ -155,7 +161,7 @@ class EnkapClient:
         """Get order status"""
         token = await self.get_access_token()
 
-        url = f"/api/order/{order_id}/status"
+        url = self._url(f"/api/order/{order_id}/status")
 
         headers = {
             "Authorization": f"Bearer {token}",

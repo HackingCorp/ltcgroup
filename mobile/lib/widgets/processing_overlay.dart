@@ -282,7 +282,7 @@ class _ProcessingOverlayState extends State<ProcessingOverlay>
                         height: 8,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                          color: LTCColors.gold.withValues(alpha: 0.4),
                         ),
                       ),
                     ),

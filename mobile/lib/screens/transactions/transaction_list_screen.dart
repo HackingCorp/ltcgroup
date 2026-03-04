@@ -86,14 +86,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     final yesterday = today.subtract(const Duration(days: 1));
 
     for (final tx in txns) {
-      final txDay = DateTime(tx.createdAt.year, tx.createdAt.month, tx.createdAt.day);
+      final local = tx.createdAt.toLocal();
+      final txDay = DateTime(local.year, local.month, local.day);
       String label;
       if (txDay == today) {
         label = "Aujourd'hui";
       } else if (txDay == yesterday) {
         label = 'Hier';
       } else {
-        label = DateFormat('dd MMMM yyyy', 'fr_FR').format(tx.createdAt);
+        label = DateFormat('dd MMMM yyyy', 'fr_FR').format(local);
       }
       groups.putIfAbsent(label, () => []).add(tx);
     }
@@ -104,10 +105,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     final txProvider = Provider.of<TransactionsProvider>(context);
     final now = DateTime.now();
     return txProvider.transactions
-        .where((tx) =>
-            tx.isDebit &&
-            tx.createdAt.year == now.year &&
-            tx.createdAt.month == now.month)
+        .where((tx) {
+            final local = tx.createdAt.toLocal();
+            return tx.isDebit &&
+            local.year == now.year &&
+            local.month == now.month;
+        })
         .fold(0.0, (sum, tx) => sum + tx.absoluteAmount);
   }
 
@@ -626,6 +629,24 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           textColor: LTCColors.success,
           icon: Icons.replay_rounded,
         );
+      case 'WALLET_TOPUP':
+        return _TxIconInfo(
+          bgColor: LTCColors.success.withValues(alpha: 0.15),
+          textColor: LTCColors.success,
+          icon: Icons.account_balance_wallet_rounded,
+        );
+      case 'WALLET_TO_CARD':
+        return _TxIconInfo(
+          bgColor: LTCColors.gold.withValues(alpha: 0.15),
+          textColor: LTCColors.gold,
+          icon: Icons.credit_card_rounded,
+        );
+      case 'WALLET_WITHDRAWAL':
+        return _TxIconInfo(
+          bgColor: LTCColors.warning.withValues(alpha: 0.15),
+          textColor: LTCColors.warning,
+          icon: Icons.phone_android_rounded,
+        );
       default:
         // Purchase - show merchant initial
         final initial = tx.description.isNotEmpty
@@ -640,13 +661,13 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   }
 
   Color _getMerchantColor(String name) {
-    final colors = [
-      const Color(0xFF1C2233),
-      const Color(0xFFF97316),
-      const Color(0xFF8B5CF6),
-      const Color(0xFF06B6D4),
-      const Color(0xFFEC4899),
-      const Color(0xFF14B8A6),
+    const colors = [
+      LTCColors.surfaceLight,
+      Color(0xFFF97316),  // Orange
+      Color(0xFF8B5CF6),  // Purple
+      Color(0xFF06B6D4),  // Cyan
+      Color(0xFFEC4899),  // Pink
+      Color(0xFF14B8A6),  // Teal
     ];
     return colors[name.hashCode.abs() % colors.length];
   }
@@ -692,6 +713,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
         return 'Retrait';
       case 'REFUND':
         return 'Remboursement';
+      case 'WALLET_TOPUP':
+        return 'Recharge wallet';
+      case 'WALLET_TO_CARD':
+        return 'Vers carte';
+      case 'WALLET_WITHDRAWAL':
+        return 'Retrait wallet';
       default:
         if (tx.isPending) return 'En attente';
         return 'Achat';
@@ -701,11 +728,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Color _getCategoryColor(Transaction tx) {
     switch (tx.type) {
       case 'TOPUP':
+      case 'WALLET_TOPUP':
         return LTCColors.gold;
       case 'WITHDRAWAL':
+      case 'WALLET_WITHDRAWAL':
         return LTCColors.error;
       case 'REFUND':
         return LTCColors.success;
+      case 'WALLET_TO_CARD':
+        return LTCColors.gold;
       default:
         if (tx.isPending) return LTCColors.warning;
         return LTCColors.textSecondary;

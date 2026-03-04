@@ -242,8 +242,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _buildToggleItem(
                         icon: Icons.email_rounded,
-                        iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
-                        iconColor: const Color(0xFF60A5FA),
+                        iconBg: LTCColors.info.withValues(alpha: 0.12),
+                        iconColor: LTCColors.info,
                         label: 'Email',
                         value: _emailEnabled,
                         onChanged: (v) {
@@ -283,8 +283,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _buildNavItem(
                         icon: Icons.support_agent_rounded,
-                        iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
-                        iconColor: const Color(0xFF60A5FA),
+                        iconBg: LTCColors.info.withValues(alpha: 0.12),
+                        iconColor: LTCColors.info,
                         label: 'Contactez-nous',
                         onTap: () => _showComingSoon(),
                       ),
@@ -397,7 +397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Profile Avatar + Name + Badge ──
   Widget _buildProfileHeader(user) {
     final initials = '${user.firstName.isNotEmpty ? user.firstName[0] : '?'}${user.lastName.isNotEmpty ? user.lastName[0] : '?'}'.toUpperCase();
-    final kycVerified = user.kycStatus == AppConstants.kycStatusVerified;
+    final kycVerified = user.isKycVerified;
 
     return Column(
       children: [

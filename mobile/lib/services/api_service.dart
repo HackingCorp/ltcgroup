@@ -44,17 +44,28 @@ class ApiService {
     throw Exception('Request failed after retries');
   }
 
-  /// Track whether a refresh is already in progress to avoid loops.
-  static bool _isRefreshing = false;
+  /// Completer used to coalesce concurrent refresh attempts into one call.
+  static Future<bool>? _refreshFuture;
 
   /// Attempt to refresh the access token using the current (expired) token.
   /// Returns `true` if the token was refreshed successfully.
+  /// Concurrent callers share the same in-flight request.
   Future<bool> _refreshToken() async {
-    if (_isRefreshing) return false;
-    _isRefreshing = true;
+    // If a refresh is already in flight, wait for it instead of returning false.
+    if (_refreshFuture != null) return _refreshFuture!;
+
+    _refreshFuture = _doRefresh();
     try {
-      final oldToken = await _storageService.getToken();
-      if (oldToken == null) return false;
+      return await _refreshFuture!;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
+  Future<bool> _doRefresh() async {
+    try {
+      final refreshToken = await _storageService.getRefreshToken();
+      if (refreshToken == null) return false;
 
       final url = Uri.parse('${ApiConfig.baseUrl}/auth/refresh');
       final response = await http.post(
@@ -62,21 +73,23 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer $oldToken',
         },
+        body: json.encode({'refresh_token': refreshToken}),
       ).timeout(ApiConfig.timeout);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final newToken = data['access_token'] as String;
-        await _storageService.saveToken(newToken);
+        final newAccessToken = data['access_token'] as String;
+        final newRefreshToken = data['refresh_token'] as String?;
+        await _storageService.saveToken(newAccessToken);
+        if (newRefreshToken != null) {
+          await _storageService.saveRefreshToken(newRefreshToken);
+        }
         return true;
       }
       return false;
     } catch (_) {
       return false;
-    } finally {
-      _isRefreshing = false;
     }
   }
 
@@ -97,20 +110,6 @@ class ApiService {
     }
   }
 
-  /// Handle 401 with automatic token refresh. Returns `null` if refresh
-  /// succeeded (caller should retry the request). Returns an Exception
-  /// if the error is final.
-  Future<Exception?> _handleErrorWithRefresh(http.Response response) async {
-    if (response.statusCode == 401) {
-      final refreshed = await _refreshToken();
-      if (refreshed) return null; // signal caller to retry
-      _storageService.removeToken();
-      onSessionExpired?.call();
-      return Exception('Session expirée. Veuillez vous reconnecter.');
-    }
-    return _handleError(response);
-  }
-
   /// Login - Returns user and token
   Future<Map<String, dynamic>> login(String email, String password) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
@@ -124,12 +123,13 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // Backend returns {"user": {...}, "token": {"access_token": "..."}}
-        final token = data['token'] is Map
-            ? data['token']['access_token'] as String
-            : data['access_token'] as String;
+        // Backend returns {"user": {...}, "token": {"access_token": "...", "refresh_token": "..."}}
+        final tokenData = data['token'] is Map ? data['token'] : data;
+        final token = tokenData['access_token'] as String;
+        final refreshToken = tokenData['refresh_token'] as String?;
         return {
           'token': token,
+          'refresh_token': refreshToken,
           'user': null, // We'll fetch user data separately with /users/me
         };
       } else {
@@ -172,6 +172,7 @@ class ApiService {
         final data = json.decode(response.body);
         return {
           'token': data['token']['access_token'] as String,
+          'refresh_token': data['token']['refresh_token'] as String?,
           'user': data['user'],
         };
       } else {

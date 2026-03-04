@@ -26,6 +26,7 @@ from app.schemas.wallet import (
     WalletWithdrawResponse,
     ExchangeRateResponse,
 )
+from app.config import settings
 from app.services.auth import get_current_user
 from app.services.accountpe import accountpe_client
 from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate, get_country_currency, format_phone_e164
@@ -38,7 +39,7 @@ from app.utils.logging_config import get_logger
 logger = get_logger(__name__)
 router = APIRouter(prefix="/wallet", tags=["Wallet"])
 
-WALLET_TRANSFER_FEE_RATE = Decimal("0.02")  # 2% fee for wallet→card (USD only)
+WALLET_TRANSFER_FEE_RATE = Decimal(str(settings.wallet_transfer_fee_rate))
 
 
 @router.get("/balance", response_model=WalletBalanceResponse)
@@ -70,9 +71,10 @@ async def get_exchange_rate(
         topup_rate = await exchange_rate_service.get_topup_rate(currency)
         withdrawal_rate = await exchange_rate_service.get_rate(currency)
     except ValueError as e:
+        logger.warning(f"Exchange rate unavailable for {currency}: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Exchange rate unavailable: {e}",
+            detail="Taux de change indisponible. Veuillez reessayer.",
         )
 
     fee_rate = get_country_fee_rate(country_code)
@@ -121,9 +123,10 @@ async def topup_wallet(
     try:
         markup_rate = await exchange_rate_service.get_topup_rate(currency)
     except ValueError as e:
+        logger.warning(f"Exchange rate unavailable for topup ({currency}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Exchange rate unavailable: {e}",
+            detail="Taux de change indisponible. Veuillez reessayer.",
         )
 
     # Calculate amounts — round local amounts to integer (XAF/XOF have no cents)
@@ -332,25 +335,32 @@ async def verify_topup(
     status_str = payin_status.get("status", "UNKNOWN")
 
     if status_str == "COMPLETED":
-        # Credit wallet — lock user row to prevent race conditions
-        result = await db.execute(
-            select(User).where(User.id == current_user.id).with_for_update()
-        )
-        user = result.scalar_one()
-
+        # Conditional UPDATE to prevent double-credit if verify_topup and webhook
+        # arrive simultaneously (same pattern as webhook handlers)
         amount_usd = transaction.amount
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(wallet_balance=User.wallet_balance + amount_usd)
+        result = await db.execute(
+            update(Transaction)
+            .where(
+                Transaction.id == transaction.id,
+                Transaction.status == TransactionStatus.PENDING,
+            )
+            .values(
+                status=TransactionStatus.COMPLETED,
+                extra_data={
+                    **transaction.extra_data,
+                    "payin_status": status_str,
+                    "verified_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            .returning(Transaction.id)
         )
-
-        transaction.status = TransactionStatus.COMPLETED
-        transaction.extra_data = {
-            **transaction.extra_data,
-            "payin_status": status_str,
-            "verified_at": datetime.now(timezone.utc).isoformat(),
-        }
+        if result.rowcount > 0:
+            # Only credit wallet if we were the ones to flip PENDING→COMPLETED
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(wallet_balance=User.wallet_balance + amount_usd)
+            )
         await db.commit()
 
         # Re-fetch updated balance
@@ -408,9 +418,10 @@ async def transfer_to_card(
     user = result.scalar_one()
 
     if user.wallet_balance < total_debit:
+        logger.info(f"Insufficient wallet for transfer: user={current_user.id}, required={total_debit}, available={user.wallet_balance}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Solde wallet insuffisant. Requis: ${total_debit} USD, Disponible: ${user.wallet_balance} USD",
+            detail=f"Solde wallet insuffisant. Il vous faut ${total_debit} USD pour cette operation.",
         )
 
     # Lock card row
@@ -442,7 +453,7 @@ async def transfer_to_card(
             logger.error(f"AccountPE recharge failed: {recharge_result}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Echec de la recharge chez le fournisseur: {msg}",
+                detail="Echec de la recharge chez le fournisseur de cartes.",
             )
     except HTTPException:
         raise
@@ -537,9 +548,10 @@ async def withdraw_from_wallet(
     try:
         real_rate = await exchange_rate_service.get_rate(currency)
     except ValueError as e:
+        logger.warning(f"Exchange rate unavailable for withdrawal ({currency}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Exchange rate unavailable: {e}",
+            detail="Taux de change indisponible. Veuillez reessayer.",
         )
 
     amount_usd = data.amount_usd
@@ -552,9 +564,10 @@ async def withdraw_from_wallet(
     user = result.scalar_one()
 
     if user.wallet_balance < amount_usd:
+        logger.info(f"Insufficient wallet for withdrawal: user={current_user.id}, required={amount_usd}, available={user.wallet_balance}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Solde wallet insuffisant. Disponible: ${user.wallet_balance} USD",
+            detail="Solde wallet insuffisant pour ce retrait.",
         )
 
     # Debit wallet in USD
@@ -627,7 +640,7 @@ async def withdraw_from_wallet(
         logger.error(f"Payout failed for transaction {transaction.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Le retrait a échoué: {e.message}. Votre solde a été recrédité.",
+            detail="Le retrait a echoue. Votre solde a ete recredite.",
         )
     except Exception as e:
         # Refund wallet on unexpected error

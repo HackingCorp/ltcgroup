@@ -53,7 +53,13 @@ class AuthProvider with ChangeNotifier {
       final isLoggedIn = await _authService.isLoggedIn()
           .timeout(const Duration(seconds: 3), onTimeout: () => false);
       if (isLoggedIn) {
+        // Load cached user from secure storage for instant UI
         _user = await _authService.getCurrentUser();
+
+        // Silently refresh the token in the background so upcoming API
+        // calls don't hit a 401. If this fails the user still sees the
+        // cached data and the normal retry/refresh logic will handle it.
+        _silentRefreshAndSync();
       }
       _error = null;
     } catch (e) {
@@ -61,6 +67,24 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Refresh token and sync user profile in background (fire-and-forget).
+  void _silentRefreshAndSync() async {
+    try {
+      final apiService = ApiService();
+      // Fetch fresh profile — this triggers token refresh on 401 automatically
+      final freshUser = await apiService.getCurrentUser();
+      _user = freshUser;
+      notifyListeners();
+    } catch (e) {
+      // Log for debugging but don't disrupt user experience
+      debugPrint('Silent refresh failed: $e');
+      // If it's a session expiry, trigger logout
+      if (e.toString().contains('Session expir')) {
+        handleSessionExpired();
+      }
     }
   }
 
@@ -148,6 +172,22 @@ class AuthProvider with ChangeNotifier {
     } catch (_) {
       // Silently ignore — user stays cached
     }
+  }
+
+  /// Poll AccountPE for updated KYC status (when PENDING after submission)
+  /// Returns true if status changed, false if unchanged.
+  /// Throws on network/API errors so the caller can show feedback.
+  Future<bool> checkKycStatus() async {
+    if (_user == null) return false;
+    final apiService = ApiService();
+    final result = await apiService.checkKycStatus();
+    final newStatus = result['kyc_status'] as String?;
+    if (newStatus != null && newStatus != _user!.kycStatus) {
+      // Status changed — refresh full user data
+      await refreshUser();
+      return true;
+    }
+    return false;
   }
 
   /// Clear error

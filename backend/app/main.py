@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -66,6 +67,8 @@ app = FastAPI(
     description="Backend API for vCard virtual card management",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if settings.environment == "development" else None,
+    redoc_url="/redoc" if settings.environment == "development" else None,
 )
 
 # Add rate limiting
@@ -83,6 +86,38 @@ app.add_middleware(
 
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
+
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        return response
+
+
+# Request body size limit middleware (10MB default, prevents DoS via large payloads)
+MAX_REQUEST_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_REQUEST_BODY_SIZE:
+            return JSONResponse(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                content={"detail": "Request body too large"},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
 
 
 @app.exception_handler(Exception)

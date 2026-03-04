@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_input.dart';
 import '../../config/theme.dart';
@@ -19,10 +20,12 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   final _amountController = TextEditingController();
   String? _selectedCardId;
   String _selectedDestination = 'mobile_money';
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
+    _amountController.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is String) {
@@ -40,6 +43,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   }
 
   Future<void> _handleWithdraw() async {
+    if (_isProcessing) return;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCardId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,53 +55,74 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
       return;
     }
 
-    final amount = double.parse(_amountController.text);
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Montant invalide'),
+          backgroundColor: LTCColors.error,
+        ),
+      );
+      return;
+    }
+    final fee = amount * AppConstants.cardOperationFeeRate;
+    final totalDebit = amount + fee;
     final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
     final card = cardsProvider.getCardById(_selectedCardId!);
 
-    // Check if balance is sufficient
-    if (card != null && card.balance < amount) {
+    // Check if balance is sufficient (amount + 1.5% fee)
+    if (card != null && card.balance < totalDebit) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Solde insuffisant'),
+        SnackBar(
+          content: Text('Solde insuffisant. Il vous faut \$${totalDebit.toStringAsFixed(2)} pour cette operation.'),
           backgroundColor: LTCColors.error,
         ),
       );
       return;
     }
 
-    final transactionsProvider =
-        Provider.of<TransactionsProvider>(context, listen: false);
+    setState(() => _isProcessing = true);
 
-    final success = await transactionsProvider.withdrawFromCard(
-      cardId: _selectedCardId!,
-      amount: amount,
-      currency: 'XAF',
-    );
+    try {
+      final transactionsProvider =
+          Provider.of<TransactionsProvider>(context, listen: false);
 
-    if (!mounted) return;
+      final success = await transactionsProvider.withdrawFromCard(
+        cardId: _selectedCardId!,
+        amount: amount,
+        currency: 'XAF',
+      );
 
-    if (success) {
-      // Update card balance
-      if (card != null) {
-        cardsProvider.updateCardBalance(_selectedCardId!, card.balance - amount);
+      if (!mounted) return;
+
+      if (success) {
+        // Update card balance (amount + fee deducted)
+        if (card != null) {
+          cardsProvider.updateCardBalance(_selectedCardId!, card.balance - totalDebit);
+        }
+
+        // Refresh transactions and wallet balance
+        transactionsProvider.fetchTransactions();
+        Provider.of<WalletProvider>(context, listen: false).fetchBalance();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Retrait effectue avec succes'),
+            backgroundColor: LTCColors.success,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text(transactionsProvider.error ?? 'Erreur lors du retrait'),
+            backgroundColor: LTCColors.error,
+          ),
+        );
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Retrait effectue avec succes'),
-          backgroundColor: LTCColors.success,
-        ),
-      );
-      Navigator.of(context).pop();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(transactionsProvider.error ?? 'Erreur lors du retrait'),
-          backgroundColor: LTCColors.error,
-        ),
-      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -260,7 +285,12 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                 Icons.account_balance,
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Fee summary
+              _buildFeeSummary(),
+
+              const SizedBox(height: 24),
 
               // Info note
               Container(
@@ -296,13 +326,57 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               // Submit button
               CustomButton(
                 text: 'Retirer',
-                onPressed: _handleWithdraw,
-                isLoading: transactionsProvider.isLoading,
+                onPressed: _isProcessing ? null : _handleWithdraw,
+                isLoading: transactionsProvider.isLoading || _isProcessing,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFeeSummary() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    final fee = amount * AppConstants.cardOperationFeeRate;
+    final total = amount + fee;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LTCColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LTCColors.border),
+      ),
+      child: Column(
+        children: [
+          _feeRow('Montant retrait', '\$${amount.toStringAsFixed(2)}'),
+          const SizedBox(height: 8),
+          _feeRow('Frais (1.5%)', '\$${fee.toStringAsFixed(2)}'),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(color: LTCColors.border, height: 1),
+          ),
+          _feeRow('Total debite', '\$${total.toStringAsFixed(2)}', bold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _feeRow(String label, String value, {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: LTCColors.textSecondary)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+            color: bold ? LTCColors.gold : LTCColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 

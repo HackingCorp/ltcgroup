@@ -38,6 +38,7 @@ class Transaction(Base):
             name="uq_webhook_reference",
         ),
         Index("ix_transactions_status_created", "status", "created_at"),
+        Index("ix_transactions_user_created", "user_id", "created_at"),
         CheckConstraint('amount > 0', name='ck_transactions_amount_positive'),
     )
 

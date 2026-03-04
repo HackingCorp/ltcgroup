@@ -97,6 +97,11 @@ class PayinError(Exception):
         super().__init__(message)
 
 
+_MAX_RETRIES = 2
+_RETRY_BACKOFF_BASE = 0.5  # seconds; retries at 0.5s, 1.0s
+_RETRYABLE_STATUS_CODES = {502, 503, 504}
+
+
 class PayinClient:
     BASE_URL = "https://api.accountpe.com/api/payin"
 
@@ -149,6 +154,36 @@ class PayinClient:
         token = await self._ensure_token()
         return {"Authorization": f"Bearer {token}"}
 
+    async def _post_with_retry(
+        self, url: str, *, json: dict, headers: dict
+    ) -> httpx.Response:
+        """POST with retry on transient errors (timeout, 502, 503, 504)."""
+        last_exc: Exception | None = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                response = await self.client.post(url, json=json, headers=headers)
+                if response.status_code in _RETRYABLE_STATUS_CODES and attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning(
+                        f"Payin retryable HTTP {response.status_code} on {url} "
+                        f"(attempt {attempt + 1}/{_MAX_RETRIES + 1}), retrying in {wait:.1f}s"
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                return response
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning(
+                        f"Payin transient error on {url} "
+                        f"(attempt {attempt + 1}/{_MAX_RETRIES + 1}), retrying in {wait:.1f}s: {exc}"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+        raise last_exc  # type: ignore[misc]
+
     async def create_payment_link(
         self,
         amount: float,
@@ -198,7 +233,7 @@ class PayinClient:
         if callback_url:
             payload["callback_url"] = callback_url
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/create_payment_links"),
             json=payload,
             headers=headers,
@@ -234,7 +269,7 @@ class PayinClient:
         """
         headers = await self._get_headers()
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/payment_link_status"),
             json={"transaction_id": transaction_id},
             headers=headers,

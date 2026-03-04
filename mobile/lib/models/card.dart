@@ -9,6 +9,7 @@ class VirtualCard {
   final String currency; // EUR
   final DateTime expiryDate;
   final DateTime createdAt;
+  final double spendingLimit;
 
   VirtualCard({
     required this.id,
@@ -20,6 +21,7 @@ class VirtualCard {
     required this.currency,
     required this.expiryDate,
     required this.createdAt,
+    this.spendingLimit = 500.0,
   });
 
   /// Check if card is active
@@ -40,16 +42,46 @@ class VirtualCard {
 
   /// Create VirtualCard from JSON
   factory VirtualCard.fromJson(Map<String, dynamic> json) {
+    // Balance can come as num or string (Decimal serialized)
+    final rawBalance = json['balance'];
+    final balance = rawBalance is num
+        ? rawBalance.toDouble()
+        : double.tryParse(rawBalance.toString()) ?? 0.0;
+
+    // Expiry date can be "MM/YY" or ISO format
+    final rawExpiry = json['expiry_date'] as String? ?? '';
+    DateTime expiryDate;
+    try {
+      expiryDate = DateTime.parse(rawExpiry);
+    } catch (_) {
+      // Parse "MM/YY" format
+      final parts = rawExpiry.split('/');
+      if (parts.length == 2) {
+        final month = int.tryParse(parts[0]) ?? 12;
+        final year = int.tryParse(parts[1]) ?? 29;
+        final fullYear = year < 100 ? 2000 + year : year;
+        expiryDate = DateTime(fullYear, month);
+      } else {
+        expiryDate = DateTime(2029, 12);
+      }
+    }
+
+    final rawLimit = json['spending_limit'];
+    final spendingLimit = rawLimit is num
+        ? rawLimit.toDouble()
+        : double.tryParse(rawLimit?.toString() ?? '') ?? 500.0;
+
     return VirtualCard(
       id: json['id'] as String,
       type: json['card_type'] as String,
       tier: (json['card_tier'] as String?) ?? 'STANDARD',
-      balance: (json['balance'] as num).toDouble(),
+      balance: balance,
       status: json['status'] as String,
       maskedNumber: json['card_number_masked'] as String,
       currency: json['currency'] as String,
-      expiryDate: DateTime.parse(json['expiry_date'] as String),
+      expiryDate: expiryDate,
       createdAt: DateTime.parse(json['created_at'] as String),
+      spendingLimit: spendingLimit,
     );
   }
 
@@ -65,6 +97,7 @@ class VirtualCard {
       'currency': currency,
       'expiry_date': expiryDate.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
+      'spending_limit': spendingLimit,
     };
   }
 
@@ -79,6 +112,7 @@ class VirtualCard {
     String? currency,
     DateTime? expiryDate,
     DateTime? createdAt,
+    double? spendingLimit,
   }) {
     return VirtualCard(
       id: id ?? this.id,
@@ -90,6 +124,7 @@ class VirtualCard {
       currency: currency ?? this.currency,
       expiryDate: expiryDate ?? this.expiryDate,
       createdAt: createdAt ?? this.createdAt,
+      spendingLimit: spendingLimit ?? this.spendingLimit,
     );
   }
 }

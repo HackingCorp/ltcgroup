@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/cards_provider.dart';
+import '../../providers/transactions_provider.dart';
 import '../../models/card.dart';
 
 /// Transfer funds from wallet to a virtual card
@@ -20,6 +21,7 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
   final _amountController = TextEditingController(text: '10');
   String? _selectedCardId;
   int _selectedAmountIndex = 1;
+  bool _isProcessing = false;
 
   final _amounts = [5, 10, 25, 50];
   final _amountLabels = ['\$5', '\$10', '\$25', '\$50'];
@@ -27,6 +29,8 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
   double get _amount => double.tryParse(_amountController.text) ?? 0;
   double get _fee => _amount * _feeRate;
   double get _totalDebit => _amount + _fee;
+
+  bool _isInsufficientBalance(WalletProvider wp) => _amount > 0 && wp.balance < _totalDebit;
 
   @override
   void initState() {
@@ -59,8 +63,11 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
   }
 
   Future<void> _handleTransfer() async {
-    if (_amount <= 0 || _selectedCardId == null) return;
+    if (_amount <= 0 || _selectedCardId == null || _isProcessing) return;
 
+    setState(() => _isProcessing = true);
+
+    try {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
 
@@ -92,6 +99,10 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
         );
       }
 
+      // Refresh transactions so dashboard/activity show the new transfer
+      final txProvider = Provider.of<TransactionsProvider>(context, listen: false);
+      txProvider.fetchTransactions();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Transfert effectue'),
@@ -110,6 +121,9 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
+    }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -345,6 +359,29 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
             ],
           ),
         ),
+        // Insufficient balance warning
+        Consumer<WalletProvider>(
+          builder: (context, wp, _) {
+            if (_isInsufficientBalance(wp)) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, size: 16, color: LTCColors.error),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Solde insuffisant (\$${_formatUsd(wp.balance)} disponible, \$${_formatUsd(_totalDebit)} requis)',
+                        style: const TextStyle(fontSize: 12, color: LTCColors.error, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 40,
@@ -446,29 +483,35 @@ class _TransferToCardScreenState extends State<TransferToCardScreen> {
       ),
       child: Consumer<WalletProvider>(
         builder: (context, walletProvider, _) {
+          final disabled = walletProvider.isLoading || _isProcessing || _amount <= 0 || _selectedCardId == null || _isInsufficientBalance(walletProvider);
           return GestureDetector(
-            onTap: walletProvider.isLoading ? null : _handleTransfer,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [LTCColors.goldDark, LTCColors.gold],
+            onTap: disabled ? null : _handleTransfer,
+            child: Opacity(
+              opacity: disabled ? 0.4 : 1.0,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [LTCColors.goldDark, LTCColors.gold],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: disabled
+                      ? null
+                      : [BoxShadow(color: LTCColors.gold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8))],
                 ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: LTCColors.gold.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 8))],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (walletProvider.isLoading)
-                    const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: LTCColors.background, strokeWidth: 2.5))
-                  else ...[
-                    const Text('Transferer', style: TextStyle(color: LTCColors.background, fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward, color: LTCColors.background, size: 18),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (walletProvider.isLoading || _isProcessing)
+                      const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: LTCColors.background, strokeWidth: 2.5))
+                    else ...[
+                      const Text('Transferer', style: TextStyle(color: LTCColors.background, fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward, color: LTCColors.background, size: 18),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );

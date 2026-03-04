@@ -15,11 +15,15 @@ class AuthService {
     // Call API
     final response = await _apiService.login(email, password);
 
-    // Extract token
+    // Extract tokens
     final token = response['token'] as String;
+    final refreshToken = response['refresh_token'] as String?;
 
-    // Save token first
+    // Save tokens first
     await _storageService.saveToken(token);
+    if (refreshToken != null) {
+      await _storageService.saveRefreshToken(refreshToken);
+    }
 
     // Fetch user profile — if this fails, clear the token so we don't
     // leave a half-authenticated state.
@@ -52,13 +56,17 @@ class AuthService {
       countryCode: countryCode,
     );
 
-    // Extract token and user
+    // Extract tokens and user
     final token = response['token'] as String;
+    final refreshToken = response['refresh_token'] as String?;
     final userJson = response['user'] as Map<String, dynamic>;
     final user = User.fromJson(userJson);
 
     // Save to local storage
     await _storageService.saveToken(token);
+    if (refreshToken != null) {
+      await _storageService.saveRefreshToken(refreshToken);
+    }
     await _storageService.saveUser(user);
 
     return user;

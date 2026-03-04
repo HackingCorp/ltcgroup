@@ -1,6 +1,4 @@
 from datetime import datetime, timezone
-from difflib import SequenceMatcher
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -12,10 +10,8 @@ from app.models.notification import Notification, NotificationType
 from app.schemas.user import UserResponse, UserUpdate, KYCSubmit, KYCResponse
 from app.services.auth import get_current_user
 from app.services.accountpe import accountpe_client, AccountPEError
-from app.services.kyc_verifier import kyc_verifier_client, KYCVerifierError
 from app.services.email import email_service
 from app.services.payin import PAYIN_COUNTRIES
-from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
 
@@ -32,72 +28,77 @@ def _user_response(user: User) -> UserResponse:
     return resp
 
 
-def _url_to_filepath(file_url: str) -> str:
-    """Convert a /uploads/... URL to an absolute file path."""
-    # file_url looks like /uploads/kyc/{user_id}/{filename}
-    relative = file_url.lstrip("/")  # uploads/kyc/...
-    filepath = (Path(settings.upload_dir).parent / relative).resolve()
-    uploads_dir = Path(settings.upload_dir).resolve()
-    if not str(filepath).startswith(str(uploads_dir)):
-        raise HTTPException(status_code=400, detail="Invalid document URL")
-    return str(filepath)
-
-
 async def _sync_kyc_to_accountpe(user: User, db: AsyncSession) -> None:
-    """Sync KYC data to AccountPE on approval (auto or manual)."""
-    try:
-        # Ensure user has an AccountPE account
-        if not user.accountpe_user_id:
-            name = f"{user.first_name} {user.last_name}"
-            resp = await accountpe_client.create_user(user.email, name, user.country_code)
-            if resp.get("status") == 200:
-                user.accountpe_user_id = str(resp.get("data", {}).get("id", ""))
-            elif "already exist" in resp.get("message", "").lower():
-                found_id = await accountpe_client.find_user_by_email(user.email)
-                if found_id:
-                    user.accountpe_user_id = found_id
+    """Sync KYC data to AccountPE immediately on submission.
 
-        if not user.accountpe_user_id:
-            logger.warning(f"Could not resolve AccountPE user_id for {user.email}")
-            return
+    Raises on failure so the caller can handle fallback.
+    """
+    # Ensure user has an AccountPE account
+    if not user.accountpe_user_id:
+        name = f"{user.first_name} {user.last_name}"
+        resp = await accountpe_client.create_user(user.email, name, user.country_code)
+        if "already exist" in resp.get("message", "").lower():
+            found_id = await accountpe_client.find_user_by_email(user.email)
+            if found_id:
+                user.accountpe_user_id = found_id
+        elif resp.get("status") == 200:
+            user.accountpe_user_id = str(resp.get("data", {}).get("id", ""))
 
-        # Map document type
-        proof_type_map = {
-            "id_card": "national_id",
-            "passport": "passport",
-            "driver_license": "driving_license",
-        }
+    if not user.accountpe_user_id:
+        raise AccountPEError(f"Could not resolve AccountPE user_id for {user.email}")
 
-        # Build proof URL list
-        proof_urls = []
-        if user.kyc_document_front_url:
-            proof_urls.append(user.kyc_document_front_url)
-        if user.kyc_document_back_url:
-            proof_urls.append(user.kyc_document_back_url)
+    # Map document type
+    proof_type_map = {
+        "id_card": "national_id",
+        "passport": "passport",
+        "driver_license": "driving_license",
+    }
 
-        await accountpe_client.update_user(
-            user_id=user.accountpe_user_id,
-            dob=user.dob.strftime("%Y-%m-%d") if user.dob else "",
-            mobile=user.phone,
-            mobile_code="+237",
-            gender=user.gender or "M",
-            address=user.address or "",
-            street=user.street or "",
-            city=user.city or "",
-            postal_code=user.postal_code or "",
-            country="Cameroon",
-            country_iso_code=user.country_code,
-            id_proof_type=proof_type_map.get(user.id_proof_type or "", "national_id"),
-            id_proof_no=user.id_proof_no or "",
-            id_proof_expiry_date=user.id_proof_expiry.strftime("%Y-%m-%d") if user.id_proof_expiry else "",
-            id_proof_url_list=proof_urls,
-            livelyness_img=user.kyc_selfie_url or "",
-        )
-        logger.info(f"AccountPE update_user synced for user {user.email}")
-    except AccountPEError as e:
-        logger.error(f"AccountPE sync failed for {user.email}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error syncing AccountPE for {user.email}: {e}")
+    # Build proof URL list
+    proof_urls = []
+    if user.kyc_document_front_url:
+        proof_urls.append(user.kyc_document_front_url)
+    if user.kyc_document_back_url:
+        proof_urls.append(user.kyc_document_back_url)
+
+    # Map country code to country name and mobile code
+    country_name_map = {
+        "CM": ("Cameroon", "+237"),
+        "SN": ("Senegal", "+221"),
+        "CI": ("Ivory Coast", "+225"),
+        "BF": ("Burkina Faso", "+226"),
+        "ML": ("Mali", "+223"),
+        "GN": ("Guinea", "+224"),
+        "BJ": ("Benin", "+229"),
+        "TG": ("Togo", "+228"),
+        "NE": ("Niger", "+227"),
+        "GA": ("Gabon", "+241"),
+        "CG": ("Congo", "+242"),
+        "CD": ("DR Congo", "+243"),
+    }
+    country_info = country_name_map.get(user.country_code, ("Cameroon", "+237"))
+    country_name = country_info[0]
+    mobile_code = country_info[1]
+
+    await accountpe_client.update_user(
+        user_id=user.accountpe_user_id,
+        dob=user.dob.strftime("%Y-%m-%d") if user.dob else "",
+        mobile=user.phone,
+        mobile_code=mobile_code,
+        gender=user.gender or "M",
+        address=user.address or "",
+        street=user.street or "",
+        city=user.city or "",
+        postal_code=user.postal_code or "00000",
+        country=country_name,
+        country_iso_code=user.country_code,
+        id_proof_type=proof_type_map.get(user.id_proof_type or "", "national_id"),
+        id_proof_no=user.id_proof_no or "",
+        id_proof_expiry_date=user.id_proof_expiry.strftime("%Y-%m-%d") if user.id_proof_expiry else "",
+        id_proof_url_list=proof_urls,
+        livelyness_img=user.kyc_selfie_url or "",
+    )
+    logger.info(f"AccountPE update_user synced for user {user.email}")
 
 
 @router.get("/me", response_model=UserResponse)
@@ -141,6 +142,18 @@ async def update_user_profile(
     return _user_response(current_user)
 
 
+def _map_accountpe_status(final_status: str | None) -> KYCStatus:
+    """Map AccountPE final_status to our KYCStatus."""
+    if not final_status:
+        return KYCStatus.PENDING
+    normalized = final_status.strip().lower()
+    if normalized in ("approved", "active", "verified"):
+        return KYCStatus.APPROVED
+    if normalized in ("rejected", "declined", "failed"):
+        return KYCStatus.REJECTED
+    return KYCStatus.PENDING
+
+
 @router.post("/kyc", response_model=KYCResponse)
 @limiter.limit("3/hour")
 async def submit_kyc(
@@ -149,7 +162,7 @@ async def submit_kyc(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Submit KYC with auto-verification via DeepFace + EasyOCR."""
+    """Submit KYC — delegates verification to AccountPE (Alibaba Lens)."""
     if current_user.kyc_status == KYCStatus.APPROVED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,7 +176,7 @@ async def submit_kyc(
     current_user.kyc_ocr_raw_text = None
     current_user.kyc_verification_method = None
 
-    # 1. Save personal info
+    # 1. Save personal info + document URLs
     current_user.dob = kyc_data.dob
     current_user.gender = kyc_data.gender
     current_user.address = kyc_data.address
@@ -180,79 +193,27 @@ async def submit_kyc(
     current_user.kyc_submitted_at = datetime.now(timezone.utc)
     current_user.kyc_status = KYCStatus.PENDING
 
-    # 2. Resolve file paths from URLs
-    selfie_path = _url_to_filepath(kyc_data.selfie_url)
-    front_path = _url_to_filepath(kyc_data.document_front_url)
+    await db.commit()
+    await db.refresh(current_user)
 
-    # 3. Run verification pipeline
-    liveness_score = 0.0
-    face_match_score = 0.0
-    ocr_confidence = 0.0
-    rejection_reasons = []
-
+    # 2. Sync to AccountPE immediately (create_user + update_user)
     try:
-        # 3a. Liveness check
-        liveness_result = await kyc_verifier_client.check_liveness(selfie_path)
-        liveness_score = liveness_result.get("confidence", 0.0)
-        current_user.kyc_liveness_score = liveness_score
-        if not liveness_result.get("is_real", False):
-            rejection_reasons.append("Liveness check failed")
-        logger.info(f"KYC liveness for {current_user.email}: {liveness_result}")
-
-        # 3b. Face match
-        face_result = await kyc_verifier_client.face_match(selfie_path, front_path)
-        # Convert distance to a similarity score (lower distance = higher score)
-        distance = face_result.get("distance", 1.0)
-        threshold = face_result.get("threshold", 0.4)
-        face_match_score = max(0.0, 1.0 - (distance / (threshold * 2.5))) if threshold > 0 else 0.0
-        current_user.kyc_face_match_score = face_match_score
-        if not face_result.get("match", False):
-            rejection_reasons.append("Face does not match ID document")
-        logger.info(f"KYC face match for {current_user.email}: {face_result}")
-
-        # 3c. OCR extraction
-        ocr_result = await kyc_verifier_client.ocr_extract(front_path)
-        ocr_confidence = ocr_result.get("confidence", 0.0)
-        current_user.kyc_ocr_confidence = ocr_confidence
-        current_user.kyc_ocr_raw_text = ocr_result.get("raw_text", "")
-        logger.info(f"KYC OCR for {current_user.email}: confidence={ocr_confidence}")
-
-        # 3d. Cross-validate OCR data against user-supplied data
-        ocr_fields = ocr_result.get("extracted_fields", {})
-        if ocr_fields:
-            user_full_name = f"{current_user.first_name} {current_user.last_name}".lower()
-            ocr_name = ocr_fields.get("name", "").lower()
-            if ocr_name:
-                name_ratio = SequenceMatcher(None, user_full_name, ocr_name).ratio()
-                if name_ratio < 0.6:
-                    rejection_reasons.append(f"Name mismatch between submission and document (similarity: {name_ratio:.0%})")
-                    logger.warning(f"KYC name mismatch for {current_user.email}: user='{user_full_name}' ocr='{ocr_name}' ratio={name_ratio:.2f}")
-
-            ocr_dob = ocr_fields.get("dob", "")
-            if ocr_dob and kyc_data.dob:
-                user_dob_str = kyc_data.dob.strftime("%Y-%m-%d")
-                if ocr_dob != user_dob_str:
-                    rejection_reasons.append("Date of birth mismatch between submission and document")
-                    logger.warning(f"KYC DOB mismatch for {current_user.email}: user='{user_dob_str}' ocr='{ocr_dob}'")
-
-            ocr_id_no = ocr_fields.get("id_number", "")
-            if ocr_id_no and kyc_data.id_proof_no:
-                if ocr_id_no.strip() != kyc_data.id_proof_no.strip():
-                    rejection_reasons.append("ID number mismatch between submission and document")
-                    logger.warning(f"KYC ID number mismatch for {current_user.email}")
-
-    except KYCVerifierError as e:
-        logger.warning(f"KYC verifier unavailable for {current_user.email}: {e}")
-        # Fall back to manual review if verifier is down
-        current_user.kyc_verification_method = "manual_review"
+        await _sync_kyc_to_accountpe(current_user, db)
+        await db.commit()
+        await db.refresh(current_user)
+        current_user.kyc_verification_method = "accountpe"
+        logger.info(f"KYC synced to AccountPE for {current_user.email}")
+    except Exception as e:
+        logger.error(f"AccountPE sync failed for {current_user.email}: {e}")
+        # Fallback: stay PENDING, admin can approve manually
+        current_user.kyc_verification_method = "pending_sync"
         await db.commit()
         await db.refresh(current_user)
 
-        # Create notification
         notification = Notification(
             user_id=current_user.id,
             title="KYC soumis",
-            message="Votre demande KYC a ete soumise. Elle sera examinee manuellement.",
+            message="Votre demande KYC a ete soumise. Verification en cours.",
             type=NotificationType.KYC,
         )
         db.add(notification)
@@ -261,42 +222,34 @@ async def submit_kyc(
         return KYCResponse(
             kyc_status=current_user.kyc_status,
             kyc_submitted_at=current_user.kyc_submitted_at,
-            kyc_verification_method="manual_review",
+            kyc_verification_method=current_user.kyc_verification_method,
         )
 
-    # 4. Decision logic
-    auto_approve = settings.kyc_auto_approve_threshold
-    manual_threshold = settings.kyc_manual_review_threshold
+    # 3. Query AccountPE for verification result
+    kyc_status = KYCStatus.PENDING
+    if current_user.accountpe_user_id:
+        try:
+            user_data = await accountpe_client.get_user(current_user.accountpe_user_id)
+            data = user_data.get("data", user_data)
+            final_status = data.get("final_status") or data.get("status")
+            kyc_status = _map_accountpe_status(str(final_status) if final_status else None)
+            logger.info(f"AccountPE final_status for {current_user.email}: {final_status} → {kyc_status}")
+        except Exception as e:
+            logger.warning(f"Could not fetch AccountPE status for {current_user.email}: {e}")
 
-    all_above_approve = (
-        liveness_score >= auto_approve
-        and face_match_score >= auto_approve
-        and ocr_confidence >= auto_approve
-    )
-    any_below_reject = (
-        liveness_score < manual_threshold
-        or face_match_score < manual_threshold
-    )
+    # 4. Update local status and send notification/email
+    current_user.kyc_status = kyc_status
 
-    if all_above_approve and not rejection_reasons:
-        # AUTO APPROVED
-        current_user.kyc_status = KYCStatus.APPROVED
-        current_user.kyc_verification_method = "auto_approved"
+    if kyc_status == KYCStatus.APPROVED:
+        current_user.kyc_verification_method = "accountpe_approved"
         current_user.kyc_rejected_reason = None
-        logger.info(f"KYC auto-approved for {current_user.email}")
-
         await db.commit()
         await db.refresh(current_user)
 
-        # Sync to AccountPE
-        await _sync_kyc_to_accountpe(current_user, db)
-        await db.commit()
-
-        # Notification + email
         notification = Notification(
             user_id=current_user.id,
             title="KYC approuve",
-            message="Votre identite a ete verifiee automatiquement. Vous pouvez utiliser tous les services.",
+            message="Votre identite a ete verifiee. Vous pouvez utiliser tous les services.",
             type=NotificationType.KYC,
         )
         db.add(notification)
@@ -307,14 +260,10 @@ async def submit_kyc(
         except Exception as e:
             logger.warning(f"Failed to send KYC approval email: {e}")
 
-    elif any_below_reject:
-        # AUTO REJECTED
-        reason = "; ".join(rejection_reasons) if rejection_reasons else "Verification scores too low"
-        current_user.kyc_status = KYCStatus.REJECTED
-        current_user.kyc_verification_method = "auto_rejected"
+    elif kyc_status == KYCStatus.REJECTED:
+        reason = "Verification echouee par le fournisseur d'identite"
+        current_user.kyc_verification_method = "accountpe_rejected"
         current_user.kyc_rejected_reason = reason
-        logger.info(f"KYC auto-rejected for {current_user.email}: {reason}")
-
         await db.commit()
         await db.refresh(current_user)
 
@@ -333,21 +282,110 @@ async def submit_kyc(
             logger.warning(f"Failed to send KYC rejection email: {e}")
 
     else:
-        # MANUAL REVIEW
-        current_user.kyc_verification_method = "manual_review"
-        logger.info(f"KYC sent to manual review for {current_user.email}")
-
+        # PENDING — AccountPE is still processing
+        current_user.kyc_verification_method = "accountpe_pending"
         await db.commit()
         await db.refresh(current_user)
 
         notification = Notification(
             user_id=current_user.id,
-            title="KYC en cours d'examen",
-            message="Votre demande est en cours d'examen par notre equipe. Delai: 24-48h.",
+            title="KYC en cours de verification",
+            message="Vos documents ont ete envoyes pour verification. Vous serez notifie du resultat.",
             type=NotificationType.KYC,
         )
         db.add(notification)
         await db.commit()
+
+    return KYCResponse(
+        kyc_status=current_user.kyc_status,
+        kyc_submitted_at=current_user.kyc_submitted_at,
+        kyc_verification_method=current_user.kyc_verification_method,
+        kyc_rejected_reason=current_user.kyc_rejected_reason,
+    )
+
+
+@router.get("/kyc/check-status", response_model=KYCResponse)
+async def check_kyc_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Poll AccountPE for updated KYC verification status."""
+    if current_user.kyc_status == KYCStatus.APPROVED:
+        return KYCResponse(
+            kyc_status=current_user.kyc_status,
+            kyc_submitted_at=current_user.kyc_submitted_at,
+            kyc_verification_method=current_user.kyc_verification_method,
+            kyc_rejected_reason=current_user.kyc_rejected_reason,
+        )
+
+    if not current_user.accountpe_user_id:
+        return KYCResponse(
+            kyc_status=current_user.kyc_status,
+            kyc_submitted_at=current_user.kyc_submitted_at,
+            kyc_verification_method=current_user.kyc_verification_method,
+            kyc_rejected_reason=current_user.kyc_rejected_reason,
+        )
+
+    try:
+        user_data = await accountpe_client.get_user(current_user.accountpe_user_id)
+        data = user_data.get("data", user_data)
+        final_status = data.get("final_status") or data.get("status")
+        new_status = _map_accountpe_status(str(final_status) if final_status else None)
+        logger.info(f"KYC check-status for {current_user.email}: final_status={final_status} → {new_status}")
+
+        if new_status != current_user.kyc_status:
+            old_status = current_user.kyc_status
+            current_user.kyc_status = new_status
+
+            if new_status == KYCStatus.APPROVED:
+                current_user.kyc_verification_method = "accountpe_approved"
+                current_user.kyc_rejected_reason = None
+                await db.commit()
+                await db.refresh(current_user)
+
+                notification = Notification(
+                    user_id=current_user.id,
+                    title="KYC approuve",
+                    message="Votre identite a ete verifiee. Vous pouvez utiliser tous les services.",
+                    type=NotificationType.KYC,
+                )
+                db.add(notification)
+                await db.commit()
+
+                try:
+                    await email_service.send_kyc_approved(current_user)
+                except Exception as e:
+                    logger.warning(f"Failed to send KYC approval email: {e}")
+
+            elif new_status == KYCStatus.REJECTED:
+                reason = "Verification echouee par le fournisseur d'identite"
+                current_user.kyc_verification_method = "accountpe_rejected"
+                current_user.kyc_rejected_reason = reason
+                await db.commit()
+                await db.refresh(current_user)
+
+                notification = Notification(
+                    user_id=current_user.id,
+                    title="KYC rejete",
+                    message=f"Votre verification a echoue: {reason}. Veuillez soumettre de nouveaux documents.",
+                    type=NotificationType.KYC,
+                )
+                db.add(notification)
+                await db.commit()
+
+                try:
+                    await email_service.send_kyc_rejected(current_user, reason)
+                except Exception as e:
+                    logger.warning(f"Failed to send KYC rejection email: {e}")
+
+            else:
+                await db.commit()
+                await db.refresh(current_user)
+
+            logger.info(f"KYC status changed for {current_user.email}: {old_status} → {new_status}")
+
+    except Exception as e:
+        logger.warning(f"Failed to check AccountPE status for {current_user.email}: {e}")
 
     return KYCResponse(
         kyc_status=current_user.kyc_status,

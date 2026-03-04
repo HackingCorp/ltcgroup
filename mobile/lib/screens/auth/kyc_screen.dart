@@ -27,7 +27,6 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
   bool _isLoading = false;
   String? _errorMessage;
   String _kycStatus = 'PENDING';
-  String? _verificationMethod;
 
   // Personal info fields
   final _dobController = TextEditingController();
@@ -42,13 +41,11 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
   DateTime? _selectedIdExpiry;
 
   // Verification progress
-  int _verifyStep = 0; // 0=uploading, 1=liveness, 2=faceMatch, 3=ocr, 4=done
+  int _verifyStep = 0; // 0=uploading, 1=sending, 2=finalizing
   int _uploadStep = 0; // 0=idle, 1=front, 2=back, 3=selfie, 4=submitting
   final List<String> _verifyLabels = [
     'Upload des documents...',
-    'Verification de vitalite...',
-    'Comparaison faciale...',
-    'Analyse du document...',
+    'Envoi pour verification...',
     'Finalisation...',
   ];
 
@@ -320,36 +317,9 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                     _buildTextField(controller: _addressController, hint: 'Adresse complete'),
                     const SizedBox(height: 16),
 
-                    // Street
-                    _buildFormLabel('Rue'),
-                    _buildTextField(controller: _streetController, hint: 'Nom de la rue'),
-                    const SizedBox(height: 16),
-
-                    // City + Postal code
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFormLabel('Ville'),
-                              _buildTextField(controller: _cityController, hint: 'Ville'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFormLabel('Code postal'),
-                              _buildTextField(controller: _postalCodeController, hint: '00000'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    // City
+                    _buildFormLabel('Ville'),
+                    _buildTextField(controller: _cityController, hint: 'Ville'),
                     const SizedBox(height: 16),
 
                     // ID number
@@ -389,9 +359,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
   bool _isPersonalInfoValid() {
     return _selectedDob != null &&
         _addressController.text.isNotEmpty &&
-        _streetController.text.isNotEmpty &&
         _cityController.text.isNotEmpty &&
-        _postalCodeController.text.isNotEmpty &&
         _idNumberController.text.isNotEmpty &&
         _selectedIdExpiry != null;
   }
@@ -976,7 +944,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
                 children: [
                   Icon(Icons.shield_outlined, size: 16, color: LTCColors.textTertiary),
                   SizedBox(width: 8),
-                  Text('Verification securisee par IA', style: TextStyle(fontSize: 12, color: LTCColors.textTertiary)),
+                  Text('Verification securisee', style: TextStyle(fontSize: 12, color: LTCColors.textTertiary)),
                 ],
               ),
             ],
@@ -1010,13 +978,8 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       default:
         statusColor = LTCColors.warning;
         statusIcon = Icons.pending;
-        if (_verificationMethod == 'manual_review') {
-          statusText = 'En cours d\'examen';
-          statusMessage = 'Votre demande est en cours d\'examen par notre equipe. Delai: 24-48h.';
-        } else {
-          statusText = 'En attente de verification';
-          statusMessage = 'Votre demande a ete soumise. Notre equipe examinera vos documents sous 24-48 heures.';
-        }
+        statusText = 'Verification en cours';
+        statusMessage = 'Vos documents ont ete envoyes pour verification. Vous serez notifie du resultat.';
     }
 
     return Scaffold(
@@ -1129,7 +1092,7 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         throw Exception("Erreur lors de l'upload des documents");
       }
 
-      // All uploads succeeded — advance to verification steps
+      // All uploads succeeded — advance to sending step
       if (mounted) {
         setState(() {
           _uploadStep = 4;
@@ -1137,14 +1100,14 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         });
       }
 
-      // Step 1-4: Submit KYC (backend runs liveness, face match, OCR)
+      // Step 1: Submit KYC (backend syncs to AccountPE)
       final result = await _apiService.submitKyc(
         dob: '${_selectedDob!.year}-${_selectedDob!.month.toString().padLeft(2, '0')}-${_selectedDob!.day.toString().padLeft(2, '0')}',
         gender: _selectedGender,
         address: _addressController.text,
-        street: _streetController.text,
+        street: '',
         city: _cityController.text,
-        postalCode: _postalCodeController.text,
+        postalCode: '',
         documentType: _selectedDocumentType!,
         idProofNo: _idNumberController.text,
         idProofExpiry: '${_selectedIdExpiry!.year}-${_selectedIdExpiry!.month.toString().padLeft(2, '0')}-${_selectedIdExpiry!.day.toString().padLeft(2, '0')}',
@@ -1153,16 +1116,13 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
         selfieUrl: selfieUrl,
       );
 
-      // Animate through remaining verification steps
-      for (int i = 2; i <= 4; i++) {
-        if (mounted) {
-          setState(() => _verifyStep = i);
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
+      // Step 2: Finalizing
+      if (mounted) {
+        setState(() => _verifyStep = 2);
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
       final status = result['kyc_status'] ?? 'PENDING';
-      final method = result['kyc_verification_method'];
 
       // Refresh user so KYC status is up-to-date everywhere
       if (mounted) {
@@ -1172,7 +1132,6 @@ class _KycScreenState extends State<KycScreen> with TickerProviderStateMixin {
       setState(() {
         _isLoading = false;
         _kycStatus = status;
-        _verificationMethod = method;
         _currentStep = 5; // Show result
       });
     } catch (e) {

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Numeric, CheckConstraint
+from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Numeric, CheckConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import enum
@@ -31,6 +31,7 @@ class Card(Base):
     __tablename__ = "cards"
     __table_args__ = (
         CheckConstraint('balance >= 0', name='ck_cards_balance_positive'),
+        Index("ix_cards_user_created", "user_id", "created_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -54,9 +55,12 @@ class Card(Base):
         Numeric(precision=10, scale=2), default=Decimal("0.00"), nullable=False
     )
     currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    spending_limit: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=2), default=Decimal("500.00"), nullable=False, server_default="500.00"
+    )
 
     provider: Mapped[str] = mapped_column(String(50), default="AccountPE", nullable=False)
-    provider_card_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    provider_card_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
 
     expiry_date: Mapped[str] = mapped_column(String(5), nullable=False)
     cvv_encrypted: Mapped[str] = mapped_column(String(255), nullable=False)

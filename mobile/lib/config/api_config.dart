@@ -1,12 +1,10 @@
-import 'package:flutter/foundation.dart';
-
 /// API Configuration for Kash Pay Backend
 class ApiConfig {
-  // TODO: Switch to production URL before release
-  // Pass --dart-define=API_BASE_URL=https://api.ltcgroup.site/api/v1 for production builds
+  // Production URL by default. Override for dev with:
+  //   --dart-define=API_BASE_URL=http://192.168.86.7:8000/api/v1
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.2:8000/api/v1',
+    defaultValue: 'https://api.ltcgroup.site/api/v1',
   );
 
   // API Endpoints

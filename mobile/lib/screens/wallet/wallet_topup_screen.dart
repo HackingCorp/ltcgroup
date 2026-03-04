@@ -3,8 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/transactions_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../services/api_service.dart';
+import '../../widgets/transaction_item.dart';
 import '../payments/payment_webview_screen.dart';
 
 /// Wallet recharge screen — top up wallet via MoMo/Orange Money
@@ -22,7 +23,6 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
   int _selectedAmountIndex = 1;
   String _selectedPayment = 'mobile_money';
   bool _isUsdMode = true; // true = USD input, false = local currency input
-
   // USD quick chips
   final _usdAmounts = [5, 10, 25, 50];
   final _usdLabels = ['\$5', '\$10', '\$25', '\$50'];
@@ -32,6 +32,7 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<WalletProvider>(context, listen: false).fetchExchangeRate();
+      Provider.of<TransactionsProvider>(context, listen: false).fetchWalletTransactions();
       // Pre-fill phone number from user profile
       final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user?.phone != null && user!.phone!.isNotEmpty) {
@@ -78,39 +79,18 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
     final usdAmount = _isUsdMode ? _inputAmount : _amountUsd(walletProvider);
 
     if (usdAmount < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Le montant minimum est de \$1 USD'),
-          backgroundColor: LTCColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnack('Le montant minimum est de \$1 USD', LTCColors.error);
       return;
     }
 
     if (usdAmount > 10000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Le montant maximum est de \$10,000 USD'),
-          backgroundColor: LTCColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnack('Le montant maximum est de \$10,000 USD', LTCColors.error);
       return;
     }
 
     final phone = _phoneController.text.trim();
     if (_selectedPayment == 'mobile_money' && phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Veuillez entrer votre numero de telephone'),
-          backgroundColor: LTCColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showSnack('Veuillez entrer votre numero de telephone', LTCColors.error);
       return;
     }
 
@@ -124,96 +104,85 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
 
     if (!mounted) return;
 
-    if (result != null && result['success'] == true) {
-      final paymentUrl = result['payment_url'] as String?;
-      final transactionId = result['transaction_id'] as String?;
-      if (paymentUrl != null && paymentUrl.isNotEmpty) {
-        if (!mounted) return;
-        final title = _selectedPayment == 'card'
-            ? 'Paiement par Carte'
-            : 'Paiement Mobile Money';
-        final paymentResult = await Navigator.of(context).push<bool?>(
-          MaterialPageRoute(
-            builder: (context) => PaymentWebViewScreen(
-              paymentUrl: paymentUrl,
-              title: title,
-            ),
-          ),
-        );
-        if (!mounted) return;
+    if (result == null || result['success'] != true) {
+      _showSnack(walletProvider.error ?? 'Erreur lors de la recharge', LTCColors.error);
+      return;
+    }
 
-        if (paymentResult == true && transactionId != null) {
-          // Verify payment status with backend
-          final status = await ApiService().pollPaymentStatus(transactionId);
-          if (!mounted) return;
+    final paymentUrl = result['payment_url'] as String?;
+    final transactionId = result['transaction_id'] as String?;
 
-          if (status['status'] == 'COMPLETED') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['message'] ?? 'Paiement effectue avec succes'),
-                backgroundColor: LTCColors.success,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-            Navigator.of(context).pop();
-          } else if (status['status'] == 'FAILED') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Le paiement a echoue. Veuillez reessayer.'),
-                backgroundColor: LTCColors.error,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.'),
-                backgroundColor: LTCColors.warning,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-            Navigator.of(context).pop();
-          }
-          return;
-        } else if (paymentResult == false) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Le paiement a echoue. Veuillez reessayer.'),
-              backgroundColor: LTCColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-          return;
-        } else if (paymentResult == null) {
-          // User dismissed WebView — do nothing
-          return;
-        }
-      }
-      // No payment URL (shouldn't happen) — show generic success
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Paiement initie avec succes'),
-          backgroundColor: LTCColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    if (paymentUrl == null || paymentUrl.isEmpty) {
+      _showSnack(result['message'] ?? 'Paiement initie avec succes', LTCColors.success);
+      Navigator.of(context).pop();
+      return;
+    }
+
+    // Open payment WebView — verification happens inside the WebView
+    // Returns: 'completed', 'failed', 'pending', or null (user dismiss)
+    final title = _selectedPayment == 'card'
+        ? 'Paiement par Carte'
+        : 'Paiement Mobile Money';
+    final paymentResult = await Navigator.of(context).push<String?>(
+      MaterialPageRoute(
+        builder: (context) => PaymentWebViewScreen(
+          paymentUrl: paymentUrl,
+          title: title,
+          transactionId: transactionId,
         ),
+      ),
+    );
+    if (!mounted) return;
+
+    final txProvider = Provider.of<TransactionsProvider>(context, listen: false);
+
+    if (paymentResult == 'completed') {
+      _showSnack('Paiement confirme ! Wallet recharge avec succes.', LTCColors.success);
+      walletProvider.fetchBalance();
+      txProvider.fetchWalletTransactions();
+      txProvider.fetchTransactions(); // Refresh main list for dashboard/activite
+      Navigator.of(context).pop();
+    } else if (paymentResult == 'failed') {
+      _showSnack('Le paiement a echoue. Veuillez reessayer.', LTCColors.error);
+      txProvider.fetchTransactions(); // Still refresh — FAILED tx should show
+    } else if (paymentResult == 'pending') {
+      _showSnack(
+        'Paiement en cours de traitement. Votre solde sera mis a jour automatiquement.',
+        LTCColors.warning,
       );
+      txProvider.fetchTransactions(); // Refresh — PENDING tx should show
       Navigator.of(context).pop();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(walletProvider.error ?? 'Erreur lors de la recharge'),
-          backgroundColor: LTCColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      // User dismissed WebView manually — try quick verify
+      if (transactionId != null) {
+        final verifyResult = await walletProvider.verifyTopup(
+          transactionId,
+          maxAttempts: 3,
+          delay: const Duration(seconds: 2),
+        );
+        if (!mounted) return;
+        final status = verifyResult?['status'] as String?;
+        if (status == 'COMPLETED') {
+          _showSnack('Paiement confirme ! Wallet recharge avec succes.', LTCColors.success);
+          walletProvider.fetchBalance();
+          Navigator.of(context).pop();
+        }
+      }
+      // Always refresh main transactions list when leaving
+      txProvider.fetchTransactions();
     }
+  }
+
+  void _showSnack(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -250,6 +219,8 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
                       ],
                       const SizedBox(height: 32),
                       _buildSummary(),
+                      const SizedBox(height: 32),
+                      _buildWalletHistory(),
                     ],
                   ),
                 ),
@@ -707,6 +678,53 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
         Text(label, style: const TextStyle(fontSize: 14, color: LTCColors.textSecondary)),
         Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: LTCColors.textPrimary)),
       ],
+    );
+  }
+
+  Widget _buildWalletHistory() {
+    return Consumer<TransactionsProvider>(
+      builder: (context, txProvider, _) {
+        if (txProvider.isLoadingWallet) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator(color: LTCColors.gold, strokeWidth: 2)),
+          );
+        }
+
+        final txList = txProvider.walletTransactions;
+        if (txList.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Historique wallet',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LTCColors.textSecondary),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: LTCColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LTCColors.border),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: txList.length > 10 ? 10 : txList.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: LTCColors.border.withValues(alpha: 0.5)),
+                itemBuilder: (context, index) {
+                  return TransactionItem(transaction: txList[index]);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

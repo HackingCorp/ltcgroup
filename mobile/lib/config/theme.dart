@@ -40,6 +40,16 @@ class LTCColors {
   static const Color cardGold2 = Color(0xFFD4A843);
   static const Color cardGold3 = Color(0xFFE8C76A);
 
+  // Standard tier — navy/indigo
+  static const Color cardBlue1 = Color(0xFF1A237E);
+  static const Color cardBlue2 = Color(0xFF303F9F);
+  static const Color cardBlue3 = Color(0xFF5C6BC0);
+
+  // Premium tier — violet
+  static const Color cardPurple1 = Color(0xFF4A148C);
+  static const Color cardPurple2 = Color(0xFF7B1FA2);
+  static const Color cardPurple3 = Color(0xFFAB47BC);
+
   // ── Overlay / Glass ──
   static const Color glassWhite = Color(0x14FFFFFF); // 8%
   static const Color glassBorder = Color(0x1AFFFFFF); // 10%

@@ -53,7 +53,7 @@ class TransactionItem extends StatelessWidget {
         children: [
           const SizedBox(height: 4),
           Text(
-            dateFormat.format(transaction.createdAt),
+            dateFormat.format(transaction.createdAt.toLocal()),
             style: const TextStyle(
               fontSize: 12,
               color: LTCColors.textSecondary,
@@ -80,7 +80,7 @@ class TransactionItem extends StatelessWidget {
         ],
       ),
       trailing: Text(
-        '${transaction.amount > 0 ? '+' : ''}${transaction.amount.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
+        '${transaction.isCredit ? '+' : '-'}${transaction.absoluteAmount.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
@@ -102,6 +102,12 @@ class TransactionItem extends StatelessWidget {
         return Icons.arrow_upward;
       case AppConstants.transactionTypeRefund:
         return Icons.refresh;
+      case AppConstants.transactionTypeWalletTopup:
+        return Icons.account_balance_wallet;
+      case AppConstants.transactionTypeWalletToCard:
+        return Icons.credit_card;
+      case AppConstants.transactionTypeWalletWithdrawal:
+        return Icons.phone_android;
       default:
         return Icons.receipt;
     }
@@ -112,11 +118,15 @@ class TransactionItem extends StatelessWidget {
       case AppConstants.transactionTypePurchase:
         return LTCColors.gold;
       case AppConstants.transactionTypeTopup:
+      case AppConstants.transactionTypeWalletTopup:
         return LTCColors.success;
       case AppConstants.transactionTypeWithdrawal:
+      case AppConstants.transactionTypeWalletWithdrawal:
         return LTCColors.warning;
       case AppConstants.transactionTypeRefund:
         return LTCColors.info;
+      case AppConstants.transactionTypeWalletToCard:
+        return LTCColors.gold;
       default:
         return LTCColors.textTertiary;
     }

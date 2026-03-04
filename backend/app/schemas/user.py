@@ -35,6 +35,7 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     kyc_status: KYCStatus
+    kyc_submitted_at: datetime | None = None
     kyc_rejected_reason: str | None = None
     wallet_balance: Decimal = Decimal("0.00")
     country_code: str = "CM"
@@ -55,9 +56,9 @@ class KYCSubmit(BaseModel):
     dob: date
     gender: str = Field(..., pattern=r'^(M|F|OTHER)$')
     address: str = Field(..., max_length=500)
-    street: str = Field(..., max_length=255)
+    street: str = Field("", max_length=255)
     city: str = Field(..., max_length=100)
-    postal_code: str = Field(..., max_length=20)
+    postal_code: str = Field("", max_length=20)
     document_type: str = Field(..., pattern=r'^(id_card|passport|driver_license)$')
     id_proof_no: str = Field(..., max_length=100)
     id_proof_expiry: date

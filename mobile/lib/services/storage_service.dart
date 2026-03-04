@@ -6,6 +6,7 @@ import '../models/user.dart';
 /// Storage service for local persistence
 class StorageService {
   static const String _keyToken = 'auth_token';
+  static const String _keyRefreshToken = 'refresh_token';
   static const String _keyUser = 'user_data';
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyOnboardingSeen = 'onboarding_seen';
@@ -28,6 +29,17 @@ class StorageService {
   /// Remove authentication token (secure)
   Future<void> removeToken() async {
     await _secureStorage.delete(key: _keyToken);
+    await _secureStorage.delete(key: _keyRefreshToken);
+  }
+
+  /// Save refresh token (secure)
+  Future<void> saveRefreshToken(String token) async {
+    await _secureStorage.write(key: _keyRefreshToken, value: token);
+  }
+
+  /// Get refresh token (secure)
+  Future<String?> getRefreshToken() async {
+    return await _secureStorage.read(key: _keyRefreshToken);
   }
 
   /// Save user data (secure)

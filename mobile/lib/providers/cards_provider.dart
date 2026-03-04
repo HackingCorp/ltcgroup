@@ -120,6 +120,31 @@ class CardsProvider with ChangeNotifier {
     }
   }
 
+  /// Update card spending limit
+  Future<bool> updateCardLimit({
+    required String cardId,
+    required double spendingLimit,
+  }) async {
+    _error = null;
+
+    try {
+      final updatedCard = await _apiService.updateCardLimit(cardId, spendingLimit);
+
+      final index = _cards.indexWhere((card) => card.id == cardId);
+      if (index != -1) {
+        _cards[index] = updatedCard;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Update card balance (after topup/withdrawal)
   void updateCardBalance(String cardId, double newBalance) {
     final index = _cards.indexWhere((card) => card.id == cardId);

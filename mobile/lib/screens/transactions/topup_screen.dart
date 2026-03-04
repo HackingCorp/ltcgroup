@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/success_dialog.dart';
+import '../../config/constants.dart';
 import '../../config/theme.dart';
 import '../payments/payment_webview_screen.dart';
 
@@ -17,7 +19,7 @@ class TopupScreen extends StatefulWidget {
 }
 
 class _TopupScreenState extends State<TopupScreen> {
-  final _amountController = TextEditingController(text: '10000');
+  final _amountController = TextEditingController(text: '5');
   final _apiService = ApiService();
   String? _selectedCardId;
   int _selectedAmountIndex = 1;
@@ -51,7 +53,7 @@ class _TopupScreenState extends State<TopupScreen> {
   ];
 
   double get _amount => double.tryParse(_amountController.text) ?? 0;
-  double get _feeRate {
+  double get _paymentFeeRate {
     if (_selectedPayment != 'mobile_money') return 0.0;
     final country = _countries.firstWhere(
       (c) => c['code'] == _selectedCountry,
@@ -59,8 +61,10 @@ class _TopupScreenState extends State<TopupScreen> {
     );
     return (country['fee'] as num).toDouble() / 100;
   }
-  double get _fee => _amount * _feeRate;
-  double get _total => _amount + _fee;
+  double get _paymentFee => _amount * _paymentFeeRate;
+  double get _cardFee => _amount * AppConstants.cardOperationFeeRate;
+  double get _totalFee => _paymentFee + _cardFee;
+  double get _total => _amount + _totalFee;
 
   @override
   void initState() {
@@ -153,6 +157,10 @@ class _TopupScreenState extends State<TopupScreen> {
             cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
           }
 
+          // Refresh transactions and wallet balance
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
+          Provider.of<WalletProvider>(context, listen: false).fetchBalance();
+
           await SuccessDialog.showTopupSuccess(
             context,
             amount: _amount,
@@ -163,16 +171,21 @@ class _TopupScreenState extends State<TopupScreen> {
           Navigator.of(context).pop();
         } else if (status['status'] == 'FAILED') {
           _showError('Le paiement a echoue. Veuillez reessayer.');
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
         } else {
           _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
         }
       } else if (paymentResult == 'completed') {
         // No transaction_id — can't verify
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       } else if (paymentResult == 'failed') {
         _showError('Le paiement a echoue. Veuillez reessayer.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       } else if (paymentResult == 'pending') {
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       }
       // null = user dismissed, do nothing
     } catch (e) {
@@ -225,6 +238,10 @@ class _TopupScreenState extends State<TopupScreen> {
             cardsProvider.updateCardBalance(_selectedCardId!, newBalance);
           }
 
+          // Refresh transactions and wallet balance
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
+          Provider.of<WalletProvider>(context, listen: false).fetchBalance();
+
           await SuccessDialog.showTopupSuccess(
             context,
             amount: _amount,
@@ -235,15 +252,20 @@ class _TopupScreenState extends State<TopupScreen> {
           Navigator.of(context).pop();
         } else if (status['status'] == 'FAILED') {
           _showError('Le paiement a echoue. Veuillez reessayer.');
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
         } else {
           _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+          Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
         }
       } else if (paymentResult == 'completed') {
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       } else if (paymentResult == 'failed') {
         _showError('Le paiement a echoue. Veuillez reessayer.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       } else if (paymentResult == 'pending') {
         _showError('Le paiement est en cours de traitement. Votre solde sera mis a jour automatiquement.');
+        Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
       }
     } catch (e) {
       if (!mounted) return;
@@ -687,11 +709,6 @@ class _TopupScreenState extends State<TopupScreen> {
   // --- Country Selector ---
 
   Widget _buildCountrySelector() {
-    final selectedCountry = _countries.firstWhere(
-      (c) => c['code'] == _selectedCountry,
-      orElse: () => _countries.first,
-    );
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
@@ -743,7 +760,6 @@ class _TopupScreenState extends State<TopupScreen> {
   // --- Summary ---
 
   Widget _buildSummary() {
-    final fmt = NumberFormat('#,###', 'fr_FR');
     final cardsProvider = Provider.of<CardsProvider>(context);
     final card = _selectedCardId != null
         ? cardsProvider.getCardById(_selectedCardId!)
@@ -751,10 +767,6 @@ class _TopupScreenState extends State<TopupScreen> {
     final masked = card != null
         ? '**** ${card.maskedNumber.substring(card.maskedNumber.length - 4)}'
         : '----';
-
-    final feeLabel = _selectedPayment == 'mobile_money'
-        ? 'Frais (${(_feeRate * 100).toStringAsFixed(1)}%)'
-        : 'Frais';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -772,8 +784,15 @@ class _TopupScreenState extends State<TopupScreen> {
               bold: true),
           const SizedBox(height: 12),
           _summaryRow(
-              feeLabel, '\$${_fee.toStringAsFixed(2)}',
+              'Frais carte (1.5%)', '\$${_cardFee.toStringAsFixed(2)}',
               bold: true),
+          if (_selectedPayment == 'mobile_money') ...[
+            const SizedBox(height: 12),
+            _summaryRow(
+                'Frais paiement (${(_paymentFeeRate * 100).toStringAsFixed(1)}%)',
+                '\$${_paymentFee.toStringAsFixed(2)}',
+                bold: true),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Container(

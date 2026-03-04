@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
+import '../providers/cards_provider.dart';
+import '../providers/transactions_provider.dart';
+import '../providers/wallet_provider.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'cards/card_list_screen.dart';
 import 'transactions/transaction_list_screen.dart';
@@ -40,6 +43,25 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<AuthProvider>().refreshUser();
+      // Refresh current tab data when app comes back to foreground
+      _refreshTabData(_currentIndex);
+    }
+  }
+
+  /// Refresh data when switching tabs so stale data is updated.
+  void _refreshTabData(int index) {
+    switch (index) {
+      case 0: // Dashboard
+        context.read<TransactionsProvider>().fetchTransactions();
+        context.read<WalletProvider>().fetchBalance();
+        context.read<CardsProvider>().fetchCards();
+        break;
+      case 1: // Cards
+        context.read<CardsProvider>().fetchCards();
+        break;
+      case 2: // Transactions / Activite
+        context.read<TransactionsProvider>().fetchTransactions();
+        break;
     }
   }
 
@@ -85,7 +107,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        if (_currentIndex != index) {
+          setState(() => _currentIndex = index);
+          _refreshTabData(index);
+        }
+      },
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

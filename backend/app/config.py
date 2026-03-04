@@ -17,7 +17,8 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_minutes: int = 10080  # 7 days
 
     encryption_key: str = ""
 
@@ -52,6 +53,16 @@ class Settings(BaseSettings):
     smtp_user: str = "noreply@ltcgroup.site"
     smtp_password: str = ""
     smtp_from_email: str = "noreply@ltcgroup.site"
+
+    # Fee Rates (configurable without code deploy)
+    card_operation_fee_rate: float = 0.015   # 1.5% on card topup/withdraw
+    wallet_topup_fee_rate: float = 0.005     # 0.5% on wallet topup (e-nkap)
+    wallet_transfer_fee_rate: float = 0.02   # 2% for wallet→card (USD only)
+
+    # Card tier prices (USD)
+    card_tier_standard_price: float = 5.0
+    card_tier_premium_price: float = 10.0
+    card_tier_gold_price: float = 15.0
 
     # File Upload Configuration
     upload_dir: str = "./uploads"

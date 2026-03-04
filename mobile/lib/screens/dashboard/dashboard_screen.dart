@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,7 @@ import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/transaction.dart';
+import '../../widgets/card_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,11 +19,58 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _hasError = false;
+  Timer? _kycPollTimer;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _startKycPollingIfNeeded();
+    // Auto-refresh every 30 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _refreshDataSilently();
+    });
+  }
+
+  @override
+  void dispose() {
+    _kycPollTimer?.cancel();
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Refresh data without showing error state (silent background refresh)
+  Future<void> _refreshDataSilently() async {
+    if (!mounted) return;
+    try {
+      final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+      final transactionsProvider =
+          Provider.of<TransactionsProvider>(context, listen: false);
+      final walletProvider =
+          Provider.of<WalletProvider>(context, listen: false);
+      await Future.wait([
+        cardsProvider.fetchCards(),
+        transactionsProvider.fetchTransactions(),
+        walletProvider.fetchBalance(),
+      ]);
+    } catch (_) {
+      // Silent refresh - don't show errors
+    }
+  }
+
+  void _startKycPollingIfNeeded() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    if (user != null && user.kycStatus == 'PENDING' && user.kycSubmittedAt != null) {
+      _kycPollTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+        final changed = await authProvider.checkKycStatus();
+        if (changed && mounted) {
+          setState(() {});
+          _kycPollTimer?.cancel();
+        }
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -56,6 +105,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           slivers: [
             // Header
             SliverToBoxAdapter(child: _buildHeader()),
+            // KYC banner
+            SliverToBoxAdapter(child: _buildKycBanner()),
             if (_hasError)
               SliverFillRemaining(
                 child: Center(
@@ -197,6 +248,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ─── KYC Banner ───
+
+  Widget _buildKycBanner() {
+    final user = Provider.of<AuthProvider>(context).user;
+    if (user == null || user.isKycVerified) return const SizedBox.shrink();
+
+    final kycStatus = user.kycStatus;
+    final isPending = kycStatus == 'PENDING';
+    final isRejected = kycStatus == 'REJECTED';
+    final hasSubmitted = user.kycSubmittedAt != null;
+
+    // PENDING + submitted = under review
+    if (isPending && hasSubmitted) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded, color: Colors.blue[400], size: 24),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Verification en cours, nous vous notifierons une fois terminee.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: LTCColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // PENDING + not submitted OR REJECTED
+    final isReject = isRejected;
+    final bannerColor = isReject ? Colors.red : Colors.orange;
+    final icon = isReject ? Icons.error_outline_rounded : Icons.verified_user_outlined;
+    final message = isReject
+        ? 'Verification rejetee${user.kycRejectedReason != null ? ": ${user.kycRejectedReason}" : ""}. Veuillez soumettre a nouveau.'
+        : 'Verifiez votre identite pour profiter de tous nos services.';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bannerColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: bannerColor.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: bannerColor, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: LTCColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pushNamed('/kyc'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: bannerColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isReject ? 'Renvoyer' : 'Verifier',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── Wallet Balance ───
 
   Widget _buildWalletBalance() {
@@ -297,227 +446,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final card = cardsProvider.cards.first;
-    final balance = card.balance;
-    final maskedNumber = card.maskedNumber;
     final holderName =
-        Provider.of<AuthProvider>(context).user?.firstName.toUpperCase() ??
+        Provider.of<AuthProvider>(context).user?.fullName.toUpperCase() ??
             'UTILISATEUR';
-    final expiry = card.expiryFormatted;
+    final glowColor = getCardTierGlow(card.tier);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
       child: Stack(
         children: [
-          // Background glow
+          // Background glow — tier-colored
           Positioned.fill(
             child: Center(
               child: Container(
                 width: 250,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: LTCColors.gold.withValues(alpha: 0.3),
+                  color: glowColor.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(100),
                 ),
               ),
             ),
           ),
-          // Card
-          AspectRatio(
-            aspectRatio: 1.586,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    LTCColors.cardGold1,
-                    LTCColors.cardGold2,
-                    LTCColors.cardGold3,
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 40,
-                    offset: const Offset(0, 20),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Glass overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: LTCColors.glassBorder,
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          LTCColors.glassWhite,
-                          Colors.white.withValues(alpha: 0.05),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Decorative blurred circles
-                  Positioned(
-                    top: -40,
-                    right: -40,
-                    child: Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 40,
-                    left: -40,
-                    child: Container(
-                      width: 128,
-                      height: 128,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: LTCColors.goldDark.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
-
-                  // Card content
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top row: VISA + chip
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // VISA logo
-                            Text(
-                              'VISA',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                fontStyle: FontStyle.italic,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                            // Chip
-                            _buildChip(),
-                          ],
-                        ),
-
-                        const Spacer(),
-
-                        // Balance
-                        Text(
-                          'Solde disponible',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '\$${_formatUsd(balance)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        // Card number
-                        Text(
-                          maskedNumber,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 3,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Bottom row: holder + expiry
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'TITULAIRE',
-                                  style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  holderName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'EXPIRE',
-                                  style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  expiry,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // Card widget
+          CardWidget(
+            card: card,
+            holderName: holderName,
+            onTap: () => Navigator.of(context)
+                .pushNamed('/card-detail', arguments: card.id),
           ),
         ],
       ),
@@ -597,63 +553,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildChip() {
-    return Container(
-      width: 48,
-      height: 32,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: LTCColors.goldLight.withValues(alpha: 0.25),
-        border: Border.all(
-          color: LTCColors.goldLight.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 8,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 1,
-              color: LTCColors.goldLight.withValues(alpha: 0.5),
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 1,
-              color: LTCColors.goldLight.withValues(alpha: 0.5),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 1,
-              color: LTCColors.goldLight.withValues(alpha: 0.5),
-            ),
-          ),
-          Center(
-            child: Container(
-              width: 32,
-              height: 20,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(
-                  color: LTCColors.goldLight.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -931,7 +830,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    dateFormat.format(tx.createdAt),
+                    dateFormat.format(tx.createdAt.toLocal()),
                     style: const TextStyle(
                       color: LTCColors.textSecondary,
                       fontSize: 12,
@@ -981,11 +880,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ─── Helpers ───
-
-  String _formatAmount(double amount) {
-    final formatter = NumberFormat('#,###', 'fr_FR');
-    return formatter.format(amount.round());
-  }
 
   String _formatUsd(double amount) {
     return NumberFormat('#,##0.00', 'en_US').format(amount);

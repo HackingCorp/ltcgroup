@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/constants.dart';
 import '../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
+import '../../providers/transactions_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../widgets/success_dialog.dart';
 
@@ -17,14 +20,16 @@ class PurchaseCardScreen extends StatefulWidget {
 class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   String _selectedType = 'VISA';
   String _selectedTier = 'STANDARD';
-  int _selectedAmountIndex = 1;
+  int _selectedAmountIndex = 0;
   bool _isProcessing = false;
-  final _amountController = TextEditingController(text: '');
+  final _amountController = TextEditingController(text: '1');
 
-  final _amounts = [5, 10, 25, 50, 100];
-  final _amountLabels = ['\$5', '\$10', '\$25', '\$50', '\$100'];
+  final _amounts = [1, 5, 10, 25, 50, 100];
+  final _amountLabels = ['\$1', '\$5', '\$10', '\$25', '\$50', '\$100'];
 
-  double get _amount => double.tryParse(_amountController.text) ?? 0;
+  double get _amount => double.tryParse(_amountController.text) ?? 1;
+  double get _rechargeFee => _amount * AppConstants.cardOperationFeeRate;
+  double get _total => _amount + _tierPrice + _rechargeFee;
 
   @override
   void dispose() {
@@ -40,61 +45,91 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
   }
 
   Future<void> _handlePurchase() async {
-    if (_amount <= 0 || _isProcessing) return;
-    setState(() => _isProcessing = true);
+    if (_isProcessing) return;
 
-    if (_amount < AppConstants.minTopupAmount) {
-      _showError('Le montant minimum est de \$${AppConstants.minTopupAmount.toStringAsFixed(0)}');
-      setState(() => _isProcessing = false);
+    // KYC check
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null && !authProvider.user!.isKycVerified) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: LTCColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Verification requise',
+            style: TextStyle(color: LTCColors.textPrimary),
+          ),
+          content: const Text(
+            'Vous devez verifier votre identite (KYC) avant de pouvoir acheter une carte virtuelle.',
+            style: TextStyle(color: LTCColors.textSecondary, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pushNamed('/kyc');
+              },
+              child: const Text('Verifier mon identite', style: TextStyle(color: LTCColors.gold)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (_amount < 1) {
+      _showError('Le montant minimum de recharge est de \$1');
       return;
     }
     if (_amount > AppConstants.maxTopupAmount) {
       _showError('Le montant maximum est de \$${AppConstants.maxTopupAmount.toStringAsFixed(0)}');
-      setState(() => _isProcessing = false);
       return;
     }
 
     // Check wallet balance
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-    if (walletProvider.balance < _amount) {
-      _showError('Solde insuffisant. Votre solde est de \$${walletProvider.balance.toStringAsFixed(2)}');
-      setState(() => _isProcessing = false);
+    if (walletProvider.balance < _total) {
+      _showError('Solde insuffisant. Il vous faut \$${_total.toStringAsFixed(2)} (solde: \$${walletProvider.balance.toStringAsFixed(2)})');
       return;
     }
 
     // Show confirmation dialog before proceeding
     final confirmed = await _showConfirmationDialog();
-    if (confirmed != true) {
-      if (mounted) setState(() => _isProcessing = false);
-      return;
-    }
+    if (confirmed != true) return;
 
-    try {
-      final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-      final success = await cardsProvider.purchaseCard(
-        type: _selectedType,
-        initialBalance: _amount,
-        cardTier: _selectedTier,
+    if (!mounted) return;
+
+    // Show processing overlay
+    final result = await Navigator.of(context).push<bool>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black54,
+        pageBuilder: (context, _, __) => _PurchaseProcessingOverlay(
+          cardType: _selectedType,
+          cardTier: _selectedTier,
+          tierLabel: _tierLabel,
+          amount: _amount,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == true) {
+      walletProvider.fetchBalance();
+      Provider.of<TransactionsProvider>(context, listen: false).fetchTransactions();
+      Provider.of<CardsProvider>(context, listen: false).fetchCards();
+      await SuccessDialog.showPurchaseSuccess(
+        context,
+        cardType: _tierLabel,
+        balance: _amount,
       );
-
       if (!mounted) return;
-
-      if (success) {
-        // Refresh wallet balance
-        walletProvider.fetchBalance();
-
-        await SuccessDialog.showPurchaseSuccess(
-          context,
-          cardType: _tierLabel,
-          balance: _amount,
-        );
-        if (!mounted) return;
-        Navigator.of(context).pop();
-      } else {
-        _showError(cardsProvider.error ?? "Erreur lors de l'achat");
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      Navigator.of(context).pop();
     }
   }
 
@@ -138,12 +173,16 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
           children: [
             _dialogRow('Carte', _tierLabel),
             const SizedBox(height: 8),
+            _dialogRow('Prix carte', '\$${_tierPrice.toStringAsFixed(2)}'),
+            const SizedBox(height: 8),
             _dialogRow('Solde initial', '\$${_amount.toStringAsFixed(2)}'),
+            const SizedBox(height: 8),
+            _dialogRow('Frais recharge (1.5%)', '\$${_rechargeFee.toStringAsFixed(2)}'),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(color: LTCColors.border, height: 1),
             ),
-            _dialogRow('Total', '\$${_amount.toStringAsFixed(2)}', bold: true),
+            _dialogRow('Total', '\$${_total.toStringAsFixed(2)}', bold: true),
             const SizedBox(height: 8),
             _dialogRow('Solde compte', '\$${walletBalance.toStringAsFixed(2)}'),
           ],
@@ -745,6 +784,16 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
             'Solde initial',
             '\$${_amount.toStringAsFixed(2)}',
           ),
+          const SizedBox(height: 8),
+          _buildSummaryRow(
+            'Prix carte (${_tierLabel})',
+            '\$${_tierPrice.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: 8),
+          _buildSummaryRow(
+            'Frais recharge (1.5%)',
+            '\$${_rechargeFee.toStringAsFixed(2)}',
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: LTCColors.border, height: 1),
@@ -761,7 +810,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                 ),
               ),
               Text(
-                '\$${_amount.toStringAsFixed(2)}',
+                '\$${_total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -796,7 +845,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: walletBalance >= _amount ? LTCColors.success : LTCColors.error,
+                    color: walletBalance >= _total ? LTCColors.success : LTCColors.error,
                   ),
                 ),
               ],
@@ -845,7 +894,7 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
         ),
       ),
       child: GestureDetector(
-            onTap: _isProcessing ? null : _handlePurchase,
+            onTap: _handlePurchase,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 18),
@@ -864,35 +913,316 @@ class _PurchaseCardScreenState extends State<PurchaseCardScreen> {
                   ),
                 ],
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (_isProcessing)
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: LTCColors.background,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  else ...[
-                    Text(
-                      'Acheter ma carte',
-                      style: TextStyle(
-                        color: LTCColors.background,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    'Acheter ma carte',
+                    style: TextStyle(
+                      color: LTCColors.background,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.arrow_forward,
-                        color: LTCColors.background, size: 18),
-                  ],
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward,
+                      color: LTCColors.background, size: 18),
                 ],
               ),
             ),
           ),
+    );
+  }
+}
+
+// ─── Processing overlay with step animation ──────────────────
+
+class _PurchaseProcessingOverlay extends StatefulWidget {
+  final String cardType;
+  final String cardTier;
+  final String tierLabel;
+  final double amount;
+
+  const _PurchaseProcessingOverlay({
+    required this.cardType,
+    required this.cardTier,
+    required this.tierLabel,
+    required this.amount,
+  });
+
+  @override
+  State<_PurchaseProcessingOverlay> createState() =>
+      _PurchaseProcessingOverlayState();
+}
+
+class _PurchaseProcessingOverlayState
+    extends State<_PurchaseProcessingOverlay> with TickerProviderStateMixin {
+  int _currentStep = 0;
+  bool _failed = false;
+  String? _errorMessage;
+  late final AnimationController _pulseController;
+  late final AnimationController _slideController;
+
+  static const _steps = [
+    {'icon': Icons.account_circle_outlined, 'label': 'Verification du compte...'},
+    {'icon': Icons.credit_card, 'label': 'Creation de la carte...'},
+    {'icon': Icons.settings_outlined, 'label': 'Configuration...'},
+    {'icon': Icons.check_circle_outline, 'label': 'Finalisation...'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    )..forward();
+    _startPurchase();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startPurchase() async {
+    // Step 0: Verification du compte
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    setState(() => _currentStep = 1);
+
+    // Step 1: Creation de la carte
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    setState(() => _currentStep = 2);
+
+    // Step 2: Configuration — actual API call
+    try {
+      final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+      final success = await cardsProvider.purchaseCard(
+        type: widget.cardType,
+        initialBalance: widget.amount,
+        cardTier: widget.cardTier,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        setState(() => _currentStep = 3);
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() {
+          _failed = true;
+          _errorMessage = cardsProvider.error ?? "Erreur lors de l'achat";
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _failed = true;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: _slideController,
+          curve: Curves.easeOutCubic,
+        )),
+        child: Center(
+          child: Container(
+            width: 320,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: LTCColors.surface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: LTCColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Card icon with pulse
+                AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    final scale = _failed
+                        ? 1.0
+                        : 1.0 + _pulseController.value * 0.08;
+                    return Transform.scale(scale: scale, child: child);
+                  },
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _failed
+                          ? LTCColors.error.withValues(alpha: 0.1)
+                          : LTCColors.gold.withValues(alpha: 0.1),
+                    ),
+                    child: Icon(
+                      _failed ? Icons.error_outline : Icons.credit_card,
+                      size: 36,
+                      color: _failed ? LTCColors.error : LTCColors.gold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  _failed ? 'Echec' : 'Achat en cours...',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _failed ? LTCColors.error : LTCColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _failed ? '' : widget.tierLabel,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: LTCColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Steps
+                ...List.generate(_steps.length, (i) {
+                  final step = _steps[i];
+                  final isDone = i < _currentStep;
+                  final isActive = i == _currentStep && !_failed;
+                  final isFailed = i == _currentStep && _failed;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        // Step indicator
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDone
+                                ? LTCColors.success.withValues(alpha: 0.15)
+                                : isFailed
+                                    ? LTCColors.error.withValues(alpha: 0.15)
+                                    : isActive
+                                        ? LTCColors.gold.withValues(alpha: 0.15)
+                                        : LTCColors.surfaceLight,
+                          ),
+                          child: Center(
+                            child: isDone
+                                ? const Icon(Icons.check, size: 16, color: LTCColors.success)
+                                : isFailed
+                                    ? const Icon(Icons.close, size: 16, color: LTCColors.error)
+                                    : isActive
+                                        ? SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: LTCColors.gold,
+                                            ),
+                                          )
+                                        : Icon(
+                                            step['icon'] as IconData,
+                                            size: 14,
+                                            color: LTCColors.textTertiary,
+                                          ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            isDone
+                                ? (step['label'] as String).replaceAll('...', '')
+                                : step['label'] as String,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isActive || isDone ? FontWeight.w600 : FontWeight.normal,
+                              color: isDone
+                                  ? LTCColors.success
+                                  : isFailed
+                                      ? LTCColors.error
+                                      : isActive
+                                          ? LTCColors.textPrimary
+                                          : LTCColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                // Error message
+                if (_failed && _errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: LTCColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(fontSize: 13, color: LTCColors.error),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(false),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: LTCColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: LTCColors.border),
+                      ),
+                      child: const Text(
+                        'Fermer',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: LTCColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

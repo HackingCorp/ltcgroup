@@ -9,15 +9,19 @@ class TransactionsProvider with ChangeNotifier {
   static const int _pageSize = 50;
 
   List<Transaction> _transactions = [];
+  List<Transaction> _walletTransactions = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isLoadingWallet = false;
   bool _hasMore = true;
   String? _error;
   String? _filterCardId;
 
   List<Transaction> get transactions => _transactions;
+  List<Transaction> get walletTransactions => _walletTransactions;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
+  bool get isLoadingWallet => _isLoadingWallet;
   bool get hasMore => _hasMore;
   String? get error => _error;
   String? get filterCardId => _filterCardId;
@@ -75,6 +79,27 @@ class TransactionsProvider with ChangeNotifier {
       _error = errorMessage;
     } finally {
       _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetch wallet-only transactions (WALLET_TOPUP, WALLET_TO_CARD, WALLET_WITHDRAWAL)
+  Future<void> fetchWalletTransactions() async {
+    _isLoadingWallet = true;
+    notifyListeners();
+
+    try {
+      _walletTransactions = await _apiService.getTransactions(
+        category: 'wallet',
+        limit: 20,
+        offset: 0,
+      );
+      _walletTransactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
+    } finally {
+      _isLoadingWallet = false;
       notifyListeners();
     }
   }

@@ -13,6 +13,8 @@ class User {
   final String lastName;
   final String? phone;
   final String kycStatus; // PENDING, VERIFIED, REJECTED
+  final DateTime? kycSubmittedAt;
+  final String? kycRejectedReason;
   final double walletBalance;
   final String countryCode;
   final String? localCurrency;
@@ -25,6 +27,8 @@ class User {
     required this.lastName,
     this.phone,
     required this.kycStatus,
+    this.kycSubmittedAt,
+    this.kycRejectedReason,
     this.walletBalance = 0.0,
     this.countryCode = 'CM',
     this.localCurrency,
@@ -46,6 +50,10 @@ class User {
       lastName: json['last_name'] as String,
       phone: json['phone'] as String?,
       kycStatus: json['kyc_status'] as String,
+      kycSubmittedAt: json['kyc_submitted_at'] != null
+          ? DateTime.parse(json['kyc_submitted_at'] as String)
+          : null,
+      kycRejectedReason: json['kyc_rejected_reason'] as String?,
       walletBalance: _parseDouble(json['wallet_balance']),
       countryCode: json['country_code'] as String? ?? 'CM',
       localCurrency: json['local_currency'] as String?,
@@ -62,6 +70,8 @@ class User {
       'last_name': lastName,
       'phone': phone,
       'kyc_status': kycStatus,
+      'kyc_submitted_at': kycSubmittedAt?.toIso8601String(),
+      'kyc_rejected_reason': kycRejectedReason,
       'wallet_balance': walletBalance,
       'country_code': countryCode,
       'local_currency': localCurrency,
@@ -77,6 +87,8 @@ class User {
     String? lastName,
     String? phone,
     String? kycStatus,
+    DateTime? kycSubmittedAt,
+    String? kycRejectedReason,
     double? walletBalance,
     String? countryCode,
     String? localCurrency,
@@ -89,6 +101,8 @@ class User {
       lastName: lastName ?? this.lastName,
       phone: phone ?? this.phone,
       kycStatus: kycStatus ?? this.kycStatus,
+      kycSubmittedAt: kycSubmittedAt ?? this.kycSubmittedAt,
+      kycRejectedReason: kycRejectedReason ?? this.kycRejectedReason,
       walletBalance: walletBalance ?? this.walletBalance,
       countryCode: countryCode ?? this.countryCode,
       localCurrency: localCurrency ?? this.localCurrency,

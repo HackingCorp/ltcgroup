@@ -62,6 +62,9 @@ class AppConstants {
   // Wallet fees
   static const double walletTransferFeeRate = 0.02; // 2% for wallet→card
 
+  // Card operation fees (AccountPE)
+  static const double cardOperationFeeRate = 0.015; // 1.5% on card topup/withdraw
+
   // 18 supported countries
   static const Map<String, Map<String, String>> supportedCountries = {
     'CM': {'name': 'Cameroun', 'flag': '\u{1F1E8}\u{1F1F2}', 'phone': '+237', 'currency': 'XAF'},

@@ -322,7 +322,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(4),
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFFD700), Color(0xFFF0C060)],
+                            colors: [LTCColors.gold, LTCColors.goldLight],
                           ),
                         ),
                         child: Center(
@@ -331,7 +331,7 @@ class _CardSuccessDialogState extends State<CardSuccessDialog>
                             height: 12,
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: const Color(0xFFDAA520),
+                                color: LTCColors.goldDark,
                                 width: 0.5,
                               ),
                               borderRadius: BorderRadius.circular(2),

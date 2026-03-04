@@ -47,9 +47,10 @@ class _DevHttpOverrides extends HttpOverrides {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // TODO: Remove SSL bypass before production release
-  // Allow bad certificates for local dev/testing
-  HttpOverrides.global = _DevHttpOverrides();
+  // Only bypass SSL in debug mode (kDebugMode is false in release builds)
+  if (kDebugMode) {
+    HttpOverrides.global = _DevHttpOverrides();
+  }
 
   // Initialize Firebase only if real credentials are configured
   if (DefaultFirebaseOptions.isConfigured) {
@@ -94,6 +95,12 @@ class MyApp extends StatelessWidget {
         title: 'Kash Pay',
         debugShowCheckedModeBanner: false,
         theme: LTCTheme.darkTheme,
+        builder: (context, child) {
+          return GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: child,
+          );
+        },
         initialRoute: '/',
         routes: {
           '/': (context) => const AuthGate(),

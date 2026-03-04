@@ -22,6 +22,11 @@ from app.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+_MAX_RETRIES = 2
+_RETRY_BACKOFF_BASE = 0.5  # seconds; retries at 0.5s, 1.0s
+_RETRYABLE_STATUS_CODES = {502, 503, 504}
+
+
 class PayoutError(Exception):
     """Payout API error with user-friendly message"""
 
@@ -83,6 +88,36 @@ class PayoutClient:
         token = await self._ensure_token()
         return {"Authorization": f"Bearer {token}"}
 
+    async def _post_with_retry(
+        self, url: str, *, json: dict, headers: dict
+    ) -> httpx.Response:
+        """POST with retry on transient errors (timeout, 502, 503, 504)."""
+        last_exc: Exception | None = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                response = await self.client.post(url, json=json, headers=headers)
+                if response.status_code in _RETRYABLE_STATUS_CODES and attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning(
+                        f"Payout retryable HTTP {response.status_code} on {url} "
+                        f"(attempt {attempt + 1}/{_MAX_RETRIES + 1}), retrying in {wait:.1f}s"
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                return response
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                last_exc = exc
+                if attempt < _MAX_RETRIES:
+                    wait = _RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning(
+                        f"Payout transient error on {url} "
+                        f"(attempt {attempt + 1}/{_MAX_RETRIES + 1}), retrying in {wait:.1f}s: {exc}"
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
+        raise last_exc  # type: ignore[misc]
+
     def _check_response(self, data: Any, default_error: str) -> None:
         """Raise PayoutError if AccountPE returned a business error."""
         if isinstance(data, dict) and data.get("status") in (400, 401, 403, 404, 500):
@@ -93,7 +128,7 @@ class PayoutClient:
         """Get available payout methods for a country."""
         headers = await self._get_headers()
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/payout_methods"),
             json={"country_code": country_code.upper()},
             headers=headers,
@@ -111,7 +146,7 @@ class PayoutClient:
         """Get pUSD to fiat exchange rate for payout."""
         headers = await self._get_headers()
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/pusd_to_fiat_rate"),
             json={"country_code": country_code.upper(), "amount": amount},
             headers=headers,
@@ -161,7 +196,7 @@ class PayoutClient:
         if remarks:
             payload["remarks"] = remarks
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/create_transaction"),
             json=payload,
             headers=headers,
@@ -187,7 +222,7 @@ class PayoutClient:
         """
         headers = await self._get_headers()
 
-        response = await self.client.post(
+        response = await self._post_with_retry(
             self._url("/transaction_status"),
             json={"transaction_id": transaction_id},
             headers=headers,

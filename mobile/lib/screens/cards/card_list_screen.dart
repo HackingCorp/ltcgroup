@@ -7,6 +7,7 @@ import '../../models/transaction.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cards_provider.dart';
 import '../../providers/transactions_provider.dart';
+import '../../widgets/card_widget.dart';
 
 /// Card management screen matching Kash Pay design
 class CardListScreen extends StatefulWidget {
@@ -188,7 +189,7 @@ class _CardListScreenState extends State<CardListScreen> {
         boxShadow: [
           if (card.isActive)
             BoxShadow(
-              color: LTCColors.goldDark.withValues(alpha: 0.3),
+              color: getCardTierGlow(card.tier).withValues(alpha: 0.3),
               blurRadius: 50,
               offset: const Offset(0, 20),
               spreadRadius: -12,
@@ -501,7 +502,9 @@ class _CardListScreenState extends State<CardListScreen> {
   Widget _buildInfoSection(VirtualCard card) {
     final createdFormatted =
         DateFormat('dd MMM, yyyy', 'fr_FR').format(card.createdAt);
-    final usedPercent = (card.balance / 500).clamp(0.0, 1.0);
+    final usedPercent = card.spendingLimit > 0
+        ? (card.balance / card.spendingLimit).clamp(0.0, 1.0)
+        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -570,41 +573,51 @@ class _CardListScreenState extends State<CardListScreen> {
                       top: BorderSide(color: LTCColors.border),
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Plafond mensuel',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: LTCColors.textSecondary,
+                  child: GestureDetector(
+                    onTap: () => _showEditLimitDialog(card),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Plafond mensuel',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: LTCColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.edit_outlined,
+                                    size: 14, color: LTCColors.textTertiary),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '\$${_formatUsd(card.balance)} / \$500',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: LTCColors.gold,
+                            Text(
+                              '\$${_formatUsd(card.balance)} / \$${_formatUsd(card.spendingLimit)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: LTCColors.gold,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: usedPercent,
-                          minHeight: 8,
-                          backgroundColor: LTCColors.surfaceLight,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                              LTCColors.gold),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: usedPercent,
+                            minHeight: 8,
+                            backgroundColor: LTCColors.surfaceLight,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                LTCColors.gold),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -992,6 +1005,96 @@ class _CardListScreenState extends State<CardListScreen> {
     }
   }
 
+  Future<void> _showEditLimitDialog(VirtualCard card) async {
+    final controller = TextEditingController(
+      text: card.spendingLimit.toStringAsFixed(0),
+    );
+
+    final newLimit = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LTCColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Modifier le plafond mensuel',
+          style: TextStyle(color: LTCColors.textPrimary, fontSize: 18),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Definissez un nouveau plafond de depenses pour cette carte.',
+              style: TextStyle(color: LTCColors.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: LTCColors.textPrimary, fontSize: 18),
+              decoration: InputDecoration(
+                prefixText: '\$ ',
+                prefixStyle: const TextStyle(color: LTCColors.gold, fontSize: 18),
+                hintText: '500',
+                hintStyle: TextStyle(color: LTCColors.textTertiary),
+                filled: true,
+                fillColor: LTCColors.surfaceLight,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: LTCColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: LTCColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: LTCColors.gold),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler',
+                style: TextStyle(color: LTCColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text);
+              if (value != null && value >= 0) {
+                Navigator.pop(ctx, value);
+              }
+            },
+            child: const Text('Valider',
+                style: TextStyle(color: LTCColors.gold, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (newLimit == null || !mounted) return;
+
+    final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+    final success = await cardsProvider.updateCardLimit(
+      cardId: card.id,
+      spendingLimit: newLimit,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Plafond mis a jour: \$${_formatUsd(newLimit)}'
+            : 'Erreur lors de la mise a jour du plafond'),
+        backgroundColor: success ? LTCColors.success : LTCColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   // ─── Helpers ──────────────────────────────────────────────
 
   LinearGradient _getCardGradient(VirtualCard card) {
@@ -1015,12 +1118,8 @@ class _CardListScreenState extends State<CardListScreen> {
         ],
       );
     }
-    // Active card: gold gradient
-    return const LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [LTCColors.cardGold1, LTCColors.cardGold2, LTCColors.cardGold3],
-    );
+    // Active card: tier-based gradient
+    return getCardTierGradient(card.tier);
   }
 
   _StatusInfo _getStatusInfo(VirtualCard card) {
@@ -1054,14 +1153,7 @@ class _CardListScreenState extends State<CardListScreen> {
   }
 
   String _getCardLabel(VirtualCard card) {
-    switch (card.tier) {
-      case 'PREMIUM':
-        return 'VISA Premium';
-      case 'GOLD':
-        return 'Gold Contactless';
-      default:
-        return 'VISA Standard';
-    }
+    return getCardLabel(card);
   }
 
   String _getShortMasked(String masked) {
@@ -1123,18 +1215,19 @@ class _CardListScreenState extends State<CardListScreen> {
   }
 
   String _formatTxDate(DateTime date) {
+    final local = date.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final txDay = DateTime(date.year, date.month, date.day);
+    final txDay = DateTime(local.year, local.month, local.day);
 
-    final timeStr = DateFormat('HH:mm').format(date);
+    final timeStr = DateFormat('HH:mm').format(local);
     if (txDay == today) {
       return "Aujourd'hui, $timeStr";
     }
     if (txDay == today.subtract(const Duration(days: 1))) {
       return 'Hier, $timeStr';
     }
-    return '${DateFormat('dd MMM', 'fr_FR').format(date)}, $timeStr';
+    return '${DateFormat('dd MMM', 'fr_FR').format(local)}, $timeStr';
   }
 }
 

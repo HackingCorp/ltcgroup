@@ -110,8 +110,7 @@ class TransactionDetailScreen extends StatelessWidget {
         statusIcon = Icons.help_outline;
     }
 
-    final isDebit = transaction.type == 'DEBIT' || transaction.type == 'WITHDRAWAL';
-    final amountColor = isDebit ? LTCColors.error : LTCColors.success;
+    final isDebit = transaction.isDebit;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -218,7 +217,7 @@ class TransactionDetailScreen extends StatelessWidget {
 
           // Transaction details
           _buildDetailRow('Type', _getTypeText(transaction.type)),
-          _buildDetailRow('Date', dateFormat.format(transaction.createdAt)),
+          _buildDetailRow('Date', dateFormat.format(transaction.createdAt.toLocal())),
           _buildDetailRow('ID Transaction', transaction.id),
           if (transaction.cardId != null)
             _buildDetailRow('Carte', 'Card ${transaction.cardId!.substring(0, 8)}...'),
@@ -301,27 +300,35 @@ class TransactionDetailScreen extends StatelessWidget {
   String _getTypeText(String type) {
     switch (type.toUpperCase()) {
       case 'TOPUP':
-        return 'Recharge';
+        return 'Recharge carte';
       case 'WITHDRAWAL':
-        return 'Retrait';
+        return 'Retrait carte';
       case 'PURCHASE':
         return 'Achat';
       case 'DEBIT':
         return 'Debit';
       case 'CREDIT':
         return 'Credit';
+      case 'REFUND':
+        return 'Remboursement';
+      case 'WALLET_TOPUP':
+        return 'Recharge wallet';
+      case 'WALLET_TO_CARD':
+        return 'Transfert vers carte';
+      case 'WALLET_WITHDRAWAL':
+        return 'Retrait wallet';
       default:
         return type;
     }
   }
 
   void _shareReceipt(Transaction transaction, DateFormat dateFormat, NumberFormat currencyFormat) {
-    final isDebit = transaction.type == 'DEBIT' || transaction.type == 'WITHDRAWAL';
+    final isDebit = transaction.isDebit;
     final receiptText = '''
 Recu de transaction - Kash Pay
 
 Montant: ${isDebit ? '-' : '+'}${currencyFormat.format(transaction.amount)}
-Date: ${dateFormat.format(transaction.createdAt)}
+Date: ${dateFormat.format(transaction.createdAt.toLocal())}
 Type: ${_getTypeText(transaction.type)}
 Statut: ${_getStatusText(transaction.status)}
 ID: ${transaction.id}

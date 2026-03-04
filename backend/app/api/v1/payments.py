@@ -388,8 +388,17 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     0=PENDING, 1=COMPLETED, 2=FAILED, 3=REFUNDED
     """
     try:
-        # Verify webhook signature if secret is configured
-        if settings.payin_webhook_secret:
+        # Verify webhook signature — mandatory in production
+        if not settings.payin_webhook_secret:
+            if settings.environment != "development":
+                logger.error("Payin webhook: payin_webhook_secret not configured in production")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Webhook signature verification not configured",
+                )
+            else:
+                logger.warning("Payin webhook: Skipping signature verification (development mode)")
+        else:
             body = await request.body()
             signature = request.headers.get("X-Payin-Signature", "")
             if not signature:
@@ -445,6 +454,34 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         if not transaction:
             logger.warning(f"Payin webhook: Transaction not found for order_id={order_id}, tx_id={payin_tx_id}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+
+        # Validate webhook amount vs expected amount (if available)
+        webhook_amount = attributes.get("amount")
+        if webhook_amount is not None:
+            try:
+                expected_total = transaction.amount + (transaction.fee or Decimal("0"))
+                if Decimal(str(webhook_amount)) != expected_total:
+                    logger.error(
+                        f"Payin webhook: Amount mismatch for transaction {transaction.id}: "
+                        f"webhook={webhook_amount}, expected_total={expected_total}"
+                    )
+                    transaction.status = TransactionStatus.FAILED
+                    transaction.extra_data = {
+                        **transaction.extra_data,
+                        "error": f"Amount mismatch: webhook={webhook_amount}, expected={expected_total}",
+                        "webhook_data": payload,
+                    }
+                    await db.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Amount mismatch",
+                    )
+            except (ValueError, TypeError):
+                logger.error(f"Payin webhook: Invalid amount in payload: {webhook_amount}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid amount in webhook payload",
+                )
 
         # Idempotency check
         if transaction.status in [TransactionStatus.COMPLETED, TransactionStatus.FAILED]:
