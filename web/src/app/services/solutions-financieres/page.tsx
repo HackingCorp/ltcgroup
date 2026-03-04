@@ -302,6 +302,7 @@ export default function SolutionsFinancieresPage() {
             email: formData.email,
             customerName: `${formData.firstName} ${formData.lastName}`,
             cardType: formData.cardType,
+            countryCode: 'CM',
             orderDetails: { cardPrice, deliveryFee, niuFee, deliveryOption: formData.deliveryOption },
           }),
         });
