@@ -2,6 +2,7 @@ import asyncio
 import html
 import smtplib
 import logging
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from decimal import Decimal
@@ -25,21 +26,32 @@ class EmailService:
         self.from_email = settings.smtp_from_email
 
     def _send_sync(self, to: str, subject: str, html_body: str) -> bool:
-        """Synchronous email send via SMTP (runs in a thread)."""
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = self.from_email
-        msg["To"] = to
+        """Synchronous email send via SMTP with retry (runs in a thread)."""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = self.from_email
+                msg["To"] = to
 
-        html_part = MIMEText(html_body, "html")
-        msg.attach(html_part)
+                html_part = MIMEText(html_body, "html")
+                msg.attach(html_part)
 
-        with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
-            server.starttls()
-            if self.smtp_user and self.smtp_password:
-                server.login(self.smtp_user, self.smtp_password)
-            server.send_message(msg)
-        return True
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                    server.starttls()
+                    if self.smtp_user and self.smtp_password:
+                        server.login(self.smtp_user, self.smtp_password)
+                    server.send_message(msg)
+                return True
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s
+                    logger.warning(f"SMTP attempt {attempt + 1} failed, retrying in {wait}s: {e}")
+                    time.sleep(wait)
+                else:
+                    logger.error(f"SMTP failed after {max_retries} attempts: {e}")
+                    return False
 
     async def send_email(self, to: str, subject: str, html_body: str) -> bool:
         """
@@ -54,9 +66,12 @@ class EmailService:
             True if email was sent successfully, False otherwise
         """
         try:
-            await asyncio.to_thread(self._send_sync, to, subject, html_body)
-            logger.info(f"Email sent successfully to {to}")
-            return True
+            result = await asyncio.to_thread(self._send_sync, to, subject, html_body)
+            if result:
+                logger.info(f"Email sent successfully to {to}")
+                return True
+            else:
+                return False
 
         except Exception as e:
             logger.error(f"Failed to send email to {to}: {str(e)}")

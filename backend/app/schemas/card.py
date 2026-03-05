@@ -14,6 +14,10 @@ class CardPurchase(BaseModel):
     def validate_tier_type(self):
         if self.card_tier in (CardTier.STANDARD, CardTier.PREMIUM) and self.card_type != CardType.VISA:
             raise ValueError("Standard and Premium tiers only support VISA cards")
+        if self.card_tier == CardTier.GOLD and self.card_type not in (CardType.VISA, CardType.MASTERCARD):
+            raise ValueError("Gold tier only supports VISA or MASTERCARD")
+        if self.initial_balance <= 0:
+            raise ValueError("Initial balance must be greater than 0")
         return self
 
 

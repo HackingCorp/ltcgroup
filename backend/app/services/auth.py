@@ -171,8 +171,11 @@ async def get_current_user(
     except HTTPException:
         raise
     except Exception:
-        # If Redis is unavailable, allow the request through (fail-open for availability)
-        pass
+        # If Redis is unavailable, deny access (fail-closed for security)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service temporarily unavailable",
+        )
 
     result = await db.execute(select(User).where(User.id == token_data.user_id))
     user = result.scalar_one_or_none()

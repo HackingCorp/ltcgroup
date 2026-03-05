@@ -315,6 +315,17 @@ async def verify_topup(
             "message": "Ce paiement a échoué",
         }
 
+    # Idempotency check: if webhook already processed this transaction, return existing result
+    if transaction.webhook_reference is not None:
+        result = await db.execute(select(User).where(User.id == current_user.id))
+        user = result.scalar_one()
+        return {
+            "status": transaction.status.value if hasattr(transaction.status, 'value') else str(transaction.status),
+            "message": "Paiement déjà traité",
+            "wallet_balance": str(user.wallet_balance),
+            "amount_usd": str(transaction.amount),
+        }
+
     # Check with Payin API — use Payin's own transaction_id (not our order_ref)
     payin_tx_id = (transaction.extra_data or {}).get("payin_transaction_id")
     if not payin_tx_id:
@@ -338,6 +349,12 @@ async def verify_topup(
         # Conditional UPDATE to prevent double-credit if verify_topup and webhook
         # arrive simultaneously (same pattern as webhook handlers)
         amount_usd = transaction.amount
+
+        # Lock the user row to prevent concurrent wallet modifications
+        await db.execute(
+            select(User).where(User.id == current_user.id).with_for_update()
+        )
+
         result = await db.execute(
             update(Transaction)
             .where(
@@ -346,6 +363,7 @@ async def verify_topup(
             )
             .values(
                 status=TransactionStatus.COMPLETED,
+                webhook_reference=f"verify:{transaction.id}",
                 extra_data={
                     **transaction.extra_data,
                     "payin_status": status_str,
@@ -555,7 +573,10 @@ async def withdraw_from_wallet(
         )
 
     amount_usd = data.amount_usd
-    amount_local = (amount_usd * real_rate).quantize(Decimal("0.01"))
+    # Currencies without subunits (no centimes) must be rounded to integer
+    no_subunit_currencies = {"XAF", "XOF", "CDF"}
+    rounding_quant = Decimal("1") if currency.upper() in no_subunit_currencies else Decimal("0.01")
+    amount_local = (amount_usd * real_rate).quantize(rounding_quant)
 
     # Lock user row
     result = await db.execute(
@@ -629,14 +650,36 @@ async def withdraw_from_wallet(
 
     except PayoutError as e:
         # Refund wallet on payout failure
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(wallet_balance=User.wallet_balance + amount_usd)
-        )
-        transaction.status = TransactionStatus.FAILED
-        transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
-        await db.commit()
+        try:
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(wallet_balance=User.wallet_balance + amount_usd)
+            )
+            transaction.status = TransactionStatus.FAILED
+            transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
+            await db.commit()
+        except Exception as refund_err:
+            logger.critical(
+                f"REFUND FAILED for transaction {transaction.id}: payout error was '{e}', "
+                f"refund error: {refund_err}. Manual intervention required.",
+                exc_info=True,
+            )
+            try:
+                transaction.status = TransactionStatus.FAILED
+                transaction.extra_data = {
+                    **transaction.extra_data,
+                    "error": str(e),
+                    "refund_failed": True,
+                    "refund_error": str(refund_err),
+                }
+                await db.commit()
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erreur critique lors du remboursement. Notre equipe a ete notifiee.",
+            )
         logger.error(f"Payout failed for transaction {transaction.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -644,14 +687,36 @@ async def withdraw_from_wallet(
         )
     except Exception as e:
         # Refund wallet on unexpected error
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(wallet_balance=User.wallet_balance + amount_usd)
-        )
-        transaction.status = TransactionStatus.FAILED
-        transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
-        await db.commit()
+        try:
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(wallet_balance=User.wallet_balance + amount_usd)
+            )
+            transaction.status = TransactionStatus.FAILED
+            transaction.extra_data = {**transaction.extra_data, "error": str(e), "refunded": True}
+            await db.commit()
+        except Exception as refund_err:
+            logger.critical(
+                f"REFUND FAILED for transaction {transaction.id}: original error was '{e}', "
+                f"refund error: {refund_err}. Manual intervention required.",
+                exc_info=True,
+            )
+            try:
+                transaction.status = TransactionStatus.FAILED
+                transaction.extra_data = {
+                    **transaction.extra_data,
+                    "error": str(e),
+                    "refund_failed": True,
+                    "refund_error": str(refund_err),
+                }
+                await db.commit()
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erreur critique lors du remboursement. Notre equipe a ete notifiee.",
+            )
         logger.error(f"Unexpected payout error for transaction {transaction.id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -753,12 +818,28 @@ async def verify_withdrawal(
         status_str = status_str.lower()
 
     if status_str in ("success", "completed"):
-        transaction.status = TransactionStatus.COMPLETED
-        transaction.extra_data = {
-            **transaction.extra_data,
-            "payout_status": status_str,
-            "verified_at": datetime.now(timezone.utc).isoformat(),
-        }
+        # Lock user row to prevent concurrent wallet modifications
+        await db.execute(
+            select(User).where(User.id == current_user.id).with_for_update()
+        )
+
+        # Use conditional UPDATE to prevent double-processing
+        result = await db.execute(
+            update(Transaction)
+            .where(
+                Transaction.id == transaction.id,
+                Transaction.status == TransactionStatus.PENDING,
+            )
+            .values(
+                status=TransactionStatus.COMPLETED,
+                extra_data={
+                    **transaction.extra_data,
+                    "payout_status": status_str,
+                    "verified_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            .returning(Transaction.id)
+        )
         await db.commit()
 
         result = await db.execute(select(User).where(User.id == current_user.id))
@@ -777,21 +858,37 @@ async def verify_withdrawal(
         }
 
     elif status_str in ("failed", "cancelled", "refunded", "rejected"):
-        # Refund wallet balance
-        amount_usd = transaction.amount
+        # Lock user row to prevent concurrent wallet modifications
         await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(wallet_balance=User.wallet_balance + amount_usd)
+            select(User).where(User.id == current_user.id).with_for_update()
         )
 
-        transaction.status = TransactionStatus.FAILED
-        transaction.extra_data = {
-            **transaction.extra_data,
-            "payout_status": status_str,
-            "refunded": True,
-            "verified_at": datetime.now(timezone.utc).isoformat(),
-        }
+        # Use conditional UPDATE to prevent double-refund
+        amount_usd = transaction.amount
+        refund_result = await db.execute(
+            update(Transaction)
+            .where(
+                Transaction.id == transaction.id,
+                Transaction.status == TransactionStatus.PENDING,
+            )
+            .values(
+                status=TransactionStatus.FAILED,
+                extra_data={
+                    **transaction.extra_data,
+                    "payout_status": status_str,
+                    "refunded": True,
+                    "verified_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+            .returning(Transaction.id)
+        )
+        if refund_result.rowcount > 0:
+            # Only refund wallet if we were the ones to flip PENDING→FAILED
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(wallet_balance=User.wallet_balance + amount_usd)
+            )
         await db.commit()
 
         result = await db.execute(select(User).where(User.id == current_user.id))

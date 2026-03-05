@@ -192,7 +192,7 @@ class NotificationService {
     notifications.insert(
       0,
       AppNotification(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: '${DateTime.now().microsecondsSinceEpoch}_${DateTime.now().hashCode}',
         title: title,
         body: body,
         timestamp: DateTime.now(),

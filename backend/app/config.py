@@ -86,11 +86,15 @@ class Settings(BaseSettings):
                 raise ValueError("jwt_secret_key must be set in non-development environments")
             if not self.encryption_key:
                 raise ValueError("encryption_key must be set in non-development environments")
+            if not self.payin_webhook_secret:
+                raise ValueError("payin_webhook_secret must be set in non-development environments")
+            if not self.enkap_webhook_secret:
+                raise ValueError("enkap_webhook_secret must be set in non-development environments")
         else:
             if not self.jwt_secret_key:
-                self.jwt_secret_key = "dev-jwt-secret-" + secrets.token_hex(16)
+                self.jwt_secret_key = "dev-jwt-secret-" + secrets.token_hex(32)
             if not self.encryption_key:
-                self.encryption_key = "dev-encryption-key-" + secrets.token_hex(16)
+                self.encryption_key = "dev-encryption-key-" + secrets.token_hex(32)
         return self
 
 

@@ -53,6 +53,9 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
     """
     Register a new user locally and with AccountPE provider.
     """
+    # Normalize email to lowercase to prevent duplicate accounts with different casing
+    user_data.email = user_data.email.lower()
+
     # Check if user already exists (single query, distinguish email vs phone conflict)
     result = await db.execute(
         select(User).where((User.email == user_data.email) | (User.phone == user_data.phone))
@@ -107,6 +110,7 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(login_data.password, user.hashed_password):
+        logger.warning(f"Failed login attempt for email: {login_data.email}")
         raise InvalidCredentialsException()
 
     if not user.is_active:
@@ -228,6 +232,7 @@ async def forgot_password(
     """
     Request a password reset link. Always returns success to avoid email enumeration.
     """
+    data.email = data.email.lower()
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 

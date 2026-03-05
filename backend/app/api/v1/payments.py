@@ -3,6 +3,7 @@ Payment endpoints for card top-ups using Payin (Mobile Money) and E-nkap (Bank C
 """
 
 import hmac
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
 import uuid
@@ -393,8 +394,8 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             if settings.environment != "development":
                 logger.error("Payin webhook: payin_webhook_secret not configured in production")
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Webhook signature verification not configured",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Unauthorized",
                 )
             else:
                 logger.warning("Payin webhook: Skipping signature verification (development mode)")
@@ -460,7 +461,7 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         if webhook_amount is not None:
             try:
                 expected_total = transaction.amount + (transaction.fee or Decimal("0"))
-                if Decimal(str(webhook_amount)) != expected_total:
+                if abs(Decimal(str(webhook_amount)) - expected_total) > Decimal("0.01"):
                     logger.error(
                         f"Payin webhook: Amount mismatch for transaction {transaction.id}: "
                         f"webhook={webhook_amount}, expected_total={expected_total}"
@@ -499,12 +500,19 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 .values(
                     status=TransactionStatus.COMPLETED,
                     webhook_reference=webhook_ref,
-                    extra_data={**transaction.extra_data, "webhook_data": payload},
+                    extra_data={
+                        **transaction.extra_data,
+                        "webhook_data": payload,
+                        "webhook_amount": str(webhook_amount),
+                        "webhook_received_at": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
                 .returning(Transaction.id)
             )
             if result.rowcount > 0:
                 if transaction.type == TransactionType.WALLET_TOPUP:
+                    # Lock user row to prevent concurrent wallet credit race conditions
+                    await db.execute(select(User).where(User.id == transaction.user_id).with_for_update())
                     await db.execute(
                         update(User)
                         .where(User.id == transaction.user_id)
@@ -593,15 +601,16 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         webhook_amount = payload.get("amount")
         if webhook_amount is not None:
             try:
-                if Decimal(str(webhook_amount)) != transaction.amount:
+                expected_total = transaction.amount + (transaction.fee or Decimal("0"))
+                if abs(Decimal(str(webhook_amount)) - expected_total) > Decimal("0.01"):
                     logger.error(
                         f"E-nkap webhook: Amount mismatch for transaction {transaction.id}: "
-                        f"webhook={webhook_amount}, expected={transaction.amount}"
+                        f"webhook={webhook_amount}, expected_total={expected_total}"
                     )
                     transaction.status = TransactionStatus.FAILED
                     transaction.extra_data = {
                         **transaction.extra_data,
-                        "error": f"Amount mismatch: webhook={webhook_amount}, expected={transaction.amount}",
+                        "error": f"Amount mismatch: webhook={webhook_amount}, expected={expected_total}",
                         "webhook_data": payload,
                     }
                     await db.commit()
@@ -631,12 +640,19 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 .values(
                     status=TransactionStatus.COMPLETED,
                     webhook_reference=webhook_ref,
-                    extra_data={**transaction.extra_data, "webhook_data": payload},
+                    extra_data={
+                        **transaction.extra_data,
+                        "webhook_data": payload,
+                        "webhook_amount": str(webhook_amount),
+                        "webhook_received_at": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
                 .returning(Transaction.id)
             )
             if result.rowcount > 0:
                 if transaction.type == TransactionType.WALLET_TOPUP:
+                    # Lock user row to prevent concurrent wallet credit race conditions
+                    await db.execute(select(User).where(User.id == transaction.user_id).with_for_update())
                     await db.execute(
                         update(User)
                         .where(User.id == transaction.user_id)

@@ -39,7 +39,7 @@ class User {
   String get fullName => '$firstName $lastName';
 
   /// Check if KYC is verified
-  bool get isKycVerified => kycStatus == 'APPROVED' || kycStatus == 'VERIFIED';
+  bool get isKycVerified => kycStatus == 'APPROVED';
 
   /// Create User from JSON
   factory User.fromJson(Map<String, dynamic> json) {

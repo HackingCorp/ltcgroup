@@ -124,11 +124,14 @@ async def get_user_transactions(
     if category == "wallet":
         base_filter.append(Transaction.type.in_(WALLET_TYPES))
 
-    # Fetch local DB transactions
+    # Fetch local DB transactions with a reasonable limit to avoid loading
+    # everything into memory. We fetch limit*3 to have margin after merging
+    # with AccountPE transactions and sorting.
     transactions_result = await db.execute(
         select(Transaction)
         .where(*base_filter)
         .order_by(Transaction.created_at.desc())
+        .limit(limit * 3)
     )
     db_transactions = transactions_result.scalars().all()
     all_responses = [TransactionResponse.model_validate(tx) for tx in db_transactions]
@@ -166,11 +169,31 @@ async def get_user_transactions(
             *[_fetch_card_txns(card) for card in cards],
             return_exceptions=True,
         )
+
+        # Fix #3: Count fetch errors so we can warn about missing data
+        fetch_errors = sum(1 for r in card_results if isinstance(r, Exception))
+
         for result in card_results:
             if isinstance(result, list):
                 all_responses.extend(result)
             elif isinstance(result, Exception):
                 logger.warning(f"AccountPE card history fetch error: {result}")
+
+        if fetch_errors > 0:
+            logger.warning(f"{fetch_errors} card(s) failed to sync transactions")
+
+    # Fix #2: Deduplicate transactions (AccountPE transactions can appear
+    # in double if the same provider_transaction_id is returned multiple times).
+    # For AccountPE responses, the id is a deterministic uuid5 from the provider
+    # transaction id, so dedup by id catches duplicates.
+    seen_ids: set[str] = set()
+    deduped: list[TransactionResponse] = []
+    for r in all_responses:
+        key = str(r.id)
+        if key not in seen_ids:
+            seen_ids.add(key)
+            deduped.append(r)
+    all_responses = deduped
 
     # Sort all by date descending (normalize to UTC for comparison)
     def _sort_key(tx: TransactionResponse) -> datetime:

@@ -73,7 +73,6 @@ class TransactionsProvider with ChangeNotifier {
       );
       _hasMore = newItems.length >= _pageSize;
       _transactions.addAll(newItems);
-      _transactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
       _error = errorMessage;
@@ -94,7 +93,6 @@ class TransactionsProvider with ChangeNotifier {
         limit: 20,
         offset: 0,
       );
-      _walletTransactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
       _error = errorMessage;

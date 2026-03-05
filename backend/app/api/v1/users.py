@@ -1,3 +1,4 @@
+import html
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -296,6 +297,12 @@ async def submit_kyc(
         db.add(notification)
         await db.commit()
 
+        try:
+            pending_html = f"<p>Bonjour {html.escape(current_user.first_name)},</p><p>Votre demande KYC a bien été reçue et est en cours de traitement. Vous serez notifié dès que la vérification sera terminée.</p>"
+            await email_service.send_email(current_user.email, "KYC - Demande reçue", pending_html)
+        except Exception as e:
+            logger.warning(f"Failed to send KYC pending email: {e}")
+
     return KYCResponse(
         kyc_status=current_user.kyc_status,
         kyc_submitted_at=current_user.kyc_submitted_at,
@@ -305,7 +312,9 @@ async def submit_kyc(
 
 
 @router.get("/kyc/check-status", response_model=KYCResponse)
+@limiter.limit("5/minute")
 async def check_kyc_status(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

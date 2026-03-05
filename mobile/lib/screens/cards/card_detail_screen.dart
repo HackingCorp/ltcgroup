@@ -224,6 +224,15 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
         _isCardNumberRevealed = true;
       });
 
+      // Warn user 5 seconds before auto-hide
+      Future.delayed(const Duration(seconds: 25), () {
+        if (mounted && _isCardNumberRevealed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Le numero sera masque dans 5 secondes')),
+          );
+        }
+      });
+
       Future.delayed(const Duration(seconds: 30), () {
         if (mounted) {
           setState(() {

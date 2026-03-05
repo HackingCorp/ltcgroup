@@ -128,30 +128,39 @@ async def mark_notification_read(
     Returns:
         MarkReadResponse with success message
     """
-    # Get notification
+    # Atomic update: mark as read only if currently unread
     result = await db.execute(
-        select(Notification).where(
+        update(Notification)
+        .where(
             Notification.id == notification_id,
-            Notification.user_id == current_user.id
+            Notification.user_id == current_user.id,
+            Notification.is_read == False,
         )
+        .values(is_read=True)
     )
-    notification = result.scalar_one_or_none()
 
-    if not notification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification not found",
+    if result.rowcount == 0:
+        # Either not found or already read -- check which case
+        check_result = await db.execute(
+            select(Notification).where(
+                Notification.id == notification_id,
+                Notification.user_id == current_user.id,
+            )
         )
-
-    # Mark as read if not already
-    if not notification.is_read:
-        notification.is_read = True
+        if not check_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Notification not found",
+            )
+        # Already read: commit is a no-op but keeps session clean
+        await db.commit()
+    else:
         await db.commit()
         logger.info(f"Notification {notification_id} marked as read by user {current_user.id}")
 
     return MarkReadResponse(
         message="Notification marked as read",
-        marked_count=1,
+        marked_count=result.rowcount,
     )
 
 

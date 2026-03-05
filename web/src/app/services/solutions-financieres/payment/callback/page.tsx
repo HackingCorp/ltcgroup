@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 
 function PaymentCallbackContent() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "failed" | "cancelled">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "failed" | "cancelled" | "pending">("loading");
   const [orderSent, setOrderSent] = useState(false);
 
   useEffect(() => {
@@ -14,16 +14,21 @@ function PaymentCallbackContent() {
     const paymentStatus = searchParams.get("status");
     const paymentMethod = searchParams.get("method") || "enkap";
 
-    let finalStatus: "success" | "failed" | "cancelled" = "success";
+    let finalStatus: "success" | "failed" | "cancelled" | "pending" = "failed";
 
     if (paymentStatus) {
-      if (paymentStatus.toUpperCase() === "COMPLETED" || paymentStatus.toUpperCase() === "SUCCESS") {
+      const upper = paymentStatus.toUpperCase();
+      if (upper === "COMPLETED" || upper === "SUCCESS") {
         finalStatus = "success";
-      } else if (paymentStatus.toUpperCase() === "CANCELLED") {
+      } else if (upper === "CANCELLED") {
         finalStatus = "cancelled";
+      } else if (upper === "PENDING") {
+        finalStatus = "pending";
       } else {
         finalStatus = "failed";
       }
+    } else {
+      finalStatus = "failed";
     }
 
     setStatus(finalStatus);
@@ -167,6 +172,39 @@ function PaymentCallbackContent() {
               >
                 Retour à l&apos;accueil
               </Link>
+            </div>
+          </div>
+        )}
+
+        {status === "pending" && (
+          <div>
+            <div className="w-20 h-20 mx-auto mb-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <h1 className="text-2xl font-bold mb-4 text-blue-400">Paiement en cours de traitement...</h1>
+            <p className="text-gray-300 mb-6">
+              Votre paiement est en cours de traitement. Vous recevrez une confirmation une fois le paiement finalisé.
+            </p>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+              <p className="text-sm text-gray-400 mb-2">Référence de commande</p>
+              <p className="text-lg font-bold text-[#cea427]">
+                {searchParams.get("merchant_reference") || searchParams.get("order_id") || "N/A"}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Link
+                href="/services/solutions-financieres"
+                className="block w-full py-3 px-6 bg-[#cea427] text-[#10151e] font-bold rounded-xl hover:bg-[#b8931f] transition-colors"
+              >
+                Retour à l&apos;accueil
+              </Link>
+              <a
+                href="https://wa.me/237673209375"
+                className="flex items-center justify-center gap-2 w-full py-3 px-6 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-colors"
+              >
+                <span className="material-symbols-outlined text-xl">chat</span>
+                Contacter le support
+              </a>
             </div>
           </div>
         )}

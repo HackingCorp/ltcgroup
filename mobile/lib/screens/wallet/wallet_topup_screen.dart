@@ -434,8 +434,8 @@ class _WalletTopupScreenState extends State<WalletTopupScreen> {
             onChanged: (val) {
               setState(() {
                 if (_isUsdMode) {
-                  final parsed = int.tryParse(val) ?? 0;
-                  _selectedAmountIndex = _usdAmounts.indexOf(parsed);
+                  final parsed = double.tryParse(val) ?? 0.0;
+                  _selectedAmountIndex = _usdAmounts.indexOf(parsed.toInt());
                 } else {
                   _selectedAmountIndex = -1;
                 }

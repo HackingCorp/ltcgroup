@@ -7,11 +7,13 @@
 
 // E-nkap Production Configuration
 const ENKAP_CONFIG = {
-  BASE_URL: 'https://api-v2.enkap.cm',
-  CONSUMER_KEY: 'wXRF_8iU7h9UNiBG4zNYFdCQPwga',
-  CONSUMER_SECRET: 'rD9fRGJkVVs8TZtfjJ0VTD7taOsa',
+  BASE_URL: process.env.NEXT_PUBLIC_ENKAP_BASE_URL || 'https://api-v2.enkap.cm',
   TIMEOUT_MS: 30000,
 };
+
+// Server-side only credentials — do NOT prefix with NEXT_PUBLIC_
+const CONSUMER_KEY = process.env.ENKAP_CONSUMER_KEY || '';
+const CONSUMER_SECRET = process.env.ENKAP_CONSUMER_SECRET || '';
 
 /**
  * Fetch with timeout for E-nkap API
@@ -85,6 +87,10 @@ export function formatPhoneForEnkap(phone: string): string {
  * Get OAuth2 access token (with caching)
  */
 async function getAccessToken(): Promise<string> {
+  if (!CONSUMER_KEY || !CONSUMER_SECRET) {
+    throw new Error('E-nkap credentials not configured');
+  }
+
   // Check cache
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.token;
@@ -94,7 +100,7 @@ async function getAccessToken(): Promise<string> {
 
   // Basic Auth header
   const credentials = Buffer.from(
-    `${ENKAP_CONFIG.CONSUMER_KEY}:${ENKAP_CONFIG.CONSUMER_SECRET}`
+    `${CONSUMER_KEY}:${CONSUMER_SECRET}`
   ).toString('base64');
 
   const response = await enkapFetch(url, {
@@ -255,11 +261,15 @@ export function verifyWebhookSignature(
   payload: string,
   signature: string
 ): boolean {
+  if (!CONSUMER_SECRET) {
+    throw new Error('E-nkap credentials not configured');
+  }
+
   // E-nkap webhook signature verification
   // The signature is typically HMAC-SHA256 of the payload
   const crypto = require('crypto');
   const expectedSignature = crypto
-    .createHmac('sha256', ENKAP_CONFIG.CONSUMER_SECRET)
+    .createHmac('sha256', CONSUMER_SECRET)
     .update(payload)
     .digest('hex');
 

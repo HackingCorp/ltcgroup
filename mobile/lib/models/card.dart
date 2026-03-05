@@ -33,6 +33,9 @@ class VirtualCard {
   /// Check if card is blocked
   bool get isBlocked => status == 'BLOCKED';
 
+  /// Check if card is expired
+  bool get isExpired => status == 'EXPIRED';
+
   /// Get card expiry in MM/YY format
   String get expiryFormatted {
     final month = expiryDate.month.toString().padLeft(2, '0');
@@ -60,9 +63,11 @@ class VirtualCard {
         final month = int.tryParse(parts[0]) ?? 12;
         final year = int.tryParse(parts[1]) ?? 29;
         final fullYear = year < 100 ? 2000 + year : year;
-        expiryDate = DateTime(fullYear, month);
+        // Last day of the month
+        final nextMonth = month == 12 ? DateTime(fullYear + 1, 1, 1) : DateTime(fullYear, month + 1, 1);
+        expiryDate = nextMonth.subtract(const Duration(days: 1));
       } else {
-        expiryDate = DateTime(2029, 12);
+        expiryDate = DateTime(2029, 12, 31);
       }
     }
 

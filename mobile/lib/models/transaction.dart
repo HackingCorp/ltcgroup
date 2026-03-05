@@ -41,7 +41,7 @@ class Transaction {
   bool get isPending => status == 'PENDING';
 
   /// Check if transaction is successful
-  bool get isSuccess => status == 'COMPLETED' || status == 'SUCCESS';
+  bool get isSuccess => status == 'COMPLETED';
 
   /// Check if transaction is failed
   bool get isFailed => status == 'FAILED';
@@ -85,7 +85,7 @@ class Transaction {
       type: json['transaction_type'] as String? ?? json['type'] as String,
       status: json['status'] as String,
       currency: json['currency'] as String? ?? 'USD',
-      merchant: json['description'] as String? ?? json['merchant'] as String?,
+      merchant: json['merchant'] as String? ?? json['description'] as String?,
       createdAt: _parseUtcDate(json['created_at'] as String),
     );
   }

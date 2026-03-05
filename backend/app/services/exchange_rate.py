@@ -8,6 +8,7 @@ Markup: 8% on top-up conversions (not on withdrawals)
 """
 
 import json
+import time
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
@@ -25,12 +26,25 @@ TOPUP_MARKUP = Decimal("0.08")  # 8%
 PRIMARY_URL = "https://open.er-api.com/v6/latest/USD"
 FALLBACK_URL = "https://api.exchangerate-api.com/v4/latest/USD"
 
+# Sanity bounds for exchange rates (USD -> local).
+# If a rate falls outside these bounds, it is considered unreliable.
+RATE_BOUNDS: dict[str, tuple[float, float]] = {
+    "XAF": (500, 700),
+    "XOF": (500, 700),
+    "KES": (100, 200),
+    "NGN": (1000, 2000),
+    "GHS": (10, 20),
+    "ZAR": (15, 25),
+    "CDF": (2000, 3500),
+}
+
 
 class ExchangeRateService:
     def __init__(self):
         self._redis: Optional[aioredis.Redis] = None
         self._client = httpx.AsyncClient(timeout=15.0)
         self._rates: dict[str, float] = {}
+        self._rates_cached_at: float = 0.0  # monotonic timestamp of last cache update
 
     def set_redis(self, redis_client: Optional[aioredis.Redis]):
         self._redis = redis_client
@@ -61,18 +75,40 @@ class ExchangeRateService:
                 cached = await self._redis.get(CACHE_KEY)
                 if cached:
                     self._rates = json.loads(cached)
+                    self._rates_cached_at = time.monotonic()
                     return self._rates
             except Exception as e:
                 logger.warning(f"Redis cache read failed: {e}")
 
-        # Try in-memory cache
+        # Try in-memory cache — but only if it is not too stale
         if self._rates:
+            cache_age = time.monotonic() - self._rates_cached_at
+            max_age = 2 * CACHE_TTL  # 2 hours
+            if cache_age < max_age:
+                return self._rates
+            # Cache is too old, try to refresh from API
+            logger.warning(
+                f"In-memory rate cache is {cache_age:.0f}s old (max {max_age}s), forcing API fetch"
+            )
+            rates = await self._fetch_from_api()
+            if rates:
+                self._rates = rates
+                self._rates_cached_at = time.monotonic()
+                if self._redis:
+                    try:
+                        await self._redis.set(CACHE_KEY, json.dumps(rates), ex=CACHE_TTL)
+                    except Exception as e:
+                        logger.warning(f"Redis cache write failed: {e}")
+                return self._rates
+            # API also failed — stale cache is better than nothing
+            logger.warning("API fetch failed, using stale in-memory cache as last resort")
             return self._rates
 
         # Fetch fresh rates
         rates = await self._fetch_from_api()
         if rates:
             self._rates = rates
+            self._rates_cached_at = time.monotonic()
             # Cache in Redis
             if self._redis:
                 try:
@@ -87,6 +123,19 @@ class ExchangeRateService:
         rate = rates.get(currency.upper())
         if rate is None:
             raise ValueError(f"Exchange rate not available for {currency}")
+
+        # Sanity check: ensure rate is within expected bounds
+        bounds = RATE_BOUNDS.get(currency.upper())
+        if bounds is not None:
+            lo, hi = bounds
+            if not (lo <= rate <= hi):
+                logger.warning(
+                    f"Exchange rate for {currency} is {rate}, outside bounds [{lo}, {hi}]"
+                )
+                raise ValueError(
+                    f"Exchange rate for {currency} ({rate}) is outside acceptable bounds [{lo}-{hi}]"
+                )
+
         return Decimal(str(rate))
 
     async def get_topup_rate(self, currency: str) -> Decimal:

@@ -286,7 +286,7 @@ class _WalletWithdrawScreenState extends State<WalletWithdrawScreen> {
             ),
             onChanged: (val) {
               setState(() {
-                _selectedAmountIndex = _amounts.indexOf(int.tryParse(val) ?? 0);
+                _selectedAmountIndex = _amounts.indexOf((double.tryParse(val) ?? 0.0).toInt());
               });
             },
           ),

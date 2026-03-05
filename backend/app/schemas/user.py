@@ -59,12 +59,36 @@ class KYCSubmit(BaseModel):
     street: str = Field("", max_length=255)
     city: str = Field(..., max_length=100)
     postal_code: str = Field("", max_length=20)
-    document_type: str = Field(..., pattern=r'^(id_card|passport|driver_license)$')
+    document_type: str = Field(..., pattern=r'^(id_card|passport|driver_license|residence_permit)$')
     id_proof_no: str = Field(..., max_length=100)
     id_proof_expiry: date
     document_front_url: str = Field(..., max_length=500)
     document_back_url: Optional[str] = Field(None, max_length=500)
     selfie_url: str = Field(..., max_length=500)
+
+    @field_validator('dob')
+    @classmethod
+    def validate_dob(cls, v):
+        if isinstance(v, str):
+            v = date.fromisoformat(v)
+        today = date.today()
+        age = (today - v).days // 365
+        if v > today:
+            raise ValueError("La date de naissance ne peut pas être dans le futur")
+        if age < 18:
+            raise ValueError("L'utilisateur doit avoir au moins 18 ans")
+        if age > 120:
+            raise ValueError("Date de naissance invalide")
+        return v
+
+    @field_validator('id_proof_expiry')
+    @classmethod
+    def validate_id_proof_expiry(cls, v):
+        if isinstance(v, str):
+            v = date.fromisoformat(v)
+        if v <= date.today():
+            raise ValueError("Le document d'identité est expiré")
+        return v
 
 
 class KYCResponse(BaseModel):
