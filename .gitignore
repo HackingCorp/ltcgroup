@@ -60,9 +60,6 @@ mobile/ios/Pods/
 mobile/ios/.symlinks/
 mobile/*.iml
 
-# --- Firebase ---
-firebase-credentials.json
-
 # --- Docker ---
 docker-compose.override.yml
 

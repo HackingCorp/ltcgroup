@@ -65,8 +65,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       KYC_VERIFIER_URL: http://kyc-verifier:8001
       KYC_VERIFIER_API_KEY: ${KYC_VERIFIER_API_KEY:-}
-      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
-      FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-credentials.json
     volumes:
       - ./backend/app:/app/app
       - ./uploads:/app/uploads
