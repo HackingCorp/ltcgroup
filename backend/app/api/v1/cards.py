@@ -226,7 +226,7 @@ async def purchase_card(
     if provider_card_id:
         try:
             details_resp = await accountpe_client.get_card_details(provider_card_id)
-            vcard = details_resp.get("data", details_resp)
+            vcard = details_resp.get("data") or details_resp.get("card_list") or details_resp
             card_number_full = vcard.get("encrypted_cardnumber", "")
             if not card_number_full:
                 raise ValueError("Card number not returned by provider")
@@ -654,7 +654,7 @@ async def replace_card(
 
     try:
         details_resp = await accountpe_client.get_card_details(new_provider_card_id)
-        det = details_resp.get("data", details_resp)
+        det = details_resp.get("data") or details_resp.get("card_list") or details_resp
         card_number_full = det.get("encrypted_cardnumber", "")
         if not card_number_full:
             raise ValueError("Card number not returned")
