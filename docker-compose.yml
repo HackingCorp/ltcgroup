@@ -66,10 +66,10 @@ services:
       KYC_VERIFIER_URL: http://kyc-verifier:8001
       KYC_VERIFIER_API_KEY: ${KYC_VERIFIER_API_KEY:-}
       FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
+      FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON:-}
     volumes:
       - ./backend/app:/app/app
       - ./uploads:/app/uploads
-      - ./firebase-credentials.json:/app/firebase-credentials.json:ro
     depends_on:
       db:
         condition: service_healthy

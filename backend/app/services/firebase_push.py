@@ -4,7 +4,14 @@ Firebase Cloud Messaging push notification service.
 Sends push notifications to users via FCM when backend notifications are created.
 Gracefully degrades: if Firebase is not configured, notifications are still saved
 to DB but no push is sent.
+
+Supports two ways to provide credentials:
+  1. FIREBASE_CREDENTIALS_PATH — path to a service account JSON file
+  2. FIREBASE_CREDENTIALS_JSON — the JSON content as a string (for Dokploy / env-based deploys)
 """
+
+import json
+import os
 
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -28,6 +35,20 @@ def _init_firebase() -> bool:
     if _firebase_app is not None:
         return True
 
+    # Option 1: credentials from JSON string in env var
+    cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
+    if cred_json:
+        try:
+            cred_dict = json.loads(cred_json)
+            cred = credentials.Certificate(cred_dict)
+            _firebase_app = firebase_admin.initialize_app(cred)
+            logger.info("Firebase Admin SDK initialized from FIREBASE_CREDENTIALS_JSON")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to init Firebase from FIREBASE_CREDENTIALS_JSON: {e}")
+            return False
+
+    # Option 2: credentials from file path
     cred_path = settings.firebase_credentials_path
     if not cred_path:
         logger.info("Firebase credentials not configured — push notifications disabled")
@@ -36,7 +57,7 @@ def _init_firebase() -> bool:
     try:
         cred = credentials.Certificate(cred_path)
         _firebase_app = firebase_admin.initialize_app(cred)
-        logger.info("Firebase Admin SDK initialized successfully")
+        logger.info("Firebase Admin SDK initialized from file")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize Firebase Admin SDK: {e}")
