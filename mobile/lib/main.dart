@@ -31,6 +31,8 @@ import 'screens/transactions/transaction_detail_screen.dart';
 import 'screens/transactions/transaction_list_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/profile/faq_screen.dart';
+import 'screens/profile/about_screen.dart';
 
 // Services
 import 'services/storage_service.dart';
@@ -122,6 +124,8 @@ class MyApp extends StatelessWidget {
           '/wallet-topup': (context) => const WalletTopupScreen(),
           '/wallet-transfer': (context) => const TransferToCardScreen(),
           '/wallet-withdraw': (context) => const WalletWithdrawScreen(),
+          '/faq': (context) => const FaqScreen(),
+          '/about': (context) => const AboutScreen(),
           '/onboarding': (context) => OnboardingScreen(onComplete: () {
             Navigator.of(context).pushReplacementNamed('/');
           }),

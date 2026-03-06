@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/constants.dart';
 import '../../config/theme.dart';
+import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/biometric_service.dart';
 
@@ -130,6 +132,253 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showChangePasswordDialog() async {
+    final currentPwdController = TextEditingController();
+    final newPwdController = TextEditingController();
+    final confirmPwdController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: LTCColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Changer le mot de passe',
+            style: TextStyle(color: LTCColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: currentPwdController,
+                    obscureText: obscureCurrent,
+                    style: const TextStyle(color: LTCColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Mot de passe actuel',
+                      labelStyle: const TextStyle(color: LTCColors.textSecondary, fontSize: 13),
+                      filled: true,
+                      fillColor: LTCColors.surfaceLight,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.gold)),
+                      errorStyle: const TextStyle(color: LTCColors.error),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: LTCColors.textSecondary, size: 20),
+                        onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: newPwdController,
+                    obscureText: obscureNew,
+                    style: const TextStyle(color: LTCColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Nouveau mot de passe',
+                      labelStyle: const TextStyle(color: LTCColors.textSecondary, fontSize: 13),
+                      filled: true,
+                      fillColor: LTCColors.surfaceLight,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.gold)),
+                      errorStyle: const TextStyle(color: LTCColors.error),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: LTCColors.textSecondary, size: 20),
+                        onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Requis';
+                      if (v.length < 8) return 'Minimum 8 caracteres';
+                      if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Une majuscule requise';
+                      if (!RegExp(r'[a-z]').hasMatch(v)) return 'Une minuscule requise';
+                      if (!RegExp(r'\d').hasMatch(v)) return 'Un chiffre requis';
+                      if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v)) return 'Un caractere special requis';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: confirmPwdController,
+                    obscureText: true,
+                    style: const TextStyle(color: LTCColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Confirmer',
+                      labelStyle: const TextStyle(color: LTCColors.textSecondary, fontSize: 13),
+                      filled: true,
+                      fillColor: LTCColors.surfaceLight,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LTCColors.gold)),
+                      errorStyle: const TextStyle(color: LTCColors.error),
+                    ),
+                    validator: (v) => v != newPwdController.text ? 'Ne correspond pas' : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isLoading = true);
+                      try {
+                        await ApiService().changePassword(currentPwdController.text, newPwdController.text);
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Mot de passe modifie avec succes'),
+                            backgroundColor: LTCColors.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      } catch (e) {
+                        setDialogState(() => isLoading = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceFirst('Exception: ', '')),
+                            backgroundColor: LTCColors.error,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: LTCColors.gold,
+                foregroundColor: LTCColors.background,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: isLoading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: LTCColors.background, strokeWidth: 2))
+                  : const Text('Confirmer'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    currentPwdController.dispose();
+    newPwdController.dispose();
+    confirmPwdController.dispose();
+  }
+
+  void _showContactSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: LTCColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: LTCColors.border, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 24),
+            const Text('Contactez-nous', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: LTCColors.textPrimary)),
+            const SizedBox(height: 24),
+            _buildContactOption(
+              icon: Icons.email_rounded,
+              color: LTCColors.info,
+              label: 'Email',
+              value: 'support@ltcgroup.site',
+              onTap: () {
+                Navigator.of(ctx).pop();
+                launchUrl(Uri.parse('mailto:support@ltcgroup.site'));
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildContactOption(
+              icon: Icons.chat_rounded,
+              color: LTCColors.success,
+              label: 'WhatsApp',
+              value: '+237 6XX XXX XXX',
+              onTap: () {
+                Navigator.of(ctx).pop();
+                launchUrl(Uri.parse('https://wa.me/237600000000'));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactOption({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: LTCColors.surfaceLight,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: LTCColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.12)),
+                child: Icon(icon, size: 20, color: color),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LTCColors.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text(value, style: const TextStyle(fontSize: 12, color: LTCColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: LTCColors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReportProblem() {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    final email = user?.email ?? '';
+    final subject = Uri.encodeComponent('Signalement de probleme - Kash Pay');
+    final body = Uri.encodeComponent('Bonjour,\n\nJe rencontre le probleme suivant :\n\n[Decrivez votre probleme ici]\n\nCompte : $email\nVersion : ${AppConstants.appVersion}\n');
+    launchUrl(Uri.parse('mailto:support@ltcgroup.site?subject=$subject&body=$body'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -219,7 +468,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         iconBg: LTCColors.gold.withValues(alpha: 0.12),
                         iconColor: LTCColors.gold,
                         label: 'Changer mot de passe',
-                        onTap: () => _showComingSoon(),
+                        onTap: () => _showChangePasswordDialog(),
                       ),
                     ],
                   ),
@@ -279,21 +528,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         iconBg: LTCColors.success.withValues(alpha: 0.12),
                         iconColor: LTCColors.success,
                         label: 'FAQ',
-                        onTap: () => _showComingSoon(),
+                        onTap: () => Navigator.of(context).pushNamed('/faq'),
                       ),
                       _buildNavItem(
                         icon: Icons.support_agent_rounded,
                         iconBg: LTCColors.info.withValues(alpha: 0.12),
                         iconColor: LTCColors.info,
                         label: 'Contactez-nous',
-                        onTap: () => _showComingSoon(),
+                        onTap: () => _showContactSheet(),
                       ),
                       _buildNavItem(
                         icon: Icons.report_problem_rounded,
                         iconBg: LTCColors.error.withValues(alpha: 0.12),
                         iconColor: LTCColors.error,
-                        label: 'Signaler un problème',
-                        onTap: () => _showComingSoon(),
+                        label: 'Signaler un probleme',
+                        onTap: () => _showReportProblem(),
                       ),
                     ],
                   ),
@@ -311,7 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       borderRadius: BorderRadius.circular(16),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-                        onTap: () => _showComingSoon(),
+                        onTap: () => Navigator.of(context).pushNamed('/about'),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 16),
@@ -330,7 +579,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(width: 12),
                               const Expanded(
                                 child: Text(
-                                  'À propos de Kash Pay',
+                                  'A propos de Kash Pay',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,

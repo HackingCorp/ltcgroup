@@ -197,6 +197,33 @@ class ApiService {
     }
   }
 
+  /// Change password for the authenticated user
+  Future<String> changePassword(String currentPassword, String newPassword) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/change-password');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        }),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['message'] ?? 'Mot de passe modifie';
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de connexion: $e');
+    }
+  }
+
   /// Register - Returns user and token
   Future<Map<String, dynamic>> register({
     required String email,
