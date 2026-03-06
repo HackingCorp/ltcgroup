@@ -480,14 +480,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Reinitialisation du mot de passe bientot disponible'),
-                    backgroundColor: LTCColors.surfaceElevated,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                Navigator.of(context).pushNamed('/forgot-password');
               },
               child: const Text(
                 'Mot de passe oublie ?',

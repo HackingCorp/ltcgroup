@@ -149,6 +149,54 @@ class ApiService {
     }
   }
 
+  // ─── Forgot / Reset Password ───────────────────────────────
+
+  /// Request a password reset email
+  Future<String> forgotPassword(String email) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/forgot-password');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(),
+        body: json.encode({'email': email}),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['message'] ?? 'Email envoyé';
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de connexion: $e');
+    }
+  }
+
+  /// Reset password using a token received by email
+  Future<String> resetPassword(String token, String newPassword) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/reset-password');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: ApiConfig.headers(),
+        body: json.encode({'token': token, 'new_password': newPassword}),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['message'] ?? 'Mot de passe réinitialisé';
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de connexion: $e');
+    }
+  }
+
   /// Register - Returns user and token
   Future<Map<String, dynamic>> register({
     required String email,
