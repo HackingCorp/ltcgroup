@@ -1,23 +1,27 @@
 {
-  "_comment": "REPLACE with real google-services.json from Firebase Console",
-  "_instructions": "1. Go to https://console.firebase.google.com, 2. Create project 'ltc-vcard', 3. Add Android app with package 'ltc.group.kashpay', 4. Download google-services.json and replace this file",
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "ltc-vcard-placeholder",
-    "storage_bucket": "ltc-vcard-placeholder.appspot.com"
+    "project_number": "503949676751",
+    "project_id": "kash-pay",
+    "storage_bucket": "kash-pay.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:503949676751:android:e487efb9d1821bffc367ba",
         "android_client_info": {
           "package_name": "ltc.group.kashpay"
         }
       },
-      "api_key": [{"current_key": "PLACEHOLDER_API_KEY"}],
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEtNHNU0Xg39Qbf83HAcR9jimPbz_i7ac"
+        }
+      ],
       "services": {
-        "appinvite_service": {"other_platform_oauth_client": []},
-        "analytics_service": {"status": 1}
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
       }
     }
   ],
