@@ -26,9 +26,13 @@ class CardsProvider with ChangeNotifier {
 
   /// Fetch all cards
   Future<void> fetchCards() async {
-    _isLoading = true;
+    // Only show loading indicator when no data exists yet (initial load)
+    final showLoading = _cards.isEmpty;
+    if (showLoading) {
+      _isLoading = true;
+      notifyListeners();
+    }
     _error = null;
-    notifyListeners();
 
     try {
       _cards = await _apiService.getCards();

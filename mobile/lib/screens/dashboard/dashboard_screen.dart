@@ -355,7 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildWalletBalance() {
     final walletProvider = Provider.of<WalletProvider>(context);
-    final isLoading = _initialLoading || walletProvider.isLoading;
+    final isLoading = _initialLoading && walletProvider.isLoading;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
@@ -456,8 +456,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildVirtualCard() {
     final cardsProvider = Provider.of<CardsProvider>(context);
 
-    // Show loading placeholder during initial load
-    if (_initialLoading || cardsProvider.isLoading) {
+    // Show loading placeholder only on initial load when no cards exist yet
+    if (cardsProvider.isLoading && cardsProvider.cards.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
         child: Container(
@@ -730,8 +730,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final transactionsProvider = Provider.of<TransactionsProvider>(context);
     final transactions = transactionsProvider.recentTransactions;
 
-    // Show loading placeholders during initial load
-    if (_initialLoading || transactionsProvider.isLoading) {
+    // Show loading placeholders only when no transactions exist yet
+    if (transactionsProvider.isLoading && transactions.isEmpty) {
       return SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         sliver: SliverList(

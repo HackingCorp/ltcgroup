@@ -33,11 +33,15 @@ class TransactionsProvider with ChangeNotifier {
 
   /// Fetch first page of transactions (resets list)
   Future<void> fetchTransactions({String? cardId}) async {
-    _isLoading = true;
+    // Only show loading indicator when no data exists yet (initial load)
+    final showLoading = _transactions.isEmpty;
+    if (showLoading) {
+      _isLoading = true;
+      notifyListeners();
+    }
     _error = null;
     _filterCardId = cardId;
     _hasMore = true;
-    notifyListeners();
 
     try {
       _transactions = await _apiService.getTransactions(

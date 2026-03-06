@@ -14,6 +14,7 @@ class WalletProvider with ChangeNotifier {
 
   double _balance = 0.0;
   bool _isLoading = false;
+  bool _hasFetchedBalance = false;
   String? _error;
 
   // Exchange rate state
@@ -35,12 +36,16 @@ class WalletProvider with ChangeNotifier {
 
   /// Fetch wallet balance from API
   Future<void> fetchBalance() async {
-    _isLoading = true;
+    // Only show loading indicator on first fetch (balance could legitimately be 0)
+    if (!_hasFetchedBalance) {
+      _isLoading = true;
+      notifyListeners();
+    }
     _error = null;
-    notifyListeners();
 
     try {
       _balance = await _apiService.getWalletBalance();
+      _hasFetchedBalance = true;
     } catch (e) {
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
       _error = errorMessage;
