@@ -85,9 +85,13 @@ async def _sync_kyc_to_accountpe(user: User, db: AsyncSession) -> None:
     country_name = country_info[0]
     mobile_code = country_info[1]
 
+    # dob / id_proof_expiry may be date objects or strings (DB is varchar)
+    dob_str = user.dob.strftime("%Y-%m-%d") if hasattr(user.dob, "strftime") else (user.dob or "")
+    expiry_str = user.id_proof_expiry.strftime("%Y-%m-%d") if hasattr(user.id_proof_expiry, "strftime") else (user.id_proof_expiry or "")
+
     await accountpe_client.update_user(
         user_id=user.accountpe_user_id,
-        dob=user.dob.strftime("%Y-%m-%d") if user.dob else "",
+        dob=dob_str,
         mobile=user.phone,
         mobile_code=mobile_code,
         gender=user.gender or "M",
@@ -99,7 +103,7 @@ async def _sync_kyc_to_accountpe(user: User, db: AsyncSession) -> None:
         country_iso_code=user.country_code,
         id_proof_type=proof_type_map.get(user.id_proof_type or "", "national_id"),
         id_proof_no=user.id_proof_no or "",
-        id_proof_expiry_date=user.id_proof_expiry.strftime("%Y-%m-%d") if user.id_proof_expiry else "",
+        id_proof_expiry_date=expiry_str,
         id_proof_url_list=proof_urls,
         livelyness_img=user.kyc_selfie_url or "",
     )
