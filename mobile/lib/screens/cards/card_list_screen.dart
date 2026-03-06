@@ -455,16 +455,7 @@ class _CardListScreenState extends State<CardListScreen> {
           _buildActionBtn(
             Icons.sync_rounded,
             'Remplacer',
-            () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Remplacement de carte bientot disponible'),
-                  backgroundColor: LTCColors.surface,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              );
-            },
+            () => _handleReplace(card),
           ),
           _buildActionBtn(
             Icons.visibility_outlined,
@@ -1009,6 +1000,121 @@ class _CardListScreenState extends State<CardListScreen> {
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleReplace(VirtualCard card) async {
+    if (card.isExpired) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Impossible de remplacer une carte expiree'),
+          backgroundColor: LTCColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LTCColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Remplacer la carte ?',
+          style: TextStyle(color: LTCColors.textPrimary, fontSize: 18),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: LTCColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LTCColors.warning.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: LTCColors.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'La carte ${card.maskedNumber} sera bloquee et remplacee par une nouvelle carte ${card.type} ${card.tier}.',
+                      style: const TextStyle(color: LTCColors.warning, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Le solde restant sera transfere sur la nouvelle carte.',
+              style: TextStyle(color: LTCColors.textSecondary, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler', style: TextStyle(color: LTCColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remplacer', style: TextStyle(color: LTCColors.gold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: LTCColors.gold),
+      ),
+    );
+
+    final success = await cardsProvider.replaceCard(cardId: card.id);
+
+    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Carte remplacee avec succes !'),
+          backgroundColor: LTCColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+
+      // Move to last card (newly created)
+      final activeCards = cardsProvider.cards.where((c) => !c.isBlocked && !c.isExpired).toList();
+      if (activeCards.isNotEmpty && _pageController.hasClients) {
+        _pageController.animateToPage(
+          activeCards.length - 1,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur : ${cardsProvider.error ?? "Erreur inconnue"}'),
+          backgroundColor: LTCColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }

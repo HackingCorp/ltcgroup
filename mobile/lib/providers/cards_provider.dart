@@ -120,6 +120,35 @@ class CardsProvider with ChangeNotifier {
     }
   }
 
+  /// Replace card (blocks old, creates new via provider)
+  Future<bool> replaceCard({required String cardId}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final newCard = await _apiService.replaceCard(cardId);
+
+      // Mark old card as blocked in local list
+      final oldIndex = _cards.indexWhere((card) => card.id == cardId);
+      if (oldIndex != -1) {
+        _cards[oldIndex] = _cards[oldIndex].copyWith(status: 'BLOCKED');
+      }
+
+      // Add new card
+      _cards = [..._cards, newCard];
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      final errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _error = errorMessage;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Update card spending limit
   Future<bool> updateCardLimit({
     required String cardId,

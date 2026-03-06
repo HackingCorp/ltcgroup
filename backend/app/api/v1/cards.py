@@ -582,6 +582,147 @@ async def block_card(
     return CardResponse.model_validate(card)
 
 
+@router.post("/{card_id}/replace", response_model=CardResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
+async def replace_card(
+    request: Request,
+    card_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Replace a card via AccountPE. The old card is blocked and a new one is issued
+    with the same type and tier. Remaining balance is transferred to the new card.
+    """
+    result = await db.execute(select(Card).where(Card.id == card_id))
+    old_card = result.scalar_one_or_none()
+
+    if not old_card:
+        raise CardNotFoundException(card_id)
+
+    if old_card.user_id != current_user.id:
+        raise UnauthorizedCardAccessException()
+
+    if not old_card.provider_card_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Carte sans identifiant fournisseur",
+        )
+
+    # Choose the right AccountPE endpoint based on card status
+    try:
+        if old_card.status == CardStatus.BLOCKED:
+            replace_resp = await accountpe_client.replace_terminated_card(
+                old_card.provider_card_id
+            )
+        else:
+            replace_resp = await accountpe_client.replace_card(
+                old_card.provider_card_id
+            )
+    except AccountPEError as e:
+        logger.warning(f"AccountPE replace_card error for card {card_id}: {e}")
+        raise _map_accountpe_error(e)
+    except Exception as e:
+        logger.error(f"AccountPE replace_card failed for card {card_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Card provider is temporarily unavailable",
+        )
+
+    # Extract new card_id from response
+    vcard = replace_resp.get("vcard", {}) or replace_resp.get("data", {}) or {}
+    new_provider_card_id = (
+        vcard.get("card_id")
+        or replace_resp.get("card_id")
+        or ""
+    )
+    new_provider_card_id = str(new_provider_card_id)
+
+    if not new_provider_card_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Le fournisseur n'a pas retourne la nouvelle carte",
+        )
+
+    # Fetch full details of the new card
+    card_number_full = ""
+    card_number_masked = "****0000"
+    expiry_date = "12/29"
+    cvv = "000"
+    balance_from_provider = old_card.balance
+    currency = old_card.currency or "USD"
+
+    try:
+        details_resp = await accountpe_client.get_card_details(new_provider_card_id)
+        det = details_resp.get("data", details_resp)
+        card_number_full = det.get("encrypted_cardnumber", "")
+        if not card_number_full:
+            raise ValueError("Card number not returned")
+        masked = det.get("masked_pan", "")
+        card_number_masked = masked if masked else (
+            f"****{card_number_full[-4:]}" if len(card_number_full) >= 4 else "****0000"
+        )
+        cvv = det.get("encrypted_cvv", "")
+        if not cvv:
+            raise ValueError("CVV not returned")
+        raw_expiry = det.get("expiry", "")
+        if not raw_expiry:
+            raise ValueError("Expiry not returned")
+        if len(raw_expiry) == 4 and "/" not in raw_expiry:
+            expiry_date = f"{raw_expiry[:2]}/{raw_expiry[2:]}"
+        else:
+            expiry_date = raw_expiry
+        currency = det.get("currency", currency)
+        if det.get("balance"):
+            try:
+                balance_from_provider = Decimal(str(det["balance"]))
+            except (ValueError, TypeError):
+                pass
+    except Exception as e:
+        logger.error(f"Failed to fetch replacement card details: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Carte remplacee mais impossible de recuperer les details",
+        )
+
+    # Mark old card as blocked
+    old_card.status = CardStatus.BLOCKED
+
+    # Create new card record
+    new_card = Card(
+        user_id=current_user.id,
+        card_type=old_card.card_type,
+        card_tier=old_card.card_tier,
+        card_number_masked=card_number_masked,
+        card_number_full_encrypted=encrypt_field(card_number_full),
+        status=CardStatus.ACTIVE,
+        balance=balance_from_provider,
+        currency=currency,
+        provider="AccountPE",
+        provider_card_id=new_provider_card_id,
+        expiry_date=expiry_date,
+        cvv_encrypted=encrypt_field(cvv),
+        spending_limit=old_card.spending_limit,
+    )
+    db.add(new_card)
+
+    await db.commit()
+    await db.refresh(new_card)
+
+    # Log audit event
+    await log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        action="card_replace",
+        resource_type="card",
+        resource_id=str(new_card.id),
+        details={"old_card_id": str(card_id)},
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return CardResponse.model_validate(new_card)
+
+
 @router.patch("/{card_id}/limit", response_model=CardResponse)
 async def update_card_limit(
     card_id: str,

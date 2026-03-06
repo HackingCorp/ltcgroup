@@ -590,6 +590,29 @@ class ApiService {
     }
   }
 
+  /// Replace card (blocks old card, creates new one via provider)
+  Future<VirtualCard> replaceCard(String cardId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/replace');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return VirtualCard.fromJson(data);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur de remplacement de la carte: $e');
+    }
+  }
+
   /// Update card status (generic method)
   Future<VirtualCard> updateCardStatus({
     required String cardId,
