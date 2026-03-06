@@ -190,11 +190,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               letterSpacing: -0.3,
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_horiz,
-                color: LTCColors.textSecondary),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );

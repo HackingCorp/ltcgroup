@@ -455,7 +455,16 @@ class _CardListScreenState extends State<CardListScreen> {
           _buildActionBtn(
             Icons.sync_rounded,
             'Remplacer',
-            () {},
+            () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Remplacement de carte bientot disponible'),
+                  backgroundColor: LTCColors.surface,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+            },
           ),
           _buildActionBtn(
             Icons.visibility_outlined,
@@ -692,7 +701,7 @@ class _CardListScreenState extends State<CardListScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to transactions filtered by this card
+                      Navigator.of(context).pushNamed('/card-detail', arguments: card.id);
                     },
                     child: const Text(
                       'Voir tout',

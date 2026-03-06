@@ -61,6 +61,20 @@ class _WalletWithdrawScreenState extends State<WalletWithdrawScreen> {
       return;
     }
 
+    // Validate phone format (6XXXXXXXX — 9 digits starting with 6)
+    final phoneRegex = RegExp(r'^6\d{8}$');
+    if (!phoneRegex.hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Numero invalide. Format attendu: 6XXXXXXXX (9 chiffres)'),
+          backgroundColor: LTCColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     final result = await walletProvider.withdrawToMomo(
       amountUsd: _amount,

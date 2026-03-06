@@ -691,27 +691,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // ── Limits Section ──
   Widget _buildLimitsSection() {
+    final user = Provider.of<AuthProvider>(context).user;
+    final isVerified = user?.isKycVerified ?? false;
+    // Dynamic limits based on KYC status
+    final txLimit = isVerified ? 10000.0 : 500.0;
+    final monthlyLimit = isVerified ? 50000.0 : 2000.0;
+
     return _buildSettingsGroup(
       title: 'Limites',
-      trailing: 'Modifier',
-      onTrailingTap: () => _showComingSoon(),
+      trailing: isVerified ? null : 'Verifier KYC',
+      onTrailingTap: isVerified ? null : () => Navigator.of(context).pushNamed('/kyc'),
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               _buildLimitBar(
-                label: 'Limite Transaction',
-                current: 250000,
-                max: 500000,
-                progress: 0.5,
+                label: 'Limite par Transaction',
+                current: txLimit,
+                max: 10000,
+                progress: txLimit / 10000,
               ),
               const SizedBox(height: 24),
               _buildLimitBar(
                 label: 'Limite Mensuelle',
-                current: 1600000,
-                max: 2000000,
-                progress: 0.8,
+                current: monthlyLimit,
+                max: 50000,
+                progress: monthlyLimit / 50000,
               ),
             ],
           ),
