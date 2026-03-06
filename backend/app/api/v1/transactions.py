@@ -19,8 +19,10 @@ from app.schemas.transaction import (
     TransactionResponse,
     TransactionListResponse,
 )
+from app.models.notification import NotificationType
 from app.services.auth import get_current_user
 from app.services.accountpe import accountpe_client, AccountPEError
+from app.services.firebase_push import create_and_push_notification
 from app.config import settings
 from app.utils.exceptions import (
     CardNotFoundException,
@@ -374,6 +376,18 @@ async def topup_card(
     await db.commit()
     await db.refresh(transaction)
 
+    # Push notification for successful card topup
+    try:
+        await create_and_push_notification(
+            db, current_user.id,
+            title="Carte rechargee",
+            message=f"${topup_data.amount} {topup_data.currency} credites sur votre carte.",
+            notification_type=NotificationType.CARD,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Push notification failed for card topup: {e}")
+
     return TransactionResponse.model_validate(transaction)
 
 
@@ -472,5 +486,17 @@ async def withdraw_from_card(
 
     await db.commit()
     await db.refresh(transaction)
+
+    # Push notification for successful card withdrawal
+    try:
+        await create_and_push_notification(
+            db, current_user.id,
+            title="Retrait carte effectue",
+            message=f"${withdraw_data.amount} {withdraw_data.currency} retires de votre carte vers le wallet.",
+            notification_type=NotificationType.CARD,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Push notification failed for card withdrawal: {e}")
 
     return TransactionResponse.model_validate(transaction)

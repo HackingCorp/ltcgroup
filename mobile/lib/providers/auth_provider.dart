@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 
 /// Authentication state provider
 class AuthProvider with ChangeNotifier {
@@ -60,6 +62,8 @@ class AuthProvider with ChangeNotifier {
         // calls don't hit a 401. If this fails the user still sees the
         // cached data and the normal retry/refresh logic will handle it.
         _silentRefreshAndSync();
+        // Ensure FCM token is registered with backend
+        _registerFcmToken();
       }
       _error = null;
     } catch (e) {
@@ -67,6 +71,21 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Register the FCM token with the backend (fire-and-forget).
+  void _registerFcmToken() async {
+    try {
+      final notificationService = NotificationService();
+      final fcmToken = await notificationService.getToken();
+      if (fcmToken != null) {
+        final platform = Platform.isIOS ? 'ios' : 'android';
+        await ApiService().registerDeviceToken(fcmToken, platform);
+        debugPrint('FCM token registered with backend');
+      }
+    } catch (e) {
+      debugPrint('Failed to register FCM token: $e');
     }
   }
 
@@ -101,6 +120,7 @@ class AuthProvider with ChangeNotifier {
       _user = await _authService.login(email: email, password: password);
       _isLoading = false;
       notifyListeners();
+      _registerFcmToken();
       return true;
     } catch (e) {
       final errorMessage = _extractError(e);
@@ -135,6 +155,7 @@ class AuthProvider with ChangeNotifier {
       );
       _isLoading = false;
       notifyListeners();
+      _registerFcmToken();
       return true;
     } catch (e) {
       final errorMessage = _extractError(e);
@@ -151,6 +172,16 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Remove FCM token from backend before clearing local state
+      try {
+        final fcmToken = await NotificationService().getToken();
+        if (fcmToken != null) {
+          await ApiService().removeDeviceToken(fcmToken);
+        }
+      } catch (e) {
+        debugPrint('Failed to remove FCM token on logout: $e');
+      }
+
       await _authService.logout();
       _user = null;
       _error = null;

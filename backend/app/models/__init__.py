@@ -4,6 +4,7 @@ from app.models.card import Card, CardType, CardStatus
 from app.models.transaction import Transaction, TransactionType, TransactionStatus
 from app.models.notification import Notification, NotificationType
 from app.models.audit_log import AuditLog
+from app.models.device_token import DeviceToken
 
 __all__ = [
     "Base",
@@ -18,4 +19,5 @@ __all__ = [
     "Notification",
     "NotificationType",
     "AuditLog",
+    "DeviceToken",
 ]

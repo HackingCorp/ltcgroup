@@ -133,7 +133,15 @@ class ApiService {
           'user': null, // We'll fetch user data separately with /users/me
         };
       } else {
-        throw _handleError(response);
+        // Login errors: show the real backend message, not "Session expirée"
+        try {
+          final data = json.decode(response.body);
+          final detail = data['detail'] ?? 'Email ou mot de passe incorrect';
+          throw Exception(detail);
+        } catch (e) {
+          if (e is Exception && e.toString().contains('Exception:')) rethrow;
+          throw Exception('Email ou mot de passe incorrect');
+        }
       }
     } catch (e) {
       if (e is Exception) rethrow;
@@ -1014,6 +1022,49 @@ class ApiService {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Erreur de marquage de notification: $e');
+    }
+  }
+
+  // ─── Device Token (FCM Push) ──────────────────────────────
+
+  /// Register an FCM device token for push notifications
+  Future<void> registerDeviceToken(String token, String platform) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/users/device-token');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode({'token': token, 'platform': platform}),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode != 200) {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Erreur d\'enregistrement du token: $e');
+    }
+  }
+
+  /// Remove an FCM device token (on logout)
+  Future<void> removeDeviceToken(String token) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/users/device-token');
+    final headers = await _getAuthHeaders();
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: headers,
+        body: json.encode({'token': token}),
+      ).timeout(ApiConfig.timeout);
+
+      if (response.statusCode != 200) {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      // Silently ignore — token cleanup is best-effort
     }
   }
 

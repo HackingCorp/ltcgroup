@@ -27,7 +27,9 @@ from app.schemas.wallet import (
     ExchangeRateResponse,
 )
 from app.config import settings
+from app.models.notification import NotificationType
 from app.services.auth import get_current_user
+from app.services.firebase_push import create_and_push_notification
 from app.services.accountpe import accountpe_client
 from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate, get_country_currency, format_phone_e164
 from app.services.enkap import enkap_client, EnkapError
@@ -390,6 +392,18 @@ async def verify_topup(
             f"amount={amount_usd} USD, new_balance={updated_user.wallet_balance}"
         )
 
+        # Push notification for successful topup
+        try:
+            await create_and_push_notification(
+                db, current_user.id,
+                title="Wallet recharge",
+                message=f"Votre wallet a ete credite de ${amount_usd} USD.",
+                notification_type=NotificationType.TRANSACTION,
+            )
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Push notification failed for topup: {e}")
+
         return {
             "status": "COMPLETED",
             "message": "Paiement confirmé, wallet rechargé",
@@ -525,6 +539,18 @@ async def transfer_to_card(
         f"amount={data.amount}, fee={fee}, new_wallet={updated_user.wallet_balance}, "
         f"new_card={updated_card.balance}"
     )
+
+    # Push notification for successful transfer
+    try:
+        await create_and_push_notification(
+            db, current_user.id,
+            title="Transfert effectue",
+            message=f"${data.amount} USD transferes vers votre carte {card.card_number_masked}.",
+            notification_type=NotificationType.TRANSACTION,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Push notification failed for wallet->card transfer: {e}")
 
     return WalletTransferResponse(
         success=True,
@@ -732,6 +758,18 @@ async def withdraw_from_wallet(
         f"amount_local={amount_local} {currency}, phone={data.phone}, "
         f"new_wallet={updated_user.wallet_balance}"
     )
+
+    # Push notification for withdrawal initiated
+    try:
+        await create_and_push_notification(
+            db, current_user.id,
+            title="Retrait initie",
+            message=f"Retrait de ${amount_usd} USD ({amount_local} {currency}) vers {data.phone} en cours.",
+            notification_type=NotificationType.TRANSACTION,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Push notification failed for withdrawal: {e}")
 
     return WalletWithdrawResponse(
         success=True,

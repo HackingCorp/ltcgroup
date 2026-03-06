@@ -1,17 +1,21 @@
 import html
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
+from typing import Literal
 
 from app.database import get_db
 from app.models.user import User, KYCStatus
-from app.models.notification import Notification, NotificationType
+from app.models.notification import NotificationType
+from app.models.device_token import DeviceToken
 from app.schemas.user import UserResponse, UserUpdate, KYCSubmit, KYCResponse
 from app.services.auth import get_current_user
 from app.services.accountpe import accountpe_client, AccountPEError
 from app.services.email import email_service
+from app.services.firebase_push import create_and_push_notification
 from app.services.payin import PAYIN_COUNTRIES
 from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
@@ -211,13 +215,12 @@ async def submit_kyc(
         await db.commit()
         await db.refresh(current_user)
 
-        notification = Notification(
-            user_id=current_user.id,
+        await create_and_push_notification(
+            db, current_user.id,
             title="KYC soumis",
             message="Votre demande KYC a ete soumise. Verification en cours.",
-            type=NotificationType.KYC,
+            notification_type=NotificationType.KYC,
         )
-        db.add(notification)
         await db.commit()
 
         return KYCResponse(
@@ -247,13 +250,12 @@ async def submit_kyc(
         await db.commit()
         await db.refresh(current_user)
 
-        notification = Notification(
-            user_id=current_user.id,
+        await create_and_push_notification(
+            db, current_user.id,
             title="KYC approuve",
             message="Votre identite a ete verifiee. Vous pouvez utiliser tous les services.",
-            type=NotificationType.KYC,
+            notification_type=NotificationType.KYC,
         )
-        db.add(notification)
         await db.commit()
 
         try:
@@ -268,13 +270,12 @@ async def submit_kyc(
         await db.commit()
         await db.refresh(current_user)
 
-        notification = Notification(
-            user_id=current_user.id,
+        await create_and_push_notification(
+            db, current_user.id,
             title="KYC rejete",
             message=f"Votre verification a echoue: {reason}. Veuillez soumettre de nouveaux documents.",
-            type=NotificationType.KYC,
+            notification_type=NotificationType.KYC,
         )
-        db.add(notification)
         await db.commit()
 
         try:
@@ -288,13 +289,12 @@ async def submit_kyc(
         await db.commit()
         await db.refresh(current_user)
 
-        notification = Notification(
-            user_id=current_user.id,
+        await create_and_push_notification(
+            db, current_user.id,
             title="KYC en cours de verification",
             message="Vos documents ont ete envoyes pour verification. Vous serez notifie du resultat.",
-            type=NotificationType.KYC,
+            notification_type=NotificationType.KYC,
         )
-        db.add(notification)
         await db.commit()
 
         try:
@@ -352,13 +352,12 @@ async def check_kyc_status(
                 await db.commit()
                 await db.refresh(current_user)
 
-                notification = Notification(
-                    user_id=current_user.id,
+                await create_and_push_notification(
+                    db, current_user.id,
                     title="KYC approuve",
                     message="Votre identite a ete verifiee. Vous pouvez utiliser tous les services.",
-                    type=NotificationType.KYC,
+                    notification_type=NotificationType.KYC,
                 )
-                db.add(notification)
                 await db.commit()
 
                 try:
@@ -373,13 +372,12 @@ async def check_kyc_status(
                 await db.commit()
                 await db.refresh(current_user)
 
-                notification = Notification(
-                    user_id=current_user.id,
+                await create_and_push_notification(
+                    db, current_user.id,
                     title="KYC rejete",
                     message=f"Votre verification a echoue: {reason}. Veuillez soumettre de nouveaux documents.",
-                    type=NotificationType.KYC,
+                    notification_type=NotificationType.KYC,
                 )
-                db.add(notification)
                 await db.commit()
 
                 try:
@@ -402,3 +400,62 @@ async def check_kyc_status(
         kyc_verification_method=current_user.kyc_verification_method,
         kyc_rejected_reason=current_user.kyc_rejected_reason,
     )
+
+
+# ─── Device Token Endpoints ────────────────────────────────────
+
+
+class DeviceTokenRequest(BaseModel):
+    token: str = Field(..., min_length=10, max_length=500)
+    platform: Literal["ios", "android"]
+
+
+class DeviceTokenDeleteRequest(BaseModel):
+    token: str = Field(..., min_length=10, max_length=500)
+
+
+@router.post("/device-token", status_code=status.HTTP_200_OK)
+async def register_device_token(
+    data: DeviceTokenRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Register or update an FCM device token for push notifications."""
+    # Upsert: if token exists, update user_id (account switch)
+    result = await db.execute(
+        select(DeviceToken).where(DeviceToken.token == data.token)
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.user_id = current_user.id
+        existing.platform = data.platform
+    else:
+        device_token = DeviceToken(
+            user_id=current_user.id,
+            token=data.token,
+            platform=data.platform,
+        )
+        db.add(device_token)
+
+    await db.commit()
+    logger.info(f"Device token registered for user {current_user.id} ({data.platform})")
+    return {"status": "ok"}
+
+
+@router.delete("/device-token", status_code=status.HTTP_200_OK)
+async def remove_device_token(
+    data: DeviceTokenDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove an FCM device token (e.g. on logout)."""
+    await db.execute(
+        delete(DeviceToken).where(
+            DeviceToken.token == data.token,
+            DeviceToken.user_id == current_user.id,
+        )
+    )
+    await db.commit()
+    logger.info(f"Device token removed for user {current_user.id}")
+    return {"status": "ok"}

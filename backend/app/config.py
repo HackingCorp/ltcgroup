@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     kyc_auto_approve_threshold: float = 0.85
     kyc_manual_review_threshold: float = 0.50
 
+    # Firebase Cloud Messaging (FCM) push notifications
+    firebase_credentials_path: str = ""  # Path to Firebase service account JSON
+
     # S3 Configuration (optional, for production)
     aws_s3_bucket: str = ""
     aws_s3_region: str = ""
@@ -92,9 +95,9 @@ class Settings(BaseSettings):
                 raise ValueError("enkap_webhook_secret must be set in non-development environments")
         else:
             if not self.jwt_secret_key:
-                self.jwt_secret_key = "dev-jwt-secret-" + secrets.token_hex(32)
+                self.jwt_secret_key = "dev-jwt-secret-stable-key-do-not-use-in-production"
             if not self.encryption_key:
-                self.encryption_key = "dev-encryption-key-" + secrets.token_hex(32)
+                self.encryption_key = "dev-encryption-key-stable-do-not-use-in-production"
         return self
 
 

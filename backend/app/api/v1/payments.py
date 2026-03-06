@@ -21,6 +21,8 @@ from app.services.auth import get_current_user
 from app.services.payin import payin_client, PayinError, PAYIN_COUNTRIES, get_country_fee_rate
 from app.services.enkap import enkap_client, EnkapError, verify_webhook_signature
 from app.config import settings
+from app.models.notification import NotificationType
+from app.services.firebase_push import create_and_push_notification
 from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
 
@@ -529,6 +531,19 @@ async def payin_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             await db.commit()
 
             logger.info(f"Payin webhook: Transaction {transaction.id} marked as COMPLETED")
+
+            # Push notification for successful payment
+            try:
+                await create_and_push_notification(
+                    db, transaction.user_id,
+                    title="Paiement confirme",
+                    message=f"Votre paiement de {transaction.amount} {transaction.currency} a ete confirme.",
+                    notification_type=NotificationType.TRANSACTION,
+                )
+                await db.commit()
+            except Exception as e:
+                logger.warning(f"Push notification failed for payin webhook: {e}")
+
             return {"status": "success", "message": "Payment processed"}
 
         elif payment_status in ["FAILED", "REFUNDED"]:
@@ -669,6 +684,19 @@ async def enkap_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             await db.commit()
 
             logger.info(f"E-nkap webhook: Transaction {transaction.id} marked as COMPLETED")
+
+            # Push notification for successful payment
+            try:
+                await create_and_push_notification(
+                    db, transaction.user_id,
+                    title="Paiement confirme",
+                    message=f"Votre paiement de {transaction.amount} {transaction.currency} a ete confirme.",
+                    notification_type=NotificationType.TRANSACTION,
+                )
+                await db.commit()
+            except Exception as e:
+                logger.warning(f"Push notification failed for enkap webhook: {e}")
+
             return {"status": "success", "message": "Payment processed"}
 
         elif payment_status in ["FAILED", "CANCELLED"]:
