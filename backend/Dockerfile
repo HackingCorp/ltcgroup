@@ -7,7 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
+    && mkdir -p /app/uploads && chown -R appuser:appgroup /app/uploads
 USER appuser
 
 # Default to production mode (gunicorn with uvicorn workers)
