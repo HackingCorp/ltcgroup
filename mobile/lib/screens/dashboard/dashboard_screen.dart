@@ -19,6 +19,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _hasError = false;
+  bool _initialLoading = true;
   Timer? _kycPollTimer;
   Timer? _refreshTimer;
 
@@ -89,6 +90,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _hasError = true);
+      }
+    } finally {
+      if (mounted && _initialLoading) {
+        setState(() => _initialLoading = false);
       }
     }
   }
@@ -350,6 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildWalletBalance() {
     final walletProvider = Provider.of<WalletProvider>(context);
+    final isLoading = _initialLoading || walletProvider.isLoading;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
@@ -389,15 +395,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '\$${_formatUsd(walletProvider.balance)}',
-                    style: const TextStyle(
-                      color: LTCColors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
+                  if (isLoading && walletProvider.balance == 0.0)
+                    Container(
+                      width: 100,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: LTCColors.border.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    )
+                  else
+                    Text(
+                      '\$${_formatUsd(walletProvider.balance)}',
+                      style: const TextStyle(
+                        color: LTCColors.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -439,6 +455,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildVirtualCard() {
     final cardsProvider = Provider.of<CardsProvider>(context);
+
+    // Show loading placeholder during initial load
+    if (_initialLoading || cardsProvider.isLoading) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
+        child: Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: LTCColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: LTCColors.border),
+          ),
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: LTCColors.gold,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     // No cards — show prompt to buy one
     if (cardsProvider.cards.isEmpty) {
@@ -688,6 +729,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildTransactionsList() {
     final transactionsProvider = Provider.of<TransactionsProvider>(context);
     final transactions = transactionsProvider.recentTransactions;
+
+    // Show loading placeholders during initial load
+    if (_initialLoading || transactionsProvider.isLoading) {
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: LTCColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: LTCColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: LTCColors.border.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: LTCColors.border.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: 80,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: LTCColors.border.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 60,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: LTCColors.border.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            childCount: 3,
+          ),
+        ),
+      );
+    }
 
     if (transactions.isEmpty) {
       return SliverList(

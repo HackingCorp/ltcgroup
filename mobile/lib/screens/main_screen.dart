@@ -31,6 +31,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Pre-fetch all data immediately when MainScreen mounts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshTabData(0);
+    });
   }
 
   @override
