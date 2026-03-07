@@ -153,10 +153,23 @@ class CardsProvider with ChangeNotifier {
     }
   }
 
-  /// Update card spending limit
+  /// Update card spending limit (legacy - use updateCardLimits instead)
   Future<bool> updateCardLimit({
     required String cardId,
     required double spendingLimit,
+  }) async {
+    return updateCardLimits(
+      cardId: cardId,
+      spendingLimit: spendingLimit,
+    );
+  }
+
+  /// Update card limits (spending, daily, transaction limits)
+  Future<bool> updateCardLimits({
+    required String cardId,
+    double? spendingLimit,
+    double? dailyLimit,
+    int? transactionLimit,
   }) async {
     _error = null;
 
@@ -164,6 +177,8 @@ class CardsProvider with ChangeNotifier {
       final updatedCard = await _apiService.updateCardLimit(
         cardId,
         spendingLimit: spendingLimit,
+        dailyLimit: dailyLimit,
+        transactionLimit: transactionLimit,
       );
 
       final index = _cards.indexWhere((card) => card.id == cardId);

@@ -616,6 +616,54 @@ class _CardListScreenState extends State<CardListScreen> {
                                 LTCColors.gold),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        // Limites quotidiennes et transactions
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Limite quotidienne
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.today,
+                                      size: 12, color: LTCColors.textTertiary),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      '\$${_formatUsd(card.dailyLimit)}/jour',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: LTCColors.textSecondary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Nombre de transactions
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.credit_card,
+                                      size: 12, color: LTCColors.textTertiary),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      '${card.transactionLimit} tx/jour',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: LTCColors.textSecondary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -1121,53 +1169,146 @@ class _CardListScreenState extends State<CardListScreen> {
   }
 
   Future<void> _showEditLimitDialog(VirtualCard card) async {
-    final controller = TextEditingController(
+    final spendingController = TextEditingController(
       text: card.spendingLimit.toStringAsFixed(0),
     );
+    final dailyController = TextEditingController(
+      text: card.dailyLimit.toStringAsFixed(0),
+    );
+    final transactionController = TextEditingController(
+      text: card.transactionLimit.toString(),
+    );
 
-    final newLimit = await showDialog<double>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LTCColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
-          'Modifier le plafond mensuel',
-          style: TextStyle(color: LTCColors.textPrimary, fontSize: 18),
+          'Gerer les limites de la carte',
+          style: TextStyle(color: LTCColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Definissez un nouveau plafond de depenses pour cette carte.',
-              style: TextStyle(color: LTCColors.textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: LTCColors.textPrimary, fontSize: 18),
-              decoration: InputDecoration(
-                prefixText: '\$ ',
-                prefixStyle: const TextStyle(color: LTCColors.gold, fontSize: 18),
-                hintText: '500',
-                hintStyle: TextStyle(color: LTCColors.textTertiary),
-                filled: true,
-                fillColor: LTCColors.surfaceLight,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: LTCColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: LTCColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: LTCColors.gold),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Configurez les limites de depenses pour cette carte.',
+                style: TextStyle(color: LTCColors.textSecondary, fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+
+              // Plafond mensuel
+              const Text(
+                'Plafond mensuel',
+                style: TextStyle(
+                  color: LTCColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              TextField(
+                controller: spendingController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: LTCColors.textPrimary, fontSize: 16),
+                decoration: InputDecoration(
+                  prefixText: '\$ ',
+                  prefixStyle: const TextStyle(color: LTCColors.gold, fontSize: 16),
+                  hintText: '500',
+                  hintStyle: const TextStyle(color: LTCColors.textTertiary),
+                  filled: true,
+                  fillColor: LTCColors.surfaceLight,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.gold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Limite quotidienne
+              const Text(
+                'Limite quotidienne (USD/jour)',
+                style: TextStyle(
+                  color: LTCColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: dailyController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: LTCColors.textPrimary, fontSize: 16),
+                decoration: InputDecoration(
+                  prefixText: '\$ ',
+                  prefixStyle: const TextStyle(color: LTCColors.gold, fontSize: 16),
+                  hintText: '500',
+                  hintStyle: const TextStyle(color: LTCColors.textTertiary),
+                  filled: true,
+                  fillColor: LTCColors.surfaceLight,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.gold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Nombre de transactions
+              const Text(
+                'Transactions max par jour',
+                style: TextStyle(
+                  color: LTCColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: transactionController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: LTCColors.textPrimary, fontSize: 16),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.numbers, color: LTCColors.gold, size: 20),
+                  hintText: '100',
+                  hintStyle: const TextStyle(color: LTCColors.textTertiary),
+                  filled: true,
+                  fillColor: LTCColors.surfaceLight,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: LTCColors.gold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1177,9 +1318,18 @@ class _CardListScreenState extends State<CardListScreen> {
           ),
           TextButton(
             onPressed: () {
-              final value = double.tryParse(controller.text);
-              if (value != null && value >= 0) {
-                Navigator.pop(ctx, value);
+              final spending = double.tryParse(spendingController.text);
+              final daily = double.tryParse(dailyController.text);
+              final transaction = int.tryParse(transactionController.text);
+
+              if (spending != null && spending >= 0 &&
+                  daily != null && daily >= 0 &&
+                  transaction != null && transaction > 0) {
+                Navigator.pop(ctx, {
+                  'spending': spending,
+                  'daily': daily,
+                  'transaction': transaction,
+                });
               }
             },
             child: const Text('Valider',
@@ -1189,20 +1339,26 @@ class _CardListScreenState extends State<CardListScreen> {
       ),
     );
 
-    controller.dispose();
-    if (newLimit == null || !mounted) return;
+    spendingController.dispose();
+    dailyController.dispose();
+    transactionController.dispose();
+
+    if (result == null || !mounted) return;
 
     final cardsProvider = Provider.of<CardsProvider>(context, listen: false);
-    final success = await cardsProvider.updateCardLimit(
+    final success = await cardsProvider.updateCardLimits(
       cardId: card.id,
-      spendingLimit: newLimit,
+      spendingLimit: result['spending'],
+      dailyLimit: result['daily'],
+      transactionLimit: result['transaction'],
     );
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? 'Plafond mis a jour: \$${_formatUsd(newLimit)}'
-            : 'Erreur lors de la mise a jour du plafond'),
+            ? 'Limites mises a jour avec succes'
+            : 'Erreur lors de la mise a jour des limites'),
         backgroundColor: success ? LTCColors.success : LTCColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
