@@ -642,7 +642,7 @@ class _CardListScreenState extends State<CardListScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            // Nombre de transactions
+                            // Montant max par transaction
                             Expanded(
                               child: Row(
                                 children: [
@@ -651,7 +651,7 @@ class _CardListScreenState extends State<CardListScreen> {
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
-                                      '${card.transactionLimit} tx/jour',
+                                      '\$${card.transactionLimit.toStringAsFixed(0)}/tx',
                                       style: const TextStyle(
                                         fontSize: 11,
                                         color: LTCColors.textSecondary,
@@ -1238,11 +1238,19 @@ class _CardListScreenState extends State<CardListScreen> {
 
               // Limite quotidienne
               const Text(
-                'Limite quotidienne (USD/jour)',
+                'Limite quotidienne totale',
                 style: TextStyle(
                   color: LTCColors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Montant total maximum de toutes les transactions par jour',
+                style: TextStyle(
+                  color: LTCColors.textSecondary,
+                  fontSize: 12,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1273,23 +1281,32 @@ class _CardListScreenState extends State<CardListScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Nombre de transactions
+              // Montant max par transaction
               const Text(
-                'Transactions max par jour',
+                'Montant max par transaction',
                 style: TextStyle(
                   color: LTCColors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 4),
+              const Text(
+                'Montant maximum autorise pour une seule transaction',
+                style: TextStyle(
+                  color: LTCColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: transactionController,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: LTCColors.textPrimary, fontSize: 16),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.numbers, color: LTCColors.gold, size: 20),
-                  hintText: '100',
+                  prefixText: '\$ ',
+                  prefixStyle: const TextStyle(color: LTCColors.gold, fontSize: 16),
+                  hintText: '500',
                   hintStyle: const TextStyle(color: LTCColors.textTertiary),
                   filled: true,
                   fillColor: LTCColors.surfaceLight,
@@ -1320,7 +1337,7 @@ class _CardListScreenState extends State<CardListScreen> {
             onPressed: () {
               final spending = double.tryParse(spendingController.text);
               final daily = double.tryParse(dailyController.text);
-              final transaction = int.tryParse(transactionController.text);
+              final transaction = double.tryParse(transactionController.text);
 
               if (spending != null && spending >= 0 &&
                   daily != null && daily >= 0 &&

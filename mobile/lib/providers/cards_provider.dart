@@ -169,7 +169,7 @@ class CardsProvider with ChangeNotifier {
     required String cardId,
     double? spendingLimit,
     double? dailyLimit,
-    int? transactionLimit,
+    double? transactionLimit,
   }) async {
     _error = null;
 

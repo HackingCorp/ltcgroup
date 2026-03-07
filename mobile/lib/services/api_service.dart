@@ -503,7 +503,7 @@ class ApiService {
     String cardId, {
     double? spendingLimit,
     double? dailyLimit,
-    int? transactionLimit,
+    double? transactionLimit,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/limit');
     final headers = await _getAuthHeaders();

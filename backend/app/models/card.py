@@ -61,8 +61,8 @@ class Card(Base):
     daily_limit: Mapped[Decimal] = mapped_column(
         Numeric(precision=10, scale=2), default=Decimal("500.00"), nullable=False, server_default="500.00"
     )
-    transaction_limit: Mapped[int] = mapped_column(
-        default=100, nullable=False, server_default="100"
+    transaction_limit: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=2), default=Decimal("500.00"), nullable=False, server_default="500.00"
     )
 
     provider: Mapped[str] = mapped_column(String(50), default="AccountPE", nullable=False)

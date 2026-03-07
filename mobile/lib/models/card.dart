@@ -11,7 +11,7 @@ class VirtualCard {
   final DateTime createdAt;
   final double spendingLimit;
   final double dailyLimit;
-  final int transactionLimit;
+  final double transactionLimit;
 
   VirtualCard({
     required this.id,
@@ -25,7 +25,7 @@ class VirtualCard {
     required this.createdAt,
     this.spendingLimit = 500.0,
     this.dailyLimit = 500.0,
-    this.transactionLimit = 100,
+    this.transactionLimit = 500.0,
   });
 
   /// Check if card is active
@@ -86,9 +86,9 @@ class VirtualCard {
         : double.tryParse(rawDailyLimit?.toString() ?? '') ?? 500.0;
 
     final rawTransactionLimit = json['transaction_limit'];
-    final transactionLimit = rawTransactionLimit is int
-        ? rawTransactionLimit
-        : int.tryParse(rawTransactionLimit?.toString() ?? '') ?? 100;
+    final transactionLimit = rawTransactionLimit is num
+        ? rawTransactionLimit.toDouble()
+        : double.tryParse(rawTransactionLimit?.toString() ?? '') ?? 500.0;
 
     return VirtualCard(
       id: json['id'] as String,
@@ -137,7 +137,7 @@ class VirtualCard {
     DateTime? createdAt,
     double? spendingLimit,
     double? dailyLimit,
-    int? transactionLimit,
+    double? transactionLimit,
   }) {
     return VirtualCard(
       id: id ?? this.id,

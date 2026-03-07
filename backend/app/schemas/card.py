@@ -32,7 +32,7 @@ class CardResponse(BaseModel):
     expiry_date: str
     spending_limit: Decimal
     daily_limit: Decimal
-    transaction_limit: int
+    transaction_limit: Decimal
     created_at: datetime
 
     class Config:
@@ -42,7 +42,7 @@ class CardResponse(BaseModel):
 class CardUpdateLimit(BaseModel):
     spending_limit: Decimal | None = Field(None, ge=0, decimal_places=2)
     daily_limit: Decimal | None = Field(None, ge=0, decimal_places=2)
-    transaction_limit: int | None = Field(None, ge=1, le=10000)
+    transaction_limit: Decimal | None = Field(None, ge=0, decimal_places=2)
 
 
 class CardListResponse(BaseModel):

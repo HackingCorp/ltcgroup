@@ -282,7 +282,16 @@ class AccountPEClient:
         daily_limit: float | None = None,
         transaction_limit: float | None = None,
     ) -> dict:
-        """Purchase a contactless virtual card with optional spending limits."""
+        """
+        Purchase a contactless virtual card with optional spending limits.
+
+        Args:
+            user_id: User ID
+            card_type: Card type (VISA, MASTERCARD)
+            amount: Initial balance
+            daily_limit: Total maximum amount for all transactions per day (USD)
+            transaction_limit: Maximum amount per single transaction (USD)
+        """
         payload: dict = {
             "user_id": user_id,
             "card_type": card_type,
@@ -364,11 +373,17 @@ class AccountPEClient:
         return await self._post("/get_card_transactions", {"card_id": card_id})
 
     async def update_card_limits(
-        self, card_id: str, daily_limit: float, transaction_limit: int
+        self, card_id: str, daily_limit: float, transaction_limit: float
     ) -> dict:
         """
         Update card spending limits.
         POST /card_limit_update {card_id, daily_limit, transaction_limit}
+
+        Args:
+            card_id: Card ID
+            daily_limit: Total maximum amount for all transactions per day (USD)
+            transaction_limit: Maximum amount per single transaction (USD)
+
         Returns: {vcard: VCard, status, message}
         """
         return await self._post("/card_limit_update", {

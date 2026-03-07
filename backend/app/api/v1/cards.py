@@ -764,7 +764,7 @@ async def update_card_limit(
             await accountpe_client.update_card_limits(
                 card_id=card.provider_card_id,
                 daily_limit=float(payload.daily_limit),
-                transaction_limit=payload.transaction_limit,
+                transaction_limit=float(payload.transaction_limit),
             )
             logger.info(f"Updated card limits on AccountPE for card {card_id}: daily={payload.daily_limit}, tx={payload.transaction_limit}")
         except AccountPEError as e:
