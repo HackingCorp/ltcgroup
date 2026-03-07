@@ -161,7 +161,10 @@ class CardsProvider with ChangeNotifier {
     _error = null;
 
     try {
-      final updatedCard = await _apiService.updateCardLimit(cardId, spendingLimit);
+      final updatedCard = await _apiService.updateCardLimit(
+        cardId,
+        spendingLimit: spendingLimit,
+      );
 
       final index = _cards.indexWhere((card) => card.id == cardId);
       if (index != -1) {
