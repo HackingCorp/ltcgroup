@@ -30,8 +30,7 @@ class CardsProvider with ChangeNotifier {
     final showLoading = _cards.isEmpty;
     if (showLoading) {
       _isLoading = true;
-      // Defer notification to avoid calling during build phase
-      Future.microtask(() => notifyListeners());
+      notifyListeners();
     }
     _error = null;
 
