@@ -42,7 +42,7 @@ class CardResponse(BaseModel):
 class CardUpdateLimit(BaseModel):
     spending_limit: Decimal | None = Field(None, ge=0, decimal_places=2)
     daily_limit: Decimal | None = Field(None, ge=0, decimal_places=2)
-    transaction_limit: int | None = Field(None, ge=1, le=1000)
+    transaction_limit: int | None = Field(None, ge=1, le=10000)
 
 
 class CardListResponse(BaseModel):
