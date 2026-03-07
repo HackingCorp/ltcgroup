@@ -787,7 +787,7 @@ async def update_card_limit(
         details={
             "spending_limit": str(card.spending_limit),
             "daily_limit": str(card.daily_limit),
-            "transaction_limit": card.transaction_limit,
+            "transaction_limit": str(card.transaction_limit),
         },
         ip_address=request.client.host if request.client else None,
     )
