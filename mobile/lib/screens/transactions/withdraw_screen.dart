@@ -203,13 +203,19 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                   items: cardsProvider.cards
                       .where((card) => card.isActive && card.balance > 0)
                       .map(
-                        (card) => DropdownMenuItem(
-                          value: card.id,
-                          child: Text(
-                            '${card.type} ${card.maskedNumber.substring(15)} - ${card.balance.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
-                            style: const TextStyle(color: LTCColors.textPrimary),
-                          ),
-                        ),
+                        (card) {
+                          // Extract last 4 digits safely
+                          final last4 = card.maskedNumber.length >= 4
+                              ? card.maskedNumber.substring(card.maskedNumber.length - 4)
+                              : card.maskedNumber;
+                          return DropdownMenuItem(
+                            value: card.id,
+                            child: Text(
+                              '${card.type} ****$last4 - ${card.balance.toStringAsFixed(2)} ${AppConstants.currencySymbol}',
+                              style: const TextStyle(color: LTCColors.textPrimary),
+                            ),
+                          );
+                        },
                       )
                       .toList(),
                   onChanged: (value) {
