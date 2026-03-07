@@ -497,16 +497,32 @@ class ApiService {
     }
   }
 
-  /// Update card spending limit
-  Future<VirtualCard> updateCardLimit(String cardId, double limit) async {
+  /// Update card spending limits (spending_limit, daily_limit, transaction_limit)
+  /// All parameters are optional - only provided limits will be updated
+  Future<VirtualCard> updateCardLimit(
+    String cardId, {
+    double? spendingLimit,
+    double? dailyLimit,
+    int? transactionLimit,
+  }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.cardsEndpoint}/$cardId/limit');
     final headers = await _getAuthHeaders();
+
+    // Build request body with only provided limits
+    final Map<String, dynamic> body = {};
+    if (spendingLimit != null) body['spending_limit'] = spendingLimit;
+    if (dailyLimit != null) body['daily_limit'] = dailyLimit;
+    if (transactionLimit != null) body['transaction_limit'] = transactionLimit;
+
+    if (body.isEmpty) {
+      throw Exception('Au moins une limite doit etre fournie');
+    }
 
     try {
       final response = await http.patch(
         url,
         headers: headers,
-        body: json.encode({'spending_limit': limit}),
+        body: json.encode(body),
       ).timeout(ApiConfig.timeout);
 
       if (response.statusCode == 200) {
@@ -517,7 +533,7 @@ class ApiService {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Erreur de mise a jour du plafond: $e');
+      throw Exception('Erreur de mise a jour des limites: $e');
     }
   }
 

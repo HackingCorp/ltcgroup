@@ -725,13 +725,15 @@ async def replace_card(
 
 @router.patch("/{card_id}/limit", response_model=CardResponse)
 async def update_card_limit(
+    request: Request,
     card_id: str,
     payload: CardUpdateLimit,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Update the spending limit for a card.
+    Update spending limits for a card (spending_limit, daily_limit, transaction_limit).
+    Syncs with AccountPE if daily_limit and transaction_limit are provided.
     """
     result = await db.execute(select(Card).where(Card.id == card_id))
     card = result.scalar_one_or_none()
@@ -742,9 +744,53 @@ async def update_card_limit(
     if card.user_id != current_user.id:
         raise UnauthorizedCardAccessException()
 
-    card.spending_limit = payload.spending_limit
+    # Update local limits if provided
+    if payload.spending_limit is not None:
+        card.spending_limit = payload.spending_limit
+    if payload.daily_limit is not None:
+        card.daily_limit = payload.daily_limit
+    if payload.transaction_limit is not None:
+        card.transaction_limit = payload.transaction_limit
+
+    # Sync with AccountPE if both daily_limit and transaction_limit are provided
+    if payload.daily_limit is not None and payload.transaction_limit is not None:
+        if not card.provider_card_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Carte sans identifiant fournisseur",
+            )
+
+        try:
+            await accountpe_client.update_card_limits(
+                card_id=card.provider_card_id,
+                daily_limit=float(payload.daily_limit),
+                transaction_limit=payload.transaction_limit,
+            )
+            logger.info(f"Updated card limits on AccountPE for card {card_id}: daily={payload.daily_limit}, tx={payload.transaction_limit}")
+        except AccountPEError as e:
+            logger.warning(f"AccountPE update_card_limits error for card {card_id}: {e}")
+            # Don't fail the request - limits are updated locally even if provider sync fails
+        except Exception as e:
+            logger.error(f"Failed to sync card limits with AccountPE for card {card_id}: {e}")
+            # Continue - limits are saved locally
+
     await db.commit()
     await db.refresh(card)
+
+    # Log audit event
+    await log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        action="card_limit_update",
+        resource_type="card",
+        resource_id=str(card_id),
+        details={
+            "spending_limit": str(card.spending_limit),
+            "daily_limit": str(card.daily_limit),
+            "transaction_limit": card.transaction_limit,
+        },
+        ip_address=request.client.host if request.client else None,
+    )
 
     return CardResponse.model_validate(card)
 

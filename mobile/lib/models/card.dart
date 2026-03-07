@@ -10,6 +10,8 @@ class VirtualCard {
   final DateTime expiryDate;
   final DateTime createdAt;
   final double spendingLimit;
+  final double dailyLimit;
+  final int transactionLimit;
 
   VirtualCard({
     required this.id,
@@ -22,6 +24,8 @@ class VirtualCard {
     required this.expiryDate,
     required this.createdAt,
     this.spendingLimit = 500.0,
+    this.dailyLimit = 500.0,
+    this.transactionLimit = 100,
   });
 
   /// Check if card is active
@@ -76,6 +80,16 @@ class VirtualCard {
         ? rawLimit.toDouble()
         : double.tryParse(rawLimit?.toString() ?? '') ?? 500.0;
 
+    final rawDailyLimit = json['daily_limit'];
+    final dailyLimit = rawDailyLimit is num
+        ? rawDailyLimit.toDouble()
+        : double.tryParse(rawDailyLimit?.toString() ?? '') ?? 500.0;
+
+    final rawTransactionLimit = json['transaction_limit'];
+    final transactionLimit = rawTransactionLimit is int
+        ? rawTransactionLimit
+        : int.tryParse(rawTransactionLimit?.toString() ?? '') ?? 100;
+
     return VirtualCard(
       id: json['id'] as String,
       type: json['card_type'] as String,
@@ -87,6 +101,8 @@ class VirtualCard {
       expiryDate: expiryDate,
       createdAt: DateTime.parse(json['created_at'] as String),
       spendingLimit: spendingLimit,
+      dailyLimit: dailyLimit,
+      transactionLimit: transactionLimit,
     );
   }
 
@@ -103,6 +119,8 @@ class VirtualCard {
       'expiry_date': expiryDate.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'spending_limit': spendingLimit,
+      'daily_limit': dailyLimit,
+      'transaction_limit': transactionLimit,
     };
   }
 
@@ -118,6 +136,8 @@ class VirtualCard {
     DateTime? expiryDate,
     DateTime? createdAt,
     double? spendingLimit,
+    double? dailyLimit,
+    int? transactionLimit,
   }) {
     return VirtualCard(
       id: id ?? this.id,
@@ -130,6 +150,8 @@ class VirtualCard {
       expiryDate: expiryDate ?? this.expiryDate,
       createdAt: createdAt ?? this.createdAt,
       spendingLimit: spendingLimit ?? this.spendingLimit,
+      dailyLimit: dailyLimit ?? this.dailyLimit,
+      transactionLimit: transactionLimit ?? this.transactionLimit,
     );
   }
 }

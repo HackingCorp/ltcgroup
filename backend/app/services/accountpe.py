@@ -363,5 +363,19 @@ class AccountPEClient:
         """
         return await self._post("/get_card_transactions", {"card_id": card_id})
 
+    async def update_card_limits(
+        self, card_id: str, daily_limit: float, transaction_limit: int
+    ) -> dict:
+        """
+        Update card spending limits.
+        POST /card_limit_update {card_id, daily_limit, transaction_limit}
+        Returns: {vcard: VCard, status, message}
+        """
+        return await self._post("/card_limit_update", {
+            "card_id": card_id,
+            "daily_limit": daily_limit,
+            "transaction_limit": transaction_limit,
+        })
+
 
 accountpe_client = AccountPEClient()
