@@ -27,8 +27,8 @@ class CertificatePinning {
   ///
   /// Example: 'AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01'
   static const List<String> trustedFingerprints = [
-    // TODO: Add the SHA-1 fingerprint of api.ltcgroup.site before production release.
-    // Run the openssl command above to obtain it.
+    // Production SSL certificate for api.ltcgroup.site (added 2026-03-08)
+    '27:7B:66:26:CE:2A:4C:F6:67:5B:30:42:21:3F:C0:03:91:89:C4:9B',
   ];
 
   /// Hosts for which certificate pinning is enforced.

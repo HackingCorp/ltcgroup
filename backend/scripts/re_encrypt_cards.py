@@ -18,66 +18,78 @@ import os
 sys.path.insert(0, '/app')
 
 from sqlalchemy import select
-from app.db.session import get_db_session
+from app.database import async_session
 from app.models.card import Card
-from app.services.accountpe import AccountPEService
+from app.services.accountpe import AccountPEClient
 from app.utils.encryption import encrypt_field
-from app.core.config import settings
+from app.config import settings
 
 
 async def re_encrypt_all_cards():
     """Re-encrypt all cards with the current encryption key."""
 
-    accountpe = AccountPEService()
+    accountpe = AccountPEClient()
 
-    async with get_db_session() as db:
-        # Get all cards
+    async with async_session() as db:
+        # Get all cards (fetch all attributes eagerly to avoid detached instance issues)
         result = await db.execute(select(Card))
-        cards = result.scalars().all()
+        cards_query = result.scalars().all()
+
+        # Convert to list of dicts to avoid SQLAlchemy lazy loading issues
+        cards = []
+        for card in cards_query:
+            cards.append({
+                'id': str(card.id),
+                'card_number_masked': card.card_number_masked,
+                'provider_card_id': card.provider_card_id
+            })
 
         print(f"Found {len(cards)} cards to re-encrypt")
 
         success_count = 0
         error_count = 0
 
-        for card in cards:
-            print(f"\nProcessing card {card.id} (masked: {card.card_number_masked})")
+        for card_dict in cards:
+            print(f"\nProcessing card {card_dict['id']} (masked: {card_dict['card_number_masked']})")
 
             try:
                 # Fetch full card details from AccountPE
-                card_details = await accountpe.get_virtual_card_details(card.provider_card_id)
+                card_details = await accountpe.get_card_details(card_dict['provider_card_id'])
 
                 if card_details.get("status") != 200:
                     print(f"  ERROR: AccountPE returned status {card_details.get('status')}: {card_details.get('message')}")
                     error_count += 1
                     continue
 
-                # Get card data from response
-                data = card_details.get("data", {})
-                card_list = data.get("card_list", [])
+                # Get card data from response - card_list is directly at root level
+                card_list = card_details.get("card_list", {})
 
                 if not card_list:
                     print(f"  ERROR: No card data in AccountPE response")
                     error_count += 1
                     continue
 
-                card_data = card_list[0]
-                card_number = card_data.get("card_number")
+                # AccountPE returns the card number in "encrypted_cardnumber" field
+                # (despite the name, it's actually the plaintext PAN that AccountPE stores encrypted)
+                card_number = card_list.get("encrypted_cardnumber")
 
                 if not card_number:
-                    print(f"  ERROR: Missing card_number in AccountPE response")
+                    print(f"  ERROR: Missing card number in AccountPE response")
                     error_count += 1
                     continue
 
                 # Re-encrypt with current key (CVV is no longer stored — PCI DSS)
                 encrypted_card_number = encrypt_field(card_number)
 
-                # Update database
-                card.card_number_full_encrypted = encrypted_card_number
-
+                # Update database - fetch the card object fresh
+                from sqlalchemy import update as sql_update
+                stmt = sql_update(Card).where(Card.id == card_dict['id']).values(
+                    card_number_full_encrypted=encrypted_card_number
+                )
+                await db.execute(stmt)
                 await db.commit()
 
-                print(f"  SUCCESS: Re-encrypted card {card.id}")
+                print(f"  SUCCESS: Re-encrypted card {card_dict['id']}")
                 success_count += 1
 
             except Exception as e:
