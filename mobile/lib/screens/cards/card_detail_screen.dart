@@ -9,6 +9,7 @@ import '../../config/theme.dart';
 import '../../config/constants.dart';
 import '../../services/api_service.dart';
 import '../../services/biometric_service.dart';
+import '../../services/screen_security_service.dart';
 
 class CardDetailScreen extends StatefulWidget {
   const CardDetailScreen({super.key});
@@ -31,6 +32,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Prevent screenshots/screen recording on this sensitive screen
+    ScreenSecurityService.enableProtection();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProviderHistory();
       // Also refresh the card data from backend
@@ -45,6 +48,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    // Re-allow screenshots when leaving this screen
+    ScreenSecurityService.disableProtection();
     // Overwrite sensitive data in memory before releasing references
     if (_revealedCardNumber != null) {
       _revealedCardNumber = '0' * _revealedCardNumber!.length;

@@ -2,21 +2,29 @@
 Encryption utilities for sensitive card data using Fernet symmetric encryption.
 """
 import base64
-import hashlib
 from functools import lru_cache
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
 
 from app.config import settings
 
 
 def _derive_fernet_key(encryption_key: str) -> bytes:
     """
-    Derive a valid Fernet key from the encryption_key setting.
+    Derive a valid Fernet key from the encryption_key setting using HKDF.
     Fernet requires a 32-byte URL-safe base64-encoded key.
+
+    Uses HKDF (HMAC-based Key Derivation Function) with SHA-256,
+    which is cryptographically superior to a plain SHA-256 hash.
     """
-    # Hash the encryption key to get consistent 32 bytes
-    key_bytes = hashlib.sha256(encryption_key.encode()).digest()
-    # Encode to base64 for Fernet
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"ltcgroup-card-encryption-salt",
+        info=b"fernet-key-derivation",
+    )
+    key_bytes = hkdf.derive(encryption_key.encode())
     return base64.urlsafe_b64encode(key_bytes)
 
 

@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
     wallet_balance: Decimal = Decimal("0.00")
     country_code: str = "CM"
     local_currency: str | None = None
+    consent_given_at: datetime | None = None
     created_at: datetime
 
     class Config:

@@ -48,7 +48,7 @@ class User(Base):
 
     # KYC document details
     id_proof_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    id_proof_no: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    id_proof_no: Mapped[str | None] = mapped_column(String(500), nullable=True)  # encrypted (Fernet)
     id_proof_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
     kyc_document_front_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     kyc_document_back_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -71,6 +71,9 @@ class User(Base):
 
     # AccountPE provider user ID (set on first card purchase)
     accountpe_user_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+
+    # GDPR consent timestamp (recorded at registration)
+    consent_given_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Password reset fields (columns created by Base.metadata.create_all in dev)
     reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True)

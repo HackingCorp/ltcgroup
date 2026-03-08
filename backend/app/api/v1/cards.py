@@ -219,7 +219,6 @@ async def purchase_card(
     card_number_full = ""
     card_number_masked = "****0000"
     expiry_date = "12/29"
-    cvv = "000"
     balance_from_provider = card_data.initial_balance
     currency = "USD"
 
@@ -232,9 +231,6 @@ async def purchase_card(
                 raise ValueError("Card number not returned by provider")
             masked = vcard.get("masked_pan", "")
             card_number_masked = masked if masked else (f"****{card_number_full[-4:]}" if len(card_number_full) >= 4 else "****0000")
-            cvv = vcard.get("encrypted_cvv", "")
-            if not cvv:
-                raise ValueError("CVV not returned by provider")
             raw_expiry = vcard.get("expiry", "")
             if not raw_expiry:
                 raise ValueError("Expiry not returned by provider")
@@ -265,6 +261,7 @@ async def purchase_card(
         )
 
     # Store card in database with encrypted sensitive fields
+    # NOTE: CVV is NOT stored (PCI DSS compliance) — fetched from provider on reveal
     new_card = Card(
         user_id=current_user.id,
         card_type=card_data.card_type,
@@ -277,7 +274,6 @@ async def purchase_card(
         provider="AccountPE",
         provider_card_id=provider_card_id,
         expiry_date=expiry_date,
-        cvv_encrypted=encrypt_field(cvv),
     )
     db.add(new_card)
 
@@ -648,7 +644,6 @@ async def replace_card(
     card_number_full = ""
     card_number_masked = "****0000"
     expiry_date = "12/29"
-    cvv = "000"
     balance_from_provider = old_card.balance
     currency = old_card.currency or "USD"
 
@@ -662,9 +657,6 @@ async def replace_card(
         card_number_masked = masked if masked else (
             f"****{card_number_full[-4:]}" if len(card_number_full) >= 4 else "****0000"
         )
-        cvv = det.get("encrypted_cvv", "")
-        if not cvv:
-            raise ValueError("CVV not returned")
         raw_expiry = det.get("expiry", "")
         if not raw_expiry:
             raise ValueError("Expiry not returned")
@@ -688,7 +680,7 @@ async def replace_card(
     # Mark old card as blocked
     old_card.status = CardStatus.BLOCKED
 
-    # Create new card record
+    # Create new card record (CVV NOT stored — PCI DSS compliance)
     new_card = Card(
         user_id=current_user.id,
         card_type=old_card.card_type,
@@ -701,7 +693,6 @@ async def replace_card(
         provider="AccountPE",
         provider_card_id=new_provider_card_id,
         expiry_date=expiry_date,
-        cvv_encrypted=encrypt_field(cvv),
         spending_limit=old_card.spending_limit,
     )
     db.add(new_card)
@@ -804,7 +795,10 @@ async def reveal_card_details(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Reveal full card number and CVV (rate limited to 5 requests/minute and logged for security).
+    Reveal full card number and CVV.
+    Card number is decrypted from DB; CVV is fetched from AccountPE on demand
+    (not stored locally — PCI DSS compliance). CVV is cached in Redis for 30s.
+    Rate limited to 5 requests/minute and logged for security.
     """
     result = await db.execute(select(Card).where(Card.id == card_id))
     card = result.scalar_one_or_none()
@@ -815,10 +809,9 @@ async def reveal_card_details(
     if card.user_id != current_user.id:
         raise UnauthorizedCardAccessException()
 
-    # Decrypt sensitive fields
+    # Decrypt card number from DB
     try:
         card_number_full = decrypt_field(card.card_number_full_encrypted)
-        cvv = decrypt_field(card.cvv_encrypted)
     except Exception:
         logger.error(f"Card decryption failed: card_id={card_id}, user_id={current_user.id}")
         raise HTTPException(
@@ -826,9 +819,48 @@ async def reveal_card_details(
             detail="Impossible d'acceder aux details de la carte. Veuillez reessayer.",
         )
 
+    # Fetch CVV from provider (with short Redis cache to avoid hammering AccountPE)
+    cvv = None
+    redis = getattr(request.app.state, "redis", None)
+    cache_key = f"cvv_cache:{card.provider_card_id}"
+
+    if redis:
+        try:
+            cached_cvv = await redis.get(cache_key)
+            if cached_cvv:
+                cvv = cached_cvv.decode() if isinstance(cached_cvv, bytes) else cached_cvv
+        except Exception:
+            pass
+
+    if not cvv:
+        try:
+            details_resp = await accountpe_client.get_card_details(str(card.provider_card_id))
+            vcard = details_resp.get("data") or details_resp.get("card_list") or details_resp
+            cvv = vcard.get("encrypted_cvv", "")
+            if not cvv:
+                raise ValueError("CVV not returned by provider")
+            # Cache CVV in Redis for 30 seconds
+            if redis:
+                try:
+                    await redis.setex(cache_key, 30, cvv)
+                except Exception:
+                    pass
+        except AccountPEError as e:
+            logger.error(f"AccountPE CVV fetch failed for card {card_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Impossible de recuperer le CVV depuis le fournisseur.",
+            )
+        except Exception as e:
+            logger.error(f"CVV fetch failed for card {card_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Impossible de recuperer le CVV. Veuillez reessayer.",
+            )
+
     # Log card reveal for audit
     logger.info(
-        f"Card revealed",
+        "Card revealed",
         extra={
             "extra_fields": {
                 "user_id": str(current_user.id),

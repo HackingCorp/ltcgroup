@@ -343,7 +343,6 @@ async def test_get_transactions_unauthorized(test_client: AsyncClient, test_user
         provider="AccountPE",
         provider_card_id="other_card_456",
         expiry_date="12/29",
-        cvv_encrypted="789",
     )
     test_db.add(other_card)
     await test_db.commit()

@@ -37,6 +37,7 @@ from app.services.payout import payout_client, PayoutError
 from app.services.exchange_rate import exchange_rate_service
 from app.middleware.rate_limit import limiter
 from app.utils.logging_config import get_logger
+from app.utils.audit import log_audit_event
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/wallet", tags=["Wallet"])
@@ -172,6 +173,14 @@ async def topup_wallet(
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
+
+    # Audit log: wallet topup initiated
+    await log_audit_event(
+        db, current_user.id, action="wallet_topup", resource_type="transaction",
+        resource_id=str(transaction.id),
+        details={"amount_usd": str(amount_usd), "payment_method": data.payment_method},
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Initiate payment with provider (amount in local currency)
     try:
@@ -528,6 +537,14 @@ async def transfer_to_card(
     await db.commit()
     await db.refresh(transaction)
 
+    # Audit log: wallet to card transfer
+    await log_audit_event(
+        db, current_user.id, action="wallet_transfer_to_card", resource_type="transaction",
+        resource_id=str(transaction.id),
+        details={"amount": str(data.amount), "fee": str(fee), "card_id": str(card.id)},
+        ip_address=request.client.host if request.client else None,
+    )
+
     # Re-fetch updated balances
     result = await db.execute(select(User).where(User.id == current_user.id))
     updated_user = result.scalar_one()
@@ -650,6 +667,14 @@ async def withdraw_from_wallet(
     db.add(transaction)
     await db.commit()
     await db.refresh(transaction)
+
+    # Audit log: wallet withdrawal initiated
+    await log_audit_event(
+        db, current_user.id, action="wallet_withdrawal", resource_type="transaction",
+        resource_id=str(transaction.id),
+        details={"amount_usd": str(amount_usd), "phone": data.phone},
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Initiate payout via AccountPE Payout API
     try:

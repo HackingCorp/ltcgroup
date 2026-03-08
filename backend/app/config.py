@@ -1,3 +1,4 @@
+import os
 import secrets
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,9 +23,9 @@ class Settings(BaseSettings):
 
     encryption_key: str = ""
 
-    # Database pool settings
-    db_pool_size: int = 20
-    db_max_overflow: int = 10
+    # Database pool settings (4 workers x 10 conns = 40 max, well under PG 100 limit)
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800
 
@@ -86,7 +87,10 @@ class Settings(BaseSettings):
     def validate_secrets(self) -> "Settings":
         if self.environment != "development":
             if not self.jwt_secret_key:
-                raise ValueError("jwt_secret_key must be set in non-development environments")
+                raise ValueError(
+                    "JWT_SECRET_KEY must be set in production. "
+                    "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
             if not self.encryption_key:
                 raise ValueError("encryption_key must be set in non-development environments")
             if not self.payin_webhook_secret:
@@ -94,8 +98,10 @@ class Settings(BaseSettings):
             if not self.enkap_webhook_secret:
                 raise ValueError("enkap_webhook_secret must be set in non-development environments")
         else:
+            # In development, generate a random secret per process start
+            # (no hardcoded fallback to avoid accidental production use)
             if not self.jwt_secret_key:
-                self.jwt_secret_key = "dev-jwt-secret-stable-key-do-not-use-in-production"
+                self.jwt_secret_key = secrets.token_hex(32)
             if not self.encryption_key:
                 self.encryption_key = "dev-encryption-key-stable-do-not-use-in-production"
         return self

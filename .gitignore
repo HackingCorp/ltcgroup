@@ -60,8 +60,22 @@ mobile/ios/Pods/
 mobile/ios/.symlinks/
 mobile/*.iml
 
+# Firebase config files (contain API keys - must not be in repo)
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+
+# Android signing
+mobile/android/key.properties
+mobile/android/*.jks
+mobile/android/app/*.jks
+
 # --- Docker ---
 docker-compose.override.yml
+
+# --- Secrets & Backups ---
+secrets/
+backups/
+*.sql.gz
 
 # --- IDE ---
 .idea/

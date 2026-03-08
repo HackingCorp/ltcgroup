@@ -69,7 +69,6 @@ class Card(Base):
     provider_card_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
 
     expiry_date: Mapped[str] = mapped_column(String(5), nullable=False)
-    cvv_encrypted: Mapped[str] = mapped_column(String(255), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False

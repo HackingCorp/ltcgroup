@@ -194,7 +194,6 @@ async def test_card(test_db: AsyncSession, test_user: User) -> Card:
         provider="AccountPE",
         provider_card_id="accountpe_card_123",
         expiry_date="12/29",
-        cvv_encrypted="123",
     )
     test_db.add(card)
     await test_db.commit()

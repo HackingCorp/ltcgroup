@@ -13,6 +13,13 @@ import time
 from datetime import datetime as dt
 from app.config import settings
 from app.utils.logging_config import get_logger
+from app.utils.cache import (
+    get_cached_card_details,
+    set_cached_card_details,
+    get_cached_card_transactions,
+    set_cached_card_transactions,
+    invalidate_card_cache,
+)
 
 logger = get_logger(__name__)
 
@@ -313,10 +320,15 @@ class AccountPEClient:
 
     async def get_card_details(self, card_id: str) -> dict:
         """
-        Get virtual card details.
+        Get virtual card details (cached in Redis for 30s).
         POST /get_virtual_card_details {card_id}
         """
-        return await self._post("/get_virtual_card_details", {"card_id": card_id})
+        cached = await get_cached_card_details(card_id)
+        if cached is not None:
+            return cached
+        data = await self._post("/get_virtual_card_details", {"card_id": card_id})
+        await set_cached_card_details(card_id, data)
+        return data
 
     async def recharge_card(self, card_id: str, amount: float) -> dict:
         """
@@ -324,10 +336,12 @@ class AccountPEClient:
         POST /recharge_vcard {card_id, amount}
         Returns: {vcard: VCard, status, message}
         """
-        return await self._post("/recharge_vcard", {
+        data = await self._post("/recharge_vcard", {
             "card_id": card_id,
             "amount": amount,
         })
+        await invalidate_card_cache(card_id)
+        return data
 
     async def withdraw_fund(self, card_id: str, amount: float) -> dict:
         """
@@ -335,10 +349,12 @@ class AccountPEClient:
         POST /withdraw_fund {card_id, amount}
         Returns: {vcard: VCard, status, message}
         """
-        return await self._post("/withdraw_fund", {
+        data = await self._post("/withdraw_fund", {
             "card_id": card_id,
             "amount": amount,
         })
+        await invalidate_card_cache(card_id)
+        return data
 
     async def freeze_card(self, card_id: str) -> dict:
         """
@@ -346,31 +362,46 @@ class AccountPEClient:
         POST /freeze_card {card_id}
         Returns: {vcard: VCard, status, message}
         """
-        return await self._post("/freeze_card", {"card_id": card_id})
+        data = await self._post("/freeze_card", {"card_id": card_id})
+        await invalidate_card_cache(card_id)
+        return data
 
     async def unfreeze_card(self, card_id: str) -> dict:
         """POST /unfreeze_card {card_id}"""
-        return await self._post("/unfreeze_card", {"card_id": card_id})
+        data = await self._post("/unfreeze_card", {"card_id": card_id})
+        await invalidate_card_cache(card_id)
+        return data
 
     async def block_card(self, card_id: str) -> dict:
         """POST /block_card {card_id}"""
-        return await self._post("/block_card", {"card_id": card_id})
+        data = await self._post("/block_card", {"card_id": card_id})
+        await invalidate_card_cache(card_id)
+        return data
 
     async def replace_card(self, card_id: str) -> dict:
         """POST /replace_card {card_id}"""
-        return await self._post("/replace_card", {"card_id": card_id})
+        data = await self._post("/replace_card", {"card_id": card_id})
+        await invalidate_card_cache(card_id)
+        return data
 
     async def replace_terminated_card(self, card_id: str) -> dict:
         """POST /terminated_card_replacement {card_id}"""
-        return await self._post("/terminated_card_replacement", {"card_id": card_id})
+        data = await self._post("/terminated_card_replacement", {"card_id": card_id})
+        await invalidate_card_cache(card_id)
+        return data
 
     async def get_card_transactions(self, card_id: str) -> dict:
         """
-        Get card transaction history.
+        Get card transaction history (cached in Redis for 30s).
         POST /get_card_transactions {card_id}
         Returns: {transactions: [Transaction...]}
         """
-        return await self._post("/get_card_transactions", {"card_id": card_id})
+        cached = await get_cached_card_transactions(card_id)
+        if cached is not None:
+            return cached
+        data = await self._post("/get_card_transactions", {"card_id": card_id})
+        await set_cached_card_transactions(card_id, data)
+        return data
 
     async def update_card_limits(
         self, card_id: str, daily_limit: float, transaction_limit: float
@@ -386,11 +417,13 @@ class AccountPEClient:
 
         Returns: {vcard: VCard, status, message}
         """
-        return await self._post("/card_limit_update", {
+        data = await self._post("/card_limit_update", {
             "card_id": card_id,
             "daily_limit": daily_limit,
             "transaction_limit": transaction_limit,
         })
+        await invalidate_card_cache(card_id)
+        return data
 
 
 accountpe_client = AccountPEClient()

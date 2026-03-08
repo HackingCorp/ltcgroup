@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -40,6 +41,10 @@ async def lifespan(app: FastAPI):
     # Initialize exchange rate service with Redis
     from app.services.exchange_rate import exchange_rate_service
     exchange_rate_service.set_redis(app.state.redis)
+
+    # Initialize cache Redis client
+    from app.utils.cache import set_cache_redis
+    set_cache_redis(app.state.redis)
 
     yield
 
@@ -123,6 +128,9 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestSizeLimitMiddleware)
+
+# GZip compression for responses >= 1KB (~60% size reduction for JSON)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.exception_handler(Exception)

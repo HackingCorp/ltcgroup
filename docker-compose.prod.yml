@@ -1,0 +1,151 @@
+# =============================================
+# LTC Group - Production Docker Compose
+# =============================================
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file overrides the base docker-compose.yml for production:
+# - Docker Secrets instead of environment variables for sensitive data
+# - Nginx reverse proxy with SSL (Let's Encrypt)
+# - Daily PostgreSQL backup service
+# - Backend bound to internal network only (not 0.0.0.0)
+# - Non-superuser DB connection
+
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_PASSWORD: ""
+    secrets:
+      - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/create_app_user.sql:/docker-entrypoint-initdb.d/01-create-app-user.sql:ro
+
+  redis:
+    command: >
+      sh -c "redis-server /usr/local/etc/redis/redis.conf
+      --requirepass $$(cat /run/secrets/redis_password)"
+    secrets:
+      - redis_password
+
+  backend:
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
+      JWT_SECRET_KEY_FILE: /run/secrets/jwt_secret
+      ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
+      DATABASE_URL: ""
+      REDIS_URL: ""
+      JWT_SECRET_KEY: ""
+      ENCRYPTION_KEY: ""
+    secrets:
+      - database_url
+      - redis_url
+      - jwt_secret
+      - encryption_key
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    container_name: ltc-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_data:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  certbot:
+    image: certbot/certbot
+    container_name: ltc-certbot
+    volumes:
+      - certbot_data:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
+
+  db-backup:
+    image: postgres:16-alpine
+    container_name: ltc-db-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD_FILE: /run/secrets/db_password
+      PGDATABASE: ${POSTGRES_DB}
+    secrets:
+      - db_password
+    volumes:
+      - db_backups:/backups
+    entrypoint: >
+      /bin/sh -c '
+      echo "Starting backup scheduler...";
+      while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+        BACKUP_FILE="/backups/$${PGDATABASE}_$${TIMESTAMP}.sql.gz";
+        echo "[$$TIMESTAMP] Creating backup...";
+        export PGPASSWORD=$$(cat /run/secrets/db_password);
+        pg_dump -h db -U $${PGUSER} -d $${PGDATABASE} --no-owner --no-privileges | gzip > "$$BACKUP_FILE";
+        if [ $$? -eq 0 ] && [ -s "$$BACKUP_FILE" ]; then
+          SIZE=$$(du -h "$$BACKUP_FILE" | cut -f1);
+          echo "[$$TIMESTAMP] Backup OK: $$BACKUP_FILE ($$SIZE)";
+        else
+          echo "[$$TIMESTAMP] Backup FAILED";
+          rm -f "$$BACKUP_FILE";
+        fi;
+        find /backups -name "*.sql.gz" -mtime +7 -delete;
+        echo "[$$TIMESTAMP] Next backup in 24h";
+        sleep 86400;
+      done'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  database_url:
+    file: ./secrets/database_url.txt
+  redis_url:
+    file: ./secrets/redis_url.txt
+
+volumes:
+  certbot_data:
+  certbot_webroot:
+  db_backups:

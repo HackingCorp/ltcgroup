@@ -5,10 +5,14 @@ import '../models/card.dart';
 import '../models/transaction.dart';
 import '../config/api_config.dart';
 import 'storage_service.dart';
+import 'certificate_pinning.dart';
 
 /// API Service with real HTTP calls
 class ApiService {
   final StorageService _storageService = StorageService();
+
+  /// Shared HTTP client with certificate pinning enabled.
+  static final http.Client _client = CertificatePinning.createPinnedClient();
 
   /// Global callback invoked when a 401 response is received (session expired).
   /// Set this from the AuthProvider to trigger automatic logout.
@@ -25,7 +29,7 @@ class ApiService {
   Future<http.Response> _retryGet(String url, {Map<String, String>? headers, int maxRetries = 2}) async {
     for (int i = 0; i <= maxRetries; i++) {
       try {
-        final response = await http.get(Uri.parse(url), headers: headers).timeout(ApiConfig.timeout);
+        final response = await _client.get(Uri.parse(url), headers: headers).timeout(ApiConfig.timeout);
         // On 401, try refreshing the token once
         if (response.statusCode == 401 && i == 0) {
           final refreshed = await _refreshToken();
@@ -68,7 +72,7 @@ class ApiService {
       if (refreshToken == null) return false;
 
       final url = Uri.parse('${ApiConfig.baseUrl}/auth/refresh');
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +119,7 @@ class ApiService {
     final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.loginEndpoint}');
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: ApiConfig.headers(),
         body: json.encode({'email': email, 'password': password}),
@@ -156,7 +160,7 @@ class ApiService {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/forgot-password');
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: ApiConfig.headers(),
         body: json.encode({'email': email}),
@@ -179,7 +183,7 @@ class ApiService {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/reset-password');
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: ApiConfig.headers(),
         body: json.encode({'token': token, 'new_password': newPassword}),
@@ -203,7 +207,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode({
@@ -245,7 +249,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: ApiConfig.headers(),
         body: json.encode(body),
@@ -302,7 +306,7 @@ class ApiService {
     if (phone != null) body['phone'] = phone;
 
     try {
-      final response = await http.patch(
+      final response = await _client.patch(
         url,
         headers: headers,
         body: json.encode(body),
@@ -336,7 +340,7 @@ class ApiService {
       ..files.add(await http.MultipartFile.fromPath('file', filePath));
 
     try {
-      final streamedResponse = await request.send().timeout(ApiConfig.uploadTimeout);
+      final streamedResponse = await _client.send(request).timeout(ApiConfig.uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -385,7 +389,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -408,7 +412,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.get(url, headers: headers)
+      final response = await _client.get(url, headers: headers)
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -479,7 +483,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -519,7 +523,7 @@ class ApiService {
     }
 
     try {
-      final response = await http.patch(
+      final response = await _client.patch(
         url,
         headers: headers,
         body: json.encode(body),
@@ -543,7 +547,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -566,7 +570,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -589,7 +593,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -612,7 +616,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -695,7 +699,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -729,7 +733,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -773,7 +777,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -854,7 +858,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -877,7 +881,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -907,7 +911,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -930,7 +934,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -960,7 +964,7 @@ class ApiService {
     };
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -1002,7 +1006,7 @@ class ApiService {
     if (countryCode != null) body['country_code'] = countryCode;
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode(body),
@@ -1123,7 +1127,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);
@@ -1147,7 +1151,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
         body: json.encode({'token': token, 'platform': platform}),
@@ -1168,7 +1172,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.delete(
+      final response = await _client.delete(
         url,
         headers: headers,
         body: json.encode({'token': token}),
@@ -1188,7 +1192,7 @@ class ApiService {
     final headers = await _getAuthHeaders();
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: headers,
       ).timeout(ApiConfig.timeout);

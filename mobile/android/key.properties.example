@@ -1,0 +1,12 @@
+# Android release signing configuration
+# Copy this file to key.properties and fill in your values.
+# NEVER commit key.properties to git.
+#
+# To generate a keystore:
+#   keytool -genkey -v -keystore kashpay-release.jks -keyalg RSA \
+#     -keysize 2048 -validity 10000 -alias kashpay
+#
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=kashpay
+storeFile=../kashpay-release.jks

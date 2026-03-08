@@ -20,6 +20,7 @@ class TokenData(BaseModel):
     email: str
     token_type: Optional[str] = None
     jti: Optional[str] = None
+    iat: Optional[int] = None
 
 
 class RefreshTokenRequest(BaseModel):

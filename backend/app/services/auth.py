@@ -94,7 +94,7 @@ def verify_token(token: str) -> TokenData:
         if token_type != "access":
             raise credentials_exception
 
-        return TokenData(user_id=user_id, email=email, token_type=token_type)
+        return TokenData(user_id=user_id, email=email, token_type=token_type, iat=payload.get("iat", 0))
     except InvalidTokenError:
         raise credentials_exception
 
@@ -159,10 +159,9 @@ async def get_current_user(
     token_data = verify_token(token)
 
     # Check if all user tokens were invalidated (e.g. after password change)
+    # Uses iat from verify_token — no second jwt.decode needed (PERF-5)
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        token_iat = payload.get("iat", 0)
-        if await is_user_tokens_invalidated(request, token_data.user_id, token_iat):
+        if await is_user_tokens_invalidated(request, token_data.user_id, token_data.iat or 0):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has been invalidated",

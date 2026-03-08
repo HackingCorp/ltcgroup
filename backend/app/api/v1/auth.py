@@ -15,6 +15,7 @@ from app.services.auth import (
     hash_password, verify_password, create_access_token, create_refresh_token,
     decode_refresh_token, get_current_user,
     blacklist_token, is_token_blacklisted, blacklist_all_user_tokens,
+    is_user_tokens_invalidated,
 )
 from app.services.accountpe import accountpe_client
 from app.services.email import email_service
@@ -22,6 +23,7 @@ from app.utils.exceptions import UserAlreadyExistsException, InvalidCredentialsE
 from app.utils.logging_config import get_logger
 from app.config import settings
 from app.middleware.rate_limit import limiter
+from app.utils.audit import log_audit_event
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -75,6 +77,7 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
         last_name=user_data.last_name,
         hashed_password=hashed_pwd,
         country_code=user_data.country_code,
+        consent_given_at=datetime.now(timezone.utc),
     )
     db.add(new_user)
     await db.commit()
@@ -90,6 +93,14 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
     except Exception as e:
         # Log error but don't fail registration if AccountPE is down
         logger.warning(f"AccountPE registration failed for user {new_user.id}: {str(e)}")
+
+    # Audit log: registration
+    await log_audit_event(
+        db, new_user.id, action="user_register", resource_type="user",
+        resource_id=str(new_user.id),
+        details={"email": new_user.email},
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Generate access + refresh tokens
     token = _create_token_pair(str(new_user.id), new_user.email)
@@ -111,13 +122,34 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
 
     if not user or not verify_password(login_data.password, user.hashed_password):
         logger.warning(f"Failed login attempt for email: {login_data.email}")
+        # Audit log: login failure
+        await log_audit_event(
+            db, user_id=user.id if user else None, action="login_failed",
+            resource_type="user", resource_id=login_data.email,
+            details={"reason": "invalid_credentials"},
+            ip_address=request.client.host if request.client else None,
+        )
         raise InvalidCredentialsException()
 
     if not user.is_active:
+        await log_audit_event(
+            db, user.id, action="login_failed", resource_type="user",
+            resource_id=str(user.id),
+            details={"reason": "account_inactive"},
+            ip_address=request.client.host if request.client else None,
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive",
         )
+
+    # Audit log: login success
+    await log_audit_event(
+        db, user.id, action="login_success", resource_type="user",
+        resource_id=str(user.id),
+        details={"email": user.email},
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Generate access + refresh tokens
     token = _create_token_pair(str(user.id), user.email)
@@ -150,6 +182,30 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Check if user tokens were invalidated (e.g. after password change)
+    import jwt as _jwt
+    try:
+        payload = _jwt.decode(
+            body.refresh_token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+        token_iat = payload.get("iat", 0)
+        if await is_user_tokens_invalidated(request, token_data.user_id, token_iat):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been invalidated due to password change",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Verify user still exists and is active
     result = await db.execute(select(User).where(User.id == token_data.user_id))
     user = result.scalar_one_or_none()
@@ -179,6 +235,7 @@ async def refresh_token(
 async def logout(
     request: Request,
     body: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Logout: blacklist the refresh token so it cannot be reused.
@@ -191,6 +248,13 @@ async def logout(
 
     ttl = settings.refresh_token_expire_minutes * 60
     await blacklist_token(request, token_data.jti, ttl)
+
+    # Audit log: logout
+    await log_audit_event(
+        db, user_id=token_data.user_id, action="logout",
+        resource_type="user", resource_id=str(token_data.user_id),
+        ip_address=request.client.host if request.client else None,
+    )
 
     return {"message": "Logged out successfully"}
 
@@ -215,6 +279,13 @@ async def change_password(
 
     current_user.hashed_password = hash_password(data.new_password)
     await db.commit()
+
+    # Audit log: password change
+    await log_audit_event(
+        db, current_user.id, action="password_change", resource_type="user",
+        resource_id=str(current_user.id),
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Invalidate all existing tokens for this user
     await blacklist_all_user_tokens(request, str(current_user.id))
@@ -296,6 +367,13 @@ async def reset_password(
     user.reset_token = None
     user.reset_token_expires_at = None
     await db.commit()
+
+    # Audit log: password reset
+    await log_audit_event(
+        db, user.id, action="password_reset", resource_type="user",
+        resource_id=str(user.id),
+        ip_address=request.client.host if request.client else None,
+    )
 
     # Invalidate all existing tokens for this user
     try:
