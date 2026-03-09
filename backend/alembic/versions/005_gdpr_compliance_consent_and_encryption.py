@@ -1,7 +1,7 @@
 """GDPR compliance: add consent_given_at, encrypt id_proof_no, widen column
 
 Revision ID: 005_gdpr_compliance
-Revises: 83f07ce99cd5
+Revises: 005_drop_cvv
 Create Date: 2026-03-08
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 # revision identifiers, used by Alembic.
 revision: str = '005_gdpr_compliance'
-down_revision: Union[str, None] = '83f07ce99cd5'
+down_revision: Union[str, None] = '005_drop_cvv'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
