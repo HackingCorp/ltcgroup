@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPaymentLink, getPaymentLinkStatus, PAYIN_COUNTRIES } from "@/lib/payments/payin";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
-import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus } from "@/lib/db";
+import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus, supabase } from "@/lib/db";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
 
@@ -36,6 +36,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate amount
+    if (typeof amount !== 'number' || amount <= 0 || amount > 10000000 || !Number.isFinite(amount)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid amount" },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone format (Cameroon)
+    const phoneClean = phone.replace(/[\s\-\+]/g, '');
+    if (!/^(237)?[62]\d{7,8}$/.test(phoneClean)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid phone number format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate orderRef format
+    if (!/^[A-Za-z0-9\-]{3,50}$/.test(orderRef)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid order reference" },
+        { status: 400 }
+      );
+    }
+
+    // Idempotency: check for existing PENDING transaction with this orderRef
+    const { data: existingTx } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('order_ref', orderRef)
+      .eq('status', 'PENDING')
+      .maybeSingle();
+
+    if (existingTx) {
+      return NextResponse.json({
+        success: true,
+        paymentMethod: existingTx.payment_method,
+        transactionId: existingTx.trid,
+        orderRef: existingTx.order_ref,
+        amount: existingTx.amount,
+        existing: true,
+      });
+    }
+
     if (method === 'mobile_money') {
       // Validate country code
       if (!countryCode || !PAYIN_COUNTRIES[countryCode.toUpperCase()]) {
@@ -48,7 +100,7 @@ export async function POST(request: NextRequest) {
       // Use Payin for Mobile Money (payment link)
       // Build the redirect URL for after payment (user-facing callback page)
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
-      const redirectUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${orderRef}&method=mobile_money`;
+      const redirectUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${encodeURIComponent(orderRef)}&method=mobile_money`;
 
       const result = await createPaymentLink({
         amount,

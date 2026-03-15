@@ -3,9 +3,9 @@ import nodemailer from "nodemailer";
 import { updateOrderPaymentStatus, updateTransactionStatus, getTransaction } from "@/lib/db";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
-const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
-const TEAM_PHONE = "237673209375";
-const TEAM_EMAIL = "lontsi05@gmail.com";
+const WAZEAPP_API_KEY = process.env.WAZEAPP_API_KEY || '';
+const TEAM_PHONE = process.env.TEAM_WHATSAPP_PHONE || '237673209375';
+const TEAM_EMAIL = process.env.TEAM_NOTIFICATION_EMAIL || 'lontsi05@gmail.com';
 
 // Email transporter — uses same SMTP env vars as contact route
 function getTransporter() {
@@ -118,9 +118,11 @@ Le paiement a été confirmé avec succès.`;
     await sendWhatsApp(TEAM_PHONE, teamMessage);
 
     if (customer?.phone) {
-      const customerPhone = customer.phone.startsWith('237')
-        ? customer.phone
-        : '237' + customer.phone.replace(/\D/g, '');
+      const customerPhone = customer.phone
+        ? (customer.phone.startsWith('237')
+          ? customer.phone
+          : '237' + customer.phone.replace(/\D/g, ''))
+        : '';
 
       const customerMessage = `*CONFIRMATION DE PAIEMENT*
 *LTC Finance*
@@ -190,9 +192,23 @@ async function handlePayinWebhook(payload: PayinWebhookPayload) {
     return { success: true, message: 'Webhook received (no attributes)' };
   }
 
+  // Validate Payin webhook payload
   const statusCode = attributes.status;
+  if (typeof statusCode !== 'number' || statusCode < 0 || statusCode > 3) {
+    console.warn(`Payin webhook: Invalid status code: ${statusCode}`);
+    return { success: false, error: 'Invalid status code' };
+  }
+  if (attributes.amount !== undefined && (typeof attributes.amount !== 'number' || attributes.amount <= 0)) {
+    console.warn(`Payin webhook: Invalid amount: ${attributes.amount}`);
+    return { success: false, error: 'Invalid amount' };
+  }
+  if (!attributes.transaction_id) {
+    console.warn('Payin webhook: Missing transaction_id');
+    return { success: false, error: 'Missing transaction_id' };
+  }
+
   const orderId = attributes.order_id || '';
-  const transactionId = attributes.transaction_id || '';
+  const transactionId = attributes.transaction_id;
   const amount = attributes.amount || 0;
   const customerPhone = attributes.customer_phone || '';
   const customerName = attributes.customer_name || '';
@@ -210,6 +226,16 @@ async function handlePayinWebhook(payload: PayinWebhookPayload) {
   // Look up order_ref from the transaction
   const transaction = await getTransaction({ trid: transactionId });
   const orderRef = transaction?.order_ref;
+
+  // Verify webhook amount matches stored transaction amount
+  if (transaction && amount > 0 && transaction.amount) {
+    const storedAmount = Number(transaction.amount);
+    if (storedAmount > 0 && storedAmount !== amount) {
+      console.warn(
+        `Payin webhook amount mismatch: webhook=${amount}, stored=${storedAmount}, tx=${transactionId}`
+      );
+    }
+  }
 
   if (orderRef) {
     const dbStatus = statusStr === 'SUCCESS' ? 'SUCCESS' : statusStr === 'PENDING' ? 'PENDING' : 'FAILED';
@@ -318,8 +344,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
 
     } else {
-      console.log('Unknown webhook format:', payload);
-      return NextResponse.json({ success: true, message: 'Webhook received' });
+      console.warn('Unknown webhook format:', payload);
+      return NextResponse.json(
+        { success: false, error: 'Unknown webhook format' },
+        { status: 400 }
+      );
     }
 
   } catch (error) {

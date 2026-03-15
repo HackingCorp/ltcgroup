@@ -33,6 +33,13 @@ function PaymentCallbackContent() {
 
     setStatus(finalStatus);
 
+    console.log('Payment callback:', { status: finalStatus, method: paymentMethod, orderId: searchParams.get("order_id") });
+
+    // Clean up sessionStorage on cancelled status
+    if (finalStatus === "cancelled") {
+      sessionStorage.removeItem("pendingOrder");
+    }
+
     // Send order notification only on success with retry
     const sendOrderNotification = async () => {
       if (orderSent) return;
@@ -45,7 +52,14 @@ function PaymentCallbackContent() {
       const pendingOrderStr = sessionStorage.getItem("pendingOrder");
       if (!pendingOrderStr) return;
 
-      const pendingOrder = JSON.parse(pendingOrderStr);
+      let pendingOrder;
+      try {
+        pendingOrder = JSON.parse(pendingOrderStr);
+      } catch {
+        console.error('Failed to parse pending order data');
+        sessionStorage.removeItem("pendingOrder");
+        return;
+      }
 
       // Retry up to 3 times
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -71,7 +85,7 @@ function PaymentCallbackContent() {
         }
         // Wait before retry
         if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
         }
       }
     };

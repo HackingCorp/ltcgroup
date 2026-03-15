@@ -247,6 +247,31 @@ export default function SolutionsFinancieresPage() {
     setErrorMessage("");
 
     try {
+      // Validate card type selection
+      if (!formData.cardType) {
+        throw new Error("Veuillez sélectionner un type de carte.");
+      }
+
+      // Validate phone format for Cameroon
+      const phoneRegex = /^(\+?237)?[62]\d{7,8}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ""))) {
+        throw new Error("Numéro de téléphone invalide. Format attendu : 6XXXXXXXX ou 2XXXXXXXX.");
+      }
+
+      // Validate ID photo is provided
+      if (!idPhotoFile) {
+        throw new Error("Veuillez fournir une photo de votre pièce d'identité.");
+      }
+
+      // Validate file sizes (max 5MB)
+      const maxFileSize = 5 * 1024 * 1024;
+      if (idPhotoFile.size > maxFileSize) {
+        throw new Error("La photo de la pièce d'identité ne doit pas dépasser 5 Mo.");
+      }
+      if (passportPhotoFile && passportPhotoFile.size > maxFileSize) {
+        throw new Error("La photo passeport ne doit pas dépasser 5 Mo.");
+      }
+
       // Validate delivery option
       if (!formData.deliveryOption) {
         throw new Error("Veuillez sélectionner un mode de réception de votre carte.");
@@ -271,6 +296,9 @@ export default function SolutionsFinancieresPage() {
       const deliveryFee = getDeliveryFee();
       const niuFee = getNiuFee();
       const total = getTotal();
+      if (total <= 0) {
+        throw new Error("Le montant total doit être supérieur à 0.");
+      }
       const orderRef = generateOrderRef();
 
       // Convert files to base64
@@ -321,25 +349,8 @@ export default function SolutionsFinancieresPage() {
 
         if (paymentResult.paymentUrl) {
           // Store order data before redirect (works for both e-nkap and mobile_money payment links)
-          sessionStorage.setItem("pendingOrder", JSON.stringify({
-            ...formData,
-            noNiu,
-            cardPrice,
-            deliveryFee,
-            niuFee,
-            total,
-            orderRef,
-            idPhoto: idPhotoBase64,
-            idPhotoName: idPhotoFile?.name,
-            passportPhoto: passportPhotoBase64,
-            passportPhotoName: passportPhotoFile?.name,
-          }));
-
-          // Also save order to DB before redirect
-          fetch("/api/send-card-order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+          try {
+            sessionStorage.setItem("pendingOrder", JSON.stringify({
               ...formData,
               noNiu,
               cardPrice,
@@ -351,11 +362,36 @@ export default function SolutionsFinancieresPage() {
               idPhotoName: idPhotoFile?.name,
               passportPhoto: passportPhotoBase64,
               passportPhotoName: passportPhotoFile?.name,
-              paymentStatus: "PENDING",
-              paymentMethod: finalPaymentMethod,
-              saveOnly: true,
-            }),
-          }).catch(err => console.error("Pre-save order error:", err));
+            }));
+          } catch (storageErr) {
+            console.error("Failed to save to sessionStorage:", storageErr);
+          }
+
+          // Save order to DB before redirect
+          try {
+            await fetch("/api/send-card-order", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...formData,
+                noNiu,
+                cardPrice,
+                deliveryFee,
+                niuFee,
+                total,
+                orderRef,
+                idPhoto: idPhotoBase64,
+                idPhotoName: idPhotoFile?.name,
+                passportPhoto: passportPhotoBase64,
+                passportPhotoName: passportPhotoFile?.name,
+                paymentStatus: "PENDING",
+                paymentMethod: finalPaymentMethod,
+                saveOnly: true,
+              }),
+            });
+          } catch (err) {
+            console.error("Pre-save order error:", err);
+          }
 
           // Redirect to payment page
           window.location.href = paymentResult.paymentUrl;
@@ -439,6 +475,7 @@ export default function SolutionsFinancieresPage() {
           deliveryFee,
           niuFee,
           total,
+          orderRef,
           idPhoto: idPhotoBase64,
           idPhotoName: idPhotoFile?.name,
           passportPhoto: passportPhotoBase64,

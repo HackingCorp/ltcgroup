@@ -4,9 +4,9 @@ import nodemailer from "nodemailer";
 import { saveOrder } from "@/lib/db";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
-const WAZEAPP_API_KEY = "wz_live_aNS-uHJqontSvzaxQbzULpzBNHMjsK-xDAPQ5OYuDTs";
-const TEAM_PHONE = "237673209375";
-const TEAM_EMAIL = "lontsi05@gmail.com";
+const WAZEAPP_API_KEY = process.env.WAZEAPP_API_KEY || '';
+const TEAM_PHONE = process.env.TEAM_WHATSAPP_PHONE || '237673209375';
+const TEAM_EMAIL = process.env.TEAM_NOTIFICATION_EMAIL || 'lontsi05@gmail.com';
 
 // Email transporter — uses same SMTP env vars as contact route
 function getTransporter() {
