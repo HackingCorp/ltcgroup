@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/card.dart';
 import '../services/api_service.dart';
+import '../services/posthog_service.dart';
 
 /// Cards state provider
 class CardsProvider with ChangeNotifier {
@@ -77,6 +78,7 @@ class CardsProvider with ChangeNotifier {
         cardTier: cardTier,
       );
       _cards = [..._cards, newCard];
+      PosthogService.capture('card_purchased', {'card_tier': cardTier ?? type});
       _isLoading = false;
       notifyListeners();
       return true;

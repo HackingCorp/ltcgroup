@@ -5,6 +5,7 @@ import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
+import '../services/posthog_service.dart';
 
 /// Authentication state provider
 class AuthProvider with ChangeNotifier {
@@ -118,6 +119,10 @@ class AuthProvider with ChangeNotifier {
 
     try {
       _user = await _authService.login(email: email, password: password);
+      if (_user != null) {
+        PosthogService.identify(_user!.id, {'email': _user!.email});
+        PosthogService.capture('user_logged_in');
+      }
       _isLoading = false;
       notifyListeners();
       _registerFcmToken();
@@ -153,6 +158,10 @@ class AuthProvider with ChangeNotifier {
         lastName: lastName,
         countryCode: countryCode,
       );
+      if (_user != null) {
+        PosthogService.identify(_user!.id, {'email': _user!.email});
+        PosthogService.capture('user_registered', {'country_code': countryCode});
+      }
       _isLoading = false;
       notifyListeners();
       _registerFcmToken();
@@ -182,7 +191,9 @@ class AuthProvider with ChangeNotifier {
         debugPrint('Failed to remove FCM token on logout: $e');
       }
 
+      PosthogService.capture('user_logged_out');
       await _authService.logout();
+      PosthogService.reset();
       _user = null;
       _error = null;
     } catch (e) {

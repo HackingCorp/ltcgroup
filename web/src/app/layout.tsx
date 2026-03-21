@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import { LanguageProvider } from "@/i18n";
+import { PostHogProvider } from "@/lib/posthog";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -81,7 +82,9 @@ export default function RootLayout({
         />
       </head>
       <body className={`${publicSans.variable} font-sans antialiased`} suppressHydrationWarning>
-        <LanguageProvider>{children}</LanguageProvider>
+        <PostHogProvider>
+          <LanguageProvider>{children}</LanguageProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

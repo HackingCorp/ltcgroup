@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     card_tier_premium_price: float = 10.0
     card_tier_gold_price: float = 15.0
 
+    # PostHog Analytics
+    posthog_api_key: str = ""
+    posthog_host: str = "https://eu.i.posthog.com"
+
     # File Upload Configuration
     upload_dir: str = "./uploads"
 

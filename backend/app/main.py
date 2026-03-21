@@ -48,6 +48,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Shutdown: flush PostHog events
+    from app.services import posthog_service
+    posthog_service.shutdown()
+
     # Shutdown: cleanup HTTP clients via close() methods
     from app.services.accountpe import accountpe_client
     from app.services.payin import payin_client

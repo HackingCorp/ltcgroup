@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
+import '../services/posthog_service.dart';
 
 /// Wallet state provider
 class WalletProvider with ChangeNotifier {
@@ -91,6 +92,10 @@ class WalletProvider with ChangeNotifier {
         paymentMethod: paymentMethod,
         phone: phone,
       );
+      PosthogService.capture('wallet_topped_up', {
+        'amount': amountUsd ?? amountLocal,
+        'provider': paymentMethod,
+      });
       // Balance will be updated after webhook confirmation
       _isLoading = false;
       notifyListeners();
@@ -167,6 +172,7 @@ class WalletProvider with ChangeNotifier {
         cardId: cardId,
         amount: amount,
       );
+      PosthogService.capture('wallet_transferred_to_card', {'amount': amount});
       // Update local balance from response
       if (result['new_wallet_balance'] != null) {
         _balance = _toDouble(result['new_wallet_balance']);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authAPI, isAuthenticated } from "@/lib/vcard-api";
+import { posthog } from "@/lib/posthog";
 
 export default function VCardAuthPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function VCardAuthPage() {
 
     try {
       await authAPI.login(loginData.email, loginData.password);
+      posthog.capture("user_logged_in");
       // Redirect to dashboard
       router.push("/services/solutions-financieres/vcard/dashboard");
     } catch (error) {
@@ -67,6 +69,7 @@ export default function VCardAuthPage() {
         last_name: registerData.last_name,
         password: registerData.password,
       });
+      posthog.capture("user_registered");
 
       // Redirect to dashboard
       router.push("/services/solutions-financieres/vcard/dashboard");

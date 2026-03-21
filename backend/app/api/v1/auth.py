@@ -24,6 +24,7 @@ from app.utils.logging_config import get_logger
 from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.utils.audit import log_audit_event
+from app.services import posthog_service
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -102,6 +103,17 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
         ip_address=request.client.host if request.client else None,
     )
 
+    # Track registration in PostHog
+    posthog_service.capture(str(new_user.id), "user_registered", {
+        "country_code": user_data.country_code,
+    })
+    posthog_service.identify(str(new_user.id), {
+        "email": new_user.email,
+        "first_name": new_user.first_name,
+        "last_name": new_user.last_name,
+        "country_code": user_data.country_code,
+    })
+
     # Generate access + refresh tokens
     token = _create_token_pair(str(new_user.id), new_user.email)
 
@@ -129,6 +141,11 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
             details={"reason": "invalid_credentials"},
             ip_address=request.client.host if request.client else None,
         )
+        posthog_service.capture(
+            str(user.id) if user else login_data.email,
+            "login_failed",
+            {"reason": "invalid_credentials"},
+        )
         raise InvalidCredentialsException()
 
     if not user.is_active:
@@ -138,6 +155,7 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
             details={"reason": "account_inactive"},
             ip_address=request.client.host if request.client else None,
         )
+        posthog_service.capture(str(user.id), "login_failed", {"reason": "account_inactive"})
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive",
@@ -150,6 +168,9 @@ async def login(request: Request, login_data: UserLogin, db: AsyncSession = Depe
         details={"email": user.email},
         ip_address=request.client.host if request.client else None,
     )
+
+    # Track login in PostHog
+    posthog_service.capture(str(user.id), "user_logged_in")
 
     # Generate access + refresh tokens
     token = _create_token_pair(str(user.id), user.email)
@@ -255,6 +276,8 @@ async def logout(
         resource_type="user", resource_id=str(token_data.user_id),
         ip_address=request.client.host if request.client else None,
     )
+
+    posthog_service.capture(str(token_data.user_id), "user_logged_out")
 
     return {"message": "Logged out successfully"}
 

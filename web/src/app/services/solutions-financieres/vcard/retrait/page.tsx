@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/vcard/AuthGuard";
 import { cardsAPI, transactionsAPI, type CardResponse } from "@/lib/vcard-api";
+import { posthog } from "@/lib/posthog";
 
 export default function WithdrawalPage() {
   return (
@@ -106,6 +107,7 @@ function WithdrawalContent() {
         withdrawal_method: "MOBILE_MONEY",
         phone_number: phoneNumber,
       });
+      posthog.capture("card_withdrawn", { amount: amountNum, currency: selectedCard?.currency ?? "XAF" });
 
       setSuccess("Retrait effectué avec succès");
 

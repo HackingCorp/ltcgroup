@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TopupForm from "@/components/vcard/TopupForm";
 import CardPreview from "@/components/vcard/CardPreview";
 import { cardsAPI, transactionsAPI, isAuthenticated, type CardResponse } from "@/lib/vcard-api";
+import { posthog } from "@/lib/posthog";
 
 export default function VCardRechargePage() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function VCardRechargePage() {
         amount,
         currency: selectedCard.currency,
       });
+      posthog.capture("card_topped_up", { amount, currency: selectedCard.currency });
 
       setSubmitStatus("success");
     } catch (error) {

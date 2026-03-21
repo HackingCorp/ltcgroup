@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CardSelector from "@/components/vcard/CardSelector";
 import CardPreview from "@/components/vcard/CardPreview";
 import { cardsAPI, isAuthenticated, type CardType } from "@/lib/vcard-api";
+import { posthog } from "@/lib/posthog";
 
 export default function VCardAchatPage() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function VCardAchatPage() {
         initial_balance: parseFloat(formData.initialBalance),
       });
 
-      console.log("Card purchased successfully:", card);
+      posthog.capture("card_purchased", { card_type: apiCardType });
       setSubmitStatus("success");
     } catch (error) {
       setErrorMessage(

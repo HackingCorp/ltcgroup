@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/transaction.dart';
 import '../services/api_service.dart';
+import '../services/posthog_service.dart';
 
 /// Transactions state provider
 class TransactionsProvider with ChangeNotifier {
@@ -125,6 +126,7 @@ class TransactionsProvider with ChangeNotifier {
 
       // Add transaction to list
       _transactions.insert(0, transaction);
+      PosthogService.capture('card_topped_up', {'amount': amount, 'currency': currency});
 
       _isLoading = false;
       notifyListeners();
@@ -158,6 +160,7 @@ class TransactionsProvider with ChangeNotifier {
 
       // Add transaction to list
       _transactions.insert(0, transaction);
+      PosthogService.capture('card_withdrawn', {'amount': amount, 'currency': currency});
 
       _isLoading = false;
       notifyListeners();
