@@ -247,6 +247,20 @@ export async function getTransaction(identifier: { ptn?: string; trid?: string }
   }
 }
 
+// Get pending transaction by order reference
+export async function getPendingTransactionByOrderRef(orderRef: string): Promise<Transaction | null> {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM web_transactions WHERE order_ref = $1 AND status = $2',
+      [orderRef, 'PENDING']
+    );
+    return result.rows[0] || null;
+  } catch (err) {
+    console.error('Transaction fetch error:', err);
+    return null;
+  }
+}
+
 // Get all transactions (for admin)
 export async function getAllTransactions(limit = 100, offset = 0): Promise<Transaction[]> {
   try {

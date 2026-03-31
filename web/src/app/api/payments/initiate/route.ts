@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPaymentLink, getPaymentLinkStatus, PAYIN_COUNTRIES } from "@/lib/payments/payin";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
-import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus, supabase } from "@/lib/db";
+import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus, getPendingTransactionByOrderRef } from "@/lib/db";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
 
@@ -70,12 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Idempotency: check for existing PENDING transaction with this orderRef
-    const { data: existingTx } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('order_ref', orderRef)
-      .eq('status', 'PENDING')
-      .maybeSingle();
+    const existingTx = await getPendingTransactionByOrderRef(orderRef);
 
     if (existingTx) {
       return NextResponse.json({
