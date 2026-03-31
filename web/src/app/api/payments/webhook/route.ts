@@ -359,14 +359,28 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET endpoint for webhook verification (some providers require this)
+ * GET endpoint for Payin redirect after payment
+ * Payin redirects the customer to callback_url after payment (GET request)
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const challenge = searchParams.get('challenge');
 
+  // Webhook verification for some providers
   if (challenge) {
     return new NextResponse(challenge, { status: 200 });
+  }
+
+  // Payin redirect: Extract transaction_id and redirect to client callback page
+  const transactionId = searchParams.get('transaction_id') || searchParams.get('order_id');
+
+  if (transactionId) {
+    // Build redirect URL to client-facing callback page
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
+    const callbackUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${encodeURIComponent(transactionId)}&method=mobile_money`;
+
+    // Redirect the client to the success page
+    return NextResponse.redirect(callbackUrl, { status: 302 });
   }
 
   return NextResponse.json({ status: 'Webhook endpoint active' });
