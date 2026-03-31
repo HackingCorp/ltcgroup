@@ -361,6 +361,8 @@ export async function POST(request: NextRequest) {
 /**
  * GET endpoint for Payin redirect after payment
  * Payin redirects the customer to callback_url after payment (GET request)
+ * Note: Payin does NOT pass transaction_id in the redirect URL,
+ * so we always redirect to callback page which uses sessionStorage
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -371,17 +373,20 @@ export async function GET(request: NextRequest) {
     return new NextResponse(challenge, { status: 200 });
   }
 
-  // Payin redirect: Extract transaction_id and redirect to client callback page
+  // Payin redirect: Always redirect to client callback page
+  // The callback page will use sessionStorage to retrieve pending order details
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
+
+  // Extract any transaction info if provided (but Payin usually doesn't send it)
   const transactionId = searchParams.get('transaction_id') || searchParams.get('order_id');
 
-  if (transactionId) {
-    // Build redirect URL to client-facing callback page
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
-    const callbackUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${encodeURIComponent(transactionId)}&method=mobile_money`;
+  // Build callback URL - status will be determined by callback page via polling
+  let callbackUrl = `${baseUrl}/services/solutions-financieres/payment/callback?method=mobile_money&status=PENDING`;
 
-    // Redirect the client to the success page
-    return NextResponse.redirect(callbackUrl, { status: 302 });
+  if (transactionId) {
+    callbackUrl += `&order_id=${encodeURIComponent(transactionId)}`;
   }
 
-  return NextResponse.json({ status: 'Webhook endpoint active' });
+  // Redirect the client to the callback page
+  return NextResponse.redirect(callbackUrl, { status: 302 });
 }
