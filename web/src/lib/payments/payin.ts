@@ -206,7 +206,7 @@ export async function createPaymentLink(params: {
         mobile: params.customerPhone || '',
         description: params.description || `Paiement LTC - ${params.orderRef}`,
         callback_url: params.callbackUrl || '',
-        pass_digital_charge: false,
+        pass_digital_charge: true,
       }),
     });
 
