@@ -4,6 +4,7 @@ secrets/
 *.key
 *.env.local
 *.env.production
+!WebLTcPay/.env.production
 .env
 
 # Python
