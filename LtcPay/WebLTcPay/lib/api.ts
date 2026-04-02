@@ -1,16 +1,25 @@
 import axios from "axios"
 import Cookies from "js-cookie"
 
+function getApiBaseUrl(): string {
+  // Runtime detection: derive API URL from browser hostname
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return `${window.location.protocol}//pay.ltcgroup.site/api/v1`
+  }
+  // Fallback for local development and SSR
+  return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/v1`
+}
+
 const api = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}/api/v1`,
   headers: {
     "Content-Type": "application/json",
   },
 })
 
-// Request interceptor to add auth token from cookies
+// Request interceptor to set baseURL dynamically and add auth token
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getApiBaseUrl()
     const token = typeof window !== "undefined" ? Cookies.get("access_token") : null
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
