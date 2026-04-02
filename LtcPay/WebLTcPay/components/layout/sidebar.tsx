@@ -10,12 +10,14 @@ import {
   User,
   FileText,
   LogOut,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Merchants", href: "/dashboard/merchants", icon: Store },
   { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   { name: "Transactions", href: "/dashboard/transactions", icon: ArrowLeftRight },
   { name: "Profile", href: "/dashboard/profile", icon: User },

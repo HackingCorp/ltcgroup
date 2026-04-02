@@ -94,3 +94,38 @@ export interface MerchantProfile {
   is_active: boolean;
   created_at: string;
 }
+
+export interface Merchant {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  website?: string;
+  api_key_live: string;
+  api_key_test: string;
+  callback_url?: string;
+  is_active: boolean;
+  is_verified: boolean;
+  is_test_mode: boolean;
+  business_type?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MerchantCredentials {
+  id: string;
+  name: string;
+  api_key_live: string;
+  api_key_test: string;
+  api_secret: string;
+  webhook_secret: string;
+  message: string;
+}
+
+export interface MerchantListResponse {
+  merchants: Merchant[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
