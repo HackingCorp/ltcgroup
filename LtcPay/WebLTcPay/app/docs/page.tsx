@@ -217,49 +217,6 @@ payment = resp.json()`}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900" id="endpoints">Endpoints</h2>
 
-          {/* Register Merchant */}
-          <EndpointSection
-            method="POST"
-            path="/merchants/register"
-            title="Register Merchant"
-            description="Create a new merchant account and receive API credentials. The API secret is returned only once — store it securely."
-          >
-            <ParamTable
-              params={[
-                { name: "name", type: "string", required: true, desc: "Merchant / business name" },
-                { name: "email", type: "string", required: true, desc: "Contact email (unique)" },
-                { name: "phone", type: "string", required: false, desc: "Phone number" },
-                { name: "website", type: "string", required: false, desc: "Website URL" },
-                { name: "callback_url", type: "string", required: false, desc: "Webhook URL for notifications" },
-                { name: "business_type", type: "string", required: false, desc: "e.g. e-commerce, SaaS" },
-                { name: "description", type: "string", required: false, desc: "Business description" },
-              ]}
-            />
-            <CodeBlock
-              language="bash"
-              code={`curl -X POST ${BASE_URL}/merchants/register \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "name": "My Shop",
-    "email": "contact@myshop.cm",
-    "phone": "+237699000000",
-    "callback_url": "https://myshop.cm/webhooks/ltcpay"
-  }'`}
-            />
-            <ResponseBlock
-              status={201}
-              body={`{
-  "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  "name": "My Shop",
-  "api_key_live": "ltcpay_live_a1b2c3d4e5f6...",
-  "api_key_test": "ltcpay_test_x9y8z7w6v5u4...",
-  "api_secret": "sk_secret_SAVE_THIS_NOW...",
-  "webhook_secret": "whsec_a1b2c3d4...",
-  "message": "Store the api_secret securely. It cannot be retrieved again."
-}`}
-            />
-          </EndpointSection>
-
           {/* Create Payment */}
           <EndpointSection
             method="POST"
