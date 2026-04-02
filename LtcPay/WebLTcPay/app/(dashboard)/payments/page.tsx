@@ -8,14 +8,6 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import type { Payment, PaginatedResponse } from "@/types";
 
-const statusColors = {
-  pending: "bg-yellow-100 text-yellow-800",
-  completed: "bg-green-100 text-green-800",
-  failed: "bg-red-100 text-red-800",
-  expired: "bg-gray-100 text-gray-800",
-  cancelled: "bg-orange-100 text-orange-800",
-};
-
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
