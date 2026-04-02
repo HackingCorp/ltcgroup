@@ -41,14 +41,18 @@ services:
       BASE_URL: ${BASE_URL:-http://localhost:8001}
       WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-http://localhost:8001}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000,http://localhost:8001,https://app.ltcgroup.site,https://pay.ltcgroup.site}
+      # Security
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-}
+      # TouchPay
       TOUCHPAY_SDK_URL: "https://touchpay.gutouch.com/touchpayv2/sdk/touchpay.js"
       TOUCHPAY_CALLBACK_URL: ${TOUCHPAY_CALLBACK_URL:-http://localhost:8001/api/v1/callbacks/touchpay}
+      TOUCHPAY_MERCHANT_ID: ${TOUCHPAY_MERCHANT_ID:-LTCGR11789}
+      TOUCHPAY_SECRET: ${TOUCHPAY_SECRET:-secure_code_here}
       # Database & Redis
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://ltcpay:ltcpay_secret@db:5432/ltcpay}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
-      # TouchPay credentials
-      TOUCHPAY_MERCHANT_ID: ${TOUCHPAY_MERCHANT_ID:-LTCGR11789}
-      TOUCHPAY_SECRET: ${TOUCHPAY_SECRET:-secure_code_here}
     volumes:
       - ./backend/app:/app/app
     depends_on:
