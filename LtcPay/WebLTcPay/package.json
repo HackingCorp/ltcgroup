@@ -40,7 +40,7 @@
     "tailwindcss": "^3.4.17",
     "postcss": "^8.4.49",
     "autoprefixer": "^10.4.20",
-    "eslint": "^9.18.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "14.2.21",
     "@testing-library/react": "^14.2.1",
     "@testing-library/jest-dom": "^6.2.0",
