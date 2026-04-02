@@ -2,8 +2,10 @@ FROM node:18-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
+
+# Update APK and install dependencies (libc6-compat might not be available on all Alpine versions)
+RUN apk update && apk add --no-cache libc6-compat || true
 
 COPY package.json package-lock.json* ./
 RUN npm install --legacy-peer-deps
