@@ -187,7 +187,7 @@ export default function ProfilePage() {
                 placeholder="https://yoursite.com/webhooks/ltcpay"
               />
               <p className="mt-1 text-sm text-gray-500">
-                We'll send POST requests to this URL when payment status changes
+                We&apos;ll send POST requests to this URL when payment status changes
               </p>
             </div>
 

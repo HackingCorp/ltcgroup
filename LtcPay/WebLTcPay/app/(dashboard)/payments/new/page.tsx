@@ -7,7 +7,7 @@ import { ArrowLeft, Copy, QrCode } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import QRCodeReact from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function CreatePaymentPage() {
   const router = useRouter();
@@ -86,7 +86,7 @@ export default function CreatePaymentPage() {
             {/* QR Code */}
             <div className="flex justify-center mb-6">
               <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
-                <QRCodeReact value={paymentUrl} size={200} />
+                <QRCodeSVG value={paymentUrl} size={200} />
               </div>
             </div>
 
@@ -264,7 +264,7 @@ export default function CreatePaymentPage() {
                 placeholder="https://yoursite.com/webhook"
               />
               <p className="mt-1 text-sm text-gray-500">
-                We'll send payment updates to this URL
+                We&apos;ll send payment updates to this URL
               </p>
             </div>
 
