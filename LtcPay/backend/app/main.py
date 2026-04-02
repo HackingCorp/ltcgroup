@@ -84,10 +84,16 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS
+# CORS - parse origins from JSON array or comma-separated string
+import json
+try:
+    cors_origins = json.loads(settings.CORS_ORIGINS)
+except (json.JSONDecodeError, TypeError):
+    cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS.split(","),
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
