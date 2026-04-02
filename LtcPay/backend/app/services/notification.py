@@ -200,10 +200,10 @@ async def notify_merchant(payment_id: str) -> bool:
 
             if delivered:
                 # Store delivery metadata in the metadata JSON field
-                existing_meta = payment.metadata or {}
+                existing_meta = payment.payment_metadata or {}
                 existing_meta["webhook_delivered"] = True
                 existing_meta["webhook_delivered_at"] = datetime.now(timezone.utc).isoformat()
-                update_values["metadata"] = existing_meta
+                update_values["payment_metadata"] = existing_meta
 
             await db.execute(
                 update(Payment)

@@ -85,7 +85,7 @@ async def create_payment(
         customer_info=customer_info,
         callback_url=payload.callback_url or merchant.callback_url,
         return_url=payload.return_url,
-        metadata=payload.metadata,
+        payment_metadata=payload.metadata,
         expires_at=expires_at,
         payment_url=f"{settings.webhook_base_url}/pay/{reference}",
     )

@@ -98,7 +98,7 @@ class Payment(Base):
     )
 
     # Metadata (flexible JSON storage from merchant)
-    metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    payment_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
 
     # Payment link URL (for redirect-based payments)
     payment_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
