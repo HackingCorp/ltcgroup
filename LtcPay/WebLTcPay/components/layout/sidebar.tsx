@@ -11,6 +11,7 @@ import {
   FileText,
   LogOut,
   Store,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,9 +22,9 @@ const navigation = [
   { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
   { name: "Transactions", href: "/dashboard/transactions", icon: ArrowLeftRight },
   { name: "Profile", href: "/dashboard/profile", icon: User },
-  { name: "Documentation", href: "/dashboard/docs", icon: FileText },
+  { name: "Documentation", href: "/docs", icon: FileText, external: true },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
-];
+] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -40,14 +41,16 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
+          const isExternal = "external" in item && item.external;
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+              : !isExternal && pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
               href={item.href}
+              {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
@@ -57,6 +60,7 @@ export function Sidebar() {
             >
               <item.icon className="h-5 w-5" />
               {item.name}
+              {isExternal && <ExternalLink className="ml-auto h-3.5 w-3.5 text-gray-400" />}
             </Link>
           );
         })}
