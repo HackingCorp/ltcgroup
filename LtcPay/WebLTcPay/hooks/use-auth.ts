@@ -2,14 +2,13 @@
 
 import { create } from "zustand";
 import { authService } from "@/services/auth.service";
-import type { User, LoginRequest, RegisterRequest } from "@/types";
+import type { User, LoginRequest } from "@/types";
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
 }
@@ -23,10 +22,6 @@ export const useAuth = create<AuthState>((set) => ({
     await authService.login(data);
     const user = await authService.getProfile();
     set({ user, isAuthenticated: true });
-  },
-
-  register: async (data: RegisterRequest) => {
-    await authService.register(data);
   },
 
   logout: () => {
