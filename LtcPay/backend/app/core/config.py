@@ -73,8 +73,6 @@ class Settings(BaseSettings):
         if self.environment != "development":
             if not self.jwt_secret_key:
                 raise ValueError("JWT_SECRET_KEY must be set in production")
-            if not self.touchpay_webhook_secret:
-                raise ValueError("touchpay_webhook_secret must be set in production")
         else:
             if not self.jwt_secret_key:
                 self.jwt_secret_key = secrets.token_hex(32)
