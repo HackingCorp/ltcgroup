@@ -222,11 +222,7 @@ export default function PaymentsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge
-                          className={statusColors[payment.status]}
-                        >
-                          {payment.status}
-                        </Badge>
+                        <Badge status={payment.status} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(payment.created_at).toLocaleDateString()}
