@@ -70,15 +70,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":
-        if self.environment != "development":
-            if not self.jwt_secret_key:
-                raise ValueError("JWT_SECRET_KEY must be set in production")
-        else:
-            if not self.jwt_secret_key:
-                self.jwt_secret_key = secrets.token_hex(32)
-            if not self.SECRET_KEY:
-                self.SECRET_KEY = self.jwt_secret_key
-        # Sync SECRET_KEY with jwt_secret_key if not set
+        # Auto-generate jwt_secret_key if not provided
+        if not self.jwt_secret_key:
+            self.jwt_secret_key = secrets.token_hex(32)
         if not self.SECRET_KEY:
             self.SECRET_KEY = self.jwt_secret_key
         # Sync TouchPay uppercase/lowercase fields
