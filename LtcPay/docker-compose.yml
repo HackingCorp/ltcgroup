@@ -1,0 +1,99 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ltcpay-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ltcpay
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ltcpay
+    secrets:
+      - db_password
+    ports:
+      - "5437:5432"
+    volumes:
+      - ltcpay_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ltcpay"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ltcpay-redis
+    restart: unless-stopped
+    ports:
+      - "6383:6379"
+    volumes:
+      - ltcpay_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ltcpay-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      # Public configuration
+      ENVIRONMENT: development
+      BASE_URL: http://localhost:8001
+      WEBHOOK_BASE_URL: http://localhost:8001
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:8000,http://localhost:8001"
+      TOUCHPAY_SDK_URL: "https://touchpay.gutouch.com/touchpayv2/sdk/touchpay.js"
+      TOUCHPAY_CALLBACK_URL: "http://localhost:8001/api/v1/callbacks/touchpay"
+      # Secrets loaded from Docker secrets files
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      TOUCHPAY_MERCHANT_ID_FILE: /run/secrets/touchpay_merchant_id
+      TOUCHPAY_SECRET_FILE: /run/secrets/touchpay_secret
+      # Constructed URLs (using docker secret at runtime)
+      DATABASE_URL: postgresql+asyncpg://ltcpay@db:5432/ltcpay
+      REDIS_URL: redis://redis:6379/1
+      TOUCHPAY_MERCHANT_ID: "LTCGR11789"
+      TOUCHPAY_SECRET: "secure_code_here"
+    secrets:
+      - db_password
+      - touchpay_merchant_id
+      - touchpay_secret
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./WebLTcPay
+      dockerfile: Dockerfile
+    container_name: ltcpay-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+      NODE_ENV: production
+    depends_on:
+      - backend
+
+volumes:
+  ltcpay_pgdata:
+  ltcpay_redis:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  touchpay_merchant_id:
+    file: ./secrets/touchpay_merchant_id.txt
+  touchpay_secret:
+    file: ./secrets/touchpay_secret.txt

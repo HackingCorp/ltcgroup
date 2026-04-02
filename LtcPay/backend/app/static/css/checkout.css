@@ -1,0 +1,81 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.checkout-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+    max-width: 480px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.checkout-header {
+    background: linear-gradient(135deg, #1a237e, #0d47a1);
+    color: white;
+    padding: 24px;
+    text-align: center;
+}
+
+.checkout-header h1 {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.checkout-header p {
+    opacity: 0.85;
+    font-size: 14px;
+}
+
+.checkout-details {
+    padding: 24px;
+    border-bottom: 1px solid #eee;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.detail-row span:first-child {
+    color: #666;
+    font-size: 14px;
+}
+
+.detail-row .amount {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a237e;
+}
+
+#touchpay-container {
+    padding: 24px;
+    min-height: 200px;
+}
+
+.checkout-footer {
+    padding: 16px;
+    text-align: center;
+    background: #fafafa;
+    border-top: 1px solid #eee;
+}
+
+.checkout-footer p {
+    color: #999;
+    font-size: 12px;
+}
