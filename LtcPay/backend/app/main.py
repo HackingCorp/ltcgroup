@@ -43,13 +43,32 @@ if hasattr(settings, 'sentry_dsn') and settings.sentry_dsn:
 BASE_DIR = Path(__file__).resolve().parent
 
 
+async def create_default_admin():
+    """Create a default admin user if none exists."""
+    from app.models.admin_user import AdminUser
+    from app.api.v1.auth import hash_password
+
+    async with async_session() as db:
+        result = await db.execute(select(AdminUser).limit(1))
+        if result.scalar_one_or_none() is None:
+            admin = AdminUser(
+                email="lontsi05@gmail.com",
+                password_hash=hash_password("Lontsi05"),
+                full_name="Admin LTC",
+                role="admin",
+            )
+            db.add(admin)
+            await db.commit()
+            logger.info("Default admin account created: lontsi05@gmail.com")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting LtcPay...")
-    if settings.environment == "development":
-        await init_models()
-        logger.info("Database tables created")
+    await init_models()
+    logger.info("Database tables created")
+    await create_default_admin()
     yield
     logger.info("Shutting down LtcPay...")
 

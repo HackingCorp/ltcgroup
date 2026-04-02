@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 import Cookies from "js-cookie";
-import type { AuthTokens, LoginRequest, RegisterRequest, User } from "@/types";
+import type { AuthTokens, LoginRequest, User } from "@/types";
 
 export const authService = {
   async login(data: LoginRequest): Promise<AuthTokens> {
@@ -11,11 +11,6 @@ export const authService = {
       Cookies.set("refresh_token", tokens.refresh_token, { expires: 30 });
     }
     return tokens;
-  },
-
-  async register(data: RegisterRequest): Promise<User> {
-    const response = await api.post<User>("/auth/register", data);
-    return response.data;
   },
 
   async getProfile(): Promise<User> {
