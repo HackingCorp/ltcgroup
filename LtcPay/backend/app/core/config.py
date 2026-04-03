@@ -41,17 +41,17 @@ class Settings(BaseSettings):
     TOUCHPAY_SECURE_CODE: str = ""
     TOUCHPAY_MERCHANT_WEBSITE: str = "ltcpay.com"
     TOUCHPAY_SECRET: str = ""
-    TOUCHPAY_SDK_URL: str = "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js"
+    TOUCHPAY_SDK_URL: str = "https://touchpay.gutouch.com/touchpayv2/script/prod_touchpay-0.0.2.js"
     TOUCHPAY_CALLBACK_URL: str = ""
     TOUCHPAY_RETURN_URL: str = ""
 
     # Legacy aliases (used by some modules)
-    touchpay_api_url: str = "https://touchpay.gutouch.net/touchpayv2/api"
+    touchpay_api_url: str = "https://touchpay.gutouch.com/touchpayv2/api"
     touchpay_api_key: str = ""
     touchpay_api_secret: str = ""
     touchpay_merchant_id: str = "LTCGR11789"
     touchpay_webhook_secret: str = ""
-    touchpay_sdk_url: str = "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js"
+    touchpay_sdk_url: str = "https://touchpay.gutouch.com/touchpayv2/script/prod_touchpay-0.0.2.js"
 
     # Payment gateway settings
     PAYMENT_CURRENCY: str = "XAF"
