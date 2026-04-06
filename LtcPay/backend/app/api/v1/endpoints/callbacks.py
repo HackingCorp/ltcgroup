@@ -144,6 +144,8 @@ async def _find_payment(
     conditions = []
     if callback.payment_token:
         conditions.append(Payment.payment_token == callback.payment_token)
+        # SDK sends reference as payment_token (not JWT)
+        conditions.append(Payment.reference == callback.payment_token)
     if callback.transaction_id:
         conditions.append(Payment.reference == callback.transaction_id)
 

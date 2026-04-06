@@ -145,7 +145,7 @@ async def payment_page(reference: str, request: Request):
         last_name = parts[1] if len(parts) > 1 else ""
 
     sdk_config = touchpay_service.get_sdk_config(
-        payment_token=payment.payment_token,
+        payment_token=payment.reference,
         amount=float(payment.amount),
         customer_email=payment.customer_email or "",
         customer_first_name=first_name,
