@@ -46,7 +46,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       SECRET_KEY: ${SECRET_KEY:-}
       # TouchPay
-      TOUCHPAY_SDK_URL: ${TOUCHPAY_SDK_URL:-https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.2.js}
+      TOUCHPAY_SDK_URL: ${TOUCHPAY_SDK_URL:-https://touchpay.gutouch.com/touchpay/script2/prod_touchpay-0.0.2.js}
       TOUCHPAY_CALLBACK_URL: ${TOUCHPAY_CALLBACK_URL:-http://localhost:8001/api/v1/callbacks/touchpay}
       TOUCHPAY_MERCHANT_ID: ${TOUCHPAY_MERCHANT_ID:-LTCGR11789}
       TOUCHPAY_SECURE_CODE: ${TOUCHPAY_SECURE_CODE:-}

@@ -307,40 +307,31 @@
 
     <script type="text/javascript">
         /**
-         * TouchPay SDK integration.
+         * TouchPay SDK integration (redirection mode).
          *
-         * sendPaymentInfos(payment_token, merchant_id, secure_code,
-         *     merchant_website, success_url, failed_url, amount,
-         *     city, email, first_name, last_name, phone)
+         * SendPaymentInfos(order_number, agency_code, secure_code,
+         *     domain_name, url_redirection_success, url_redirection_failed,
+         *     amount, city, email, clientFirstName, clientLastName, clientPhone)
          */
         function calltouchpay() {
             var btn = document.getElementById('pay-button');
             btn.classList.add('loading');
             btn.disabled = true;
 
-            try {
-                sendPaymentInfos(
-                    "{{ sdk_config.payment_token }}",
-                    "{{ sdk_config.merchant_id }}",
-                    "{{ sdk_config.secure_code }}",
-                    "{{ sdk_config.merchant_website }}",
-                    "{{ sdk_config.success_url }}",
-                    "{{ sdk_config.failed_url }}",
-                    {{ sdk_config.amount }},
-                    "{{ sdk_config.city }}",
-                    "{{ sdk_config.email }}",
-                    "{{ sdk_config.first_name }}",
-                    "{{ sdk_config.last_name }}",
-                    "{{ sdk_config.phone }}"
-                );
-            } catch (err) {
-                var el = document.getElementById('status-message');
-                el.textContent = 'Erreur: ' + err.message;
-                el.className = 'status-message error';
-                el.style.display = 'block';
-                btn.classList.remove('loading');
-                btn.disabled = false;
-            }
+            sendPaymentInfos(
+                "{{ sdk_config.payment_token }}",
+                "{{ sdk_config.merchant_id }}",
+                "{{ sdk_config.secure_code }}",
+                "{{ sdk_config.merchant_website }}",
+                "{{ sdk_config.success_url }}",
+                "{{ sdk_config.failed_url }}",
+                {{ sdk_config.amount }},
+                "{{ sdk_config.city }}",
+                "{{ sdk_config.email }}",
+                "{{ sdk_config.first_name }}",
+                "{{ sdk_config.last_name }}",
+                "{{ sdk_config.phone }}"
+            );
         }
     </script>
 </body>
