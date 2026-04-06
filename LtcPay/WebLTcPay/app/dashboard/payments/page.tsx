@@ -52,9 +52,9 @@ export default function PaymentsPage() {
                       <td className="py-3">
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            p.status === "completed"
+                            p.status.toLowerCase() === "completed"
                               ? "bg-green-50 text-green-700"
-                              : p.status === "failed"
+                              : p.status.toLowerCase() === "failed"
                               ? "bg-red-50 text-red-700"
                               : "bg-yellow-50 text-yellow-700"
                           }`}
