@@ -86,6 +86,9 @@ class Settings(BaseSettings):
             self.TOUCHPAY_MERCHANT_ID = self.touchpay_merchant_id
         if self.touchpay_webhook_secret and not self.TOUCHPAY_SECRET:
             self.TOUCHPAY_SECRET = self.touchpay_webhook_secret
+        # Fallback: use TOUCHPAY_SECRET as secure_code if not set separately
+        if not self.TOUCHPAY_SECURE_CODE and self.TOUCHPAY_SECRET:
+            self.TOUCHPAY_SECURE_CODE = self.TOUCHPAY_SECRET
         return self
 
 
