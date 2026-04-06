@@ -11,19 +11,14 @@
     <input type="button" onclick="calltouchpay()" value="Payer 500 XAF" />
 
     <script type="text/javascript">
-        // Check SDK loaded
         if (typeof sendPaymentInfos === 'function') {
-            document.getElementById('status').textContent = 'SDK charge OK';
+            document.getElementById('status').textContent = 'SDK charge OK - cliquez sur Payer';
         } else {
             document.getElementById('status').textContent = 'ERREUR: SDK non charge';
         }
 
         function calltouchpay() {
-            if (typeof sendPaymentInfos !== 'function') {
-                alert('sendPaymentInfos non disponible');
-                return;
-            }
-            alert('Appel sendPaymentInfos...');
+            document.getElementById('status').textContent = 'Appel sendPaymentInfos...';
             sendPaymentInfos(new Date().getTime()+"",
                 'LTCGR11789', 'KyQ4Gs7N5aBKQg7APtboTEUXIDdAFLo6sq6uplEEvwTYfCbYmG',
                 'pay.ltcgroup.site', 'https://pay.ltcgroup.site/webhooks/touchpay/callback',
