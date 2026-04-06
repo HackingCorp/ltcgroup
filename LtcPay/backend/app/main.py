@@ -166,48 +166,45 @@ async def payment_page(reference: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
-# GET /webhooks/touchpay/callback -- TouchPay SDK browser redirect callback
+# /webhooks/touchpay/callback -- TouchPay callbacks (GET + POST)
 #
-# TouchPay redirects the customer's browser here after payment with
-# query params: payment_token, payment_status, paid_amount,
-# command_number, payment_mode, paid_sum, payment_validation_date.
+# TouchPay sends TWO callbacks after payment:
 #
-# payment_status=200 means success, anything else means failure.
+# 1. GET (browser redirect): num_transaction_from_gu, num_command (=our ref),
+#    amount, errorCode (202=success)
+#
+# 2. POST (server-to-server): payment_token, payment_status (200=success),
+#    paid_amount, command_number, payment_mode, paid_sum, payment_validation_date
 # ---------------------------------------------------------------------------
-@app.get("/webhooks/touchpay/callback")
-async def touchpay_sdk_callback(
-    request: Request,
-    payment_token: str = Query(default=""),
-    payment_status: str = Query(default=""),
-    paid_amount: str = Query(default=""),
-    command_number: str = Query(default=""),
-    payment_mode: str = Query(default=""),
-    paid_sum: str = Query(default=""),
-    payment_validation_date: str = Query(default=""),
-):
-    """
-    Handle TouchPay SDK redirect callback (GET with query parameters).
-
-    After the customer completes payment via the TouchPay SDK, their
-    browser is redirected here. We update the payment status and then
-    show the payment result page or redirect to the merchant's return_url.
-    """
+async def _handle_touchpay_callback(request: Request, params: dict):
+    """Shared logic for GET and POST TouchPay callbacks."""
     from app.api.v1.endpoints.callbacks import (
         TouchPayCallbackData,
         _process_callback,
     )
     from app.models.payment import PaymentStatus as PS
 
-    params = dict(request.query_params)
-    logger.info("TouchPay SDK callback received: %s", params)
-
-    if not payment_token:
-        raise HTTPException(status_code=400, detail="Missing payment_token")
+    logger.info("TouchPay callback received (%s): %s", request.method, params)
 
     callback = TouchPayCallbackData(**params)
 
+    # Need at least one identifier to find the payment
+    if not callback.payment_token and not callback.command_number and not callback.transaction_id:
+        raise HTTPException(status_code=400, detail="Missing payment identifier")
+
     async with async_session() as db:
         result = await _process_callback(db, callback)
+
+    return result
+
+
+@app.get("/webhooks/touchpay/callback")
+async def touchpay_sdk_callback_get(request: Request):
+    """Handle TouchPay browser redirect callback (GET)."""
+    from app.models.payment import PaymentStatus as PS
+
+    params = dict(request.query_params)
+    result = await _handle_touchpay_callback(request, params)
 
     payment = result.get("payment")
     new_status = result.get("new_status", PS.PENDING)
@@ -231,6 +228,25 @@ async def touchpay_sdk_callback(
             "status": new_status.value if new_status else "UNKNOWN",
         },
     )
+
+
+@app.post("/webhooks/touchpay/callback")
+async def touchpay_sdk_callback_post(request: Request):
+    """Handle TouchPay server-to-server callback (POST)."""
+    # Parse body (JSON or form-encoded query params)
+    params = dict(request.query_params)
+    try:
+        body = await request.json()
+        params.update(body)
+    except Exception:
+        try:
+            form = dict(await request.form())
+            params.update(form)
+        except Exception:
+            pass
+
+    result = await _handle_touchpay_callback(request, params)
+    return {"status": result.get("status", "ok"), "reference": result.get("reference", "")}
 
 
 @app.get("/")

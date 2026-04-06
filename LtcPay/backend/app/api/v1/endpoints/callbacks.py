@@ -52,7 +52,15 @@ class TouchPayCallbackData:
 
     def __init__(self, **kwargs):
         # Payment identification -- try payment_token first, then reference fields
-        self.payment_token = kwargs.get("payment_token") or ""
+        # TouchPay browser redirect sends: num_transaction_from_gu (their tx id),
+        #   num_command (our reference), amount, errorCode
+        # TouchPay server POST sends: payment_token, payment_status, paid_amount,
+        #   command_number, payment_mode, paid_sum, payment_validation_date
+        self.payment_token = (
+            kwargs.get("payment_token")
+            or kwargs.get("num_transaction_from_gu")
+            or ""
+        )
         self.transaction_id = (
             kwargs.get("transaction_id")
             or kwargs.get("transactionRef")
@@ -60,21 +68,34 @@ class TouchPayCallbackData:
             or ""
         )
 
-        # Status -- TouchPay SDK uses payment_status (200 = success)
-        raw_status = kwargs.get("payment_status") or kwargs.get("status") or ""
+        # num_command / command_number = our payment reference (PAY-xxx)
+        self.command_number = (
+            kwargs.get("command_number")
+            or kwargs.get("num_command")
+            or ""
+        )
+
+        # Status -- TouchPay SDK redirect uses errorCode (202 = success)
+        # TouchPay server POST uses payment_status (200 = success)
+        raw_status = (
+            kwargs.get("payment_status")
+            or kwargs.get("errorCode")
+            or kwargs.get("status")
+            or ""
+        )
         self.raw_status = str(raw_status)
         self.status = self.raw_status
 
-        # Amount -- SDK uses paid_amount, webhook uses amount
+        # Amount -- SDK POST uses paid_amount, redirect uses amount
         self.paid_amount = kwargs.get("paid_amount") or kwargs.get("amount") or ""
         self.paid_sum = kwargs.get("paid_sum") or ""
 
-        # TouchPay transaction reference
-        self.command_number = kwargs.get("command_number") or ""
+        # Operator / provider reference
         self.operator_id = (
             kwargs.get("operator_id")
             or kwargs.get("operatorId")
             or kwargs.get("operator_ref")
+            or kwargs.get("num_transaction_from_gu")
             or self.command_number
         )
 
@@ -108,13 +129,16 @@ def _map_touchpay_status(raw_status: str) -> PaymentStatus:
     """
     Map TouchPay status to our PaymentStatus enum.
 
-    TouchPay SDK uses numeric codes: 200 = success, others = failure.
-    Server webhooks use text: success, failed, cancelled, etc.
+    TouchPay uses different codes depending on the callback type:
+    - Server POST: payment_status=200 means success
+    - Browser redirect: errorCode=202 means success
+    Server webhooks may use text: success, failed, cancelled, etc.
     """
     normalized = raw_status.strip().lower()
 
-    # Numeric status codes from TouchPay SDK
-    if normalized == "200":
+    # Numeric status codes from TouchPay
+    # 200 = success (server POST), 202 = success (browser redirect)
+    if normalized in ("200", "202"):
         return PaymentStatus.COMPLETED
 
     # Text statuses
@@ -126,7 +150,7 @@ def _map_touchpay_status(raw_status: str) -> PaymentStatus:
         return PaymentStatus.CANCELLED
     else:
         # Any other numeric code or unknown string = FAILED
-        if normalized.isdigit() and normalized != "200":
+        if normalized.isdigit() and normalized not in ("200", "202"):
             return PaymentStatus.FAILED
         return PaymentStatus.PENDING
 
@@ -144,10 +168,12 @@ async def _find_payment(
     conditions = []
     if callback.payment_token:
         conditions.append(Payment.payment_token == callback.payment_token)
-        # SDK sends reference as payment_token (not JWT)
         conditions.append(Payment.reference == callback.payment_token)
     if callback.transaction_id:
         conditions.append(Payment.reference == callback.transaction_id)
+    # command_number / num_command = our PAY-xxx reference
+    if callback.command_number:
+        conditions.append(Payment.reference == callback.command_number)
 
     if not conditions:
         return None
