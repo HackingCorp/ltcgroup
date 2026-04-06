@@ -3,9 +3,27 @@
 <head>
     <meta charset="utf-8" />
     <title>TouchPay Test</title>
-    <script src=https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js type="text/javascript"></script>
+    <script src="https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js" type="text/javascript"></script>
+</head>
+<body>
+    <h2>Test TouchPay Direct</h2>
+    <p id="status">Chargement du SDK...</p>
+    <input type="button" onclick="calltouchpay()" value="Payer 500 XAF" />
+
     <script type="text/javascript">
+        // Check SDK loaded
+        if (typeof sendPaymentInfos === 'function') {
+            document.getElementById('status').textContent = 'SDK charge OK';
+        } else {
+            document.getElementById('status').textContent = 'ERREUR: SDK non charge';
+        }
+
         function calltouchpay() {
+            if (typeof sendPaymentInfos !== 'function') {
+                alert('sendPaymentInfos non disponible');
+                return;
+            }
+            alert('Appel sendPaymentInfos...');
             sendPaymentInfos(new Date().getTime()+"",
                 'LTCGR11789', 'KyQ4Gs7N5aBKQg7APtboTEUXIDdAFLo6sq6uplEEvwTYfCbYmG',
                 'pay.ltcgroup.site', 'https://pay.ltcgroup.site/webhooks/touchpay/callback',
@@ -13,9 +31,5 @@
                 'Douala', 'test@ltcgroup.site', 'Test', 'Client', '+237600000000');
         }
     </script>
-</head>
-<body>
-    <h2>Test TouchPay Direct</h2>
-    <input type=button onclick='calltouchpay()' value='Payer 500 XAF' />
 </body>
 </html>
