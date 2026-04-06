@@ -251,7 +251,8 @@ async def _process_callback(
         .returning(Payment.id)
     )
 
-    if result.rowcount == 0:
+    updated_row = result.first()
+    if updated_row is None:
         logger.info("TouchPay callback: Concurrent update detected for %s", payment.reference)
         return {
             "status": "ok",
