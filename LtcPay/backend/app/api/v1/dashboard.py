@@ -3,7 +3,7 @@ Dashboard stats endpoint for the LtcPay admin dashboard.
 """
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, cast, Date
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,4 +94,55 @@ async def get_dashboard_stats(
         "success_rate": round(success_rate, 1),
         "recent_payments": recent_payments,
         "revenue_chart": revenue_chart,
+    }
+
+
+@router.get("/payments")
+async def list_payments_admin(
+    _=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
+    status: str | None = Query(default=None),
+):
+    """List all payments (admin view)."""
+    base_query = select(Payment)
+
+    if status:
+        try:
+            ps = PaymentStatus(status)
+            base_query = base_query.where(Payment.status == ps)
+        except ValueError:
+            pass
+
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total = (await db.execute(count_query)).scalar_one()
+
+    offset = (page - 1) * per_page
+    result = await db.execute(
+        base_query.order_by(Payment.created_at.desc()).offset(offset).limit(per_page)
+    )
+    payments = result.scalars().all()
+
+    items = []
+    for p in payments:
+        items.append({
+            "id": str(p.id),
+            "reference": p.reference,
+            "amount": float(p.amount),
+            "currency": p.currency,
+            "status": p.status.value,
+            "description": p.description,
+            "payment_method": p.method.value if p.method else None,
+            "customer_email": p.customer_info.get("email") if p.customer_info else None,
+            "customer_phone": p.customer_info.get("phone") if p.customer_info else None,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
     }

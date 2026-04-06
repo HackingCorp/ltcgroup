@@ -37,7 +37,7 @@ export const paymentsService = {
     if (filters.date_to) params.set("date_to", filters.date_to);
 
     const response = await api.get<PaginatedResponse<Payment>>(
-      `/payments?${params.toString()}`
+      `/dashboard/payments?${params.toString()}`
     );
     return response.data;
   },
