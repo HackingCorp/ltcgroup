@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     #   first_name, last_name, phone)
     TOUCHPAY_MERCHANT_ID: str = "LTCGR11789"
     TOUCHPAY_SECURE_CODE: str = ""
-    TOUCHPAY_MERCHANT_WEBSITE: str = "ltcpay.com"
+    TOUCHPAY_MERCHANT_WEBSITE: str = "ltcgroup.site"
     TOUCHPAY_SECRET: str = ""
     TOUCHPAY_SDK_URL: str = "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js"
     TOUCHPAY_CALLBACK_URL: str = ""
