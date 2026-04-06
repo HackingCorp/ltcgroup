@@ -2,7 +2,7 @@
 LtcPay - TouchPay Integration Service
 
 TouchPay SDK reference (prod_touchpay-0.0.1.js):
-  sendPaymentInfos(
+  SendPaymentInfos(
       payment_token,       // unique token identifying this payment
       merchant_id,         // e.g. 'LTCGR11789'
       secure_code,         // merchant secure code from TouchPay dashboard
@@ -57,7 +57,7 @@ class TouchPayService:
         Build the config dict passed to the checkout.html template.
 
         The template JS calls:
-          sendPaymentInfos(payment_token, merchant_id, secure_code,
+          SendPaymentInfos(payment_token, merchant_id, secure_code,
               merchant_website, success_url, failed_url, amount, city,
               email, first_name, last_name, phone)
         """
