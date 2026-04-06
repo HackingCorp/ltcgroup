@@ -50,6 +50,7 @@ services:
       TOUCHPAY_CALLBACK_URL: ${TOUCHPAY_CALLBACK_URL:-http://localhost:8001/api/v1/callbacks/touchpay}
       TOUCHPAY_MERCHANT_ID: ${TOUCHPAY_MERCHANT_ID:-LTCGR11789}
       TOUCHPAY_SECURE_CODE: ${TOUCHPAY_SECURE_CODE:-}
+      TOUCHPAY_MERCHANT_WEBSITE: ${TOUCHPAY_MERCHANT_WEBSITE:-pay.ltcgroup.site}
       TOUCHPAY_SECRET: ${TOUCHPAY_SECRET:-}
       # Database & Redis
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://ltcpay:ltcpay_secret@db:5432/ltcpay}
