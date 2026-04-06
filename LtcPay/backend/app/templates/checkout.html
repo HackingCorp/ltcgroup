@@ -303,45 +303,42 @@
         </div>
     </div>
 
+    <!-- Load TouchPay SDK early so it's ready when user clicks -->
+    <script src="{{ sdk_config.sdk_script_url }}" type="text/javascript" async></script>
+
     <script type="text/javascript">
         /**
-         * TouchPay SDK integration (redirection mode).
-         * SDK is loaded dynamically on click to prevent auto-redirect on page load.
+         * TouchPay SDK integration.
+         * SDK is loaded async in <head>. sendPaymentInfos is called directly
+         * in the click handler so the browser allows the popup (user gesture).
          */
         function calltouchpay() {
+            if (typeof sendPaymentInfos !== 'function') {
+                var el = document.getElementById('status-message');
+                el.textContent = 'Chargement en cours, veuillez réessayer...';
+                el.className = 'status-message error';
+                el.style.display = 'block';
+                return;
+            }
+
             var btn = document.getElementById('pay-button');
             btn.classList.add('loading');
             btn.disabled = true;
 
-            // Load SDK script dynamically, then call sendPaymentInfos
-            var script = document.createElement('script');
-            script.src = "{{ sdk_config.sdk_script_url }}";
-            script.type = "text/javascript";
-            script.onload = function() {
-                sendPaymentInfos(
-                    "{{ sdk_config.payment_token }}",
-                    "{{ sdk_config.merchant_id }}",
-                    "{{ sdk_config.secure_code }}",
-                    "{{ sdk_config.merchant_website }}",
-                    "{{ sdk_config.success_url }}",
-                    "{{ sdk_config.failed_url }}",
-                    {{ sdk_config.amount }},
-                    "{{ sdk_config.city }}",
-                    "{{ sdk_config.email }}",
-                    "{{ sdk_config.first_name }}",
-                    "{{ sdk_config.last_name }}",
-                    "{{ sdk_config.phone }}"
-                );
-            };
-            script.onerror = function() {
-                var el = document.getElementById('status-message');
-                el.textContent = 'Erreur: Impossible de charger le service de paiement';
-                el.className = 'status-message error';
-                el.style.display = 'block';
-                btn.classList.remove('loading');
-                btn.disabled = false;
-            };
-            document.head.appendChild(script);
+            sendPaymentInfos(
+                "{{ sdk_config.payment_token }}",
+                "{{ sdk_config.merchant_id }}",
+                "{{ sdk_config.secure_code }}",
+                "{{ sdk_config.merchant_website }}",
+                "{{ sdk_config.success_url }}",
+                "{{ sdk_config.failed_url }}",
+                {{ sdk_config.amount }},
+                "{{ sdk_config.city }}",
+                "{{ sdk_config.email }}",
+                "{{ sdk_config.first_name }}",
+                "{{ sdk_config.last_name }}",
+                "{{ sdk_config.phone }}"
+            );
         }
     </script>
 </body>
