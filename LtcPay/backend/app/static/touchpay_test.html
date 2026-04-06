@@ -1,25 +1,47 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="utf-8" />
-    <title>pageWebTest</title>
-    <script src=https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js type="text/javascript"></script>
+    <title>TouchPay Test</title>
+    <script src="https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js" type="text/javascript"></script>
+</head>
+<body>
+    <h2>Test TouchPay</h2>
+    <p id="status">Chargement...</p>
+    <p>
+        <input type="button" onclick="calltouchpay()" value="Test sendPaymentInfos" />
+    </p>
+    <p id="log" style="color:red;white-space:pre-wrap;"></p>
+
     <script type="text/javascript">
+        var log = document.getElementById('log');
+        var status = document.getElementById('status');
+
+        // Check what functions the SDK exposes
+        var funcs = [];
+        if (typeof sendPaymentInfos === 'function') funcs.push('sendPaymentInfos');
+        if (typeof SendPaymentInfos === 'function') funcs.push('SendPaymentInfos');
+        if (typeof postToTouchpay === 'function') funcs.push('postToTouchpay');
+
+        if (funcs.length > 0) {
+            status.textContent = 'SDK OK. Fonctions: ' + funcs.join(', ');
+        } else {
+            status.textContent = 'ERREUR: aucune fonction TouchPay trouvee';
+        }
+
         function calltouchpay() {
-            sendPaymentInfos(new Date().getTime()+"",
-                'LTCGR11789', 'KyQ4Gs7N5aBKQg7APtboTEUXIDdAFLo6sq6uplEEvwTYfCbYmG',
-                'pay.ltcgroup.site', 'https://pay.ltcgroup.site/webhooks/touchpay/callback',
-                'https://pay.ltcgroup.site/webhooks/touchpay/callback', 500,
-                'Douala', 'test@ltcgroup.site', 'Test', 'Client', '+237600000000');
+            log.textContent = 'Appel en cours...\n';
+            try {
+                sendPaymentInfos(new Date().getTime()+"",
+                    'LTCGR11789', 'KyQ4Gs7N5aBKQg7APtboTEUXIDdAFLo6sq6uplEEvwTYfCbYmG',
+                    'pay.ltcgroup.site', 'https://pay.ltcgroup.site/webhooks/touchpay/callback',
+                    'https://pay.ltcgroup.site/webhooks/touchpay/callback', 500,
+                    'Douala', 'test@ltcgroup.site', 'Test', 'Client', '+237600000000');
+                log.textContent += 'sendPaymentInfos() appele sans erreur\n';
+            } catch(e) {
+                log.textContent += 'ERREUR: ' + e.message + '\n' + e.stack;
+            }
         }
     </script>
-</head>
-
-
-
-<body>
-    <input type=button onclick='calltouchpay()' value=continuer />
 </body>
-
 </html>
