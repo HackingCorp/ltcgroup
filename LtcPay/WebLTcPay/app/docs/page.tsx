@@ -386,40 +386,71 @@ console.log(payment.status); // "cancelled"`}
           <p className="text-sm text-gray-600">
             LTCPay sends <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code> requests
             to your <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> when a
-            payment status changes. The payload is signed with your <strong>webhook secret</strong> in
-            the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-Webhook-Signature</code> header.
+            payment status changes. The payload is signed with HMAC-SHA256 using your <strong>webhook secret</strong>.
           </p>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Webhook Headers</h3>
+            <p className="text-sm text-gray-600">
+              Each webhook request includes the following headers:
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th className="pb-2 font-medium">Header</th>
+                    <th className="pb-2 font-medium">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Signature</td><td className="py-2 text-xs text-gray-600">HMAC-SHA256 signature of the raw JSON body</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Event</td><td className="py-2 text-xs text-gray-600">Event type (e.g. <code className="bg-gray-100 px-1 rounded">payment.status_changed</code>)</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Delivery-Id</td><td className="py-2 text-xs text-gray-600">Unique delivery ID for idempotency</td></tr>
+                </tbody>
+              </table>
+            </div>
+
             <h3 className="text-sm font-semibold text-gray-900">Webhook Payload</h3>
+            <p className="text-sm text-gray-600">
+              The event is always <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. Check the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> field to determine the new status.
+            </p>
             <CodeBlock
               language="json"
               code={`{
-  "event": "payment.completed",
+  "event": "payment.status_changed",
   "data": {
-    "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+    "payment_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
     "reference": "PAY-A1B2C3",
+    "merchant_reference": "order-1234",
+    "provider_transaction_id": "1775499394985",
     "amount": 5000,
+    "fee": 75,
     "currency": "XAF",
-    "status": "completed",
-    "payment_method": "mobile_money",
+    "status": "COMPLETED",
+    "method": "MOBILE_MONEY",
+    "customer_name": "John Doe",
+    "customer_email": "john@example.com",
     "customer_phone": "+237699000000",
-    "metadata": { "order_id": "1234" },
-    "created_at": "2026-04-03T12:00:00Z",
-    "updated_at": "2026-04-03T12:01:30Z"
-  }
+    "description": "Order #1234",
+    "completed_at": "2026-04-06T18:17:14Z",
+    "created_at": "2026-04-06T18:16:08Z"
+  },
+  "timestamp": "2026-04-06T18:17:14Z"
 }`}
             />
 
             <h3 className="text-sm font-semibold text-gray-900">Verifying Signatures</h3>
+            <p className="text-sm text-gray-600">
+              The signature is computed as <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. You <strong>must</strong> verify the signature using the raw request body (not a re-serialized version) to avoid mismatches.
+            </p>
             <CodeBlock
               language="javascript"
               code={`import crypto from "crypto";
 
-function verifyWebhook(payload, signature, webhookSecret) {
+function verifyWebhook(rawBody, signature, webhookSecret) {
   const expected = crypto
     .createHmac("sha256", webhookSecret)
-    .update(payload)
+    .update(rawBody)  // Use the raw body string, NOT JSON.stringify(parsed)
     .digest("hex");
   return crypto.timingSafeEqual(
     Buffer.from(signature),
@@ -427,19 +458,17 @@ function verifyWebhook(payload, signature, webhookSecret) {
   );
 }
 
-// In your Express/Next.js handler:
-app.post("/webhooks/ltcpay", (req, res) => {
-  const signature = req.headers["x-webhook-signature"];
-  const isValid = verifyWebhook(
-    JSON.stringify(req.body),
-    signature,
-    process.env.LTCPAY_WEBHOOK_SECRET
-  );
+// Express.js example (use express.raw() or express.text() to get raw body):
+app.post("/webhooks/ltcpay", express.text({ type: "application/json" }), (req, res) => {
+  const signature = req.headers["x-ltcpay-signature"];
+  const rawBody = req.body; // raw string
 
-  if (!isValid) return res.status(401).send("Invalid signature");
+  if (!verifyWebhook(rawBody, signature, process.env.LTCPAY_WEBHOOK_SECRET)) {
+    return res.status(403).json({ message: "Invalid webhook signature" });
+  }
 
-  const { event, data } = req.body;
-  if (event === "payment.completed") {
+  const { event, data } = JSON.parse(rawBody);
+  if (data.status === "COMPLETED") {
     // Mark order as paid
     console.log("Payment completed:", data.reference);
   }
@@ -449,47 +478,70 @@ app.post("/webhooks/ltcpay", (req, res) => {
             />
             <CodeBlock
               language="python"
-              code={`import hmac, hashlib
+              code={`import hmac, hashlib, json
 
-def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
+def verify_webhook(raw_body: bytes, signature: str, secret: str) -> bool:
+    """Verify the X-LtcPay-Signature header."""
     expected = hmac.new(
-        secret.encode(), payload, hashlib.sha256
+        secret.encode("utf-8"), raw_body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
 
-# In your FastAPI/Flask handler:
+# FastAPI example:
 @app.post("/webhooks/ltcpay")
 async def handle_webhook(request: Request):
-    body = await request.body()
-    signature = request.headers.get("X-Webhook-Signature", "")
+    raw_body = await request.body()
+    signature = request.headers.get("X-LtcPay-Signature", "")
 
-    if not verify_webhook(body, signature, WEBHOOK_SECRET):
-        raise HTTPException(status_code=401)
+    if not verify_webhook(raw_body, signature, WEBHOOK_SECRET):
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
 
-    data = await request.json()
-    if data["event"] == "payment.completed":
+    data = json.loads(raw_body)
+    if data["data"]["status"] == "COMPLETED":
         print(f"Payment completed: {data['data']['reference']}")
 
     return {"status": "ok"}`}
             />
 
-            <h3 className="text-sm font-semibold text-gray-900">Webhook Events</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Payment Statuses</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Event</th>
+                    <th className="pb-2 font-medium">Status</th>
                     <th className="pb-2 font-medium">Description</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">payment.completed</td><td className="py-2 text-xs text-gray-600">Payment was successfully processed</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">payment.failed</td><td className="py-2 text-xs text-gray-600">Payment failed (insufficient funds, timeout, etc.)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">payment.expired</td><td className="py-2 text-xs text-gray-600">Payment expired before completion</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">payment.cancelled</td><td className="py-2 text-xs text-gray-600">Payment was cancelled via API</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">PENDING</td><td className="py-2 text-xs text-gray-600">Payment created, waiting for customer</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">COMPLETED</td><td className="py-2 text-xs text-gray-600">Payment was successfully processed</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">FAILED</td><td className="py-2 text-xs text-gray-600">Payment failed (insufficient funds, timeout, etc.)</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">EXPIRED</td><td className="py-2 text-xs text-gray-600">Payment expired before completion</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">CANCELLED</td><td className="py-2 text-xs text-gray-600">Payment was cancelled via API</td></tr>
                 </tbody>
               </table>
             </div>
+
+            <h3 className="text-sm font-semibold text-gray-900">Retry Policy</h3>
+            <p className="text-sm text-gray-600">
+              If your endpoint returns a non-2xx status code, LTCPay retries up to <strong>5 times</strong> with
+              exponential backoff (2s, 4s, 8s, 16s, 32s). Your endpoint must respond within <strong>30 seconds</strong>.
+            </p>
+          </div>
+
+          {/* Webhook Troubleshooting */}
+          <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-red-900">Troubleshooting: &quot;Invalid webhook signature&quot;</h3>
+            <p className="text-sm text-red-800">
+              If you receive a <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code> error, check the following:
+            </p>
+            <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
+              <li>Read the signature from the <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> header (not <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</li>
+              <li>Use the <strong>raw request body</strong> for HMAC verification &mdash; do NOT re-serialize the parsed JSON (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> may produce different whitespace/key ordering)</li>
+              <li>Make sure you are using your <strong>merchant webhook secret</strong> (set during registration), not your API key or API secret</li>
+              <li>The signing algorithm is <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> with hex digest output</li>
+              <li>If you have not set a webhook secret, contact the LTCPay admin to configure one for your merchant account</li>
+            </ul>
           </div>
         </section>
 
