@@ -205,32 +205,49 @@ async def _handle_touchpay_callback(request: Request, params: dict):
 
 @app.get("/webhooks/touchpay/callback")
 async def touchpay_sdk_callback_get(request: Request):
-    """Handle TouchPay browser redirect callback (GET)."""
+    """Handle TouchPay browser redirect (GET).
+
+    IMPORTANT: The GET callback is a browser redirect and can be spoofed.
+    It must NEVER update payment status. Only the server-to-server POST
+    webhook is trusted for status changes.
+
+    This handler only looks up the payment and shows its current status.
+    """
+    from app.api.v1.endpoints.callbacks import TouchPayCallbackData, _find_payment
     from app.models.payment import PaymentStatus as PS
 
     params = dict(request.query_params)
-    result = await _handle_touchpay_callback(request, params)
+    logger.info("TouchPay browser redirect (GET): %s", params)
 
-    payment = result.get("payment")
-    new_status = result.get("new_status", PS.PENDING)
+    callback = TouchPayCallbackData(**params)
+
+    if not callback.payment_token and not callback.command_number and not callback.transaction_id:
+        raise HTTPException(status_code=400, detail="Missing payment identifier")
+
+    # Read-only: find the payment but do NOT update its status
+    async with async_session() as db:
+        payment = await _find_payment(db, callback)
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
 
     # If the merchant provided a return_url, redirect the customer there
-    if payment and payment.return_url:
+    if payment.return_url:
         separator = "&" if "?" in payment.return_url else "?"
         redirect_url = (
             f"{payment.return_url}{separator}"
             f"reference={payment.reference}"
-            f"&status={new_status.value}"
+            f"&status={payment.status.value}"
         )
         return RedirectResponse(url=redirect_url, status_code=302)
 
-    # Otherwise, show our payment status page
+    # Otherwise, show our payment status page with the CURRENT db status
     return templates.TemplateResponse(
         "payment_status.html",
         {
             "request": request,
             "payment": payment,
-            "status": new_status.value if new_status else "UNKNOWN",
+            "status": payment.status.value,
         },
     )
 
