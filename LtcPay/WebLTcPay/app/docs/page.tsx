@@ -126,6 +126,37 @@ function ResponseBlock({ status, body }: { status: number; body: string }) {
   );
 }
 
+function CopyDocsButton() {
+  const [copied, setCopied] = useState(false);
+  const copyDocs = () => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    // Collect text content from the docs, preserving code blocks
+    const blocks: string[] = [];
+    main.querySelectorAll("section, .rounded-xl").forEach((section) => {
+      const headings = section.querySelectorAll("h1, h2, h3");
+      headings.forEach((h) => {
+        const level = h.tagName === "H1" ? "#" : h.tagName === "H2" ? "##" : "###";
+        blocks.push(`${level} ${h.textContent}`);
+      });
+    });
+    // Fallback: copy innerText of main
+    const text = main.innerText || main.textContent || "";
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+  return (
+    <button
+      onClick={copyDocs}
+      className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+    >
+      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+      {copied ? "Copied!" : "Copy docs"}
+    </button>
+  );
+}
+
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,12 +172,15 @@ export default function DocsPage() {
               API Docs
             </span>
           </Link>
-          <Link
-            href="/auth/login"
-            className="rounded-lg bg-navy-500 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600 transition-colors"
-          >
-            Dashboard
-          </Link>
+          <div className="flex items-center gap-3">
+            <CopyDocsButton />
+            <Link
+              href="/auth/login"
+              className="rounded-lg bg-navy-500 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600 transition-colors"
+            >
+              Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 
