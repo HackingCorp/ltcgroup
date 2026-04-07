@@ -115,11 +115,15 @@ app.include_router(api_router, prefix="/api/v1")
 async def payment_page(reference: str, request: Request):
     """Render the payment checkout page with TouchPay SDK."""
     from app.models.payment import Payment, PaymentStatus
+    from app.models.merchant import Merchant
     from app.services.touchpay_service import touchpay_service
+    from sqlalchemy.orm import selectinload
 
     async with async_session() as db:
         result = await db.execute(
-            select(Payment).where(Payment.reference == reference)
+            select(Payment)
+            .options(selectinload(Payment.merchant))
+            .where(Payment.reference == reference)
         )
         payment = result.scalar_one_or_none()
 
@@ -160,6 +164,7 @@ async def payment_page(reference: str, request: Request):
         {
             "request": request,
             "payment": payment,
+            "merchant": payment.merchant,
             "sdk_config": sdk_config,
         },
     )

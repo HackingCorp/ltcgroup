@@ -14,6 +14,7 @@ class MerchantCreate(BaseModel):
     callback_url: Optional[str] = Field(None, max_length=500)
     business_type: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
+    logo_url: Optional[str] = Field(None, max_length=500)
 
 
 class MerchantUpdate(BaseModel):
@@ -23,6 +24,7 @@ class MerchantUpdate(BaseModel):
     callback_url: Optional[str] = Field(None, max_length=500)
     business_type: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
+    logo_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
 
 
@@ -41,6 +43,7 @@ class MerchantResponse(BaseModel):
     is_test_mode: bool
     business_type: Optional[str] = None
     description: Optional[str] = None
+    logo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

@@ -413,6 +413,19 @@ function CreateMerchantModal({
               placeholder="https://example.com/webhook"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Logo URL
+            </label>
+            <Input
+              value={form.logo_url || ""}
+              onChange={(e) => set("logo_url", e.target.value)}
+              placeholder="https://example.com/logo.png"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Affiché sur la page de paiement du client
+            </p>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

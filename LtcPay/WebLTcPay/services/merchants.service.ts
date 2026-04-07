@@ -9,6 +9,7 @@ export interface CreateMerchantData {
   callback_url?: string;
   business_type?: string;
   description?: string;
+  logo_url?: string;
 }
 
 export interface UpdateMerchantData {
@@ -18,6 +19,7 @@ export interface UpdateMerchantData {
   callback_url?: string;
   business_type?: string;
   description?: string;
+  logo_url?: string;
   is_active?: boolean;
 }
 

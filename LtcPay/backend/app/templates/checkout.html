@@ -41,6 +41,15 @@
             text-align: center;
         }
 
+        .payment-header .merchant-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: rgba(255,255,255,0.15);
+            margin-bottom: 8px;
+        }
+
         .payment-header .logo {
             font-size: 24px;
             font-weight: 700;
@@ -240,8 +249,11 @@
     <div class="payment-container">
         <div class="payment-card">
             <div class="payment-header">
-                <div class="logo">LTC PAY</div>
-                <div class="subtitle">Paiement securise</div>
+                {% if merchant and merchant.logo_url %}
+                <img src="{{ merchant.logo_url }}" alt="{{ merchant.name }}" class="merchant-logo">
+                {% endif %}
+                <div class="logo">{{ merchant.name if merchant else "LTC PAY" }}</div>
+                <div class="subtitle">Paiement securise via LtcPay</div>
             </div>
 
             <div class="payment-details">

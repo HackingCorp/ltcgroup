@@ -110,6 +110,7 @@ export interface Merchant {
   is_test_mode: boolean;
   business_type?: string;
   description?: string;
+  logo_url?: string;
   created_at: string;
   updated_at: string;
 }
