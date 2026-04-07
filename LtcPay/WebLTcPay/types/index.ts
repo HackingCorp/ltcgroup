@@ -103,6 +103,7 @@ export interface Merchant {
   website?: string;
   api_key_live: string;
   api_key_test: string;
+  webhook_secret?: string;
   callback_url?: string;
   is_active: boolean;
   is_verified: boolean;

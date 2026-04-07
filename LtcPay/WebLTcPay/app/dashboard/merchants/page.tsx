@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, Loading, Button, Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
-import { Store, Plus, Copy, Eye, EyeOff, X } from "lucide-react";
+import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield } from "lucide-react";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData } from "@/services/merchants.service";
 
@@ -73,35 +73,19 @@ export default function MerchantsPage() {
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">API Key (Test)</th>
                     <th className="pb-3 font-medium">API Key (Live)</th>
+                    <th className="pb-3 font-medium">Webhook Secret</th>
+                    <th className="pb-3 font-medium">Actions</th>
                     <th className="pb-3 font-medium">Created</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {merchants.map((m) => (
-                    <tr key={m.id}>
-                      <td className="py-3 font-medium text-gray-900">{m.name}</td>
-                      <td className="py-3 text-gray-600">{m.email}</td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            m.is_active
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {m.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <ApiKeyCell value={m.api_key_test} />
-                      </td>
-                      <td className="py-3">
-                        <ApiKeyCell value={m.api_key_live} />
-                      </td>
-                      <td className="py-3 text-gray-500">
-                        {new Date(m.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
+                    <MerchantRow
+                      key={m.id}
+                      merchant={m}
+                      onCredentials={(creds) => setCredentials(creds)}
+                      onRefresh={loadMerchants}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -150,6 +134,103 @@ function ApiKeyCell({ value }: { value: string }) {
         <Copy className="h-3.5 w-3.5" />
       </button>
     </div>
+  );
+}
+
+function MerchantRow({
+  merchant: m,
+  onCredentials,
+  onRefresh,
+}: {
+  merchant: Merchant;
+  onCredentials: (creds: MerchantCredentials) => void;
+  onRefresh: () => void;
+}) {
+  const [regenerating, setRegenerating] = useState<string | null>(null);
+
+  const handleRegenerateApiSecret = async () => {
+    if (!confirm(`Regenerate API secret for "${m.name}"? The old secret will stop working immediately.`))
+      return;
+    setRegenerating("api");
+    try {
+      const creds = await merchantsService.regenerateApiSecret(m.id);
+      onCredentials(creds);
+    } catch {
+      alert("Failed to regenerate API secret");
+    } finally {
+      setRegenerating(null);
+    }
+  };
+
+  const handleRegenerateWebhookSecret = async () => {
+    if (!confirm(`Regenerate webhook secret for "${m.name}"? Update your webhook handler with the new secret.`))
+      return;
+    setRegenerating("webhook");
+    try {
+      const result = await merchantsService.regenerateWebhookSecret(m.id);
+      alert(`New webhook secret:\n\n${result.webhook_secret}\n\nSave it now.`);
+      onRefresh();
+    } catch {
+      alert("Failed to regenerate webhook secret");
+    } finally {
+      setRegenerating(null);
+    }
+  };
+
+  return (
+    <tr>
+      <td className="py-3 font-medium text-gray-900">{m.name}</td>
+      <td className="py-3 text-gray-600">{m.email}</td>
+      <td className="py-3">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+            m.is_active
+              ? "bg-green-50 text-green-700"
+              : "bg-red-50 text-red-700"
+          }`}
+        >
+          {m.is_active ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="py-3">
+        <ApiKeyCell value={m.api_key_test} />
+      </td>
+      <td className="py-3">
+        <ApiKeyCell value={m.api_key_live} />
+      </td>
+      <td className="py-3">
+        {m.webhook_secret ? (
+          <ApiKeyCell value={m.webhook_secret} />
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        )}
+      </td>
+      <td className="py-3">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleRegenerateApiSecret}
+            disabled={regenerating !== null}
+            title="Regenerate API Secret"
+            className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+          >
+            <KeyRound className="h-3 w-3" />
+            {regenerating === "api" ? "..." : "Secret"}
+          </button>
+          <button
+            onClick={handleRegenerateWebhookSecret}
+            disabled={regenerating !== null}
+            title="Regenerate Webhook Secret"
+            className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+          >
+            <Shield className="h-3 w-3" />
+            {regenerating === "webhook" ? "..." : "Webhook"}
+          </button>
+        </div>
+      </td>
+      <td className="py-3 text-gray-500">
+        {new Date(m.created_at).toLocaleDateString()}
+      </td>
+    </tr>
   );
 }
 

@@ -43,4 +43,20 @@ export const merchantsService = {
     const response = await api.patch<Merchant>(`/merchants/${id}`, data);
     return response.data;
   },
+
+  async regenerateApiSecret(id: string): Promise<MerchantCredentials> {
+    const response = await api.post<MerchantCredentials>(
+      `/merchants/${id}/regenerate-api-secret`
+    );
+    return response.data;
+  },
+
+  async regenerateWebhookSecret(
+    id: string
+  ): Promise<{ webhook_secret: string }> {
+    const response = await api.post<{ webhook_secret: string }>(
+      `/merchants/${id}/regenerate-webhook-secret`
+    );
+    return response.data;
+  },
 };

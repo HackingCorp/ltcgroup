@@ -198,3 +198,59 @@ async def update_merchant(
     await db.commit()
     await db.refresh(merchant)
     return MerchantResponse.model_validate(merchant)
+
+
+@router.post("/{merchant_id}/regenerate-api-secret", response_model=MerchantCredentialsResponse)
+async def regenerate_api_secret(
+    merchant_id: uuid.UUID,
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate the API secret for a merchant (admin only). Returns new raw secret."""
+    result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    merchant = result.scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    raw_secret = generate_api_secret()
+    merchant.api_secret_hash = hash_api_secret(raw_secret)
+
+    await db.commit()
+    await db.refresh(merchant)
+
+    return MerchantCredentialsResponse(
+        id=merchant.id,
+        name=merchant.name,
+        api_key_live=merchant.api_key_live,
+        api_key_test=merchant.api_key_test,
+        api_secret=raw_secret,
+        webhook_secret=merchant.webhook_secret,
+        message="New API secret generated. Store it securely.",
+    )
+
+
+@router.post("/{merchant_id}/regenerate-webhook-secret")
+async def regenerate_webhook_secret(
+    merchant_id: uuid.UUID,
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate the webhook secret for a merchant (admin only)."""
+    import secrets as _secrets
+
+    result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    merchant = result.scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    merchant.webhook_secret = _secrets.token_hex(32)
+
+    await db.commit()
+    await db.refresh(merchant)
+
+    return {
+        "id": str(merchant.id),
+        "name": merchant.name,
+        "webhook_secret": merchant.webhook_secret,
+        "message": "New webhook secret generated. Update your webhook handler.",
+    }

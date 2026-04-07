@@ -34,6 +34,7 @@ class MerchantResponse(BaseModel):
     website: Optional[str] = None
     api_key_live: str
     api_key_test: str
+    webhook_secret: str = ""
     callback_url: Optional[str] = None
     is_active: bool
     is_verified: bool
