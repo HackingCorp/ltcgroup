@@ -26,5 +26,11 @@ async def get_db() -> AsyncSession:
 
 
 async def init_models():
+    from sqlalchemy import text
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Add columns that create_all won't add to existing tables
+        await conn.execute(text(
+            "ALTER TABLE payment_merchants ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500)"
+        ))
