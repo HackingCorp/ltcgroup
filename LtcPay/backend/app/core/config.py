@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     TOUCHPAY_SDK_URL: str = "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js"
     TOUCHPAY_CALLBACK_URL: str = ""
     TOUCHPAY_RETURN_URL: str = ""
+    TOUCHPAY_CALLBACK_USERNAME: str = ""
+    TOUCHPAY_CALLBACK_PASSWORD: str = ""
 
     # Legacy aliases (used by some modules)
     touchpay_api_url: str = "https://touchpay.gutouch.net/touchpayv2/api"

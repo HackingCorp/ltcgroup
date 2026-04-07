@@ -203,20 +203,73 @@ async def _handle_touchpay_callback(request: Request, params: dict):
     return result
 
 
+def _is_server_callback(params: dict) -> bool:
+    """Distinguish TouchPay server callback from browser redirect.
+
+    Server callback has: payment_status, payment_mode, command_number, etc.
+    Browser redirect has: errorCode, num_transaction_from_gu, num_command
+    """
+    return "payment_status" in params and "payment_mode" in params
+
+
+def _verify_basic_auth(request: Request) -> bool:
+    """Verify Basic Auth credentials from TouchPay server callback."""
+    from app.core.config import settings
+    import base64
+
+    username = settings.TOUCHPAY_CALLBACK_USERNAME
+    password = settings.TOUCHPAY_CALLBACK_PASSWORD
+
+    # If credentials are not configured, skip verification in dev
+    if not username and not password:
+        logger.warning("TouchPay callback: Basic Auth not configured, skipping verification")
+        return True
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Basic "):
+        return False
+
+    try:
+        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+        provided_user, provided_pass = decoded.split(":", 1)
+        return provided_user == username and provided_pass == password
+    except Exception:
+        return False
+
+
 @app.get("/webhooks/touchpay/callback")
 async def touchpay_sdk_callback_get(request: Request):
-    """Handle TouchPay browser redirect (GET).
+    """Handle TouchPay GET callbacks.
 
-    IMPORTANT: The GET callback is a browser redirect and can be spoofed.
-    It must NEVER update payment status. Only the server-to-server POST
-    webhook is trusted for status changes.
-
-    This handler only looks up the payment and shows its current status.
+    Two types of GET arrive here:
+    1. Browser redirect (SDK): errorCode, num_transaction_from_gu, num_command
+       → NOT trusted, only shows current payment status (read-only)
+    2. Server async callback: payment_status, payment_mode, payment_token,
+       command_number + Basic Auth → TRUSTED, updates payment status
     """
     from app.api.v1.endpoints.callbacks import TouchPayCallbackData, _find_payment
     from app.models.payment import PaymentStatus as PS
 
     params = dict(request.query_params)
+
+    # ---- Server callback (trusted) ----
+    if _is_server_callback(params):
+        logger.info("TouchPay server callback (GET): %s", params)
+
+        if not _verify_basic_auth(request):
+            logger.warning("TouchPay server callback: Invalid Basic Auth")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        result = await _handle_touchpay_callback(request, params)
+        # Return 200 = validated, 420 = failed (per TouchPay docs)
+        new_status = result.get("new_status")
+        if new_status == PS.COMPLETED:
+            return {"status": 200, "message": "Payment validated"}
+        elif new_status in (PS.FAILED, PS.CANCELLED):
+            return {"status": 420, "message": "Payment failed"}
+        return {"status": 200, "message": "Processed"}
+
+    # ---- Browser redirect (not trusted) ----
     logger.info("TouchPay browser redirect (GET): %s", params)
 
     callback = TouchPayCallbackData(**params)
@@ -254,7 +307,7 @@ async def touchpay_sdk_callback_get(request: Request):
 
 @app.post("/webhooks/touchpay/callback")
 async def touchpay_sdk_callback_post(request: Request):
-    """Handle TouchPay server-to-server callback (POST)."""
+    """Handle TouchPay callback (POST fallback)."""
     # Parse body (JSON or form-encoded query params)
     params = dict(request.query_params)
     try:
