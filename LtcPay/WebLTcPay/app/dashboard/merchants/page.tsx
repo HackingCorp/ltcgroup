@@ -68,15 +68,11 @@ export default function MerchantsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left text-gray-500">
-                    <th className="pb-3 font-medium">Name</th>
-                    <th className="pb-3 font-medium">Email</th>
+                    <th className="pb-3 font-medium">Merchant</th>
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">Payment Mode</th>
-                    <th className="pb-3 font-medium">API Key (Test)</th>
-                    <th className="pb-3 font-medium">API Key (Live)</th>
-                    <th className="pb-3 font-medium">Webhook Secret</th>
-                    <th className="pb-3 font-medium">Actions</th>
                     <th className="pb-3 font-medium">Created</th>
+                    <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -147,7 +143,9 @@ function MerchantRow({
   onCredentials: (creds: MerchantCredentials) => void;
   onRefresh: () => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [updatingMode, setUpdatingMode] = useState(false);
 
   const handleRegenerateApiSecret = async () => {
     if (!confirm(`Regenerate API secret for "${m.name}"? The old secret will stop working immediately.`))
@@ -178,71 +176,110 @@ function MerchantRow({
     }
   };
 
+  const handlePaymentModeChange = async (newMode: "SDK" | "DIRECT_API") => {
+    setUpdatingMode(true);
+    try {
+      await merchantsService.update(m.id, { default_payment_mode: newMode });
+      onRefresh();
+    } catch {
+      alert("Failed to update payment mode");
+    } finally {
+      setUpdatingMode(false);
+    }
+  };
+
   return (
-    <tr>
-      <td className="py-3 font-medium text-gray-900">{m.name}</td>
-      <td className="py-3 text-gray-600">{m.email}</td>
-      <td className="py-3">
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-            m.is_active
-              ? "bg-green-50 text-green-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {m.is_active ? "Active" : "Inactive"}
-        </span>
-      </td>
-      <td className="py-3">
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-            m.default_payment_mode === "DIRECT_API"
-              ? "bg-purple-50 text-purple-700"
-              : "bg-blue-50 text-blue-700"
-          }`}
-        >
-          {m.default_payment_mode === "DIRECT_API" ? "Direct API" : "SDK"}
-        </span>
-      </td>
-      <td className="py-3">
-        <ApiKeyCell value={m.api_key_test} />
-      </td>
-      <td className="py-3">
-        <ApiKeyCell value={m.api_key_live} />
-      </td>
-      <td className="py-3">
-        {m.webhook_secret ? (
-          <ApiKeyCell value={m.webhook_secret} />
-        ) : (
-          <span className="text-xs text-gray-400">—</span>
-        )}
-      </td>
-      <td className="py-3">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleRegenerateApiSecret}
-            disabled={regenerating !== null}
-            title="Regenerate API Secret"
-            className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+    <>
+      <tr className="hover:bg-gray-50">
+        <td className="py-3">
+          <div>
+            <p className="font-medium text-gray-900">{m.name}</p>
+            <p className="text-xs text-gray-500">{m.email}</p>
+          </div>
+        </td>
+        <td className="py-3">
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+              m.is_active
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-700"
+            }`}
           >
-            <KeyRound className="h-3 w-3" />
-            {regenerating === "api" ? "..." : "Secret"}
-          </button>
-          <button
-            onClick={handleRegenerateWebhookSecret}
-            disabled={regenerating !== null}
-            title="Regenerate Webhook Secret"
-            className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+            {m.is_active ? "Active" : "Inactive"}
+          </span>
+        </td>
+        <td className="py-3">
+          <select
+            value={m.default_payment_mode || "SDK"}
+            onChange={(e) => handlePaymentModeChange(e.target.value as "SDK" | "DIRECT_API")}
+            disabled={updatingMode}
+            className={`rounded-md border border-gray-300 px-2 py-1 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              m.default_payment_mode === "DIRECT_API"
+                ? "bg-purple-50 text-purple-700"
+                : "bg-blue-50 text-blue-700"
+            } ${updatingMode ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
           >
-            <Shield className="h-3 w-3" />
-            {regenerating === "webhook" ? "..." : "Webhook"}
-          </button>
-        </div>
-      </td>
-      <td className="py-3 text-gray-500">
-        {new Date(m.created_at).toLocaleDateString()}
-      </td>
-    </tr>
+            <option value="SDK">SDK</option>
+            <option value="DIRECT_API">Direct API</option>
+          </select>
+        </td>
+        <td className="py-3 text-gray-500 text-xs">
+          {new Date(m.created_at).toLocaleDateString()}
+        </td>
+        <td className="py-3">
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+            >
+              {showDetails ? "Hide" : "Show"} Details
+            </button>
+          </div>
+        </td>
+      </tr>
+      {showDetails && (
+        <tr className="bg-gray-50">
+          <td colSpan={5} className="px-4 py-4">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">API Key (Test)</p>
+                  <ApiKeyCell value={m.api_key_test} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">API Key (Live)</p>
+                  <ApiKeyCell value={m.api_key_live} />
+                </div>
+              </div>
+              {m.webhook_secret && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Webhook Secret</p>
+                  <ApiKeyCell value={m.webhook_secret} />
+                </div>
+              )}
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                <button
+                  onClick={handleRegenerateApiSecret}
+                  disabled={regenerating !== null}
+                  className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  {regenerating === "api" ? "Regenerating..." : "Regenerate API Secret"}
+                </button>
+                <button
+                  onClick={handleRegenerateWebhookSecret}
+                  disabled={regenerating !== null}
+                  className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  {regenerating === "webhook" ? "Regenerating..." : "Regenerate Webhook Secret"}
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
