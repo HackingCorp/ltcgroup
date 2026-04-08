@@ -111,6 +111,7 @@ export interface Merchant {
   business_type?: string;
   description?: string;
   logo_url?: string;
+  default_payment_mode: "SDK" | "DIRECT_API";
   created_at: string;
   updated_at: string;
 }

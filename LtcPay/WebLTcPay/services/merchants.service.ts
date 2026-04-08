@@ -10,6 +10,7 @@ export interface CreateMerchantData {
   business_type?: string;
   description?: string;
   logo_url?: string;
+  default_payment_mode?: "SDK" | "DIRECT_API";
 }
 
 export interface UpdateMerchantData {
@@ -21,6 +22,7 @@ export interface UpdateMerchantData {
   description?: string;
   logo_url?: string;
   is_active?: boolean;
+  default_payment_mode?: "SDK" | "DIRECT_API";
 }
 
 export const merchantsService = {

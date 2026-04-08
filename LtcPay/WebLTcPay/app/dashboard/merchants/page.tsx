@@ -71,6 +71,7 @@ export default function MerchantsPage() {
                     <th className="pb-3 font-medium">Name</th>
                     <th className="pb-3 font-medium">Email</th>
                     <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium">Payment Mode</th>
                     <th className="pb-3 font-medium">API Key (Test)</th>
                     <th className="pb-3 font-medium">API Key (Live)</th>
                     <th className="pb-3 font-medium">Webhook Secret</th>
@@ -193,6 +194,17 @@ function MerchantRow({
         </span>
       </td>
       <td className="py-3">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+            m.default_payment_mode === "DIRECT_API"
+              ? "bg-purple-50 text-purple-700"
+              : "bg-blue-50 text-blue-700"
+          }`}
+        >
+          {m.default_payment_mode === "DIRECT_API" ? "Direct API" : "SDK"}
+        </span>
+      </td>
+      <td className="py-3">
         <ApiKeyCell value={m.api_key_test} />
       </td>
       <td className="py-3">
@@ -309,6 +321,7 @@ function CreateMerchantModal({
   const [form, setForm] = useState<CreateMerchantData>({
     name: "",
     email: "",
+    default_payment_mode: "SDK",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -424,6 +437,22 @@ function CreateMerchantModal({
             />
             <p className="mt-1 text-xs text-gray-400">
               Affiché sur la page de paiement du client
+            </p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Mode de paiement par défaut
+            </label>
+            <select
+              value={form.default_payment_mode || "SDK"}
+              onChange={(e) => set("default_payment_mode", e.target.value as "SDK" | "DIRECT_API")}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="SDK">SDK (Web - avec redirections)</option>
+              <option value="DIRECT_API">Direct API (Mobile - sans redirections)</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-400">
+              SDK pour applications web, Direct API pour applications mobiles
             </p>
           </div>
           <div className="flex justify-end gap-3 pt-2">
