@@ -4,6 +4,7 @@ LtcPay - Merchant Schemas
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, UUID4
+from app.models.payment import PaymentMode
 
 
 class MerchantCreate(BaseModel):
@@ -15,6 +16,7 @@ class MerchantCreate(BaseModel):
     business_type: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
     logo_url: Optional[str] = Field(None, max_length=500)
+    default_payment_mode: Optional[PaymentMode] = PaymentMode.SDK
 
 
 class MerchantUpdate(BaseModel):
@@ -26,6 +28,7 @@ class MerchantUpdate(BaseModel):
     description: Optional[str] = None
     logo_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
+    default_payment_mode: Optional[PaymentMode] = None
 
 
 class MerchantResponse(BaseModel):
@@ -44,6 +47,7 @@ class MerchantResponse(BaseModel):
     business_type: Optional[str] = None
     description: Optional[str] = None
     logo_url: Optional[str] = None
+    default_payment_mode: PaymentMode = PaymentMode.SDK
     created_at: datetime
     updated_at: datetime
 
