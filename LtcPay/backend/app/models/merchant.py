@@ -1,9 +1,11 @@
 import uuid
 import secrets
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, Text, Index
+from sqlalchemy import String, Boolean, DateTime, Text, Index, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+
+from app.models.payment import PaymentMode
 
 from app.core.database import Base
 
@@ -47,6 +49,11 @@ class Merchant(Base):
     callback_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     webhook_secret: Mapped[str] = mapped_column(
         String(255), nullable=False, default=lambda: secrets.token_hex(32)
+    )
+
+    # Default payment mode for this merchant
+    default_payment_mode: Mapped[PaymentMode] = mapped_column(
+        SQLEnum(PaymentMode), default=PaymentMode.SDK, server_default="SDK", nullable=False
     )
 
     # Status

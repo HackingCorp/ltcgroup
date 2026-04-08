@@ -22,6 +22,16 @@ class PaymentStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 
+class PaymentMode(str, enum.Enum):
+    SDK = "SDK"
+    DIRECT_API = "DIRECT_API"
+
+
+class MobileMoneyOperator(str, enum.Enum):
+    MTN = "MTN"
+    ORANGE = "ORANGE"
+
+
 class PaymentMethod(str, enum.Enum):
     MOBILE_MONEY = "MOBILE_MONEY"
     BANK_CARD = "BANK_CARD"
@@ -37,6 +47,7 @@ class Payment(Base):
         Index("ix_pgp_status", "status"),
         Index("ix_pgp_reference", "reference"),
         Index("ix_pgp_payment_token", "payment_token"),
+        Index("ix_pgp_operator_txn_id", "operator_transaction_id"),
         CheckConstraint("amount > 0", name="ck_pgp_amount_positive"),
     )
 
@@ -75,6 +86,21 @@ class Payment(Base):
     status: Mapped[PaymentStatus] = mapped_column(
         SQLEnum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False
     )
+
+    # Payment mode (SDK checkout vs Direct API)
+    payment_mode: Mapped[PaymentMode] = mapped_column(
+        SQLEnum(PaymentMode), default=PaymentMode.SDK, server_default="SDK", nullable=False
+    )
+    # Mobile money operator (for Direct API payments)
+    operator: Mapped[MobileMoneyOperator | None] = mapped_column(
+        SQLEnum(MobileMoneyOperator), nullable=True
+    )
+    # Operator-side transaction ID (for Direct API tracking)
+    operator_transaction_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
+    # Direct API response/state data (JSON)
+    direct_api_data: Mapped[dict | None] = mapped_column("direct_api_data", JSON, nullable=True)
 
     # Customer info (JSON: {name, email, phone})
     customer_info: Mapped[dict | None] = mapped_column("customer_info", JSON, nullable=True)

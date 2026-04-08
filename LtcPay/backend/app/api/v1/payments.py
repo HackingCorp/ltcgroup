@@ -9,6 +9,7 @@ Endpoints:
   GET    /api/v1/payments          - List merchant payments (paginated)
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -22,13 +23,16 @@ from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.security import get_current_merchant, generate_payment_token
 from app.models.merchant import Merchant
-from app.models.payment import Payment, PaymentStatus
+from app.models.payment import Payment, PaymentStatus, PaymentMode
 from app.schemas.payment import (
     PaymentInitiate,
     PaymentInitiateResponse,
     PaymentResponse,
     PaymentListResponse,
 )
+from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["Merchant Payments"])
 
@@ -54,11 +58,17 @@ async def create_payment(
     """
     Create a new payment request.
 
-    The merchant sends payment details; LtcPay creates a pending payment
-    and returns a payment URL for the customer to complete payment.
+    Supports two modes:
+    - **SDK** (default): Creates a pending payment and returns a payment_url
+      for the customer to complete via the TouchPay SDK checkout page.
+    - **DIRECT_API**: Initiates the payment immediately via the TouchPay
+      Direct API (server-to-server). Requires operator and customer_phone.
 
     Rate limit: 60 requests per minute per IP.
     """
+    # Determine payment mode: explicit in payload, or merchant default
+    payment_mode = payload.payment_mode or merchant.default_payment_mode
+
     reference = _generate_reference()
     fee = _compute_fee(payload.amount)
     payment_token = generate_payment_token(reference, payload.amount)
@@ -71,6 +81,10 @@ async def create_payment(
     customer_info = None
     if payload.customer_info:
         customer_info = payload.customer_info.model_dump(exclude_none=True) or None
+    # If Direct API provides customer_phone, ensure it's in customer_info
+    if payload.customer_phone:
+        customer_info = customer_info or {}
+        customer_info.setdefault("phone", payload.customer_phone)
 
     payment = Payment(
         merchant_id=merchant.id,
@@ -81,6 +95,8 @@ async def create_payment(
         fee=fee,
         currency=payload.currency or settings.default_currency,
         status=PaymentStatus.PENDING,
+        payment_mode=payment_mode,
+        operator=payload.operator,
         description=payload.description,
         customer_info=customer_info,
         callback_url=payload.callback_url or merchant.callback_url,
@@ -94,6 +110,36 @@ async def create_payment(
     await db.commit()
     await db.refresh(payment)
 
+    # For Direct API mode, initiate payment with TouchPay immediately
+    if payment_mode == PaymentMode.DIRECT_API:
+        callback_url = (
+            f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
+        )
+        try:
+            direct_response = await touchpay_direct_service.initiate_payment(
+                payment_reference=reference,
+                amount=int(payment.amount),
+                phone_number=payload.customer_phone,
+                operator=payload.operator,
+                callback_url=callback_url,
+            )
+            # Store response and update status to PROCESSING
+            payment.direct_api_data = direct_response
+            payment.status = PaymentStatus.PROCESSING
+            await db.commit()
+            await db.refresh(payment)
+        except TouchPayDirectError as exc:
+            logger.error(
+                "Direct API initiation failed for %s: %s", reference, exc
+            )
+            payment.status = PaymentStatus.FAILED
+            payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Payment initiation failed: {exc}",
+            )
+
     return PaymentInitiateResponse(
         payment_id=payment.id,
         reference=payment.reference,
@@ -101,7 +147,8 @@ async def create_payment(
         amount=payment.amount,
         currency=payment.currency,
         status=payment.status,
-        payment_url=payment.payment_url,
+        payment_mode=payment.payment_mode,
+        payment_url=payment.payment_url if payment_mode == PaymentMode.SDK else None,
         created_at=payment.created_at,
     )
 

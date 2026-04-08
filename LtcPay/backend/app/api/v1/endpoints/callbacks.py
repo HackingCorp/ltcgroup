@@ -3,10 +3,10 @@ LtcPay - Callback Endpoints (TouchPay webhooks)
 
 Handles incoming payment notifications from TouchPay.
 
-Two callback mechanisms are supported:
+Three callback mechanisms are supported:
 
 1. POST /api/v1/callbacks/touchpay
-   - Server-to-server webhook with JSON body
+   - Server-to-server webhook with JSON body (SDK mode)
    - HMAC-SHA256 signature verification
    - Used when TouchPay sends async status updates
 
@@ -17,7 +17,12 @@ Two callback mechanisms are supported:
    - payment_status=200 means success
    - Identifies payment by payment_token
 
-Both handlers share the same core processing logic.
+3. POST /api/v1/callbacks/touchpay-direct
+   - Server-to-server callback from TouchPay Direct API
+   - Fields: idFromClient, transactionId, status, amount, recipientNumber
+   - Identifies payment by idFromClient (our PAY-xxx reference)
+
+All handlers share the same core processing logic.
 """
 import asyncio
 import hmac
@@ -354,4 +359,76 @@ async def touchpay_callback_post(
 
     # 4. Process the callback
     result = await _process_callback(db, callback)
+    return {"status": result["status"], "reference": result.get("reference", "")}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/callbacks/touchpay-direct -- Direct API server callback
+# ---------------------------------------------------------------------------
+@router.post("/touchpay-direct")
+async def touchpay_direct_callback(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Handle TouchPay Direct API server-to-server callback.
+
+    TouchPay Direct API sends a POST with JSON body containing:
+    - idFromClient: our payment reference (PAY-xxx)
+    - transactionId: TouchPay's transaction ID
+    - status: success / failed / cancelled
+    - amount: payment amount
+    - recipientNumber: customer phone number
+
+    Uses the same core processing logic as the SDK callback.
+    """
+    # 1. Parse callback data (JSON or form)
+    try:
+        body = await request.json()
+    except Exception:
+        body = dict(await request.form())
+
+    logger.info("TouchPay Direct callback received: %s", body)
+
+    # 2. Map Direct API fields to our unified callback format
+    # idFromClient = our PAY-xxx reference
+    id_from_client = body.get("idFromClient", "")
+    transaction_id = body.get("transactionId", "")
+    raw_status = body.get("status", "")
+
+    if not id_from_client:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing idFromClient",
+        )
+
+    # Build a TouchPayCallbackData with the direct API fields mapped
+    # to the fields expected by _process_callback
+    callback = TouchPayCallbackData(
+        command_number=id_from_client,
+        transaction_id=transaction_id,
+        status=raw_status,
+        amount=str(body.get("amount", "")),
+        phone=body.get("recipientNumber", ""),
+        operator_id=transaction_id,
+        **{k: v for k, v in body.items() if k not in (
+            "idFromClient", "transactionId", "status", "amount", "recipientNumber"
+        )},
+    )
+
+    # 3. Process the callback using shared logic
+    result = await _process_callback(db, callback)
+
+    # 4. For Direct API, also store callback data in direct_api_data
+    payment = result.get("payment")
+    if payment:
+        direct_data = payment.direct_api_data or {}
+        direct_data["callback"] = body
+        await db.execute(
+            update(Payment)
+            .where(Payment.id == payment.id)
+            .values(direct_api_data=direct_data)
+        )
+        await db.commit()
+
     return {"status": result["status"], "reference": result.get("reference", "")}

@@ -113,8 +113,8 @@ app.include_router(api_router, prefix="/api/v1")
 # ---------------------------------------------------------------------------
 @app.get("/pay/{reference}", response_class=HTMLResponse)
 async def payment_page(reference: str, request: Request):
-    """Render the payment checkout page with TouchPay SDK."""
-    from app.models.payment import Payment, PaymentStatus
+    """Render the payment checkout page (SDK or Direct API mode)."""
+    from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.models.merchant import Merchant
     from app.services.touchpay_service import touchpay_service
     from sqlalchemy.orm import selectinload
@@ -130,7 +130,8 @@ async def payment_page(reference: str, request: Request):
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    if payment.status not in (PaymentStatus.PENDING,):
+    # Allow PENDING (new payment) and PROCESSING (Direct API awaiting confirmation)
+    if payment.status not in (PaymentStatus.PENDING, PaymentStatus.PROCESSING):
         return templates.TemplateResponse(
             "payment_status.html",
             {
@@ -140,24 +141,26 @@ async def payment_page(reference: str, request: Request):
             },
         )
 
-    # Split customer_name into first/last for TouchPay SDK
-    first_name = ""
-    last_name = ""
-    if payment.customer_name:
-        parts = payment.customer_name.strip().split(" ", 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else ""
+    # Build SDK config only for SDK mode
+    sdk_config = None
+    if payment.payment_mode == PaymentMode.SDK:
+        first_name = ""
+        last_name = ""
+        if payment.customer_name:
+            parts = payment.customer_name.strip().split(" ", 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
 
-    sdk_config = touchpay_service.get_sdk_config(
-        payment_token=payment.reference,
-        amount=float(payment.amount),
-        customer_email=payment.customer_email or "",
-        customer_first_name=first_name,
-        customer_last_name=last_name,
-        customer_phone=payment.customer_phone or "",
-        success_url=payment.return_url or None,
-        failed_url=None,
-    )
+        sdk_config = touchpay_service.get_sdk_config(
+            payment_token=payment.reference,
+            amount=float(payment.amount),
+            customer_email=payment.customer_email or "",
+            customer_first_name=first_name,
+            customer_last_name=last_name,
+            customer_phone=payment.customer_phone or "",
+            success_url=payment.return_url or None,
+            failed_url=None,
+        )
 
     return templates.TemplateResponse(
         "checkout.html",
@@ -166,8 +169,108 @@ async def payment_page(reference: str, request: Request):
             "payment": payment,
             "merchant": payment.merchant,
             "sdk_config": sdk_config,
+            "payment_mode": payment.payment_mode.value,
         },
     )
+
+
+@app.post("/pay/{reference}/submit-direct")
+async def submit_direct_payment(reference: str, request: Request):
+    """Submit a Direct API payment from the checkout page.
+
+    The customer selects an operator and enters their phone number on the
+    checkout page, then this endpoint initiates the payment via TouchPay
+    Direct API.
+    """
+    from app.models.payment import Payment, PaymentStatus, PaymentMode, MobileMoneyOperator
+    from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+    from sqlalchemy import update as sa_update
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = dict(await request.form())
+
+    operator_str = body.get("operator", "").upper()
+    phone = body.get("phone", "").strip()
+
+    if not operator_str or not phone:
+        raise HTTPException(status_code=400, detail="operator and phone are required")
+
+    try:
+        operator = MobileMoneyOperator(operator_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid operator: {operator_str}")
+
+    async with async_session() as db:
+        result = await db.execute(
+            select(Payment).where(Payment.reference == reference)
+        )
+        payment = result.scalar_one_or_none()
+
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+
+        if payment.status != PaymentStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payment is {payment.status.value}, cannot submit",
+            )
+
+        callback_url = f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
+
+        try:
+            direct_response = await touchpay_direct_service.initiate_payment(
+                payment_reference=reference,
+                amount=int(payment.amount),
+                phone_number=phone,
+                operator=operator,
+                callback_url=callback_url,
+            )
+        except TouchPayDirectError as exc:
+            logger.error("Direct API submit failed for %s: %s", reference, exc)
+            raise HTTPException(
+                status_code=502,
+                detail=f"Payment initiation failed: {exc}",
+            )
+
+        # Update payment with operator, phone, and PROCESSING status
+        customer_info = payment.customer_info or {}
+        customer_info["phone"] = phone
+
+        await db.execute(
+            sa_update(Payment)
+            .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
+            .values(
+                status=PaymentStatus.PROCESSING,
+                operator=operator,
+                customer_info=customer_info,
+                direct_api_data=direct_response,
+            )
+        )
+        await db.commit()
+
+    return {"status": "ok", "message": "Payment initiated, awaiting confirmation"}
+
+
+@app.get("/pay/{reference}/poll")
+async def poll_payment_status(reference: str):
+    """Poll payment status (used by checkout page JS for Direct API payments)."""
+    from app.models.payment import Payment
+
+    async with async_session() as db:
+        result = await db.execute(
+            select(Payment).where(Payment.reference == reference)
+        )
+        payment = result.scalar_one_or_none()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return {
+        "status": payment.status.value,
+        "reference": payment.reference,
+    }
 
 
 # ---------------------------------------------------------------------------

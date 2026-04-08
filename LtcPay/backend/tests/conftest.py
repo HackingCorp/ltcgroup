@@ -15,7 +15,18 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.core.security import hash_api_secret, generate_api_secret, generate_payment_token
+
+# Switch rate limiter to in-memory storage before importing app
+# (avoids Redis connection errors when Redis is not running)
+from app.core import rate_limit as _rl
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+_rl.limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
+
 from app.main import app
+
+# Patch the limiter on the app state as well
+app.state.limiter = _rl.limiter
 from app.models.merchant import Merchant, generate_api_key_live, generate_api_key_test
 from app.models.payment import Payment, PaymentStatus
 

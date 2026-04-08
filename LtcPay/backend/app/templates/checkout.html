@@ -154,7 +154,7 @@
         .method-icon .dot.orange { background: #f97316; }
         .method-icon .dot.yellow { background: #eab308; }
 
-        #pay-button {
+        #pay-button, #direct-submit-btn {
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #c8a84e 0%, #dbb85c 100%);
@@ -169,12 +169,12 @@
             letter-spacing: 1px;
         }
 
-        #pay-button:hover {
+        #pay-button:hover, #direct-submit-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(200, 168, 78, 0.4);
         }
 
-        #pay-button:disabled {
+        #pay-button:disabled, #direct-submit-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -211,6 +211,8 @@
 
         #pay-button.loading .btn-text { display: none; }
         #pay-button.loading .spinner { display: inline-block; }
+        #direct-submit-btn.loading .btn-text { display: none; }
+        #direct-submit-btn.loading .spinner { display: inline-block; }
 
         /* Status messages */
         .status-message {
@@ -234,6 +236,95 @@
             color: #f87171;
         }
 
+        .status-message.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        /* Direct API form styles */
+        .operator-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .operator-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .operator-btn:hover {
+            border-color: #475569;
+        }
+
+        .operator-btn.selected {
+            border-color: #c8a84e;
+            background: rgba(200, 168, 78, 0.1);
+        }
+
+        .phone-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 16px;
+            margin-bottom: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .phone-input:focus {
+            border-color: #c8a84e;
+        }
+
+        .phone-input::placeholder {
+            color: #64748b;
+        }
+
+        /* Polling / waiting UI */
+        .polling-section {
+            display: none;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .polling-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid #334155;
+            border-top: 3px solid #c8a84e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        .polling-text {
+            font-size: 15px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        .polling-text strong {
+            color: #f1f5f9;
+            display: block;
+            margin-bottom: 4px;
+        }
+
         @media (max-width: 480px) {
             .payment-container {
                 padding: 12px;
@@ -243,7 +334,9 @@
             }
         }
     </style>
+    {% if payment_mode == "SDK" and sdk_config %}
     <script src="{{ sdk_config.sdk_script_url }}" type="text/javascript"></script>
+    {% endif %}
 </head>
 <body>
     <div class="payment-container">
@@ -287,7 +380,9 @@
 
             <div id="status-message" class="status-message"></div>
 
-            <div class="payment-methods">
+            {% if payment_mode == "SDK" %}
+            {# ==================== SDK MODE ==================== #}
+            <div class="payment-methods" id="sdk-section">
                 <h3>Modes de paiement acceptes</h3>
                 <div class="method-icons">
                     <div class="method-icon">
@@ -306,6 +401,42 @@
                 </button>
             </div>
 
+            {% else %}
+            {# ==================== DIRECT API MODE ==================== #}
+            <div class="payment-methods" id="direct-section">
+                <h3>Choisissez votre operateur</h3>
+                <div class="operator-selector">
+                    <button type="button" class="operator-btn" data-operator="MTN" onclick="selectOperator(this)">
+                        <span class="dot yellow"></span>
+                        MTN MoMo
+                    </button>
+                    <button type="button" class="operator-btn" data-operator="ORANGE" onclick="selectOperator(this)">
+                        <span class="dot orange"></span>
+                        Orange Money
+                    </button>
+                </div>
+
+                <input type="tel" id="phone-input" class="phone-input"
+                       placeholder="Numero de telephone (ex: 237670000000)"
+                       value="{{ payment.customer_phone or '' }}">
+
+                <button id="direct-submit-btn" onclick="submitDirectPayment()" disabled>
+                    <span class="btn-text">Payer {{ "{:,.0f}".format(payment.amount) }} {{ payment.currency }}</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+
+            {# Polling / Waiting UI (shown after submission) #}
+            <div id="polling-section" class="polling-section">
+                <div class="polling-spinner"></div>
+                <div class="polling-text">
+                    <strong>Confirmez sur votre telephone</strong>
+                    Un message de confirmation a ete envoye sur votre telephone.
+                    Veuillez valider le paiement.
+                </div>
+            </div>
+            {% endif %}
+
             <div class="secure-badge">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -317,6 +448,12 @@
     </div>
 
     <script type="text/javascript">
+        var paymentRef = "{{ payment.reference }}";
+        var paymentMode = "{{ payment_mode }}";
+        var returnUrl = "{{ payment.return_url or '' }}";
+
+        {% if payment_mode == "SDK" and sdk_config %}
+        // ==================== SDK MODE ====================
         function calltouchpay() {
             var btn = document.getElementById('pay-button');
             btn.classList.add('loading');
@@ -337,6 +474,123 @@
                 "{{ sdk_config.phone }}"
             );
         }
+
+        {% else %}
+        // ==================== DIRECT API MODE ====================
+        var selectedOperator = "";
+        var pollingInterval = null;
+
+        function selectOperator(btn) {
+            // Deselect all
+            document.querySelectorAll('.operator-btn').forEach(function(b) {
+                b.classList.remove('selected');
+            });
+            // Select clicked
+            btn.classList.add('selected');
+            selectedOperator = btn.getAttribute('data-operator');
+            // Enable submit if phone is also filled
+            validateDirectForm();
+        }
+
+        function validateDirectForm() {
+            var phone = document.getElementById('phone-input').value.trim();
+            var btn = document.getElementById('direct-submit-btn');
+            btn.disabled = !(selectedOperator && phone.length >= 9);
+        }
+
+        // Validate on phone input
+        document.getElementById('phone-input').addEventListener('input', validateDirectForm);
+
+        function showStatus(msg, type) {
+            var el = document.getElementById('status-message');
+            el.textContent = msg;
+            el.className = 'status-message ' + type;
+            el.style.display = 'block';
+        }
+
+        function submitDirectPayment() {
+            var phone = document.getElementById('phone-input').value.trim();
+            if (!selectedOperator || !phone) return;
+
+            var btn = document.getElementById('direct-submit-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            fetch('/pay/' + paymentRef + '/submit-direct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    operator: selectedOperator,
+                    phone: phone
+                })
+            })
+            .then(function(resp) {
+                if (!resp.ok) {
+                    return resp.json().then(function(data) {
+                        throw new Error(data.detail || 'Erreur lors du paiement');
+                    });
+                }
+                return resp.json();
+            })
+            .then(function(data) {
+                // Hide form, show polling UI
+                document.getElementById('direct-section').style.display = 'none';
+                document.getElementById('polling-section').style.display = 'block';
+                // Start polling
+                startPolling();
+            })
+            .catch(function(err) {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                showStatus(err.message, 'error');
+            });
+        }
+
+        function startPolling() {
+            pollingInterval = setInterval(function() {
+                fetch('/pay/' + paymentRef + '/poll')
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) {
+                    if (data.status === 'COMPLETED') {
+                        clearInterval(pollingInterval);
+                        showStatus('Paiement effectue avec succes !', 'success');
+                        document.getElementById('polling-section').style.display = 'none';
+                        // Redirect after short delay
+                        setTimeout(function() {
+                            if (returnUrl) {
+                                var sep = returnUrl.indexOf('?') >= 0 ? '&' : '?';
+                                window.location.href = returnUrl + sep + 'reference=' + paymentRef + '&status=COMPLETED';
+                            }
+                        }, 2000);
+                    } else if (data.status === 'FAILED' || data.status === 'CANCELLED') {
+                        clearInterval(pollingInterval);
+                        document.getElementById('polling-section').style.display = 'none';
+                        showStatus('Le paiement a echoue. Veuillez reessayer.', 'error');
+                        // Show form again
+                        document.getElementById('direct-section').style.display = 'block';
+                        var btn = document.getElementById('direct-submit-btn');
+                        btn.classList.remove('loading');
+                        btn.disabled = false;
+                    }
+                    // PENDING or PROCESSING = keep polling
+                })
+                .catch(function() {
+                    // Network error - keep polling
+                });
+            }, 3000);
+        }
+
+        // If payment is already PROCESSING (page loaded after API-initiated payment),
+        // start polling immediately
+        {% if payment.status.value == "PROCESSING" %}
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('direct-section').style.display = 'none';
+            document.getElementById('polling-section').style.display = 'block';
+            startPolling();
+        });
+        {% endif %}
+
+        {% endif %}
     </script>
 </body>
 </html>

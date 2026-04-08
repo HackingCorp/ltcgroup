@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     TOUCHPAY_CALLBACK_USERNAME: str = ""
     TOUCHPAY_CALLBACK_PASSWORD: str = ""
 
+    # TouchPay Direct API (apidist.gutouch.net)
+    TOUCHPAY_DIRECT_API_URL: str = "https://apidist.gutouch.net/apidist/sec/touchpayapi"
+    TOUCHPAY_DIRECT_AGENCY_CODE: str = ""
+    TOUCHPAY_DIRECT_LOGIN: str = ""
+    TOUCHPAY_DIRECT_PASSWORD: str = ""
+    TOUCHPAY_SERVICE_CODE_MTN: str = "PAIEMENTMARCHAND_MTN_CM"
+    TOUCHPAY_SERVICE_CODE_ORANGE: str = "CM_PAIEMENTMARCHAND_OM_TP"
+
     # Legacy aliases (used by some modules)
     touchpay_api_url: str = "https://touchpay.gutouch.net/touchpayv2/api"
     touchpay_api_key: str = ""

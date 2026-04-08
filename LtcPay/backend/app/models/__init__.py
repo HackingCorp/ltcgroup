@@ -1,7 +1,7 @@
 from app.core.database import Base
 from app.models.admin_user import AdminUser
 from app.models.merchant import Merchant
-from app.models.payment import Payment, PaymentStatus, PaymentMethod
+from app.models.payment import Payment, PaymentStatus, PaymentMethod, PaymentMode, MobileMoneyOperator
 from app.models.transaction import Transaction, TransactionStatus
 
 __all__ = [
@@ -11,6 +11,8 @@ __all__ = [
     "Payment",
     "PaymentStatus",
     "PaymentMethod",
+    "PaymentMode",
+    "MobileMoneyOperator",
     "Transaction",
     "TransactionStatus",
 ]
