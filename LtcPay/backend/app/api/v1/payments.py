@@ -149,7 +149,7 @@ async def create_payment(
         currency=payment.currency,
         status=payment.status,
         payment_mode=payment.payment_mode,
-        payment_url=payment.payment_url if payment_mode == PaymentMode.SDK else None,
+        payment_url=payment.payment_url,  # Always return URL for both SDK and DIRECT_API
         created_at=payment.created_at,
     )
 
