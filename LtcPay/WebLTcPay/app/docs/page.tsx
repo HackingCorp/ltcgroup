@@ -319,10 +319,10 @@ export default function DocsPage() {
           <div className="rounded-xl border-2 border-red-200 bg-red-50 p-5 space-y-3">
             <h3 className="text-sm font-semibold text-red-900">⚠️ Direct API Mode Requirements</h3>
             <p className="text-sm text-red-800">
-              When using <code className="rounded bg-red-100 px-1 py-0.5 text-xs">payment_mode: "DIRECT_API"</code>, you <strong>MUST</strong> provide:
+              When using <code className="rounded bg-red-100 px-1 py-0.5 text-xs">payment_mode: &quot;DIRECT_API&quot;</code>, you <strong>MUST</strong> provide:
             </p>
             <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
-              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-red-100 px-1 py-0.5 text-xs">"MTN"</code> or <code className="rounded bg-red-100 px-1 py-0.5 text-xs">"ORANGE"</code></li>
+              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-red-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> or <code className="rounded bg-red-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
               <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">customer_phone</code> - Customer phone number in format <code className="rounded bg-red-100 px-1 py-0.5 text-xs">237XXXXXXXXX</code></li>
             </ul>
             <p className="text-sm text-red-800">
@@ -729,7 +729,7 @@ console.log(payment.status); // "cancelled"`}
           </p>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Webhooks work identically for both SDK and Direct API modes. You'll receive the same webhook payload when a payment reaches a terminal status (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
+              <strong>Note:</strong> Webhooks work identically for both SDK and Direct API modes. You&apos;ll receive the same webhook payload when a payment reaches a terminal status (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
             </p>
           </div>
 
