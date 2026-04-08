@@ -111,7 +111,8 @@ async def create_payment(
     await db.refresh(payment)
 
     # For Direct API mode, initiate payment with TouchPay immediately
-    if payment_mode == PaymentMode.DIRECT_API:
+    # ONLY if operator and phone are provided (otherwise customer chooses on checkout page)
+    if payment_mode == PaymentMode.DIRECT_API and payload.operator and payload.customer_phone:
         callback_url = (
             f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
         )

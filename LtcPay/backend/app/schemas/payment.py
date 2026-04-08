@@ -32,19 +32,10 @@ class PaymentInitiate(BaseModel):
     return_url: Optional[str] = Field(None, max_length=500)
     metadata: Optional[dict] = None
 
-    # Direct API fields
+    # Direct API fields (optional - can be provided on checkout page)
     payment_mode: Optional[PaymentMode] = None  # None = use merchant default
     operator: Optional[MobileMoneyOperator] = None
     customer_phone: Optional[str] = Field(None, max_length=20)
-
-    @model_validator(mode="after")
-    def validate_direct_api_fields(self) -> "PaymentInitiate":
-        if self.payment_mode == PaymentMode.DIRECT_API:
-            if not self.operator:
-                raise ValueError("operator is required for DIRECT_API payment mode")
-            if not self.customer_phone:
-                raise ValueError("customer_phone is required for DIRECT_API payment mode")
-        return self
 
     @field_validator("amount")
     @classmethod
