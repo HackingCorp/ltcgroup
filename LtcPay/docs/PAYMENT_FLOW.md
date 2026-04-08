@@ -4,7 +4,12 @@ This document describes the complete payment flow from merchant integration to s
 
 ## Overview
 
-LtcPay acts as an intermediary between merchants and the TouchPay payment gateway. Merchants create payments via API, customers complete payment on a hosted checkout page, and merchants receive webhook notifications when the payment status changes.
+LtcPay acts as an intermediary between merchants and the TouchPay payment gateway. LtcPay supports **two integration modes**:
+
+- **SDK Mode (Web)**: For web applications - uses browser redirections and TouchPay SDK
+- **Direct API Mode (Mobile)**: For mobile apps - pure API integration without browser, uses TouchPay Direct API
+
+Merchants create payments via API and receive webhook notifications when the payment status changes.
 
 ## Actors
 
@@ -15,7 +20,49 @@ LtcPay acts as an intermediary between merchants and the TouchPay payment gatewa
 | LtcPay     | Payment gateway backend (this project)                         |
 | TouchPay   | Upstream payment processor (mobile money, bank cards)          |
 
-## Complete Payment Flow
+## Integration Modes
+
+### SDK Mode (Web Integration)
+
+**Use case**: Web applications, e-commerce sites
+
+**Flow**:
+1. Merchant creates payment via API
+2. LtcPay returns `payment_url`
+3. Merchant redirects customer to `payment_url`
+4. Customer completes payment on TouchPay checkout page (with redirections)
+5. Customer redirected back to merchant site
+6. Merchant receives webhook notification
+
+**Characteristics**:
+- ✅ Simple integration (just redirect)
+- ❌ 2-3 browser redirections
+- ✅ TouchPay SDK handles all payment UI
+- ❌ Not ideal for mobile apps
+
+### Direct API Mode (Mobile Integration)
+
+**Use case**: Native mobile applications (iOS, Android, Flutter, React Native)
+
+**Flow**:
+1. App shows native UI for operator selection (MTN/Orange) + phone input
+2. **Merchant MUST provide `operator` and `customer_phone` in payment creation**
+3. LtcPay immediately initiates payment via TouchPay Direct API
+4. Customer receives push notification on their Mobile Money app
+5. Customer approves payment in MTN/Orange app
+6. Merchant app polls payment status via API (every 3-5 seconds)
+7. Merchant app displays success/failure screen
+
+**Characteristics**:
+- ✅ Zero browser redirections
+- ✅ Native mobile UX
+- ✅ Push notification based
+- ✅ Real-time status via polling
+- ⚠️ Requires `operator` and `customer_phone` fields
+
+**Important**: For Direct API mode, merchants **MUST** provide the operator and phone number during payment creation. The payment is initiated immediately without requiring a browser.
+
+## Complete Payment Flow (SDK Mode)
 
 ```
  Merchant Server          LtcPay API           Checkout Page         TouchPay
@@ -100,7 +147,84 @@ LtcPay acts as an intermediary between merchants and the TouchPay payment gatewa
          |<-- full payment details ----
 ```
 
+## Complete Payment Flow (Direct API Mode)
+
+```
+ Mobile App               LtcPay API         TouchPay Direct API    Mobile Money App
+ ==========               ==========         ===================    ================
+
+ 1. User selects operator
+    (MTN or Orange)
+    + enters phone number
+         |
+ 2. Create Payment
+    POST /api/v1/payments
+    {
+      "payment_mode": "DIRECT_API",
+      "operator": "MTN",           ← REQUIRED
+      "customer_phone": "237xxx"   ← REQUIRED
+    }
+         +--- amount, operator --->
+         |    customer_phone         3. Create Payment record
+         |    merchant_ref               (status = PENDING)
+         |                               Generate reference
+         |                                    |
+         |                               4. Immediate API call
+         |                                  PUT /transaction
+         |                                  DigestAuth
+         |                                       |
+         |                                       +-------- Initiate ------->
+         |                                       |        payment
+         |                                       |        idFromClient
+         |                                       |<------ INITIATED --------
+         |                                       |        gu_transaction_id
+         |                                       |
+         |                               5. Update status
+         |                                  PENDING → PROCESSING
+         |<-- payment_id, reference ---
+         |    status: PROCESSING
+         |    payment_url: null (not needed)
+         |
+ 6. Show loading screen
+    "Confirmez sur votre téléphone"
+         |
+         |                                                              7. Push notification
+         |                                                                  sent to customer
+         |                                                                       +
+         |                                                                       |
+         |                                                              8. Customer opens
+         |                                                                 Mobile Money app
+         |                                                                 Enters PIN
+         |                                                                 Approves payment
+         |                                                                       |
+         |                                       |<------ Callback ----------------+
+         |                                       |        (SUCCESSFUL/FAILED)
+         |                               9. POST /api/v1/callbacks/touchpay-direct
+         |                                  {
+         |                                    partner_transaction_id,
+         |                                    gu_transaction_id,
+         |                                    status: SUCCESSFUL
+         |                                  }
+         |                                  Update payment
+         |                                  PROCESSING → COMPLETED
+         |                                       |
+         |                                  10. Notify merchant webhook
+         |                                       |
+ 11. Poll status (every 3-5s)
+    GET /api/v1/payments/{ref}
+         +--- reference --------------->
+         |<-- status: PROCESSING -----
+         |
+         +--- reference --------------->
+         |<-- status: COMPLETED ------
+         |
+ 12. Display success screen
+    (No browser involved!)
+```
+
 ## Step-by-Step Details
+
+### SDK Mode (Web)
 
 ### Step 1: Create Payment (Merchant -> LtcPay)
 
@@ -267,6 +391,109 @@ curl http://localhost:8001/api/v1/payments/PAY-A1B2C3D4E5F67890 \
   -H "X-API-Key: ltcpay_live_abc123..." \
   -H "X-API-Secret: your_api_secret"
 ```
+
+---
+
+### Direct API Mode (Mobile)
+
+#### Step 1: Create Payment with Operator
+
+**CRITICAL**: Merchant MUST provide `operator` and `customer_phone` during creation.
+
+```bash
+curl -X POST http://localhost:8001/api/v1/payments \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ltcpay_live_abc123..." \
+  -H "X-API-Secret: your_api_secret" \
+  -d '{
+    "amount": 5000,
+    "currency": "XAF",
+    "payment_mode": "DIRECT_API",
+    "operator": "MTN",
+    "customer_phone": "237670000000",
+    "merchant_reference": "ORDER-1234",
+    "description": "Achat sur MonSite.com"
+  }'
+```
+
+**Required fields for Direct API**:
+- `payment_mode`: Must be `"DIRECT_API"`
+- `operator`: Must be `"MTN"` or `"ORANGE"`
+- `customer_phone`: Customer's mobile money phone number
+
+**Response**:
+```json
+{
+  "payment_id": "uuid",
+  "reference": "PAY-ABC123",
+  "amount": "5000.00",
+  "status": "PROCESSING",
+  "payment_mode": "DIRECT_API",
+  "payment_url": null,
+  "created_at": "2026-04-09T10:00:00Z"
+}
+```
+
+Note: `payment_url` is `null` - no browser redirect needed!
+
+#### Step 2: Payment Initiated Immediately
+
+LtcPay immediately calls TouchPay Direct API:
+- Uses Digest Authentication
+- Sends `idFromClient` (our reference)
+- Sends `recipientNumber` (customer phone)
+- Sends `serviceCode` (based on operator)
+- TouchPay returns `INITIATED` status
+
+#### Step 3: Customer Receives Push Notification
+
+Customer receives a push notification on their phone from:
+- MTN Mobile Money app (if operator = MTN)
+- Orange Money app (if operator = ORANGE)
+
+No USSD code needed - direct push notification!
+
+#### Step 4: Poll Payment Status
+
+Mobile app polls the status endpoint every 3-5 seconds:
+
+```bash
+curl http://localhost:8001/api/v1/payments/PAY-ABC123 \
+  -H "X-API-Key: ltcpay_live_abc123..." \
+  -H "X-API-Secret: your_api_secret"
+```
+
+**Example polling responses**:
+
+```json
+// While processing
+{
+  "reference": "PAY-ABC123",
+  "status": "PROCESSING",
+  "payment_mode": "DIRECT_API",
+  "operator": "MTN"
+}
+
+// After customer approval
+{
+  "reference": "PAY-ABC123",
+  "status": "COMPLETED",
+  "payment_mode": "DIRECT_API",
+  "operator": "MTN",
+  "completed_at": "2026-04-09T10:02:30Z"
+}
+```
+
+**Polling strategy**:
+- Poll every 3-5 seconds
+- Maximum 40 attempts (2 minutes)
+- Stop when status is `COMPLETED`, `FAILED`, or `CANCELLED`
+
+#### Step 5: Display Result
+
+Mobile app shows success/failure screen based on final status.
+
+**No browser involved in the entire flow!**
 
 ## Payment States
 

@@ -58,11 +58,49 @@ async def create_payment(
     """
     Create a new payment request.
 
-    Supports two modes:
-    - **SDK** (default): Creates a pending payment and returns a payment_url
-      for the customer to complete via the TouchPay SDK checkout page.
-    - **DIRECT_API**: Initiates the payment immediately via the TouchPay
-      Direct API (server-to-server). Requires operator and customer_phone.
+    ## Two Integration Modes:
+
+    ### SDK Mode (Web Integration)
+    - Use for web applications or when you want customers to choose operator
+    - Payment stays PENDING until customer completes on payment page
+    - Return payment_url to customer for browser redirect
+    - TouchPay SDK handles the payment flow with redirections
+
+    **Example:**
+    ```json
+    POST /api/v1/payments
+    {
+      "amount": 5000,
+      "currency": "XAF",
+      "payment_mode": "SDK"  // or omit to use merchant default
+    }
+    ```
+    **Response:** Returns `payment_url` - redirect customer to this URL
+
+    ### Direct API Mode (Mobile Integration - Recommended for Apps)
+    - Use for mobile apps to avoid browser redirections
+    - **IMPORTANT:** Merchant must provide `operator` and `customer_phone`
+    - Payment initiated immediately via TouchPay Direct API
+    - Customer receives push notification on their mobile money app
+    - Poll `/api/v1/payments/{reference}` to check status
+    - **NO browser/WebView needed** - pure API integration
+
+    **Example:**
+    ```json
+    POST /api/v1/payments
+    {
+      "amount": 5000,
+      "currency": "XAF",
+      "payment_mode": "DIRECT_API",
+      "operator": "MTN",              // REQUIRED for Direct API
+      "customer_phone": "237670000000" // REQUIRED for Direct API
+    }
+    ```
+    **Response:** Payment immediately in PROCESSING status
+    **Then:** Poll GET /api/v1/payments/{reference} every 3-5 seconds
+    **Customer:** Receives push notification to approve in MTN/Orange app
+
+    **Supported operators:** MTN, ORANGE
 
     Rate limit: 60 requests per minute per IP.
     """

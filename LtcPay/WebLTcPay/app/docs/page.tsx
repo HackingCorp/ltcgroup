@@ -198,6 +198,139 @@ export default function DocsPage() {
           </div>
         </section>
 
+        {/* Integration Modes */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900" id="integration-modes">Integration Modes</h2>
+          <p className="text-sm text-gray-600">
+            LTCPay supports <strong>two integration modes</strong> to fit your application type:
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* SDK Mode */}
+            <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-blue-500 px-2 py-1 text-xs font-bold text-white">SDK</span>
+                <h3 className="text-sm font-semibold text-blue-900">Web Integration</h3>
+              </div>
+              <p className="text-sm text-blue-800">
+                <strong>Best for:</strong> Web applications, e-commerce sites, web portals
+              </p>
+              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                <li>Customer chooses operator on hosted payment page</li>
+                <li>2-3 browser redirections (payment page → completion)</li>
+                <li>Simple integration: create payment, redirect user</li>
+                <li>TouchPay SDK handles the payment flow</li>
+              </ul>
+              <div className="pt-2 border-t border-blue-200">
+                <p className="text-xs font-medium text-blue-700">Default mode for all merchants</p>
+              </div>
+            </div>
+
+            {/* Direct API Mode */}
+            <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-green-500 px-2 py-1 text-xs font-bold text-white">DIRECT_API</span>
+                <h3 className="text-sm font-semibold text-green-900">Mobile Integration</h3>
+              </div>
+              <p className="text-sm text-green-800">
+                <strong>Best for:</strong> Native mobile apps (iOS, Android, Flutter, React Native)
+              </p>
+              <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
+                <li><strong>Zero browser redirections</strong> - pure API integration</li>
+                <li>Native UI within your app</li>
+                <li>Push notification to Mobile Money app</li>
+                <li>Poll payment status in real-time</li>
+              </ul>
+              <div className="pt-2 border-t border-green-200">
+                <p className="text-xs font-bold text-green-900">⚠️ Requires: operator + customer_phone at creation</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-900">
+              <strong>💡 Tip:</strong> You can set a default mode in your merchant dashboard, or specify <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">payment_mode</code> per payment to override it.
+            </p>
+          </div>
+
+          {/* Comparison Table */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Mode Comparison</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th className="pb-2 pr-4 font-medium">Feature</th>
+                    <th className="pb-2 pr-4 font-medium">SDK</th>
+                    <th className="pb-2 font-medium">Direct API</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Best for</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Web apps, e-commerce sites</td>
+                    <td className="py-2 text-xs text-gray-600">Native mobile apps</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Browser redirects</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Yes (2-3 redirections)</td>
+                    <td className="py-2 text-xs text-gray-600"><strong>No</strong> (pure API)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Required at creation</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">amount, currency</td>
+                    <td className="py-2 text-xs text-gray-600"><strong>amount, currency, operator, customer_phone</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Operator selection</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Customer chooses on payment page</td>
+                    <td className="py-2 text-xs text-gray-600">Merchant provides at creation</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Initial status</td>
+                    <td className="py-2 pr-4"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PENDING</code></td>
+                    <td className="py-2"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PROCESSING</code></td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Payment notification</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">On payment page</td>
+                    <td className="py-2 text-xs text-gray-600">Push to Mobile Money app</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Status check</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Via webhooks only</td>
+                    <td className="py-2 text-xs text-gray-600">Poll GET /payments/{'{reference}'} every 3-5s</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Integration complexity</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Simple</td>
+                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐ Medium (needs polling UI)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Mobile UX</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Good</td>
+                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐⭐ Excellent (native)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-xl border-2 border-red-200 bg-red-50 p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-red-900">⚠️ Direct API Mode Requirements</h3>
+            <p className="text-sm text-red-800">
+              When using <code className="rounded bg-red-100 px-1 py-0.5 text-xs">payment_mode: "DIRECT_API"</code>, you <strong>MUST</strong> provide:
+            </p>
+            <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
+              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-red-100 px-1 py-0.5 text-xs">"MTN"</code> or <code className="rounded bg-red-100 px-1 py-0.5 text-xs">"ORANGE"</code></li>
+              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">customer_phone</code> - Customer phone number in format <code className="rounded bg-red-100 px-1 py-0.5 text-xs">237XXXXXXXXX</code></li>
+            </ul>
+            <p className="text-sm text-red-800">
+              Without these fields, the API will return <code className="rounded bg-red-100 px-1 py-0.5 text-xs">400 Bad Request</code>.
+            </p>
+          </div>
+        </section>
+
         {/* Authentication */}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900" id="authentication">Authentication</h2>
@@ -256,24 +389,37 @@ payment = resp.json()`}
             method="POST"
             path="/payments"
             title="Create Payment"
-            description="Initiate a new payment. Returns a payment object with a unique reference. The customer should be redirected to the checkout URL to complete the payment."
+            description="Initiate a new payment. Behavior depends on payment_mode: SDK mode redirects customer to checkout page, Direct API mode initiates payment immediately via server-to-server API."
             defaultOpen
           >
+            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-semibold text-gray-900 mb-2">Mode-Specific Behavior:</p>
+              <ul className="text-sm text-gray-600 space-y-1.5 list-disc list-inside">
+                <li><strong>SDK mode:</strong> Returns <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">payment_url</code> - redirect customer to this URL</li>
+                <li><strong>Direct API mode:</strong> Initiates payment immediately if <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">operator</code> + <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">customer_phone</code> provided, status becomes <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
+              </ul>
+            </div>
+
             <ParamTable
               params={[
                 { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF)" },
                 { name: "currency", type: "string", required: true, desc: "ISO currency code (XAF, XOF, USD)" },
+                { name: "payment_mode", type: "string", required: false, desc: "Integration mode: 'SDK' (default) or 'DIRECT_API'. Overrides merchant default." },
+                { name: "operator", type: "string", required: false, desc: "⚠️ REQUIRED for DIRECT_API: Mobile Money operator ('MTN' or 'ORANGE')" },
+                { name: "customer_phone", type: "string", required: false, desc: "⚠️ REQUIRED for DIRECT_API: Customer phone in format 237XXXXXXXXX" },
                 { name: "description", type: "string", required: false, desc: "Payment description shown to customer" },
                 { name: "customer_email", type: "string", required: false, desc: "Customer email for receipt" },
-                { name: "customer_phone", type: "string", required: false, desc: "Customer phone (used for Mobile Money)" },
                 { name: "callback_url", type: "string", required: false, desc: "Override default webhook URL for this payment" },
-                { name: "redirect_url", type: "string", required: false, desc: "URL to redirect customer after payment" },
+                { name: "redirect_url", type: "string", required: false, desc: "URL to redirect customer after payment (SDK mode only)" },
                 { name: "metadata", type: "object", required: false, desc: "Custom key-value data attached to the payment" },
               ]}
             />
-            <CodeBlock
-              language="javascript"
-              code={`const response = await fetch("${BASE_URL}/payments", {
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-gray-900">Example 1: SDK Mode (Web Integration)</h4>
+              <CodeBlock
+                language="javascript"
+                code={`// SDK Mode - Customer selects operator on payment page
+const response = await fetch("${BASE_URL}/payments", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -283,64 +429,208 @@ payment = resp.json()`}
   body: JSON.stringify({
     amount: 5000,
     currency: "XAF",
+    payment_mode: "SDK",  // Optional - SDK is default
     description: "Order #1234",
-    customer_phone: "+237699000000",
+    customer_info: {
+      name: "Jean Dupont",
+      email: "jean@example.com",
+      phone: "+237699000000"
+    },
     redirect_url: "https://myshop.cm/order/1234/success",
     metadata: { order_id: "1234" },
   }),
 });
 
 const payment = await response.json();
-console.log(payment.reference); // "PAY-XXXXXX"
-// Redirect customer to checkout:
-// window.location.href = payment.checkout_url;`}
-            />
-            <CodeBlock
-              language="python"
-              code={`resp = httpx.post(
+console.log(payment.reference);    // "PAY-A1B2C3"
+console.log(payment.status);       // "PENDING"
+console.log(payment.payment_url);  // "https://pay.ltcgroup.site/pay/PAY-A1B2C3"
+
+// Redirect customer to payment page
+window.location.href = payment.payment_url;`}
+              />
+
+              <h4 className="text-sm font-semibold text-gray-900">Example 2: Direct API Mode (Mobile Integration)</h4>
+              <CodeBlock
+                language="javascript"
+                code={`// Direct API Mode - For mobile apps (no browser redirect needed)
+// ⚠️ IMPORTANT: operator and customer_phone are REQUIRED
+const response = await fetch("${BASE_URL}/payments", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-API-Key": "ltcpay_test_abc123...",
+    "X-API-Secret": "your_api_secret",
+  },
+  body: JSON.stringify({
+    amount: 5000,
+    currency: "XAF",
+    payment_mode: "DIRECT_API",          // ⚠️ Required
+    operator: "MTN",                      // ⚠️ Required: 'MTN' or 'ORANGE'
+    customer_phone: "237670000000",       // ⚠️ Required: format 237XXXXXXXXX
+    description: "Order #1234",
+    customer_info: {
+      name: "Jean Dupont",
+      email: "jean@example.com"
+    },
+    metadata: { order_id: "1234" },
+  }),
+});
+
+const payment = await response.json();
+console.log(payment.reference);  // "PAY-A1B2C3"
+console.log(payment.status);     // "PROCESSING" - payment initiated!
+
+// Customer receives push notification on their MTN/Orange app
+// Poll for status updates (every 3-5 seconds):
+async function pollPaymentStatus(reference) {
+  const maxAttempts = 40; // 2 minutes max
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const statusResp = await fetch(\`${BASE_URL}/payments/\${reference}\`, {
+      headers: {
+        "X-API-Key": "ltcpay_test_abc123...",
+        "X-API-Secret": "your_api_secret",
+      },
+    });
+
+    const payment = await statusResp.json();
+
+    if (payment.status === "COMPLETED") {
+      console.log("Payment successful!");
+      return payment;
+    } else if (payment.status === "FAILED") {
+      console.log("Payment failed");
+      return payment;
+    }
+  }
+  console.log("Payment timeout");
+}
+
+pollPaymentStatus(payment.reference);`}
+              />
+
+              <h4 className="text-sm font-semibold text-gray-900">Python Examples</h4>
+              <CodeBlock
+                language="python"
+                code={`import httpx
+import time
+
+headers = {
+    "X-API-Key": "ltcpay_test_abc123...",
+    "X-API-Secret": "your_api_secret",
+}
+
+# SDK Mode (web)
+sdk_payment = httpx.post(
     "${BASE_URL}/payments",
     headers=headers,
     json={
         "amount": 5000,
         "currency": "XAF",
+        "payment_mode": "SDK",
         "description": "Order #1234",
-        "customer_phone": "+237699000000",
-        "redirect_url": "https://myshop.cm/order/1234/success",
-        "metadata": {"order_id": "1234"},
+        "customer_info": {
+            "name": "Jean Dupont",
+            "email": "jean@example.com",
+        },
     },
-)
-payment = resp.json()
-print(payment["reference"])  # "PAY-XXXXXX"`}
-            />
-            <ResponseBlock
-              status={201}
-              body={`{
-  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+).json()
+print(f"Redirect to: {sdk_payment['payment_url']}")
+
+# Direct API Mode (mobile)
+direct_payment = httpx.post(
+    "${BASE_URL}/payments",
+    headers=headers,
+    json={
+        "amount": 5000,
+        "currency": "XAF",
+        "payment_mode": "DIRECT_API",
+        "operator": "MTN",              # Required!
+        "customer_phone": "237670000000", # Required!
+        "description": "Order #1234",
+    },
+).json()
+print(f"Status: {direct_payment['status']}")  # "PROCESSING"
+
+# Poll for completion
+def poll_payment(reference: str, max_attempts: int = 40):
+    for _ in range(max_attempts):
+        time.sleep(3)
+        payment = httpx.get(
+            f"${BASE_URL}/payments/{reference}",
+            headers=headers,
+        ).json()
+
+        if payment["status"] in ("COMPLETED", "FAILED"):
+            return payment
+
+    return None  # Timeout
+
+result = poll_payment(direct_payment["reference"])
+print(f"Final status: {result['status']}")`}
+              />
+            </div>
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-gray-900">Response (SDK Mode)</h4>
+              <ResponseBlock
+                status={201}
+                body={`{
+  "payment_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
   "reference": "PAY-A1B2C3",
-  "amount": 5000,
+  "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "amount": "5000.00",
   "currency": "XAF",
-  "status": "pending",
-  "description": "Order #1234",
-  "customer_phone": "+237699000000",
-  "redirect_url": "https://myshop.cm/order/1234/success",
-  "metadata": { "order_id": "1234" },
-  "created_at": "2026-04-03T12:00:00Z",
-  "updated_at": "2026-04-03T12:00:00Z"
+  "status": "PENDING",
+  "payment_mode": "SDK",
+  "payment_url": "https://pay.ltcgroup.site/pay/PAY-A1B2C3",
+  "created_at": "2026-04-09T12:00:00Z"
 }`}
-            />
+              />
+
+              <h4 className="text-sm font-semibold text-gray-900">Response (Direct API Mode)</h4>
+              <ResponseBlock
+                status={201}
+                body={`{
+  "payment_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "reference": "PAY-A1B2C3",
+  "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "amount": "5000.00",
+  "currency": "XAF",
+  "status": "PROCESSING",
+  "payment_mode": "DIRECT_API",
+  "payment_url": "https://pay.ltcgroup.site/pay/PAY-A1B2C3",
+  "created_at": "2026-04-09T12:00:00Z"
+}`}
+              />
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> In Direct API mode, status immediately becomes <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> because the payment is initiated server-to-server. The customer receives a push notification to approve it on their Mobile Money app.
+                </p>
+              </div>
+            </div>
           </EndpointSection>
 
           {/* Get Payment */}
           <EndpointSection
             method="GET"
-            path="/payments/{id}"
-            title="Get Payment"
-            description="Retrieve the current status and details of a payment by its ID."
+            path="/payments/{reference}"
+            title="Get Payment Status"
+            description="Retrieve the current status and details of a payment by its reference. For Direct API mode, poll this endpoint every 3-5 seconds to check if payment is completed."
           >
+            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-semibold text-green-900 mb-2">Direct API Polling:</p>
+              <p className="text-sm text-green-800">
+                Mobile apps using Direct API mode should poll this endpoint every 3-5 seconds to check payment status.
+                Stop polling when status becomes <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, or after 2 minutes (timeout).
+              </p>
+            </div>
             <CodeBlock
               language="javascript"
-              code={`const response = await fetch(
-  "${BASE_URL}/payments/d290f1ee-6c54-4b01-90e6-d701748f0851",
+              code={`// Get payment status by reference
+const response = await fetch(
+  "${BASE_URL}/payments/PAY-A1B2C3",
   {
     headers: {
       "X-API-Key": "ltcpay_test_abc123...",
@@ -349,30 +639,45 @@ print(payment["reference"])  # "PAY-XXXXXX"`}
   }
 );
 const payment = await response.json();
-console.log(payment.status); // "pending" | "completed" | "failed" | "expired" | "cancelled"`}
+console.log(payment.status);
+// "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "EXPIRED" | "CANCELLED"`}
             />
             <CodeBlock
               language="python"
-              code={`resp = httpx.get(
-    f"${BASE_URL}/payments/{payment_id}",
+              code={`# Get payment status
+resp = httpx.get(
+    f"${BASE_URL}/payments/{reference}",
     headers=headers,
 )
 payment = resp.json()
-print(payment["status"])  # "completed"`}
+print(payment["status"])  # "COMPLETED"`}
             />
             <ResponseBlock
               status={200}
               body={`{
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+  "merchant_id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
   "reference": "PAY-A1B2C3",
-  "amount": 5000,
+  "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "merchant_reference": "order-1234",
+  "provider_transaction_id": "1775499394985",
+  "amount": "5000.00",
+  "fee": "75.00",
   "currency": "XAF",
-  "status": "completed",
+  "method": "MOBILE_MONEY",
+  "status": "COMPLETED",
+  "payment_mode": "DIRECT_API",
+  "operator": "MTN",
+  "operator_transaction_id": "MP210409.1234.A12345",
+  "customer_info": {
+    "name": "Jean Dupont",
+    "email": "jean@example.com",
+    "phone": "237670000000"
+  },
   "description": "Order #1234",
-  "payment_method": "mobile_money",
-  "customer_phone": "+237699000000",
-  "created_at": "2026-04-03T12:00:00Z",
-  "updated_at": "2026-04-03T12:01:30Z"
+  "completed_at": "2026-04-09T12:01:30Z",
+  "created_at": "2026-04-09T12:00:00Z",
+  "updated_at": "2026-04-09T12:01:30Z"
 }`}
             />
           </EndpointSection>
@@ -422,6 +727,11 @@ console.log(payment.status); // "cancelled"`}
             to your <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> when a
             payment status changes. The payload is signed with HMAC-SHA256 using your <strong>webhook secret</strong>.
           </p>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Webhooks work identically for both SDK and Direct API modes. You'll receive the same webhook payload when a payment reaches a terminal status (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
+            </p>
+          </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <h3 className="text-sm font-semibold text-gray-900">Webhook Headers</h3>
@@ -457,19 +767,21 @@ console.log(payment.status); // "cancelled"`}
     "reference": "PAY-A1B2C3",
     "merchant_reference": "order-1234",
     "provider_transaction_id": "1775499394985",
-    "amount": 5000,
-    "fee": 75,
+    "amount": 5000.0,
+    "fee": 75.0,
     "currency": "XAF",
     "status": "COMPLETED",
+    "payment_mode": "DIRECT_API",
+    "operator": "MTN",
     "method": "MOBILE_MONEY",
     "customer_name": "John Doe",
     "customer_email": "john@example.com",
-    "customer_phone": "+237699000000",
+    "customer_phone": "237699000000",
     "description": "Order #1234",
-    "completed_at": "2026-04-06T18:17:14Z",
-    "created_at": "2026-04-06T18:16:08Z"
+    "completed_at": "2026-04-09T18:17:14Z",
+    "created_at": "2026-04-09T18:16:08Z"
   },
-  "timestamp": "2026-04-06T18:17:14Z"
+  "timestamp": "2026-04-09T18:17:14Z"
 }`}
             />
 
@@ -544,14 +856,40 @@ async def handle_webhook(request: Request):
                   <tr className="text-left text-gray-500 border-b border-gray-200">
                     <th className="pb-2 font-medium">Status</th>
                     <th className="pb-2 font-medium">Description</th>
+                    <th className="pb-2 font-medium">Terminal?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">PENDING</td><td className="py-2 text-xs text-gray-600">Payment created, waiting for customer</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">COMPLETED</td><td className="py-2 text-xs text-gray-600">Payment was successfully processed</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">FAILED</td><td className="py-2 text-xs text-gray-600">Payment failed (insufficient funds, timeout, etc.)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">EXPIRED</td><td className="py-2 text-xs text-gray-600">Payment expired before completion</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">CANCELLED</td><td className="py-2 text-xs text-gray-600">Payment was cancelled via API</td></tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">PENDING</td>
+                    <td className="py-2 text-xs text-gray-600">Payment created, awaiting customer action (SDK mode)</td>
+                    <td className="py-2 text-xs text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">PROCESSING</td>
+                    <td className="py-2 text-xs text-gray-600">Payment initiated via Direct API, customer received push notification</td>
+                    <td className="py-2 text-xs text-gray-500">No</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">COMPLETED</td>
+                    <td className="py-2 text-xs text-gray-600">Payment was successfully processed</td>
+                    <td className="py-2 text-xs font-medium text-green-600">Yes ✓</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">FAILED</td>
+                    <td className="py-2 text-xs text-gray-600">Payment failed (insufficient funds, timeout, declined, etc.)</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">EXPIRED</td>
+                    <td className="py-2 text-xs text-gray-600">Payment link expired (30 minutes for SDK mode)</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">CANCELLED</td>
+                    <td className="py-2 text-xs text-gray-600">Payment was cancelled via API or by customer</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
