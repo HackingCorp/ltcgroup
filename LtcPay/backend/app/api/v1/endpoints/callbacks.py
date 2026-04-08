@@ -391,15 +391,17 @@ async def touchpay_direct_callback(
     logger.info("TouchPay Direct callback received: %s", body)
 
     # 2. Map Direct API fields to our unified callback format
-    # idFromClient = our PAY-xxx reference
-    id_from_client = body.get("idFromClient", "")
-    transaction_id = body.get("transactionId", "")
+    # TouchPay sends: partner_transaction_id (our PAY-xxx reference)
+    # or idFromClient (depending on API version)
+    id_from_client = body.get("partner_transaction_id") or body.get("idFromClient", "")
+    # TouchPay sends: gu_transaction_id or transactionId
+    transaction_id = body.get("gu_transaction_id") or body.get("transactionId", "")
     raw_status = body.get("status", "")
 
     if not id_from_client:
         raise HTTPException(
             status_code=400,
-            detail="Missing idFromClient",
+            detail="Missing partner_transaction_id or idFromClient",
         )
 
     # Build a TouchPayCallbackData with the direct API fields mapped
