@@ -257,9 +257,19 @@ export default function DocsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm text-amber-900">
-              <strong>💡 Key Difference:</strong> SDK mode lets customers enter operator/phone on the payment page, while Direct API mode requires these at payment creation for immediate initiation.
+          <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 space-y-2">
+            <p className="text-sm font-bold text-green-900">
+              ✨ Automatic Mode Detection - No Configuration Needed!
+            </p>
+            <p className="text-sm text-green-800">
+              The payment mode is <strong>automatically detected</strong> based on the fields you provide:
+            </p>
+            <ul className="text-sm text-green-800 space-y-1 list-disc list-inside ml-2">
+              <li><strong>Without</strong> operator/phone → SDK mode (customer enters on payment page)</li>
+              <li><strong>With</strong> operator + phone → Direct API mode (immediate initiation)</li>
+            </ul>
+            <p className="text-sm text-green-800">
+              Both modes are <strong>always available</strong> - just create the payment and the system chooses the right mode automatically!
             </p>
           </div>
 
@@ -404,15 +414,16 @@ payment = resp.json()`}
             method="POST"
             path="/payments"
             title="Create Payment"
-            description="Create a new payment. All payments now use TouchPay Direct API with native interface - no browser redirections!"
+            description="Create a new payment. Mode is automatically detected - no configuration needed!"
             defaultOpen
           >
-            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <p className="text-sm font-semibold text-blue-900 mb-2">🎉 Unified Workflow:</p>
-              <ul className="text-sm text-blue-800 space-y-1.5 list-disc list-inside">
-                <li><strong>SDK mode (payment links):</strong> Create without operator/phone → customer enters on payment page → returns <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">payment_url</code></li>
-                <li><strong>Direct API mode (mobile):</strong> Create with operator/phone → immediate initiation → status becomes <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
-                <li>Both modes use the same TouchPay Direct API backend</li>
+            <div className="mb-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-bold text-green-900 mb-2">✨ Automatic Mode Detection</p>
+              <ul className="text-sm text-green-800 space-y-1.5 list-disc list-inside">
+                <li><strong>Without operator/phone:</strong> SDK mode → returns <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → customer enters info on payment page</li>
+                <li><strong>With operator + phone:</strong> Direct API mode → immediate initiation → status <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
+                <li>No need to specify <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> - it&apos;s automatic!</li>
+                <li>Both modes use TouchPay Direct API (zero browser redirections)</li>
               </ul>
             </div>
 
@@ -420,13 +431,13 @@ payment = resp.json()`}
               params={[
                 { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF)" },
                 { name: "currency", type: "string", required: true, desc: "ISO currency code (XAF, XOF, USD)" },
-                { name: "payment_mode", type: "string", required: false, desc: "Integration mode: 'SDK' (default) or 'DIRECT_API'. Overrides merchant default." },
-                { name: "operator", type: "string", required: false, desc: "⚠️ REQUIRED for DIRECT_API: Mobile Money operator ('MTN' or 'ORANGE')" },
-                { name: "customer_phone", type: "string", required: false, desc: "⚠️ REQUIRED for DIRECT_API: Customer phone in format 237XXXXXXXXX" },
+                { name: "operator", type: "string", required: false, desc: "Mobile Money operator: 'MTN' or 'ORANGE'. Triggers Direct API mode if provided with customer_phone." },
+                { name: "customer_phone", type: "string", required: false, desc: "Customer phone (format: 237XXXXXXXXX). Triggers Direct API mode if provided with operator." },
+                { name: "payment_mode", type: "string", required: false, desc: "Optional override: 'SDK' or 'DIRECT_API'. Auto-detected if omitted (recommended)." },
                 { name: "description", type: "string", required: false, desc: "Payment description shown to customer" },
-                { name: "customer_email", type: "string", required: false, desc: "Customer email for receipt" },
-                { name: "callback_url", type: "string", required: false, desc: "Override default webhook URL for this payment" },
-                { name: "redirect_url", type: "string", required: false, desc: "URL to redirect customer after payment (SDK mode only)" },
+                { name: "customer_info", type: "object", required: false, desc: "Customer details: {name, email, phone}" },
+                { name: "callback_url", type: "string", required: false, desc: "Webhook URL for payment notifications" },
+                { name: "return_url", type: "string", required: false, desc: "URL to redirect customer after payment completion" },
                 { name: "metadata", type: "object", required: false, desc: "Custom key-value data attached to the payment" },
               ]}
             />
