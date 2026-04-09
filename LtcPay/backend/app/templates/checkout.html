@@ -145,14 +145,15 @@
             gap: 6px;
         }
 
-        .method-icon .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        .operator-logo {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            flex-shrink: 0;
+            background: white;
+            border-radius: 6px;
+            padding: 4px;
         }
-
-        .method-icon .dot.orange { background: #f97316; }
-        .method-icon .dot.yellow { background: #eab308; }
 
         #pay-button, #direct-submit-btn {
             width: 100%;
@@ -383,11 +384,11 @@
                 <h3>Choisissez votre operateur</h3>
                 <div class="operator-selector">
                     <button type="button" class="operator-btn" data-operator="MTN" onclick="selectOperator(this)">
-                        <span class="dot yellow"></span>
+                        <img src="/static/images/mtn-momo.png" alt="MTN" class="operator-logo">
                         MTN MoMo
                     </button>
                     <button type="button" class="operator-btn" data-operator="ORANGE" onclick="selectOperator(this)">
-                        <span class="dot orange"></span>
+                        <img src="/static/images/orange-money.png" alt="Orange" class="operator-logo">
                         Orange Money
                     </button>
                 </div>
