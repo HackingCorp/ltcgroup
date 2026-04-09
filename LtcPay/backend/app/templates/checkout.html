@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paiement - LtcPay</title>
+    <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -146,16 +147,16 @@
         }
 
         .operator-logo {
-            width: 32px;
-            height: 32px;
+            width: 48px;
+            height: 48px;
             object-fit: contain;
             flex-shrink: 0;
             background: white;
-            border-radius: 6px;
-            padding: 4px;
+            border-radius: 8px;
+            padding: 6px;
         }
 
-        #pay-button, #direct-submit-btn {
+        #pay-button, #direct-submit-btn, #submit-btn {
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #c8a84e 0%, #dbb85c 100%);
@@ -170,12 +171,12 @@
             letter-spacing: 1px;
         }
 
-        #pay-button:hover, #direct-submit-btn:hover {
+        #pay-button:hover, #direct-submit-btn:hover, #submit-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(200, 168, 78, 0.4);
         }
 
-        #pay-button:disabled, #direct-submit-btn:disabled {
+        #pay-button:disabled, #direct-submit-btn:disabled, #submit-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -252,7 +253,7 @@
 
         .operator-btn {
             flex: 1;
-            padding: 14px;
+            padding: 10px 12px;
             border-radius: 10px;
             border: 2px solid #334155;
             background: #0f172a;
@@ -264,7 +265,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .operator-btn:hover {
