@@ -341,17 +341,17 @@ export default function DocsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border-2 border-red-200 bg-red-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-red-900">⚠️ Direct API Mode Requirements</h3>
-            <p className="text-sm text-red-800">
-              When using <code className="rounded bg-red-100 px-1 py-0.5 text-xs">payment_mode: &quot;DIRECT_API&quot;</code>, you <strong>MUST</strong> provide:
+          <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-amber-900">💡 Direct API Mode (Immediate Initiation)</h3>
+            <p className="text-sm text-amber-800">
+              To trigger <strong>Direct API mode</strong> with immediate payment initiation, provide <strong>both</strong> fields:
             </p>
-            <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
-              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-red-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> or <code className="rounded bg-red-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
-              <li><code className="rounded bg-red-100 px-1 py-0.5 text-xs">customer_phone</code> - Customer phone number in format <code className="rounded bg-red-100 px-1 py-0.5 text-xs">237XXXXXXXXX</code></li>
+            <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> or <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> - Customer phone number in format <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">237XXXXXXXXX</code></li>
             </ul>
-            <p className="text-sm text-red-800">
-              Without these fields, the API will return <code className="rounded bg-red-100 px-1 py-0.5 text-xs">400 Bad Request</code>.
+            <p className="text-sm text-amber-800">
+              Without these fields, the payment defaults to <strong>SDK mode</strong> (customer enters info on payment page).
             </p>
           </div>
         </section>
@@ -457,7 +457,7 @@ const response = await fetch("${BASE_URL}/payments", {
   body: JSON.stringify({
     amount: 5000,
     currency: "XAF",
-    payment_mode: "SDK",  // Optional - SDK is default
+    // payment_mode: "SDK",  // Optional - auto-detected (SDK when no operator/phone)
     description: "Order #1234",
     customer_info: {
       name: "Jean Dupont",
@@ -500,9 +500,9 @@ const response = await fetch("${BASE_URL}/payments", {
   body: JSON.stringify({
     amount: 5000,
     currency: "XAF",
-    payment_mode: "DIRECT_API",          // ⚠️ Required for mobile
-    operator: "MTN",                      // ⚠️ Required: 'MTN' or 'ORANGE'
-    customer_phone: "237670000000",       // ⚠️ Required: format 237XXXXXXXXX
+    // payment_mode: "DIRECT_API",       // Optional - auto-detected when operator+phone provided
+    operator: "MTN",                      // Triggers Direct API mode
+    customer_phone: "237670000000",       // Triggers Direct API mode (format: 237XXXXXXXXX)
     description: "Order #1234",
     customer_info: {
       name: "Jean Dupont",
@@ -559,14 +559,14 @@ headers = {
     "X-API-Secret": "your_api_secret",
 }
 
-# SDK Mode (web)
+# SDK Mode (web) - no operator/phone → auto-detected as SDK
 sdk_payment = httpx.post(
     "${BASE_URL}/payments",
     headers=headers,
     json={
         "amount": 5000,
         "currency": "XAF",
-        "payment_mode": "SDK",
+        # "payment_mode": "SDK",  # Optional - auto-detected
         "description": "Order #1234",
         "customer_info": {
             "name": "Jean Dupont",
@@ -576,16 +576,16 @@ sdk_payment = httpx.post(
 ).json()
 print(f"Redirect to: {sdk_payment['payment_url']}")
 
-# Direct API Mode (mobile)
+# Direct API Mode (mobile) - operator+phone → auto-detected as DIRECT_API
 direct_payment = httpx.post(
     "${BASE_URL}/payments",
     headers=headers,
     json={
         "amount": 5000,
         "currency": "XAF",
-        "payment_mode": "DIRECT_API",
-        "operator": "MTN",              # Required!
-        "customer_phone": "237670000000", # Required!
+        # "payment_mode": "DIRECT_API",  # Optional - auto-detected
+        "operator": "MTN",              # Triggers Direct API mode
+        "customer_phone": "237670000000", # Triggers Direct API mode
         "description": "Order #1234",
     },
 ).json()
