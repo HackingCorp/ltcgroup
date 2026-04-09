@@ -334,9 +334,7 @@
             }
         }
     </style>
-    {% if payment_mode == "SDK" and sdk_config %}
-    <script src="{{ sdk_config.sdk_script_url }}" type="text/javascript"></script>
-    {% endif %}
+    {# TouchPay SDK removed - all payments now use Direct API with native form #}
 </head>
 <body>
     <div class="payment-container">
@@ -380,30 +378,8 @@
 
             <div id="status-message" class="status-message"></div>
 
-            {% if payment_mode == "SDK" %}
-            {# ==================== SDK MODE ==================== #}
-            <div class="payment-methods" id="sdk-section">
-                <h3>Modes de paiement acceptes</h3>
-                <div class="method-icons">
-                    <div class="method-icon">
-                        <span class="dot orange"></span>
-                        Orange Money
-                    </div>
-                    <div class="method-icon">
-                        <span class="dot yellow"></span>
-                        MTN MoMo
-                    </div>
-                </div>
-
-                <button id="pay-button" onclick="calltouchpay()">
-                    <span class="btn-text">Payer {{ "{:,.0f}".format(payment.amount) }} {{ payment.currency }}</span>
-                    <div class="spinner"></div>
-                </button>
-            </div>
-
-            {% else %}
-            {# ==================== DIRECT API MODE ==================== #}
-            <div class="payment-methods" id="direct-section">
+            {# ==================== UNIFIED PAYMENT FORM (Both SDK and Direct API) ==================== #}
+            <div class="payment-methods" id="payment-form">
                 <h3>Choisissez votre operateur</h3>
                 <div class="operator-selector">
                     <button type="button" class="operator-btn" data-operator="MTN" onclick="selectOperator(this)">
@@ -420,7 +396,7 @@
                        placeholder="Numero de telephone (ex: 237670000000)"
                        value="{{ payment.customer_phone or '' }}">
 
-                <button id="direct-submit-btn" onclick="submitDirectPayment()" disabled>
+                <button id="submit-btn" onclick="submitPayment()" disabled>
                     <span class="btn-text">Payer {{ "{:,.0f}".format(payment.amount) }} {{ payment.currency }}</span>
                     <div class="spinner"></div>
                 </button>
@@ -435,7 +411,6 @@
                     Veuillez valider le paiement.
                 </div>
             </div>
-            {% endif %}
 
             <div class="secure-badge">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -448,35 +423,9 @@
     </div>
 
     <script type="text/javascript">
+        // ==================== UNIFIED PAYMENT FLOW ====================
         var paymentRef = "{{ payment.reference }}";
-        var paymentMode = "{{ payment_mode }}";
         var returnUrl = "{{ payment.return_url or '' }}";
-
-        {% if payment_mode == "SDK" and sdk_config %}
-        // ==================== SDK MODE ====================
-        function calltouchpay() {
-            var btn = document.getElementById('pay-button');
-            btn.classList.add('loading');
-            btn.disabled = true;
-
-            sendPaymentInfos(
-                "{{ sdk_config.payment_token }}",
-                "{{ sdk_config.merchant_id }}",
-                "{{ sdk_config.secure_code }}",
-                "{{ sdk_config.merchant_website }}",
-                "{{ sdk_config.success_url }}",
-                "{{ sdk_config.failed_url }}",
-                {{ sdk_config.amount }},
-                "{{ sdk_config.city }}",
-                "{{ sdk_config.email }}",
-                "{{ sdk_config.first_name }}",
-                "{{ sdk_config.last_name }}",
-                "{{ sdk_config.phone }}"
-            );
-        }
-
-        {% else %}
-        // ==================== DIRECT API MODE ====================
         var selectedOperator = "";
         var pollingInterval = null;
 
@@ -489,17 +438,17 @@
             btn.classList.add('selected');
             selectedOperator = btn.getAttribute('data-operator');
             // Enable submit if phone is also filled
-            validateDirectForm();
+            validateForm();
         }
 
-        function validateDirectForm() {
+        function validateForm() {
             var phone = document.getElementById('phone-input').value.trim();
-            var btn = document.getElementById('direct-submit-btn');
+            var btn = document.getElementById('submit-btn');
             btn.disabled = !(selectedOperator && phone.length >= 9);
         }
 
         // Validate on phone input
-        document.getElementById('phone-input').addEventListener('input', validateDirectForm);
+        document.getElementById('phone-input').addEventListener('input', validateForm);
 
         function showStatus(msg, type) {
             var el = document.getElementById('status-message');
@@ -508,15 +457,15 @@
             el.style.display = 'block';
         }
 
-        function submitDirectPayment() {
+        function submitPayment() {
             var phone = document.getElementById('phone-input').value.trim();
             if (!selectedOperator || !phone) return;
 
-            var btn = document.getElementById('direct-submit-btn');
+            var btn = document.getElementById('submit-btn');
             btn.classList.add('loading');
             btn.disabled = true;
 
-            fetch('/pay/' + paymentRef + '/submit-direct', {
+            fetch('/pay/' + paymentRef + '/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -534,7 +483,7 @@
             })
             .then(function(data) {
                 // Hide form, show polling UI
-                document.getElementById('direct-section').style.display = 'none';
+                document.getElementById('payment-form').style.display = 'none';
                 document.getElementById('polling-section').style.display = 'block';
                 // Start polling
                 startPolling();
@@ -567,8 +516,8 @@
                         document.getElementById('polling-section').style.display = 'none';
                         showStatus('Le paiement a echoue. Veuillez reessayer.', 'error');
                         // Show form again
-                        document.getElementById('direct-section').style.display = 'block';
-                        var btn = document.getElementById('direct-submit-btn');
+                        document.getElementById('payment-form').style.display = 'block';
+                        var btn = document.getElementById('submit-btn');
                         btn.classList.remove('loading');
                         btn.disabled = false;
                     }
@@ -580,16 +529,14 @@
             }, 3000);
         }
 
-        // If payment is already PROCESSING (page loaded after API-initiated payment),
+        // If payment is already PROCESSING (Direct API pre-initiated or page reload),
         // start polling immediately
         {% if payment.status.value == "PROCESSING" %}
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('direct-section').style.display = 'none';
+            document.getElementById('payment-form').style.display = 'none';
             document.getElementById('polling-section').style.display = 'block';
             startPolling();
         });
-        {% endif %}
-
         {% endif %}
     </script>
 </body>

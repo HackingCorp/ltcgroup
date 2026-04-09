@@ -109,14 +109,24 @@ app.include_router(api_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
 # Payment checkout page -- GET /pay/{reference}
-# Serves the HTML page with the TouchPay SDK for the customer to pay.
+# Serves the HTML page with native form for both SDK and Direct API modes.
+# All payments now use TouchPay Direct API with a unified native interface.
 # ---------------------------------------------------------------------------
 @app.get("/pay/{reference}", response_class=HTMLResponse)
 async def payment_page(reference: str, request: Request):
-    """Render the payment checkout page (SDK or Direct API mode)."""
+    """Render the unified payment checkout page.
+
+    Both SDK and Direct API modes now use the same native form with:
+    - Operator selection (MTN/Orange)
+    - Phone number input
+    - Direct API initiation + polling
+
+    The only difference is when operator/phone are provided:
+    - Direct API: merchant provides at payment creation → immediate initiation
+    - SDK: customer provides on checkout page → initiation on submit
+    """
     from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.models.merchant import Merchant
-    from app.services.touchpay_service import touchpay_service
     from sqlalchemy.orm import selectinload
 
     async with async_session() as db:
@@ -141,46 +151,28 @@ async def payment_page(reference: str, request: Request):
             },
         )
 
-    # Build SDK config only for SDK mode
-    sdk_config = None
-    if payment.payment_mode == PaymentMode.SDK:
-        first_name = ""
-        last_name = ""
-        if payment.customer_name:
-            parts = payment.customer_name.strip().split(" ", 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else ""
-
-        sdk_config = touchpay_service.get_sdk_config(
-            payment_token=payment.reference,
-            amount=float(payment.amount),
-            customer_email=payment.customer_email or "",
-            customer_first_name=first_name,
-            customer_last_name=last_name,
-            customer_phone=payment.customer_phone or "",
-            success_url=payment.return_url or None,
-            failed_url=None,
-        )
-
     return templates.TemplateResponse(
         "checkout.html",
         {
             "request": request,
             "payment": payment,
             "merchant": payment.merchant,
-            "sdk_config": sdk_config,
             "payment_mode": payment.payment_mode.value,
         },
     )
 
 
-@app.post("/pay/{reference}/submit-direct")
-async def submit_direct_payment(reference: str, request: Request):
-    """Submit a Direct API payment from the checkout page.
+@app.post("/pay/{reference}/submit")
+async def submit_payment(reference: str, request: Request):
+    """Submit a payment from the checkout page (unified for SDK and Direct API).
 
     The customer selects an operator and enters their phone number on the
     checkout page, then this endpoint initiates the payment via TouchPay
     Direct API.
+
+    This endpoint is used for both modes:
+    - SDK mode: customer provides operator + phone on checkout page
+    - Direct API mode: if not already provided, customer can still submit here
     """
     from app.models.payment import Payment, PaymentStatus, PaymentMode, MobileMoneyOperator
     from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError

@@ -201,28 +201,37 @@ export default function DocsPage() {
         {/* Integration Modes */}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900" id="integration-modes">Integration Modes</h2>
-          <p className="text-sm text-gray-600">
-            LTCPay supports <strong>two integration modes</strong> to fit your application type:
-          </p>
+
+          <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🎉</span>
+              <h3 className="text-base font-bold text-blue-900">Unified Payment Flow - No More Browser Redirections!</h3>
+            </div>
+            <p className="text-sm text-blue-800">
+              Both <strong>SDK</strong> and <strong>Direct API</strong> modes now use the same <strong>native payment interface</strong> with TouchPay Direct API.
+              All payments are processed server-to-server with <strong>zero browser redirections</strong>.
+            </p>
+          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             {/* SDK Mode */}
-            <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5 space-y-3">
+            <div className="rounded-xl border-2 border-purple-200 bg-purple-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="rounded-md bg-blue-500 px-2 py-1 text-xs font-bold text-white">SDK</span>
-                <h3 className="text-sm font-semibold text-blue-900">Web Integration</h3>
+                <span className="rounded-md bg-purple-500 px-2 py-1 text-xs font-bold text-white">SDK</span>
+                <h3 className="text-sm font-semibold text-purple-900">Payment Links</h3>
               </div>
-              <p className="text-sm text-blue-800">
-                <strong>Best for:</strong> Web applications, e-commerce sites, web portals
+              <p className="text-sm text-purple-800">
+                <strong>Best for:</strong> Reusable payment links, QR codes, invoices
               </p>
-              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                <li>Customer chooses operator on hosted payment page</li>
-                <li>2-3 browser redirections (payment page → completion)</li>
-                <li>Simple integration: create payment, redirect user</li>
-                <li>TouchPay SDK handles the payment flow</li>
+              <ul className="text-sm text-purple-800 space-y-1 list-disc list-inside">
+                <li>Create payment <strong>without</strong> operator/phone</li>
+                <li>Customer chooses on LtcPay payment page</li>
+                <li>✅ No browser redirections</li>
+                <li>Native form with operator selector + phone input</li>
+                <li>Polling for real-time status updates</li>
               </ul>
-              <div className="pt-2 border-t border-blue-200">
-                <p className="text-xs font-medium text-blue-700">Default mode for all merchants</p>
+              <div className="pt-2 border-t border-purple-200">
+                <p className="text-xs font-medium text-purple-700">Perfect for shareable payment URLs</p>
               </div>
             </div>
 
@@ -230,16 +239,17 @@ export default function DocsPage() {
             <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-green-500 px-2 py-1 text-xs font-bold text-white">DIRECT_API</span>
-                <h3 className="text-sm font-semibold text-green-900">Mobile Integration</h3>
+                <h3 className="text-sm font-semibold text-green-900">Mobile Apps</h3>
               </div>
               <p className="text-sm text-green-800">
-                <strong>Best for:</strong> Native mobile apps (iOS, Android, Flutter, React Native)
+                <strong>Best for:</strong> Native mobile apps with custom UI
               </p>
               <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
-                <li><strong>Zero browser redirections</strong> - pure API integration</li>
-                <li>Native UI within your app</li>
-                <li>Push notification to Mobile Money app</li>
-                <li>Poll payment status in real-time</li>
+                <li>Provide operator + phone <strong>at creation</strong></li>
+                <li>Immediate server-to-server initiation</li>
+                <li>✅ No browser/WebView needed</li>
+                <li>Build your own native UI</li>
+                <li>Poll via API for status updates</li>
               </ul>
               <div className="pt-2 border-t border-green-200">
                 <p className="text-xs font-bold text-green-900">⚠️ Requires: operator + customer_phone at creation</p>
@@ -249,7 +259,7 @@ export default function DocsPage() {
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900">
-              <strong>💡 Tip:</strong> You can set a default mode in your merchant dashboard, or specify <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">payment_mode</code> per payment to override it.
+              <strong>💡 Key Difference:</strong> SDK mode lets customers enter operator/phone on the payment page, while Direct API mode requires these at payment creation for immediate initiation.
             </p>
           </div>
 
@@ -261,20 +271,20 @@ export default function DocsPage() {
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
                     <th className="pb-2 pr-4 font-medium">Feature</th>
-                    <th className="pb-2 pr-4 font-medium">SDK</th>
-                    <th className="pb-2 font-medium">Direct API</th>
+                    <th className="pb-2 pr-4 font-medium">SDK (Payment Links)</th>
+                    <th className="pb-2 font-medium">Direct API (Mobile)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Best for</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Web apps, e-commerce sites</td>
-                    <td className="py-2 text-xs text-gray-600">Native mobile apps</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Payment links, QR codes, invoices</td>
+                    <td className="py-2 text-xs text-gray-600">Native mobile apps with custom UI</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Browser redirects</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Yes (2-3 redirections)</td>
-                    <td className="py-2 text-xs text-gray-600"><strong>No</strong> (pure API)</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600"><strong>✅ No redirections</strong></td>
+                    <td className="py-2 text-xs text-gray-600"><strong>✅ No redirections</strong></td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Required at creation</td>
@@ -283,7 +293,7 @@ export default function DocsPage() {
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Operator selection</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Customer chooses on payment page</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Customer chooses on LtcPay payment page</td>
                     <td className="py-2 text-xs text-gray-600">Merchant provides at creation</td>
                   </tr>
                   <tr>
@@ -292,24 +302,29 @@ export default function DocsPage() {
                     <td className="py-2"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PROCESSING</code></td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Payment notification</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">On payment page</td>
-                    <td className="py-2 text-xs text-gray-600">Push to Mobile Money app</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Payment UI</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">LtcPay native form (operator + phone)</td>
+                    <td className="py-2 text-xs text-gray-600">Your custom native UI</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Payment initiation</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">On form submit → TouchPay Direct API</td>
+                    <td className="py-2 text-xs text-gray-600">Immediate → TouchPay Direct API</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Status check</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Via webhooks only</td>
-                    <td className="py-2 text-xs text-gray-600">Poll GET /payments/{'{reference}'} every 3-5s</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Auto-polling on payment page + webhooks</td>
+                    <td className="py-2 text-xs text-gray-600">Poll GET /payments/{'{reference}'} + webhooks</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-medium text-gray-700">Integration complexity</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Simple</td>
-                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐ Medium (needs polling UI)</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Simple (just redirect)</td>
+                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐ Medium (UI + polling)</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Mobile UX</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Good</td>
-                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐⭐ Excellent (native)</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Reusable links</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">✅ Yes - perfect for invoices</td>
+                    <td className="py-2 text-xs text-gray-600">❌ No - tied to specific customer</td>
                   </tr>
                 </tbody>
               </table>
@@ -389,14 +404,15 @@ payment = resp.json()`}
             method="POST"
             path="/payments"
             title="Create Payment"
-            description="Initiate a new payment. Behavior depends on payment_mode: SDK mode redirects customer to checkout page, Direct API mode initiates payment immediately via server-to-server API."
+            description="Create a new payment. All payments now use TouchPay Direct API with native interface - no browser redirections!"
             defaultOpen
           >
-            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm font-semibold text-gray-900 mb-2">Mode-Specific Behavior:</p>
-              <ul className="text-sm text-gray-600 space-y-1.5 list-disc list-inside">
-                <li><strong>SDK mode:</strong> Returns <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">payment_url</code> - redirect customer to this URL</li>
-                <li><strong>Direct API mode:</strong> Initiates payment immediately if <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">operator</code> + <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">customer_phone</code> provided, status becomes <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-900 mb-2">🎉 Unified Workflow:</p>
+              <ul className="text-sm text-blue-800 space-y-1.5 list-disc list-inside">
+                <li><strong>SDK mode (payment links):</strong> Create without operator/phone → customer enters on payment page → returns <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">payment_url</code></li>
+                <li><strong>Direct API mode (mobile):</strong> Create with operator/phone → immediate initiation → status becomes <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
+                <li>Both modes use the same TouchPay Direct API backend</li>
               </ul>
             </div>
 
@@ -415,10 +431,11 @@ payment = resp.json()`}
               ]}
             />
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900">Example 1: SDK Mode (Web Integration)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Example 1: SDK Mode (Payment Links)</h4>
               <CodeBlock
                 language="javascript"
-                code={`// SDK Mode - Customer selects operator on payment page
+                code={`// SDK Mode - Create reusable payment link
+// Customer will choose operator + enter phone on LtcPay payment page
 const response = await fetch("${BASE_URL}/payments", {
   method: "POST",
   headers: {
@@ -433,10 +450,9 @@ const response = await fetch("${BASE_URL}/payments", {
     description: "Order #1234",
     customer_info: {
       name: "Jean Dupont",
-      email: "jean@example.com",
-      phone: "+237699000000"
+      email: "jean@example.com"
     },
-    redirect_url: "https://myshop.cm/order/1234/success",
+    return_url: "https://myshop.cm/order/1234/success",
     metadata: { order_id: "1234" },
   }),
 });
@@ -446,14 +462,22 @@ console.log(payment.reference);    // "PAY-A1B2C3"
 console.log(payment.status);       // "PENDING"
 console.log(payment.payment_url);  // "https://pay.ltcgroup.site/pay/PAY-A1B2C3"
 
-// Redirect customer to payment page
-window.location.href = payment.payment_url;`}
+// Redirect customer to LtcPay native payment page
+// No redirections to TouchPay - everything happens on LtcPay page!
+window.location.href = payment.payment_url;
+
+// Customer will see:
+// 1. Native form with MTN/Orange selector
+// 2. Phone number input
+// 3. Submit → TouchPay Direct API initiation
+// 4. Polling UI → redirect to return_url when COMPLETED`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Example 2: Direct API Mode (Mobile Integration)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Example 2: Direct API Mode (Mobile Apps with Custom UI)</h4>
               <CodeBlock
                 language="javascript"
-                code={`// Direct API Mode - For mobile apps (no browser redirect needed)
+                code={`// Direct API Mode - For mobile apps building custom native UI
+// App shows its own operator selector + phone input, then creates payment
 // ⚠️ IMPORTANT: operator and customer_phone are REQUIRED
 const response = await fetch("${BASE_URL}/payments", {
   method: "POST",
@@ -465,7 +489,7 @@ const response = await fetch("${BASE_URL}/payments", {
   body: JSON.stringify({
     amount: 5000,
     currency: "XAF",
-    payment_mode: "DIRECT_API",          // ⚠️ Required
+    payment_mode: "DIRECT_API",          // ⚠️ Required for mobile
     operator: "MTN",                      // ⚠️ Required: 'MTN' or 'ORANGE'
     customer_phone: "237670000000",       // ⚠️ Required: format 237XXXXXXXXX
     description: "Order #1234",
@@ -479,10 +503,10 @@ const response = await fetch("${BASE_URL}/payments", {
 
 const payment = await response.json();
 console.log(payment.reference);  // "PAY-A1B2C3"
-console.log(payment.status);     // "PROCESSING" - payment initiated!
+console.log(payment.status);     // "PROCESSING" - payment initiated immediately!
 
-// Customer receives push notification on their MTN/Orange app
-// Poll for status updates (every 3-5 seconds):
+// Backend called TouchPay Direct API - customer receives push notification
+// App shows native "Confirm on your phone" UI + polls for status
 async function pollPaymentStatus(reference) {
   const maxAttempts = 40; // 2 minutes max
   for (let i = 0; i < maxAttempts; i++) {
@@ -498,9 +522,11 @@ async function pollPaymentStatus(reference) {
     const payment = await statusResp.json();
 
     if (payment.status === "COMPLETED") {
+      // Show success screen in app
       console.log("Payment successful!");
       return payment;
     } else if (payment.status === "FAILED") {
+      // Show error screen in app
       console.log("Payment failed");
       return payment;
     }
