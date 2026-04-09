@@ -1006,27 +1006,6 @@ export default function SolutionsFinancieresPage() {
 
           {/* Partner Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {/* Segment 1 */}
-            <div className="bg-[#1B2233] rounded-2xl p-6 border border-white/10 hover:border-[#cea427]/30 transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-lg font-bold text-white">{t.resellers.segment1.name}</span>
-                <span className="text-white font-bold italic">VISA</span>
-              </div>
-              <div className="text-sm text-[#cea427] font-medium mb-4">
-                {language === "fr" ? "Plafond:" : "Limit:"} {t.resellers.segment1.limit}
-              </div>
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
-                  <span className="text-gray-400 text-sm">{t.resellers.validity2y}</span>
-                  <span className="text-white font-bold">{t.resellers.segment1.price2y} FCFA</span>
-                </div>
-                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3">
-                  <span className="text-gray-400 text-sm">{t.resellers.validity3y}</span>
-                  <span className="text-white font-bold">{t.resellers.segment1.price3y} FCFA</span>
-                </div>
-              </div>
-            </div>
-
             {/* Segment 2 */}
             <div className="bg-[#1B2233] rounded-2xl p-6 border border-[#cea427]/30 hover:border-[#cea427]/50 transition-all relative">
               <div className="absolute top-0 right-0 bg-[#cea427] text-[#10151e] text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-xl">
@@ -1051,7 +1030,27 @@ export default function SolutionsFinancieresPage() {
               </div>
             </div>
 
-            {/* Segment 3 */}
+            {/* Segment 3 PROMO */}
+            <div className="bg-[#1B2233] rounded-2xl p-6 border border-[#cea427]/50 hover:border-[#cea427] transition-all relative">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-[#cea427] to-[#f4c542] text-[#10151e] text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-xl animate-pulse">
+                🎉 PROMO
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-[#cea427]">{t.resellers.segment3_promo.name}</span>
+                <span className="text-white font-bold italic">VISA</span>
+              </div>
+              <div className="text-sm text-[#cea427] font-medium mb-4">
+                {language === "fr" ? "Plafond:" : "Limit:"} {t.resellers.segment3_promo.limit}
+              </div>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between bg-[#10151e] rounded-lg p-3 border-2 border-[#cea427]/30">
+                  <span className="text-gray-400 text-sm">{t.resellers.validity1_5y}</span>
+                  <span className="text-[#cea427] font-bold">{t.resellers.segment3_promo.price1_5y} FCFA</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Segment 3 Standard */}
             <div className="bg-[#1B2233] rounded-2xl p-6 border border-white/10 hover:border-[#cea427]/30 transition-all">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-lg font-bold text-white">{t.resellers.segment3.name}</span>
@@ -1231,9 +1230,9 @@ export default function SolutionsFinancieresPage() {
                   >
                     <option value="">{t.orderForm.selectCard}</option>
                     <option value="ACCESS_MASTERCARD_12500">Access Bank Mastercard - 12 500 FCFA</option>
-                    <option value="UBA_SEGMENT1_2ANS_10000">UBA Visa Segment 1 - 10 000 FCFA (2 ans - Plafond 2.5M)</option>
                     <option value="UBA_SEGMENT1_3ANS_12500">UBA Visa Segment 1 - 12 500 FCFA (3 ans - Plafond 2.5M)</option>
                     <option value="UBA_SEGMENT2_15000">UBA Visa Segment 2 - 15 000 FCFA (Plafond 4M)</option>
+                    <option value="UBA_SEGMENT3_PROMO_10000">🎉 PROMO - UBA Visa Segment 3 - 10 000 FCFA (1.5 ans - Plafond 10M)</option>
                     <option value="UBA_SEGMENT3_25000">UBA Visa Segment 3 - 25 000 FCFA (Plafond 10M)</option>
                   </select>
                 </div>
@@ -2232,9 +2231,9 @@ const translations = {
         cta: "Commander Mastercard",
       },
       ubaCards: [
-        { name: "Segment 1", limit: "2 500 000 FCFA", price: "10 000", oldPrice: "12 500" },
         { name: "Segment 2", limit: "4 000 000 FCFA", price: "15 000", oldPrice: "17 500" },
-        { name: "Segment 3", limit: "10 000 000 FCFA", price: "25 000", oldPrice: "30 000" },
+        { name: "🎉 Segment 3 - PROMO (1.5 ans)", limit: "10 000 000 FCFA", price: "10 000", oldPrice: "25 000" },
+        { name: "Segment 3 - Standard", limit: "10 000 000 FCFA", price: "25 000", oldPrice: "30 000" },
       ],
       ubaFeatures: [
         "Utilisable à l'internationale",
@@ -2321,17 +2320,18 @@ const translations = {
       mixSegments: "Vous pouvez mixer plusieurs segments",
       validity2y: "Validité 2 ans",
       validity3y: "Validité 3 ans",
-      segment1: {
-        name: "Segment 1",
-        limit: "2 500 000 FCFA/mois",
-        price2y: "6 500",
-        price3y: "7 500",
-      },
+      validity1_5y: "Validité 1.5 ans",
       segment2: {
         name: "Segment 2",
         limit: "4 000 000 FCFA/mois",
         price2y: "8 000",
         price3y: "10 000",
+      },
+      segment3_promo: {
+        name: "🎉 Segment 3 - PROMO",
+        limit: "10 000 000 FCFA/mois",
+        price1_5y: "6 000",
+        promo: true,
       },
       segment3: {
         name: "Segment 3",
@@ -2513,9 +2513,9 @@ const translations = {
         cta: "Order Mastercard",
       },
       ubaCards: [
-        { name: "Segment 1", limit: "2,500,000 FCFA", price: "10,000", oldPrice: "12,500" },
         { name: "Segment 2", limit: "4,000,000 FCFA", price: "15,000", oldPrice: "17,500" },
-        { name: "Segment 3", limit: "10,000,000 FCFA", price: "25,000", oldPrice: "30,000" },
+        { name: "🎉 Segment 3 - PROMO (1.5 years)", limit: "10,000,000 FCFA", price: "10,000", oldPrice: "25,000" },
+        { name: "Segment 3 - Standard", limit: "10,000,000 FCFA", price: "25,000", oldPrice: "30,000" },
       ],
       ubaFeatures: [
         "International use",
@@ -2602,17 +2602,18 @@ const translations = {
       mixSegments: "You can mix multiple segments",
       validity2y: "2 years validity",
       validity3y: "3 years validity",
-      segment1: {
-        name: "Segment 1",
-        limit: "2,500,000 FCFA/month",
-        price2y: "6,500",
-        price3y: "7,500",
-      },
+      validity1_5y: "1.5 years validity",
       segment2: {
         name: "Segment 2",
         limit: "4,000,000 FCFA/month",
         price2y: "8,000",
         price3y: "10,000",
+      },
+      segment3_promo: {
+        name: "🎉 Segment 3 - PROMO",
+        limit: "10,000,000 FCFA/month",
+        price1_5y: "6,000",
+        promo: true,
       },
       segment3: {
         name: "Segment 3",
