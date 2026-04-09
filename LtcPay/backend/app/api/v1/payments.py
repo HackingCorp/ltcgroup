@@ -104,8 +104,16 @@ async def create_payment(
 
     Rate limit: 60 requests per minute per IP.
     """
-    # Determine payment mode: explicit in payload, or merchant default
-    payment_mode = payload.payment_mode or merchant.default_payment_mode
+    # Determine payment mode automatically based on provided fields:
+    # - If operator + customer_phone provided → DIRECT_API (immediate initiation)
+    # - Otherwise → SDK (customer enters on payment page)
+    # Merchant can still override by explicitly setting payment_mode
+    if payload.payment_mode:
+        payment_mode = payload.payment_mode
+    elif payload.operator and payload.customer_phone:
+        payment_mode = PaymentMode.DIRECT_API
+    else:
+        payment_mode = PaymentMode.SDK
 
     reference = _generate_reference()
     fee = _compute_fee(payload.amount)

@@ -70,7 +70,6 @@ export default function MerchantsPage() {
                   <tr className="border-b border-gray-200 text-left text-gray-500">
                     <th className="pb-3 font-medium">Merchant</th>
                     <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Payment Mode</th>
                     <th className="pb-3 font-medium">Created</th>
                     <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
@@ -145,7 +144,6 @@ function MerchantRow({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [updatingMode, setUpdatingMode] = useState(false);
 
   const handleRegenerateApiSecret = async () => {
     if (!confirm(`Regenerate API secret for "${m.name}"? The old secret will stop working immediately.`))
@@ -176,18 +174,6 @@ function MerchantRow({
     }
   };
 
-  const handlePaymentModeChange = async (newMode: "SDK" | "DIRECT_API") => {
-    setUpdatingMode(true);
-    try {
-      await merchantsService.update(m.id, { default_payment_mode: newMode });
-      onRefresh();
-    } catch {
-      alert("Failed to update payment mode");
-    } finally {
-      setUpdatingMode(false);
-    }
-  };
-
   return (
     <>
       <tr className="hover:bg-gray-50">
@@ -208,21 +194,6 @@ function MerchantRow({
             {m.is_active ? "Active" : "Inactive"}
           </span>
         </td>
-        <td className="py-3">
-          <select
-            value={m.default_payment_mode || "SDK"}
-            onChange={(e) => handlePaymentModeChange(e.target.value as "SDK" | "DIRECT_API")}
-            disabled={updatingMode}
-            className={`rounded-md border border-gray-300 px-2 py-1 text-xs font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-              m.default_payment_mode === "DIRECT_API"
-                ? "bg-purple-50 text-purple-700"
-                : "bg-blue-50 text-blue-700"
-            } ${updatingMode ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-          >
-            <option value="SDK">SDK</option>
-            <option value="DIRECT_API">Direct API</option>
-          </select>
-        </td>
         <td className="py-3 text-gray-500 text-xs">
           {new Date(m.created_at).toLocaleDateString()}
         </td>
@@ -239,7 +210,7 @@ function MerchantRow({
       </tr>
       {showDetails && (
         <tr className="bg-gray-50">
-          <td colSpan={5} className="px-4 py-4">
+          <td colSpan={4} className="px-4 py-4">
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -358,7 +329,6 @@ function CreateMerchantModal({
   const [form, setForm] = useState<CreateMerchantData>({
     name: "",
     email: "",
-    default_payment_mode: "SDK",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -476,21 +446,15 @@ function CreateMerchantModal({
               Affiché sur la page de paiement du client
             </p>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Mode de paiement par défaut
-            </label>
-            <select
-              value={form.default_payment_mode || "SDK"}
-              onChange={(e) => set("default_payment_mode", e.target.value as "SDK" | "DIRECT_API")}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="SDK">SDK (Web - avec redirections)</option>
-              <option value="DIRECT_API">Direct API (Mobile - sans redirections)</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-400">
-              SDK pour applications web, Direct API pour applications mobiles
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-xs text-blue-800">
+              <strong>ℹ️ Mode de paiement automatique :</strong> Les deux options (SDK et Direct API) sont toujours disponibles.
+              Le mode est déterminé automatiquement lors de la création du paiement :
             </p>
+            <ul className="mt-2 text-xs text-blue-700 space-y-1 list-disc list-inside">
+              <li><strong>Sans</strong> opérateur/téléphone → SDK (lien réutilisable)</li>
+              <li><strong>Avec</strong> opérateur/téléphone → Direct API (initiation immédiate)</li>
+            </ul>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
