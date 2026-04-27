@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPaymentLink, getPaymentLinkStatus, PAYIN_COUNTRIES } from "@/lib/payments/payin";
+import { createDirectPayment, getPaymentStatus, LtcPayOperator } from "@/lib/payments/ltcpay";
 import { initiateEnkapPayment } from "@/lib/payments/enkap";
 import { updateOrderPaymentStatus, saveTransaction, updateTransactionStatus, getPendingTransactionByOrderRef } from "@/lib/db";
 
 export type PaymentMethod = 'mobile_money' | 'enkap';
+
+const VALID_OPERATORS: LtcPayOperator[] = ["MTN", "ORANGE"];
 
 interface PaymentRequest {
   method: PaymentMethod;
@@ -13,7 +15,7 @@ interface PaymentRequest {
   email: string;
   customerName: string;
   cardType: string;
-  countryCode?: string; // ISO 2-letter code, required for mobile_money
+  operator?: LtcPayOperator; // Required for mobile_money
   orderDetails: {
     cardPrice: number;
     deliveryFee: number;
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: PaymentRequest = await request.json();
 
-    const { method, amount, orderRef, phone, email, customerName, cardType, countryCode, orderDetails } = body;
+    const { method, amount, orderRef, phone, email, customerName, cardType, operator, orderDetails } = body;
 
     // Validate required fields
     if (!method || !amount || !orderRef || !phone) {
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         paymentMethod: existingTx.payment_method,
-        transactionId: existingTx.trid,
+        reference: existingTx.trid,
         orderRef: existingTx.order_ref,
         amount: existingTx.amount,
         existing: true,
@@ -84,29 +86,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (method === 'mobile_money') {
-      // Validate country code
-      if (!countryCode || !PAYIN_COUNTRIES[countryCode.toUpperCase()]) {
+      // Validate operator (MTN or ORANGE)
+      if (!operator || !VALID_OPERATORS.includes(operator)) {
         return NextResponse.json(
-          { success: false, error: "Invalid or missing country code for Mobile Money payment" },
+          { success: false, error: "Veuillez selectionner un operateur (MTN ou Orange)" },
           { status: 400 }
         );
       }
 
-      // Use Payin for Mobile Money (payment link)
-      // Build the redirect URL for after payment (user-facing callback page)
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
-      const redirectUrl = `${baseUrl}/services/solutions-financieres/payment/callback?status=COMPLETED&order_id=${encodeURIComponent(orderRef)}&method=mobile_money`;
+      // Use LTCPay Direct API for Mobile Money (push to phone)
+      const webhookUrl = process.env.LTCPAY_WEBHOOK_URL || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site'}/api/payments/webhook`;
 
-      const result = await createPaymentLink({
+      const result = await createDirectPayment({
         amount,
-        countryCode,
-        orderRef,
+        operator,
+        customerPhone: phone,
+        merchantReference: orderRef,
+        description: `Carte ${cardType} - ${orderRef}`,
         customerName,
         customerEmail: email,
-        customerPhone: phone,
-        description: `Carte ${cardType} - ${orderRef}`,
-        callbackUrl: process.env.PAYIN_WEBHOOK_URL || '',
-        redirectUrl,
+        callbackUrl: webhookUrl,
       });
 
       if (!result.success) {
@@ -118,7 +117,7 @@ export async function POST(request: NextRequest) {
           customer_name: customerName,
           customer_email: email,
           payment_method: 'mobile_money',
-          provider: countryCode.toUpperCase(),
+          provider: operator,
           status: 'FAILED',
           error_message: result.error,
         });
@@ -131,24 +130,22 @@ export async function POST(request: NextRequest) {
 
       // Save transaction to database
       await saveTransaction({
-        trid: result.transactionId,
+        trid: result.reference,
         order_ref: orderRef,
         amount,
         phone,
         customer_name: customerName,
         customer_email: email,
         payment_method: 'mobile_money',
-        provider: countryCode.toUpperCase(),
+        provider: operator,
         status: 'PENDING',
       });
 
       return NextResponse.json({
         success: true,
         paymentMethod: 'mobile_money',
-        paymentUrl: result.paymentLink,
-        transactionId: result.transactionId,
-        paymentLinkId: result.paymentLinkId,
-        totalAmount: result.totalAmount,
+        reference: result.reference,
+        status: result.status,
         orderRef,
       });
 
@@ -217,28 +214,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint to check Mobile Money payment status (Payin)
+// GET endpoint to check Mobile Money payment status (LTCPay)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const transactionId = searchParams.get('transactionId');
+    const reference = searchParams.get('reference') || searchParams.get('trid');
     const orderRef = searchParams.get('orderRef');
 
-    if (!transactionId) {
+    if (!reference) {
       return NextResponse.json(
-        { success: false, error: "Missing transaction ID" },
+        { success: false, error: "Missing payment reference" },
         { status: 400 }
       );
     }
 
-    const result = await getPaymentLinkStatus(transactionId);
+    const result = await getPaymentStatus(reference);
 
-    // Update transaction and order status in database
-    if (result.status === 'COMPLETED' || result.status === 'FAILED' || result.status === 'REFUNDED') {
-      const dbStatus = result.status === 'COMPLETED' ? 'SUCCESS' : 'FAILED';
+    // Map LTCPay statuses to DB/frontend statuses
+    let dbStatus: 'SUCCESS' | 'PENDING' | 'FAILED';
+    let frontendStatus: string;
 
+    switch (result.status) {
+      case 'COMPLETED':
+        dbStatus = 'SUCCESS';
+        frontendStatus = 'SUCCESS';
+        break;
+      case 'FAILED':
+      case 'EXPIRED':
+      case 'CANCELLED':
+        dbStatus = 'FAILED';
+        frontendStatus = 'FAILED';
+        break;
+      case 'PROCESSING':
+      case 'PENDING':
+      default:
+        dbStatus = 'PENDING';
+        frontendStatus = 'PENDING';
+        break;
+    }
+
+    // Update transaction and order status in database for terminal statuses
+    if (dbStatus === 'SUCCESS' || dbStatus === 'FAILED') {
       await updateTransactionStatus(
-        { trid: transactionId },
+        { trid: reference },
         dbStatus,
       );
 
@@ -249,14 +267,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      status: result.status,
+      status: frontendStatus,
+      ltcpayStatus: result.status,
       amount: result.amount,
+      failureReason: result.failureReason,
     });
 
   } catch (error) {
     console.error("Payment status check error:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Erreur de vérification" },
+      { success: false, error: error instanceof Error ? error.message : "Erreur de verification" },
       { status: 500 }
     );
   }

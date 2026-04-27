@@ -50,10 +50,9 @@ export default function SolutionsFinancieresPage() {
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error" | "payment_pending">("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<"pay_later" | "mobile_money" | "enkap">("pay_later");
+  const [operator, setOperator] = useState<"MTN" | "ORANGE" | "">("");
   const [paymentStatus, setPaymentStatus] = useState<{
-    ptn?: string;
-    trid?: string;
-    orderId?: string;
+    reference?: string;
     orderRef?: string;
     checking?: boolean;
   }>({});
@@ -192,13 +191,13 @@ export default function SolutionsFinancieresPage() {
   }, []);
 
   // Check Mobile Money payment status
-  const checkMobileMoneyStatus = async (trid: string, orderRef?: string) => {
+  const checkMobileMoneyStatus = async (reference: string, orderRef?: string) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       const url = orderRef
-        ? `/api/payments/initiate?trid=${trid}&orderRef=${orderRef}`
-        : `/api/payments/initiate?trid=${trid}`;
+        ? `/api/payments/initiate?reference=${reference}&orderRef=${orderRef}`
+        : `/api/payments/initiate?reference=${reference}`;
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       const result = await response.json();
@@ -228,7 +227,7 @@ export default function SolutionsFinancieresPage() {
         stopPolling();
         pendingOrderDataRef.current = null;
         setPendingOrderData(null);
-        setErrorMessage(result.errorMessage || "Le paiement a échoué. Veuillez réessayer.");
+        setErrorMessage(result.failureReason || "Le paiement a echoue. Veuillez reessayer.");
         setSubmitStatus("error");
         setPaymentStatus({});
       }
@@ -317,6 +316,11 @@ export default function SolutionsFinancieresPage() {
         ? "mobile_money"
         : paymentMethod;
 
+      // Validate operator selection for mobile money
+      if (finalPaymentMethod === "mobile_money" && !operator) {
+        throw new Error("Veuillez selectionner un operateur (MTN MoMo ou Orange Money).");
+      }
+
       if (finalPaymentMethod === "mobile_money" || finalPaymentMethod === "enkap") {
         // Initiate payment
         const paymentResponse = await fetch("/api/payments/initiate", {
@@ -330,7 +334,7 @@ export default function SolutionsFinancieresPage() {
             email: formData.email,
             customerName: `${formData.firstName} ${formData.lastName}`,
             cardType: formData.cardType,
-            countryCode: 'CM',
+            ...(finalPaymentMethod === "mobile_money" ? { operator } : {}),
             orderDetails: { cardPrice, deliveryFee, niuFee, deliveryOption: formData.deliveryOption },
           }),
         });
@@ -347,8 +351,8 @@ export default function SolutionsFinancieresPage() {
           throw new Error(paymentResult.error || "Payment initiation failed");
         }
 
-        if (paymentResult.paymentUrl) {
-          // Store order data before redirect (works for both e-nkap and mobile_money payment links)
+        if (paymentResult.paymentUrl && finalPaymentMethod === "enkap") {
+          // Store order data before redirect (e-nkap payment page)
           try {
             sessionStorage.setItem("pendingOrder", JSON.stringify({
               ...formData,
@@ -398,7 +402,7 @@ export default function SolutionsFinancieresPage() {
           return;
         }
 
-        if (finalPaymentMethod === "mobile_money" && paymentResult.trid) {
+        if (finalPaymentMethod === "mobile_money" && paymentResult.reference) {
           // Store order data for later notification - use both state and ref
           const orderDataForNotification = {
             ...formData,
@@ -431,22 +435,22 @@ export default function SolutionsFinancieresPage() {
           }).catch(err => console.error("Pre-save order error:", err));
 
           // Show Mobile Money confirmation screen
-          setPaymentStatus({ ptn: paymentResult.ptn, trid: paymentResult.trid, orderRef, checking: true });
+          setPaymentStatus({ reference: paymentResult.reference, orderRef, checking: true });
           setSubmitStatus("payment_pending");
 
           // Clear any previous polling
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
 
-          // Start polling for payment status using TRID (more reliable)
+          // Start polling for payment status using reference
           pollIntervalRef.current = setInterval(async () => {
             // Stop polling if status is no longer pending (use ref to avoid stale closure)
             if (submitStatusRef.current !== "payment_pending") {
               if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
               return;
             }
-            await checkMobileMoneyStatus(paymentResult.trid, orderRef);
-          }, 5000);
+            await checkMobileMoneyStatus(paymentResult.reference, orderRef);
+          }, 3000);
 
           // Stop polling after 2 minutes
           pollTimeoutRef.current = setTimeout(() => {
@@ -1171,19 +1175,24 @@ export default function SolutionsFinancieresPage() {
                 </h3>
                 <p className="text-gray-400 mb-4">
                   {language === "fr"
-                    ? "Une demande de paiement a été envoyée sur votre téléphone."
+                    ? "Une demande de paiement a ete envoyee sur votre telephone."
                     : "A payment request has been sent to your phone."
                   }
                 </p>
                 <div className="bg-[#10151e] rounded-xl p-4 mb-6 max-w-sm mx-auto">
                   <p className="text-sm text-gray-400 mb-2">
-                    {language === "fr" ? "Composez sur votre téléphone :" : "Dial on your phone:"}
+                    {language === "fr" ? "Sur votre telephone :" : "On your phone:"}
                   </p>
-                  <p className="text-xl font-mono text-[#cea427]">*126# (MTN) / #150# (Orange)</p>
+                  <p className="text-lg font-medium text-[#cea427]">
+                    {language === "fr"
+                      ? "Ouvrez votre app Mobile Money et confirmez le paiement"
+                      : "Open your Mobile Money app and confirm the payment"
+                    }
+                  </p>
                   <p className="text-xs text-gray-500 mt-2">
                     {language === "fr"
-                      ? "Puis confirmez le paiement avec votre code PIN"
-                      : "Then confirm the payment with your PIN code"
+                      ? "Entrez votre code PIN pour valider la transaction"
+                      : "Enter your PIN code to validate the transaction"
                     }
                   </p>
                 </div>
@@ -1840,6 +1849,36 @@ export default function SolutionsFinancieresPage() {
                           </p>
                         </div>
                       </label>
+
+                      {/* Operator Selector — shown when Mobile Money is selected */}
+                      {(paymentMethod === "mobile_money" || (isShippingSelected && paymentMethod === "pay_later")) && (
+                        <div className="ml-4 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setOperator("MTN")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                              operator === "MTN"
+                                ? "border-yellow-500 bg-yellow-500/10 text-yellow-400"
+                                : "border-white/10 bg-[#1B2233] text-gray-400 hover:border-yellow-500/30"
+                            }`}
+                          >
+                            <div className="w-8 h-5 bg-yellow-500 rounded flex items-center justify-center text-[8px] font-bold text-black">MTN</div>
+                            <span>MTN MoMo</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOperator("ORANGE")}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                              operator === "ORANGE"
+                                ? "border-orange-500 bg-orange-500/10 text-orange-400"
+                                : "border-white/10 bg-[#1B2233] text-gray-400 hover:border-orange-500/30"
+                            }`}
+                          >
+                            <div className="w-8 h-5 bg-orange-500 rounded flex items-center justify-center text-[8px] font-bold text-white">OM</div>
+                            <span>Orange Money</span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* E-nkap Option (Card/Multi-channel) */}
                       <label className="flex items-start gap-3 p-4 rounded-lg bg-[#1B2233] border border-white/5 hover:border-[#cea427]/30 cursor-pointer transition-colors">

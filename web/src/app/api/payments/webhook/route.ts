@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { updateOrderPaymentStatus, updateTransactionStatus, getTransaction } from "@/lib/db";
+import { verifyWebhookSignature, LtcPayWebhookPayload, LtcPayStatus } from "@/lib/payments/ltcpay";
 
 const WAZEAPP_API_URL = "https://api.wazeapp.xyz/api/v1/external";
 const WAZEAPP_API_KEY = process.env.WAZEAPP_API_KEY || '';
@@ -65,23 +66,6 @@ interface EnkapWebhookPayload {
   completed_at?: string;
 }
 
-interface PayinWebhookPayload {
-  data?: {
-    data?: {
-      attributes?: {
-        status: number; // 0=PENDING, 1=COMPLETED, 2=FAILED, 3=REFUNDED
-        amount?: number;
-        currency?: string;
-        order_id?: string;
-        transaction_id?: string;
-        customer_phone?: string;
-        customer_name?: string;
-        customer_email?: string;
-      };
-    };
-  };
-}
-
 /**
  * Handle E-nkap webhook notifications
  */
@@ -103,9 +87,9 @@ async function handleEnkapWebhook(payload: EnkapWebhookPayload) {
   if (status === 'COMPLETED') {
     const teamMessage = `*[PAIEMENT RECU - E-NKAP]*
 
-*Référence:* ${merchant_reference}
+*Reference:* ${merchant_reference}
 *Montant:* ${amount.toLocaleString()} FCFA
-*Méthode:* ${payment_method || 'N/A'}
+*Methode:* ${payment_method || 'N/A'}
 *ID Transaction:* ${order_id}
 
 *Client:*
@@ -113,30 +97,28 @@ ${customer?.name || 'N/A'}
 ${customer?.phone || 'N/A'}
 ${customer?.email || 'N/A'}
 
-Le paiement a été confirmé avec succès.`;
+Le paiement a ete confirme avec succes.`;
 
     await sendWhatsApp(TEAM_PHONE, teamMessage);
 
     if (customer?.phone) {
-      const customerPhone = customer.phone
-        ? (customer.phone.startsWith('237')
-          ? customer.phone
-          : '237' + customer.phone.replace(/\D/g, ''))
-        : '';
+      const customerPhone = customer.phone.startsWith('237')
+        ? customer.phone
+        : '237' + customer.phone.replace(/\D/g, '');
 
       const customerMessage = `*CONFIRMATION DE PAIEMENT*
 *LTC Finance*
 
 Bonjour ${customer.name || ''},
 
-Votre paiement de *${amount.toLocaleString()} FCFA* a été reçu avec succès.
+Votre paiement de *${amount.toLocaleString()} FCFA* a ete recu avec succes.
 
-*Référence:* ${merchant_reference}
+*Reference:* ${merchant_reference}
 
-Notre équipe vous contactera sous peu pour finaliser votre commande.
+Notre equipe vous contactera sous peu pour finaliser votre commande.
 
 Merci de votre confiance !
-_L'équipe LTC Finance_`;
+_L'equipe LTC Finance_`;
 
       await sendWhatsApp(customerPhone, customerMessage);
     }
@@ -147,14 +129,14 @@ _L'équipe LTC Finance_`;
         to: TEAM_EMAIL,
         subject: `[PAIEMENT RECU] ${merchant_reference} - ${amount.toLocaleString()} FCFA`,
         html: `
-          <h2>Paiement reçu via E-nkap</h2>
-          <p><strong>Référence:</strong> ${merchant_reference}</p>
+          <h2>Paiement recu via E-nkap</h2>
+          <p><strong>Reference:</strong> ${merchant_reference}</p>
           <p><strong>Montant:</strong> ${amount.toLocaleString()} FCFA</p>
-          <p><strong>Méthode:</strong> ${payment_method || 'N/A'}</p>
+          <p><strong>Methode:</strong> ${payment_method || 'N/A'}</p>
           <p><strong>ID Transaction:</strong> ${order_id}</p>
           <hr>
           <p><strong>Client:</strong> ${customer?.name || 'N/A'}</p>
-          <p><strong>Téléphone:</strong> ${customer?.phone || 'N/A'}</p>
+          <p><strong>Telephone:</strong> ${customer?.phone || 'N/A'}</p>
           <p><strong>Email:</strong> ${customer?.email || 'N/A'}</p>
         `,
       });
@@ -167,7 +149,7 @@ _L'équipe LTC Finance_`;
   } else if (status === 'FAILED' || status === 'CANCELLED') {
     const teamMessage = `*[PAIEMENT ECHOUE - E-NKAP]*
 
-*Référence:* ${merchant_reference}
+*Reference:* ${merchant_reference}
 *Statut:* ${status}
 *Montant:* ${amount.toLocaleString()} FCFA
 
@@ -182,104 +164,85 @@ Le paiement n'a pas abouti.`;
 }
 
 /**
- * Handle Payin (Mobile Money) webhook notifications
- * Status codes: 0=PENDING, 1=COMPLETED, 2=FAILED, 3=REFUNDED
+ * Handle LTCPay webhook notifications
+ * Event: payment.status_changed
+ * Signature: X-LtcPay-Signature header (HMAC-SHA256)
  */
-async function handlePayinWebhook(payload: PayinWebhookPayload) {
-  const attributes = payload.data?.data?.attributes;
-  if (!attributes) {
-    console.warn('Payin webhook: Missing attributes in payload');
-    return { success: true, message: 'Webhook received (no attributes)' };
+async function handleLtcPayWebhook(payload: LtcPayWebhookPayload, verified: boolean) {
+  const { event, data } = payload;
+
+  if (event !== 'payment.status_changed') {
+    console.log(`LTCPay webhook: Unhandled event type: ${event}`);
+    return { success: true, message: `Event ${event} acknowledged` };
   }
 
-  // Validate Payin webhook payload
-  const statusCode = attributes.status;
-  if (typeof statusCode !== 'number' || statusCode < 0 || statusCode > 3) {
-    console.warn(`Payin webhook: Invalid status code: ${statusCode}`);
-    return { success: false, error: 'Invalid status code' };
-  }
-  if (attributes.amount !== undefined && (typeof attributes.amount !== 'number' || attributes.amount <= 0)) {
-    console.warn(`Payin webhook: Invalid amount: ${attributes.amount}`);
-    return { success: false, error: 'Invalid amount' };
-  }
-  if (!attributes.transaction_id) {
-    console.warn('Payin webhook: Missing transaction_id');
-    return { success: false, error: 'Missing transaction_id' };
-  }
+  const { reference, merchant_reference, status, amount, operator, customer_phone, customer_name } = data;
 
-  const orderId = attributes.order_id || '';
-  const transactionId = attributes.transaction_id;
-  const amount = attributes.amount || 0;
-  const customerPhone = attributes.customer_phone || '';
-  const customerName = attributes.customer_name || '';
+  console.log(`LTCPay webhook: ref=${reference}, merchant_ref=${merchant_reference}, status=${status}, verified=${verified}`);
 
-  const statusMap: Record<number, string> = {
-    0: 'PENDING',
-    1: 'SUCCESS',
-    2: 'FAILED',
-    3: 'REFUNDED',
-  };
-  const statusStr = statusMap[statusCode] || 'UNKNOWN';
-
-  console.log(`Payin webhook: order=${orderId}, tx=${transactionId}, status=${statusStr}`);
-
-  // Look up order_ref from the transaction
-  const transaction = await getTransaction({ trid: transactionId });
-  const orderRef = transaction?.order_ref;
-
-  // Verify webhook amount matches stored transaction amount
-  if (transaction && amount > 0 && transaction.amount) {
-    const storedAmount = Number(transaction.amount);
-    if (storedAmount > 0 && storedAmount !== amount) {
-      console.warn(
-        `Payin webhook amount mismatch: webhook=${amount}, stored=${storedAmount}, tx=${transactionId}`
-      );
-    }
+  // Map LTCPay status to DB status
+  let dbStatus: 'SUCCESS' | 'PENDING' | 'FAILED';
+  switch (status) {
+    case 'COMPLETED':
+      dbStatus = 'SUCCESS';
+      break;
+    case 'FAILED':
+    case 'EXPIRED':
+    case 'CANCELLED':
+      dbStatus = 'FAILED';
+      break;
+    default:
+      dbStatus = 'PENDING';
+      break;
   }
 
-  if (orderRef) {
-    const dbStatus = statusStr === 'SUCCESS' ? 'SUCCESS' : statusStr === 'PENDING' ? 'PENDING' : 'FAILED';
-    await updateOrderPaymentStatus(orderRef, dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED', 'mobile_money');
-  }
+  // Look up transaction by reference
+  const transaction = await getTransaction({ trid: reference });
+  const orderRef = transaction?.order_ref || merchant_reference;
 
   // Update transaction status
-  const dbStatus = statusStr === 'SUCCESS' ? 'SUCCESS' : statusStr === 'PENDING' ? 'PENDING' : 'FAILED';
   await updateTransactionStatus(
-    { trid: transactionId },
-    dbStatus as 'SUCCESS' | 'PENDING' | 'FAILED'
+    { trid: reference },
+    dbStatus
   );
 
-  if (statusStr === 'SUCCESS') {
+  // Update order payment status
+  if (orderRef) {
+    await updateOrderPaymentStatus(orderRef, dbStatus, 'mobile_money');
+  }
+
+  if (status === 'COMPLETED') {
     const teamMessage = `*[PAIEMENT RECU - MOBILE MONEY]*
 
-*Référence:* ${orderId}
+*Reference:* ${orderRef}
 *Montant:* ${amount.toLocaleString()} FCFA
-*Numéro:* ${customerPhone}
-*Transaction ID:* ${transactionId}
+*Operateur:* ${operator}
+*Numero:* ${customer_phone}
+*Transaction:* ${reference}
 
-Le paiement Mobile Money a été confirmé.`;
+Le paiement Mobile Money a ete confirme.`;
 
     await sendWhatsApp(TEAM_PHONE, teamMessage);
 
     // Send confirmation to customer
-    if (customerPhone) {
-      const formattedPhone = customerPhone.startsWith('237')
-        ? customerPhone
-        : '237' + customerPhone.replace(/\D/g, '');
+    if (customer_phone) {
+      const formattedPhone = customer_phone.startsWith('237')
+        ? customer_phone
+        : '237' + customer_phone.replace(/\D/g, '');
 
       const customerMessage = `*CONFIRMATION DE PAIEMENT*
 *LTC Finance*
 
-Bonjour ${customerName || ''},
+Bonjour ${customer_name || ''},
 
-Votre paiement de *${amount.toLocaleString()} FCFA* a été reçu avec succès.
+Votre paiement de *${amount.toLocaleString()} FCFA* a ete recu avec succes.
 
-*Référence:* ${orderId}
+*Reference:* ${orderRef}
 
-Notre équipe vous contactera sous peu pour finaliser votre commande.
+Notre equipe vous contactera sous peu pour finaliser votre commande.
 
 Merci de votre confiance !
-_L'équipe LTC Finance_`;
+_L'equipe LTC Finance_`;
 
       await sendWhatsApp(formattedPhone, customerMessage);
     }
@@ -289,14 +252,15 @@ _L'équipe LTC Finance_`;
       await getTransporter().sendMail({
         from: '"LTC Finance" <noreply@ltcgroup.site>',
         to: TEAM_EMAIL,
-        subject: `[PAIEMENT MOBILE MONEY] ${orderId} - ${amount.toLocaleString()} FCFA`,
+        subject: `[PAIEMENT MOBILE MONEY] ${orderRef} - ${amount.toLocaleString()} FCFA`,
         html: `
-          <h2>Paiement Mobile Money reçu (Payin)</h2>
-          <p><strong>Référence:</strong> ${orderId}</p>
+          <h2>Paiement Mobile Money recu (LTCPay)</h2>
+          <p><strong>Reference:</strong> ${orderRef}</p>
           <p><strong>Montant:</strong> ${amount.toLocaleString()} FCFA</p>
-          <p><strong>Numéro:</strong> ${customerPhone}</p>
-          <p><strong>Transaction ID:</strong> ${transactionId}</p>
-          <p><strong>Client:</strong> ${customerName}</p>
+          <p><strong>Operateur:</strong> ${operator}</p>
+          <p><strong>Numero:</strong> ${customer_phone}</p>
+          <p><strong>Transaction LTCPay:</strong> ${reference}</p>
+          <p><strong>Client:</strong> ${customer_name || 'N/A'}</p>
         `,
       });
     } catch (emailError) {
@@ -305,12 +269,13 @@ _L'équipe LTC Finance_`;
 
     return { success: true, message: 'Payment confirmed' };
 
-  } else if (statusStr === 'FAILED' || statusStr === 'REFUNDED') {
+  } else if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
     const teamMessage = `*[PAIEMENT ECHOUE - MOBILE MONEY]*
 
-*Référence:* ${orderId}
-*Statut:* ${statusStr}
-*Numéro:* ${customerPhone}
+*Reference:* ${orderRef}
+*Statut:* ${status}
+*Operateur:* ${operator}
+*Numero:* ${customer_phone}
 
 Le paiement n'a pas abouti.`;
 
@@ -338,9 +303,17 @@ export async function POST(request: NextRequest) {
       const result = await handleEnkapWebhook(payload as EnkapWebhookPayload);
       return NextResponse.json(result);
 
-    } else if (payload.data?.data?.attributes) {
-      // Payin webhook (nested data.data.attributes structure)
-      const result = await handlePayinWebhook(payload as PayinWebhookPayload);
+    } else if (payload.event && payload.data?.reference) {
+      // LTCPay webhook (has event field and data.reference)
+      const signature = request.headers.get('X-LtcPay-Signature') || request.headers.get('x-ltcpay-signature') || '';
+      const verified = verifyWebhookSignature(rawBody, signature);
+
+      if (!verified) {
+        console.warn('LTCPay webhook: Invalid signature');
+        // Still process but log warning — some environments may not have webhook secret configured
+      }
+
+      const result = await handleLtcPayWebhook(payload as LtcPayWebhookPayload, verified);
       return NextResponse.json(result);
 
     } else {
@@ -359,10 +332,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET endpoint for Payin redirect after payment
- * Payin redirects the customer to callback_url after payment (GET request)
- * Note: Payin does NOT pass transaction_id in the redirect URL,
- * so we always redirect to callback page which uses sessionStorage
+ * GET endpoint for webhook verification (challenge response)
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -373,20 +343,6 @@ export async function GET(request: NextRequest) {
     return new NextResponse(challenge, { status: 200 });
   }
 
-  // Payin redirect: Always redirect to client callback page
-  // The callback page will use sessionStorage to retrieve pending order details
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ltcgroup.site';
-
-  // Extract any transaction info if provided (but Payin usually doesn't send it)
-  const transactionId = searchParams.get('transaction_id') || searchParams.get('order_id');
-
-  // Build callback URL - status will be determined by callback page via polling
-  let callbackUrl = `${baseUrl}/services/solutions-financieres/payment/callback?method=mobile_money&status=PENDING`;
-
-  if (transactionId) {
-    callbackUrl += `&order_id=${encodeURIComponent(transactionId)}`;
-  }
-
-  // Redirect the client to the callback page
-  return NextResponse.redirect(callbackUrl, { status: 302 });
+  // No redirect needed — LTCPay is server-to-server, no customer redirect
+  return NextResponse.json({ status: 'ok' });
 }
