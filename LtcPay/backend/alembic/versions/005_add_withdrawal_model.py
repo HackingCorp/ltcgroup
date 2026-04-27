@@ -31,7 +31,7 @@ def upgrade() -> None:
 
     # Use raw SQL to create the table — avoids SQLAlchemy's Enum auto-create
     op.execute("""
-        CREATE TABLE merchant_withdrawals (
+        CREATE TABLE IF NOT EXISTS merchant_withdrawals (
             id UUID PRIMARY KEY,
             merchant_id UUID NOT NULL REFERENCES payment_merchants(id) ON DELETE CASCADE,
             reference VARCHAR(50) NOT NULL UNIQUE,

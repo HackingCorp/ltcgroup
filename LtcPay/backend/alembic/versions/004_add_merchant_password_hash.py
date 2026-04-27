@@ -14,9 +14,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "payment_merchants",
-        sa.Column("password_hash", sa.String(255), nullable=True),
+    op.execute(
+        "ALTER TABLE payment_merchants ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"
     )
 
 
