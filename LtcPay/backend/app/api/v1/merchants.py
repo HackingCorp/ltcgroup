@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import hash_api_secret, get_current_merchant, generate_api_secret
 from app.models.merchant import Merchant, generate_api_key_live, generate_api_key_test
+from app.models.payment import Payment
 from app.schemas.merchant import (
     MerchantCreate,
     MerchantResponse,
@@ -202,6 +203,41 @@ async def update_merchant(
     await db.commit()
     await db.refresh(merchant)
     return MerchantResponse.model_validate(merchant)
+
+
+@router.delete("/{merchant_id}")
+async def delete_merchant(
+    merchant_id: uuid.UUID,
+    force: bool = Query(False, description="Force delete even if merchant has payments"),
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a merchant (admin only). Returns 409 if merchant has payments unless force=true."""
+    result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    merchant = result.scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    # Count associated payments
+    count_result = await db.execute(
+        select(func.count(Payment.id)).where(Payment.merchant_id == merchant_id)
+    )
+    payment_count = count_result.scalar() or 0
+
+    if payment_count > 0 and not force:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Merchant has {payment_count} payment(s). Use force=true to delete anyway.",
+        )
+
+    # cascade="all, delete-orphan" on the relationship handles payment deletion at ORM level
+    await db.delete(merchant)
+    await db.commit()
+
+    return {
+        "detail": f"Merchant '{merchant.name}' deleted successfully",
+        "payments_deleted": payment_count,
+    }
 
 
 @router.post("/{merchant_id}/regenerate-api-secret", response_model=MerchantCredentialsResponse)

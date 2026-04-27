@@ -48,6 +48,13 @@ export const merchantsService = {
     return response.data;
   },
 
+  async delete(id: string, force = false): Promise<{ detail: string; payments_deleted: number }> {
+    const response = await api.delete<{ detail: string; payments_deleted: number }>(
+      `/merchants/${id}${force ? "?force=true" : ""}`
+    );
+    return response.data;
+  },
+
   async regenerateApiSecret(id: string): Promise<MerchantCredentials> {
     const response = await api.post<MerchantCredentials>(
       `/merchants/${id}/regenerate-api-secret`

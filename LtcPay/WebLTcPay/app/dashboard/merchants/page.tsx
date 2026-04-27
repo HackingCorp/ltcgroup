@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, Loading, Button, Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
-import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield } from "lucide-react";
+import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2 } from "lucide-react";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData } from "@/services/merchants.service";
 
@@ -144,6 +144,7 @@ function MerchantRow({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const handleRegenerateApiSecret = async () => {
     if (!confirm(`Regenerate API secret for "${m.name}"? The old secret will stop working immediately.`))
@@ -171,6 +172,49 @@ function MerchantRow({
       alert("Failed to regenerate webhook secret");
     } finally {
       setRegenerating(null);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    const action = m.is_active ? "deactivate" : "reactivate";
+    if (!confirm(`${m.is_active ? "Deactivate" : "Reactivate"} "${m.name}"? ${m.is_active ? "They will lose API access immediately." : "They will regain API access."}`))
+      return;
+    setActionLoading(true);
+    try {
+      await merchantsService.update(m.id, { is_active: !m.is_active });
+      onRefresh();
+    } catch {
+      alert(`Failed to ${action} merchant`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete merchant "${m.name}"? This action cannot be undone.`))
+      return;
+    setActionLoading(true);
+    try {
+      await merchantsService.delete(m.id);
+      onRefresh();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number; data?: { detail?: string } } };
+      if (axiosErr.response?.status === 409) {
+        const detail = axiosErr.response.data?.detail || "Merchant has payments.";
+        if (confirm(`${detail}\n\nForce delete and remove all associated payments?`)) {
+          try {
+            const result = await merchantsService.delete(m.id, true);
+            alert(`${result.detail} (${result.payments_deleted} payment(s) removed)`);
+            onRefresh();
+          } catch {
+            alert("Failed to force-delete merchant");
+          }
+        }
+      } else {
+        alert("Failed to delete merchant");
+      }
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -231,7 +275,7 @@ function MerchantRow({
               <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
                 <button
                   onClick={handleRegenerateApiSecret}
-                  disabled={regenerating !== null}
+                  disabled={regenerating !== null || actionLoading}
                   className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
                 >
                   <KeyRound className="h-3.5 w-3.5" />
@@ -239,12 +283,34 @@ function MerchantRow({
                 </button>
                 <button
                   onClick={handleRegenerateWebhookSecret}
-                  disabled={regenerating !== null}
+                  disabled={regenerating !== null || actionLoading}
                   className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
                 >
                   <Shield className="h-3.5 w-3.5" />
                   {regenerating === "webhook" ? "Regenerating..." : "Regenerate Webhook Secret"}
                 </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={handleToggleActive}
+                    disabled={actionLoading || regenerating !== null}
+                    className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors ${
+                      m.is_active
+                        ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                        : "bg-green-50 text-green-700 hover:bg-green-100"
+                    }`}
+                  >
+                    <Power className="h-3.5 w-3.5" />
+                    {actionLoading ? "..." : m.is_active ? "Deactivate" : "Reactivate"}
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={actionLoading || regenerating !== null}
+                    className="inline-flex items-center gap-1 rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {actionLoading ? "..." : "Delete"}
+                  </button>
+                </div>
               </div>
             </div>
           </td>
