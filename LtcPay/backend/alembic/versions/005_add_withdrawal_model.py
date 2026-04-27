@@ -15,14 +15,19 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create enums
-    withdrawalstatus = sa.Enum(
-        "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED",
-        name="withdrawalstatus",
-    )
-    withdrawalmethod = sa.Enum("MOBILE_MONEY", "BANK_TRANSFER", name="withdrawalmethod")
-    withdrawalstatus.create(op.get_bind(), checkfirst=True)
-    withdrawalmethod.create(op.get_bind(), checkfirst=True)
+    # Create enums if they don't exist (use raw SQL for true checkfirst)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE withdrawalstatus AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'PROCESSING', 'COMPLETED', 'FAILED');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE withdrawalmethod AS ENUM ('MOBILE_MONEY', 'BANK_TRANSFER');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+    """)
 
     op.create_table(
         "merchant_withdrawals",
@@ -37,8 +42,8 @@ def upgrade() -> None:
         sa.Column("amount", sa.Numeric(12, 2), nullable=False),
         sa.Column("fee", sa.Numeric(10, 2), nullable=False, server_default="0.00"),
         sa.Column("currency", sa.String(3), nullable=False, server_default="XAF"),
-        sa.Column("method", withdrawalmethod, nullable=False),
-        sa.Column("status", withdrawalstatus, nullable=False, server_default="PENDING"),
+        sa.Column("method", sa.Enum("MOBILE_MONEY", "BANK_TRANSFER", name="withdrawalmethod", create_type=False), nullable=False),
+        sa.Column("status", sa.Enum("PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED", name="withdrawalstatus", create_type=False), nullable=False, server_default="PENDING"),
         # Mobile Money
         sa.Column("mobile_money_number", sa.String(20), nullable=True),
         sa.Column("mobile_money_operator", sa.String(20), nullable=True),
