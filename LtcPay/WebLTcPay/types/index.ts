@@ -132,3 +132,92 @@ export interface MerchantListResponse {
   page: number;
   page_size: number;
 }
+
+// --- Merchant Portal Types ---
+
+export interface MerchantPortalUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  website?: string;
+  api_key_live: string;
+  api_key_test: string;
+  webhook_secret?: string;
+  callback_url?: string;
+  is_active: boolean;
+  is_verified: boolean;
+  is_test_mode: boolean;
+  business_type?: string;
+  description?: string;
+  logo_url?: string;
+  default_payment_mode: "SDK" | "DIRECT_API";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MerchantRegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  website?: string;
+  business_type?: string;
+  description?: string;
+}
+
+export interface MerchantDashboardStats {
+  total_payments: number;
+  total_revenue: number;
+  total_transactions: number;
+  success_rate: number;
+  recent_payments: Payment[];
+  revenue_chart: { date: string; amount: number }[];
+}
+
+export interface BalanceInfo {
+  total_earned: number;
+  total_fees: number;
+  total_withdrawn: number;
+  pending_withdrawals: number;
+  available_balance: number;
+  currency: string;
+}
+
+export interface Withdrawal {
+  id: string;
+  merchant_id: string;
+  reference: string;
+  amount: number;
+  fee: number;
+  currency: string;
+  method: "MOBILE_MONEY" | "BANK_TRANSFER";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  mobile_money_number?: string;
+  mobile_money_operator?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_name?: string;
+  admin_note?: string;
+  processed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WithdrawalCreate {
+  amount: number;
+  currency?: string;
+  method: "MOBILE_MONEY" | "BANK_TRANSFER";
+  mobile_money_number?: string;
+  mobile_money_operator?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_name?: string;
+}
+
+export interface WithdrawalListResponse {
+  withdrawals: Withdrawal[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}

@@ -5,32 +5,25 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CreditCard,
-  ArrowLeftRight,
-  Settings,
-  User,
-  FileText,
-  LogOut,
-  Store,
-  ExternalLink,
   Wallet,
+  Key,
+  User,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Merchants", href: "/dashboard/merchants", icon: Store },
-  { name: "Payments", href: "/dashboard/payments", icon: CreditCard },
-  { name: "Transactions", href: "/dashboard/transactions", icon: ArrowLeftRight },
-  { name: "Withdrawals", href: "/dashboard/withdrawals", icon: Wallet },
-  { name: "Profile", href: "/dashboard/profile", icon: User },
-  { name: "Documentation", href: "/docs", icon: FileText, external: true },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Dashboard", href: "/merchant/dashboard", icon: LayoutDashboard },
+  { name: "Payments", href: "/merchant/dashboard/payments", icon: CreditCard },
+  { name: "Withdrawals", href: "/merchant/dashboard/withdrawals", icon: Wallet },
+  { name: "API Keys", href: "/merchant/dashboard/api-keys", icon: Key },
+  { name: "Profile", href: "/merchant/dashboard/profile", icon: User },
 ] as const;
 
-export function Sidebar() {
+export function MerchantSidebar() {
   const pathname = usePathname();
-  const { logout, user } = useAuth();
+  const { logout, merchantUser } = useAuth();
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
@@ -39,20 +32,21 @@ export function Sidebar() {
           <span className="text-sm font-bold text-navy-800">LP</span>
         </div>
         <span className="text-lg font-bold text-navy-500">LTCPay</span>
+        <span className="ml-auto rounded bg-gold-100 px-1.5 py-0.5 text-xs font-medium text-gold-700">
+          Merchant
+        </span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
-          const isExternal = "external" in item && item.external;
           const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : !isExternal && pathname.startsWith(item.href);
+            item.href === "/merchant/dashboard"
+              ? pathname === "/merchant/dashboard"
+              : pathname.startsWith(item.href);
           return (
             <Link
               key={item.name}
               href={item.href}
-              {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
@@ -62,7 +56,6 @@ export function Sidebar() {
             >
               <item.icon className="h-5 w-5" />
               {item.name}
-              {isExternal && <ExternalLink className="ml-auto h-3.5 w-3.5 text-gray-400" />}
             </Link>
           );
         })}
@@ -71,11 +64,15 @@ export function Sidebar() {
       <div className="border-t border-gray-200 p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-500 text-white text-xs font-medium">
-            {user?.full_name?.charAt(0)?.toUpperCase() || "U"}
+            {merchantUser?.name?.charAt(0)?.toUpperCase() || "M"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || "User"}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email || ""}</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {merchantUser?.name || "Merchant"}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {merchantUser?.email || ""}
+            </p>
           </div>
         </div>
         <button

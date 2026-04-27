@@ -35,9 +35,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
+        const role = Cookies.get("user_role")
         Cookies.remove("access_token")
         Cookies.remove("refresh_token")
-        window.location.href = "/auth/login"
+        Cookies.remove("user_role")
+        window.location.href = role === "merchant" ? "/merchant/login" : "/auth/login"
       }
     }
     return Promise.reject(error)

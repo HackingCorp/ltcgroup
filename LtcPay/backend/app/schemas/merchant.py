@@ -71,3 +71,37 @@ class MerchantListResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
+
+
+# --- Merchant Portal Auth Schemas ---
+
+class MerchantRegisterWithPassword(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    phone: Optional[str] = Field(None, min_length=9, max_length=20)
+    website: Optional[str] = Field(None, max_length=500)
+    business_type: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = None
+
+
+class MerchantProfileUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    phone: Optional[str] = Field(None, min_length=9, max_length=20)
+    website: Optional[str] = Field(None, max_length=500)
+    callback_url: Optional[str] = Field(None, max_length=500)
+    business_type: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = None
+    logo_url: Optional[str] = Field(None, max_length=500)
+
+
+class MerchantAuthResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    merchant: MerchantResponse
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)

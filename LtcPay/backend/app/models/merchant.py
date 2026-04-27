@@ -77,9 +77,15 @@ class Merchant(Base):
         nullable=False,
     )
 
+    # Merchant portal password (nullable — only set when merchant registers for portal)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Relationships
     payments: Mapped[list["Payment"]] = relationship(
         "Payment", back_populates="merchant", cascade="all, delete-orphan"
+    )
+    withdrawals: Mapped[list["Withdrawal"]] = relationship(
+        "Withdrawal", back_populates="merchant", cascade="all, delete-orphan"
     )
 
     @property

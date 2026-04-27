@@ -48,10 +48,10 @@ def verify_password(plain: str, hashed: str) -> bool:
     return _bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_access_token(user_id: str, email: str) -> str:
+def create_access_token(user_id: str, email: str, role: str = "admin") -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=7)
     return jwt.encode(
-        {"sub": user_id, "email": email, "exp": expire},
+        {"sub": user_id, "email": email, "role": role, "exp": expire},
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )
@@ -66,8 +66,12 @@ async def get_current_admin(
     try:
         payload = jwt.decode(creds.credentials, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         user_id = payload.get("sub")
+        role = payload.get("role", "admin")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
 
     result = await db.execute(select(AdminUser).where(AdminUser.id == user_id))
     user = result.scalar_one_or_none()
