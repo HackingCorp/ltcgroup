@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, Loading, Button, Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
-import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2 } from "lucide-react";
+import type { MerchantBalanceInfo } from "@/services/merchants.service";
+import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2, ChevronRight, Wallet } from "lucide-react";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData } from "@/services/merchants.service";
+import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
 
 export default function MerchantsPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
@@ -14,6 +17,8 @@ export default function MerchantsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [credentials, setCredentials] = useState<MerchantCredentials | null>(null);
   const [error, setError] = useState("");
+  const [balances, setBalances] = useState<Record<string, MerchantBalanceInfo>>({});
+  const [balancesLoading, setBalancesLoading] = useState(false);
 
   const loadMerchants = () => {
     setIsLoading(true);
@@ -27,8 +32,18 @@ export default function MerchantsPage() {
       .finally(() => setIsLoading(false));
   };
 
+  const loadBalances = () => {
+    setBalancesLoading(true);
+    merchantsService
+      .getAllBalances()
+      .then(setBalances)
+      .catch(() => {})
+      .finally(() => setBalancesLoading(false));
+  };
+
   useEffect(() => {
     loadMerchants();
+    loadBalances();
   }, []);
 
   if (isLoading) {
@@ -70,6 +85,8 @@ export default function MerchantsPage() {
                   <tr className="border-b border-gray-200 text-left text-gray-500">
                     <th className="pb-3 font-medium">Merchant</th>
                     <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium text-right">Balance</th>
+                    <th className="pb-3 font-medium text-right">Payments</th>
                     <th className="pb-3 font-medium">Created</th>
                     <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
@@ -79,8 +96,10 @@ export default function MerchantsPage() {
                     <MerchantRow
                       key={m.id}
                       merchant={m}
+                      balance={balances[m.id]}
+                      balanceLoading={balancesLoading}
                       onCredentials={(creds) => setCredentials(creds)}
-                      onRefresh={loadMerchants}
+                      onRefresh={() => { loadMerchants(); loadBalances(); }}
                     />
                   ))}
                 </tbody>
@@ -103,6 +122,7 @@ export default function MerchantsPage() {
             setCredentials(creds);
             setShowCreateModal(false);
             loadMerchants();
+            loadBalances();
           }}
         />
       )}
@@ -110,35 +130,16 @@ export default function MerchantsPage() {
   );
 }
 
-function ApiKeyCell({ value }: { value: string }) {
-  const [visible, setVisible] = useState(false);
-  const masked = value.slice(0, 14) + "..." + value.slice(-4);
-
-  return (
-    <div className="flex items-center gap-1">
-      <code className="text-xs text-gray-600">{visible ? value : masked}</code>
-      <button
-        onClick={() => setVisible(!visible)}
-        className="p-0.5 text-gray-400 hover:text-gray-600"
-      >
-        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-      </button>
-      <button
-        onClick={() => navigator.clipboard.writeText(value)}
-        className="p-0.5 text-gray-400 hover:text-gray-600"
-      >
-        <Copy className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
-
 function MerchantRow({
   merchant: m,
+  balance,
+  balanceLoading,
   onCredentials,
   onRefresh,
 }: {
   merchant: Merchant;
+  balance?: MerchantBalanceInfo;
+  balanceLoading: boolean;
   onCredentials: (creds: MerchantCredentials) => void;
   onRefresh: () => void;
 }) {
@@ -238,6 +239,32 @@ function MerchantRow({
             {m.is_active ? "Active" : "Inactive"}
           </span>
         </td>
+        <td className="py-3 text-right">
+          {balanceLoading ? (
+            <span className="text-xs text-gray-400">...</span>
+          ) : balance ? (
+            <div>
+              <p className="font-semibold text-gray-900">
+                {formatCurrency(balance.available_balance)}
+              </p>
+              <p className="text-xs text-gray-500">
+                {formatCurrency(balance.total_earned)} earned
+              </p>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">-</span>
+          )}
+        </td>
+        <td className="py-3 text-right">
+          {balance ? (
+            <div>
+              <p className="font-medium text-gray-900">{balance.completed_payments}</p>
+              <p className="text-xs text-gray-500">{balance.total_payments} total</p>
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">-</span>
+          )}
+        </td>
         <td className="py-3 text-gray-500 text-xs">
           {new Date(m.created_at).toLocaleDateString()}
         </td>
@@ -247,14 +274,22 @@ function MerchantRow({
               onClick={() => setShowDetails(!showDetails)}
               className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              {showDetails ? "Hide" : "Show"} Details
+              {showDetails ? "Hide" : "Keys"}
             </button>
+            <Link
+              href={`/dashboard/merchants/${m.id}`}
+              className="inline-flex items-center gap-1 rounded-md bg-navy-500 px-2 py-1 text-xs font-medium text-white hover:bg-navy-600 transition-colors"
+            >
+              <Wallet className="h-3 w-3" />
+              Details
+              <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
         </td>
       </tr>
       {showDetails && (
         <tr className="bg-gray-50">
-          <td colSpan={4} className="px-4 py-4">
+          <td colSpan={6} className="px-4 py-4">
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -317,6 +352,29 @@ function MerchantRow({
         </tr>
       )}
     </>
+  );
+}
+
+function ApiKeyCell({ value }: { value: string }) {
+  const [visible, setVisible] = useState(false);
+  const masked = value.slice(0, 14) + "..." + value.slice(-4);
+
+  return (
+    <div className="flex items-center gap-1">
+      <code className="text-xs text-gray-600">{visible ? value : masked}</code>
+      <button
+        onClick={() => setVisible(!visible)}
+        className="p-0.5 text-gray-400 hover:text-gray-600"
+      >
+        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </button>
+      <button
+        onClick={() => navigator.clipboard.writeText(value)}
+        className="p-0.5 text-gray-400 hover:text-gray-600"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 

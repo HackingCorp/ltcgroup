@@ -1,5 +1,53 @@
 import api from "@/lib/api";
-import type { Merchant, MerchantCredentials, MerchantListResponse } from "@/types";
+import type { Merchant, MerchantCredentials, MerchantListResponse, BalanceInfo } from "@/types";
+
+export interface MerchantBalanceInfo extends BalanceInfo {
+  total_payments: number;
+  completed_payments: number;
+}
+
+export interface MerchantPaymentItem {
+  id: string;
+  reference: string;
+  amount: number;
+  fee: number;
+  currency: string;
+  status: string;
+  description?: string;
+  payment_method?: string;
+  operator?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MerchantWithdrawalItem {
+  id: string;
+  reference: string;
+  amount: number;
+  fee: number;
+  currency: string;
+  method: string;
+  status: string;
+  mobile_money_number?: string;
+  mobile_money_operator?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_name?: string;
+  admin_note?: string;
+  processed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedItems<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
 
 export interface CreateMerchantData {
   name: string;
@@ -67,6 +115,44 @@ export const merchantsService = {
   ): Promise<{ webhook_secret: string }> {
     const response = await api.post<{ webhook_secret: string }>(
       `/merchants/${id}/regenerate-webhook-secret`
+    );
+    return response.data;
+  },
+
+  async getBalance(id: string): Promise<MerchantBalanceInfo> {
+    const response = await api.get<MerchantBalanceInfo>(`/merchants/${id}/balance`);
+    return response.data;
+  },
+
+  async getAllBalances(): Promise<Record<string, MerchantBalanceInfo>> {
+    const response = await api.get<Record<string, MerchantBalanceInfo>>("/merchants/all/balances");
+    return response.data;
+  },
+
+  async getPayments(
+    id: string,
+    page = 1,
+    perPage = 20,
+    status?: string
+  ): Promise<PaginatedItems<MerchantPaymentItem>> {
+    const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (status) params.set("status", status);
+    const response = await api.get<PaginatedItems<MerchantPaymentItem>>(
+      `/merchants/${id}/payments?${params}`
+    );
+    return response.data;
+  },
+
+  async getWithdrawals(
+    id: string,
+    page = 1,
+    perPage = 20,
+    status?: string
+  ): Promise<PaginatedItems<MerchantWithdrawalItem>> {
+    const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (status) params.set("status", status);
+    const response = await api.get<PaginatedItems<MerchantWithdrawalItem>>(
+      `/merchants/${id}/withdrawals?${params}`
     );
     return response.data;
   },

@@ -22,6 +22,9 @@ export function getStatusColor(status: string): string {
     failed: "bg-red-100 text-red-800",
     expired: "bg-gray-100 text-gray-800",
     cancelled: "bg-gray-100 text-gray-800",
+    approved: "bg-blue-100 text-blue-800",
+    rejected: "bg-red-100 text-red-800",
+    processing: "bg-indigo-100 text-indigo-800",
   }
   return colors[status.toLowerCase()] || "bg-gray-100 text-gray-800"
 }

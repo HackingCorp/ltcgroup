@@ -4,15 +4,19 @@ Merchants register to get API credentials, then use those to create payments.
 """
 
 import uuid
+from decimal import Decimal
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import hash_api_secret, get_current_merchant, generate_api_secret
 from app.models.merchant import Merchant, generate_api_key_live, generate_api_key_test
-from app.models.payment import Payment
+from app.models.payment import Payment, PaymentStatus
+from app.models.withdrawal import Withdrawal, WithdrawalStatus
 from app.schemas.merchant import (
     MerchantCreate,
     MerchantResponse,
@@ -169,6 +173,21 @@ async def create_merchant(
     )
 
 
+@router.get("/all/balances")
+async def get_all_merchant_balances(
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get balances for all merchants (admin only). Returns dict keyed by merchant_id."""
+    result = await db.execute(select(Merchant.id))
+    merchant_ids = [row[0] for row in result.all()]
+
+    balances = {}
+    for mid in merchant_ids:
+        balances[str(mid)] = await _compute_merchant_balance(mid, db)
+    return balances
+
+
 @router.get("/{merchant_id}", response_model=MerchantResponse)
 async def get_merchant(
     merchant_id: uuid.UUID,
@@ -294,3 +313,218 @@ async def regenerate_webhook_secret(
         "webhook_secret": merchant.webhook_secret,
         "message": "New webhook secret generated. Update your webhook handler.",
     }
+
+
+async def _compute_merchant_balance(merchant_id, db: AsyncSession) -> dict:
+    """Compute balance for a given merchant (admin use)."""
+    # Total earned from COMPLETED payments
+    earned_q = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            and_(
+                Payment.merchant_id == merchant_id,
+                Payment.status == PaymentStatus.COMPLETED,
+            )
+        )
+    )
+    total_earned = Decimal(str(earned_q.scalar() or 0))
+
+    # Total fees
+    fees_q = await db.execute(
+        select(func.coalesce(func.sum(Payment.fee), 0)).where(
+            and_(
+                Payment.merchant_id == merchant_id,
+                Payment.status == PaymentStatus.COMPLETED,
+            )
+        )
+    )
+    total_fees = Decimal(str(fees_q.scalar() or 0))
+
+    # Total completed withdrawals
+    withdrawn_q = await db.execute(
+        select(func.coalesce(func.sum(Withdrawal.amount), 0)).where(
+            and_(
+                Withdrawal.merchant_id == merchant_id,
+                Withdrawal.status == WithdrawalStatus.COMPLETED,
+            )
+        )
+    )
+    total_withdrawn = Decimal(str(withdrawn_q.scalar() or 0))
+
+    # Pending/approved/processing withdrawals
+    pending_q = await db.execute(
+        select(func.coalesce(func.sum(Withdrawal.amount), 0)).where(
+            and_(
+                Withdrawal.merchant_id == merchant_id,
+                Withdrawal.status.in_([
+                    WithdrawalStatus.PENDING,
+                    WithdrawalStatus.APPROVED,
+                    WithdrawalStatus.PROCESSING,
+                ]),
+            )
+        )
+    )
+    pending_withdrawals = Decimal(str(pending_q.scalar() or 0))
+
+    # Payment counts
+    payment_count_q = await db.execute(
+        select(func.count(Payment.id)).where(Payment.merchant_id == merchant_id)
+    )
+    total_payments = payment_count_q.scalar() or 0
+
+    completed_count_q = await db.execute(
+        select(func.count(Payment.id)).where(
+            and_(
+                Payment.merchant_id == merchant_id,
+                Payment.status == PaymentStatus.COMPLETED,
+            )
+        )
+    )
+    completed_payments = completed_count_q.scalar() or 0
+
+    available_balance = total_earned - total_fees - total_withdrawn - pending_withdrawals
+
+    return {
+        "total_earned": float(total_earned),
+        "total_fees": float(total_fees),
+        "total_withdrawn": float(total_withdrawn),
+        "pending_withdrawals": float(pending_withdrawals),
+        "available_balance": float(max(available_balance, Decimal("0.00"))),
+        "total_payments": total_payments,
+        "completed_payments": completed_payments,
+        "currency": "XAF",
+    }
+
+
+@router.get("/{merchant_id}/balance")
+async def get_merchant_balance(
+    merchant_id: uuid.UUID,
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get balance info for a specific merchant (admin only)."""
+    result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    merchant = result.scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    return await _compute_merchant_balance(merchant.id, db)
+
+
+@router.get("/{merchant_id}/payments")
+async def get_merchant_payments(
+    merchant_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List payments for a specific merchant (admin only)."""
+    # Verify merchant exists
+    m_result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    if not m_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    filters = [Payment.merchant_id == merchant_id]
+    if status:
+        try:
+            ps = PaymentStatus(status)
+            filters.append(Payment.status == ps)
+        except ValueError:
+            pass
+
+    count_q = await db.execute(
+        select(func.count(Payment.id)).where(and_(*filters))
+    )
+    total = count_q.scalar() or 0
+
+    offset = (page - 1) * per_page
+    result = await db.execute(
+        select(Payment)
+        .where(and_(*filters))
+        .order_by(Payment.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
+    payments = result.scalars().all()
+
+    items = []
+    for p in payments:
+        items.append({
+            "id": str(p.id),
+            "reference": p.reference,
+            "amount": float(p.amount),
+            "fee": float(p.fee) if p.fee else 0,
+            "currency": p.currency,
+            "status": p.status.value,
+            "description": p.description,
+            "payment_method": p.method.value if p.method else None,
+            "operator": p.operator.value if p.operator else None,
+            "customer_email": p.customer_info.get("email") if p.customer_info else None,
+            "customer_phone": p.customer_info.get("phone") if p.customer_info else None,
+            "customer_name": p.customer_info.get("name") if p.customer_info else None,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        })
+
+    return {"items": items, "total": total, "page": page, "per_page": per_page}
+
+
+@router.get("/{merchant_id}/withdrawals")
+async def get_merchant_withdrawals(
+    merchant_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    _admin=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List withdrawals for a specific merchant (admin only)."""
+    m_result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    if not m_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    filters = [Withdrawal.merchant_id == merchant_id]
+    if status:
+        try:
+            ws = WithdrawalStatus(status)
+            filters.append(Withdrawal.status == ws)
+        except ValueError:
+            pass
+
+    count_q = await db.execute(
+        select(func.count(Withdrawal.id)).where(and_(*filters))
+    )
+    total = count_q.scalar() or 0
+
+    offset = (page - 1) * per_page
+    result = await db.execute(
+        select(Withdrawal)
+        .where(and_(*filters))
+        .order_by(Withdrawal.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
+    withdrawals = result.scalars().all()
+
+    items = []
+    for w in withdrawals:
+        items.append({
+            "id": str(w.id),
+            "reference": w.reference,
+            "amount": float(w.amount),
+            "fee": float(w.fee),
+            "currency": w.currency,
+            "method": w.method.value,
+            "status": w.status.value,
+            "mobile_money_number": w.mobile_money_number,
+            "mobile_money_operator": w.mobile_money_operator,
+            "bank_name": w.bank_name,
+            "bank_account_number": w.bank_account_number,
+            "bank_account_name": w.bank_account_name,
+            "admin_note": w.admin_note,
+            "processed_at": w.processed_at.isoformat() if w.processed_at else None,
+            "created_at": w.created_at.isoformat() if w.created_at else None,
+            "updated_at": w.updated_at.isoformat() if w.updated_at else None,
+        })
+
+    return {"items": items, "total": total, "page": page, "per_page": per_page}
