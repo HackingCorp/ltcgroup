@@ -4,6 +4,8 @@ import type { Merchant, MerchantCredentials, MerchantListResponse, BalanceInfo }
 export interface MerchantBalanceInfo extends BalanceInfo {
   total_payments: number;
   completed_payments: number;
+  touchpay_fees: number;
+  ltcpay_margin: number;
 }
 
 export interface MerchantPaymentItem {
@@ -59,6 +61,8 @@ export interface CreateMerchantData {
   description?: string;
   logo_url?: string;
   default_payment_mode?: "SDK" | "DIRECT_API";
+  fee_rate?: number;
+  fee_bearer?: "MERCHANT" | "CLIENT";
 }
 
 export interface UpdateMerchantData {
@@ -71,6 +75,8 @@ export interface UpdateMerchantData {
   logo_url?: string;
   is_active?: boolean;
   default_payment_mode?: "SDK" | "DIRECT_API";
+  fee_rate?: number;
+  fee_bearer?: "MERCHANT" | "CLIENT";
 }
 
 export const merchantsService = {

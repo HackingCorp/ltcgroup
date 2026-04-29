@@ -22,7 +22,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.security import get_current_merchant, generate_payment_token
-from app.models.merchant import Merchant
+from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode
 from app.schemas.payment import (
     PaymentInitiate,
@@ -42,9 +42,9 @@ def _generate_reference() -> str:
     return f"PAY-{uuid.uuid4().hex[:16].upper()}"
 
 
-def _compute_fee(amount: Decimal) -> Decimal:
-    """Compute platform fee (1.5% of amount)."""
-    return (amount * Decimal("0.015")).quantize(Decimal("0.01"))
+def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
+    """Compute merchant fee based on their configured rate."""
+    return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
 
 
 @router.post("", response_model=PaymentInitiateResponse, status_code=status.HTTP_201_CREATED)
@@ -116,8 +116,16 @@ async def create_payment(
         payment_mode = PaymentMode.SDK
 
     reference = _generate_reference()
-    fee = _compute_fee(payload.amount)
-    payment_token = generate_payment_token(reference, payload.amount)
+    base_amount = payload.amount
+    fee = _compute_fee(base_amount, merchant.fee_rate)
+
+    # If customer bears the fee, add it to the amount they pay
+    if merchant.fee_bearer == FeeBearer.CLIENT:
+        customer_amount = base_amount + fee
+    else:
+        customer_amount = base_amount
+
+    payment_token = generate_payment_token(reference, customer_amount)
 
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.payment_link_expiry_minutes
@@ -137,7 +145,7 @@ async def create_payment(
         reference=reference,
         payment_token=payment_token,
         merchant_reference=payload.merchant_reference,
-        amount=payload.amount,
+        amount=customer_amount,
         fee=fee,
         currency=payload.currency or settings.default_currency,
         status=PaymentStatus.PENDING,
@@ -165,7 +173,7 @@ async def create_payment(
         try:
             direct_response = await touchpay_direct_service.initiate_payment(
                 payment_reference=reference,
-                amount=int(payment.amount),
+                amount=int(customer_amount),
                 phone_number=payload.customer_phone,
                 operator=payload.operator,
                 callback_url=callback_url,

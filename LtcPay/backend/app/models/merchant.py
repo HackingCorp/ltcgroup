@@ -1,13 +1,20 @@
 import uuid
+import enum
 import secrets
+from decimal import Decimal
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, Text, Index, Enum as SQLEnum
+from sqlalchemy import String, Boolean, DateTime, Text, Index, Enum as SQLEnum, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.models.payment import PaymentMode
 
 from app.core.database import Base
+
+
+class FeeBearer(str, enum.Enum):
+    MERCHANT = "MERCHANT"
+    CLIENT = "CLIENT"
 
 
 def generate_api_key_live() -> str:
@@ -54,6 +61,14 @@ class Merchant(Base):
     # Default payment mode for this merchant
     default_payment_mode: Mapped[PaymentMode] = mapped_column(
         SQLEnum(PaymentMode), default=PaymentMode.SDK, server_default="SDK", nullable=False
+    )
+
+    # Fee configuration
+    fee_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), default=Decimal("1.75"), server_default="1.75", nullable=False
+    )
+    fee_bearer: Mapped[FeeBearer] = mapped_column(
+        SQLEnum(FeeBearer), default=FeeBearer.MERCHANT, server_default="MERCHANT", nullable=False
     )
 
     # Status

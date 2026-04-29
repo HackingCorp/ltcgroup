@@ -105,38 +105,69 @@ export default function MerchantDetailPage() {
 
       {/* Balance Cards */}
       {balance && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <BalanceCard
-            label="Solde Disponible"
-            value={formatCurrency(balance.available_balance)}
-            icon={<Wallet className="h-5 w-5 text-green-600" />}
-            bgColor="bg-green-50"
-            textColor="text-green-700"
-          />
-          <BalanceCard
-            label="Total Gagné"
-            value={formatCurrency(balance.total_earned)}
-            subtitle={`- ${formatCurrency(balance.total_fees)} frais`}
-            icon={<TrendingUp className="h-5 w-5 text-blue-600" />}
-            bgColor="bg-blue-50"
-            textColor="text-blue-700"
-          />
-          <BalanceCard
-            label="Total Retiré"
-            value={formatCurrency(balance.total_withdrawn)}
-            icon={<TrendingDown className="h-5 w-5 text-orange-600" />}
-            bgColor="bg-orange-50"
-            textColor="text-orange-700"
-          />
-          <BalanceCard
-            label="Retraits en Attente"
-            value={formatCurrency(balance.pending_withdrawals)}
-            subtitle={`${balance.completed_payments}/${balance.total_payments} paiements`}
-            icon={<Clock className="h-5 w-5 text-yellow-600" />}
-            bgColor="bg-yellow-50"
-            textColor="text-yellow-700"
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <BalanceCard
+              label="Solde Marchand"
+              value={formatCurrency(balance.available_balance)}
+              subtitle={`${balance.completed_payments}/${balance.total_payments} paiements`}
+              icon={<Wallet className="h-5 w-5 text-green-600" />}
+              bgColor="bg-green-50"
+              textColor="text-green-700"
+            />
+            <BalanceCard
+              label="Total Gagné"
+              value={formatCurrency(balance.total_earned)}
+              subtitle={`- ${formatCurrency(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`}
+              icon={<TrendingUp className="h-5 w-5 text-blue-600" />}
+              bgColor="bg-blue-50"
+              textColor="text-blue-700"
+            />
+            <BalanceCard
+              label="Marge LtcPay"
+              value={formatCurrency(balance.ltcpay_margin)}
+              subtitle={`${((merchant.fee_rate ?? 1.75) - 1.5).toFixed(2)}% net`}
+              icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
+              bgColor="bg-emerald-50"
+              textColor="text-emerald-700"
+            />
+            <BalanceCard
+              label="Frais TouchPay"
+              value={formatCurrency(balance.touchpay_fees)}
+              subtitle="1.5% par transaction"
+              icon={<TrendingDown className="h-5 w-5 text-red-600" />}
+              bgColor="bg-red-50"
+              textColor="text-red-700"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <BalanceCard
+              label="Total Retiré"
+              value={formatCurrency(balance.total_withdrawn)}
+              icon={<TrendingDown className="h-5 w-5 text-orange-600" />}
+              bgColor="bg-orange-50"
+              textColor="text-orange-700"
+            />
+            <BalanceCard
+              label="Retraits en Attente"
+              value={formatCurrency(balance.pending_withdrawals)}
+              icon={<Clock className="h-5 w-5 text-yellow-600" />}
+              bgColor="bg-yellow-50"
+              textColor="text-yellow-700"
+            />
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-gray-500">Configuration</p>
+                <p className="mt-1 text-lg font-bold text-gray-900">
+                  {merchant.fee_rate ?? 1.75}%
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Frais supportés par : <span className="font-medium">{merchant.fee_bearer === "CLIENT" ? "Client" : "Marchand"}</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Tabs */}
@@ -252,7 +283,7 @@ function PaymentsTable({
                     <th className="pb-3 font-medium">Client</th>
                     <th className="pb-3 font-medium text-right">Montant</th>
                     <th className="pb-3 font-medium text-right">Frais</th>
-                    <th className="pb-3 font-medium">Méthode</th>
+                    <th className="pb-3 font-medium">Opérateur</th>
                     <th className="pb-3 font-medium">Statut</th>
                     <th className="pb-3 font-medium">Date</th>
                   </tr>
@@ -287,7 +318,11 @@ function PaymentsTable({
                         {p.fee > 0 ? formatCurrency(p.fee, p.currency) : "-"}
                       </td>
                       <td className="py-3">
-                        <span className="text-xs text-gray-600">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          p.operator === "MTN" ? "bg-yellow-50 text-yellow-700" :
+                          p.operator === "ORANGE" ? "bg-orange-50 text-orange-700" :
+                          "bg-gray-50 text-gray-600"
+                        }`}>
                           {p.operator || p.payment_method || "-"}
                         </span>
                       </td>

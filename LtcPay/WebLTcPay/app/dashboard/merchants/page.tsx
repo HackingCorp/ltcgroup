@@ -87,7 +87,7 @@ export default function MerchantsPage() {
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium text-right">Balance</th>
                     <th className="pb-3 font-medium text-right">Payments</th>
-                    <th className="pb-3 font-medium">Created</th>
+                    <th className="pb-3 font-medium">Taux / Frais</th>
                     <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -265,8 +265,11 @@ function MerchantRow({
             <span className="text-xs text-gray-400">-</span>
           )}
         </td>
-        <td className="py-3 text-gray-500 text-xs">
-          {new Date(m.created_at).toLocaleDateString()}
+        <td className="py-3">
+          <p className="text-sm font-medium text-gray-900">{m.fee_rate ?? 1.75}%</p>
+          <p className="text-xs text-gray-500">
+            {m.fee_bearer === "CLIENT" ? "Client" : "Marchand"}
+          </p>
         </td>
         <td className="py-3">
           <div className="flex items-center justify-end gap-2">
@@ -569,6 +572,35 @@ function CreateMerchantModal({
             <p className="mt-1 text-xs text-gray-400">
               Affiché sur la page de paiement du client
             </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Taux de frais (%) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="1.75"
+                max="20"
+                value={form.fee_rate ?? 1.75}
+                onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
+              />
+              <p className="mt-1 text-xs text-gray-400">Minimum 1.75%</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Frais supportés par
+              </label>
+              <select
+                value={form.fee_bearer ?? "MERCHANT"}
+                onChange={(e) => setForm((prev) => ({ ...prev, fee_bearer: e.target.value as "MERCHANT" | "CLIENT" }))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400"
+              >
+                <option value="MERCHANT">Marchand</option>
+                <option value="CLIENT">Client</option>
+              </select>
+            </div>
           </div>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
             <p className="text-xs text-blue-800">

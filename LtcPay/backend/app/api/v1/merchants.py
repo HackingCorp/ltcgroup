@@ -383,6 +383,20 @@ async def _compute_merchant_balance(merchant_id, db: AsyncSession) -> dict:
 
     available_balance = total_earned - total_fees - total_withdrawn - pending_withdrawals
 
+    # Internal accounting: TouchPay takes 1.5% on each completed payment amount
+    touchpay_rate = Decimal("0.015")
+    touchpay_q = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            and_(
+                Payment.merchant_id == merchant_id,
+                Payment.status == PaymentStatus.COMPLETED,
+            )
+        )
+    )
+    completed_volume = Decimal(str(touchpay_q.scalar() or 0))
+    touchpay_fees = (completed_volume * touchpay_rate).quantize(Decimal("0.01"))
+    ltcpay_margin = total_fees - touchpay_fees
+
     return {
         "total_earned": float(total_earned),
         "total_fees": float(total_fees),
@@ -391,6 +405,8 @@ async def _compute_merchant_balance(merchant_id, db: AsyncSession) -> dict:
         "available_balance": float(max(available_balance, Decimal("0.00"))),
         "total_payments": total_payments,
         "completed_payments": completed_payments,
+        "touchpay_fees": float(touchpay_fees),
+        "ltcpay_margin": float(max(ltcpay_margin, Decimal("0.00"))),
         "currency": "XAF",
     }
 
