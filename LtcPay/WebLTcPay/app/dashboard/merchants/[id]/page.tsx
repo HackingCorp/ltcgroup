@@ -37,7 +37,9 @@ export default function MerchantDetailPage() {
   const [payments, setPayments] = useState<PaginatedItems<MerchantPaymentItem> | null>(null);
   const [withdrawals, setWithdrawals] = useState<PaginatedItems<MerchantWithdrawalItem> | null>(null);
   const [paymentsPage, setPaymentsPage] = useState(1);
+  const [paymentsStatus, setPaymentsStatus] = useState("");
   const [withdrawalsPage, setWithdrawalsPage] = useState(1);
+  const [withdrawalsStatus, setWithdrawalsStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -59,18 +61,18 @@ export default function MerchantDetailPage() {
   useEffect(() => {
     if (!merchantId) return;
     merchantsService
-      .getPayments(merchantId, paymentsPage)
+      .getPayments(merchantId, paymentsPage, 20, paymentsStatus || undefined)
       .then(setPayments)
       .catch(() => {});
-  }, [merchantId, paymentsPage]);
+  }, [merchantId, paymentsPage, paymentsStatus]);
 
   useEffect(() => {
     if (!merchantId) return;
     merchantsService
-      .getWithdrawals(merchantId, withdrawalsPage)
+      .getWithdrawals(merchantId, withdrawalsPage, 20, withdrawalsStatus || undefined)
       .then(setWithdrawals)
       .catch(() => {});
-  }, [merchantId, withdrawalsPage]);
+  }, [merchantId, withdrawalsPage, withdrawalsStatus]);
 
   if (loading) return <Loading className="py-20" size="lg" />;
   if (error || !merchant)
@@ -212,12 +214,16 @@ export default function MerchantDetailPage() {
           data={payments}
           page={paymentsPage}
           onPageChange={setPaymentsPage}
+          statusFilter={paymentsStatus}
+          onStatusFilter={(s) => { setPaymentsStatus(s); setPaymentsPage(1); }}
         />
       ) : (
         <WithdrawalsTable
           data={withdrawals}
           page={withdrawalsPage}
           onPageChange={setWithdrawalsPage}
+          statusFilter={withdrawalsStatus}
+          onStatusFilter={(s) => { setWithdrawalsStatus(s); setWithdrawalsPage(1); }}
         />
       )}
     </div>
@@ -257,14 +263,43 @@ function BalanceCard({
   );
 }
 
+const PAYMENT_STATUSES = ["", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
+const WITHDRAWAL_STATUSES = ["", "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
+
+function StatusFilter({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((s) => (
+        <button
+          key={s}
+          onClick={() => onChange(s)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            value === s
+              ? "bg-navy-500 text-white"
+              : s === ""
+              ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              : getStatusColor(s) + " hover:opacity-80"
+          }`}
+        >
+          {s || "Tous"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PaymentsTable({
   data,
   page,
   onPageChange,
+  statusFilter,
+  onStatusFilter,
 }: {
   data: PaginatedItems<MerchantPaymentItem> | null;
   page: number;
   onPageChange: (p: number) => void;
+  statusFilter: string;
+  onStatusFilter: (s: string) => void;
 }) {
   if (!data) return <Loading className="py-10" />;
 
@@ -273,6 +308,9 @@ function PaymentsTable({
   return (
     <Card>
       <CardContent>
+        <div className="mb-4">
+          <StatusFilter value={statusFilter} onChange={onStatusFilter} options={PAYMENT_STATUSES} />
+        </div>
         {data.items.length > 0 ? (
           <>
             <div className="overflow-x-auto">
@@ -371,10 +409,14 @@ function WithdrawalsTable({
   data,
   page,
   onPageChange,
+  statusFilter,
+  onStatusFilter,
 }: {
   data: PaginatedItems<MerchantWithdrawalItem> | null;
   page: number;
   onPageChange: (p: number) => void;
+  statusFilter: string;
+  onStatusFilter: (s: string) => void;
 }) {
   if (!data) return <Loading className="py-10" />;
 
@@ -383,6 +425,9 @@ function WithdrawalsTable({
   return (
     <Card>
       <CardContent>
+        <div className="mb-4">
+          <StatusFilter value={statusFilter} onChange={onStatusFilter} options={WITHDRAWAL_STATUSES} />
+        </div>
         {data.items.length > 0 ? (
           <>
             <div className="overflow-x-auto">
