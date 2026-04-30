@@ -87,8 +87,8 @@ export default function MerchantsPage() {
                     <th className="pb-3 font-medium">Merchant</th>
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium text-right">Balance</th>
-                    <th className="pb-3 font-medium text-right">Payments</th>
-                    <th className="pb-3 font-medium">Taux / Frais</th>
+                    <th className="pb-3 font-medium text-right">Paiements</th>
+                    <th className="pb-3 font-medium text-center">Commission</th>
                     <th className="pb-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -281,10 +281,10 @@ function MerchantRow({
             <span className="text-xs text-gray-400">-</span>
           )}
         </td>
-        <td className="py-3">
+        <td className="py-3 text-center">
           <p className="text-sm font-medium text-gray-900">{m.fee_rate ?? 1.75}%</p>
           <p className="text-xs text-gray-500">
-            {m.fee_bearer === "CLIENT" ? "Client" : "Marchand"}
+            payé par {m.fee_bearer === "CLIENT" ? "client" : "marchand"}
           </p>
         </td>
         <td className="py-3">
