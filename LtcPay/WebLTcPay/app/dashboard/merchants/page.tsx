@@ -283,9 +283,6 @@ function MerchantRow({
         </td>
         <td className="py-3 text-center">
           <p className="text-sm font-medium text-gray-900">{m.fee_rate ?? 1.75}%</p>
-          <p className="text-xs text-gray-500">
-            payé par {m.fee_bearer === "CLIENT" ? "client" : "marchand"}
-          </p>
         </td>
         <td className="py-3">
           <div className="flex items-center justify-end gap-2">
@@ -511,7 +508,7 @@ function CreateMerchantModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Add Merchant</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -604,44 +601,19 @@ function CreateMerchantModal({
               Affiché sur la page de paiement du client
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Taux de frais (%) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="1.75"
-                max="20"
-                value={form.fee_rate ?? 1.75}
-                onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
-              />
-              <p className="mt-1 text-xs text-gray-400">Minimum 1.75%</p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Frais supportés par
-              </label>
-              <select
-                value={form.fee_bearer ?? "MERCHANT"}
-                onChange={(e) => setForm((prev) => ({ ...prev, fee_bearer: e.target.value as "MERCHANT" | "CLIENT" }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400"
-              >
-                <option value="MERCHANT">Marchand</option>
-                <option value="CLIENT">Client</option>
-              </select>
-            </div>
-          </div>
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="text-xs text-blue-800">
-              <strong>ℹ️ Mode de paiement automatique :</strong> Les deux options (SDK et Direct API) sont toujours disponibles.
-              Le mode est déterminé automatiquement lors de la création du paiement :
-            </p>
-            <ul className="mt-2 text-xs text-blue-700 space-y-1 list-disc list-inside">
-              <li><strong>Sans</strong> opérateur/téléphone → SDK (lien réutilisable)</li>
-              <li><strong>Avec</strong> opérateur/téléphone → Direct API (initiation immédiate)</li>
-            </ul>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Taux de frais (%) *
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="1.75"
+              max="20"
+              value={form.fee_rate ?? 1.75}
+              onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
+            />
+            <p className="mt-1 text-xs text-gray-400">Minimum 1.75% — par défaut supporté par le marchand</p>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
@@ -677,7 +649,6 @@ function EditMerchantModal({
     is_active: merchant.is_active,
     default_payment_mode: merchant.default_payment_mode,
     fee_rate: merchant.fee_rate,
-    fee_bearer: merchant.fee_bearer,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -805,34 +776,19 @@ function EditMerchantModal({
               placeholder="https://example.com/logo.png"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Taux de frais (%) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="1.75"
-                max="20"
-                value={form.fee_rate ?? 1.75}
-                onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
-              />
-              <p className="mt-1 text-xs text-gray-400">Minimum 1.75%</p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Frais supportés par
-              </label>
-              <select
-                value={form.fee_bearer ?? "MERCHANT"}
-                onChange={(e) => setForm((prev) => ({ ...prev, fee_bearer: e.target.value as "MERCHANT" | "CLIENT" }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400"
-              >
-                <option value="MERCHANT">Marchand</option>
-                <option value="CLIENT">Client</option>
-              </select>
-            </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Taux de frais (%) *
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="1.75"
+              max="20"
+              value={form.fee_rate ?? 1.75}
+              onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
+            />
+            <p className="mt-1 text-xs text-gray-400">Minimum 1.75% — par défaut supporté par le marchand</p>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
