@@ -85,9 +85,9 @@ function ParamTable({ params }: { params: { name: string; type: string; required
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-200">
-            <th className="pb-2 font-medium">Parameter</th>
+            <th className="pb-2 font-medium">Param&egrave;tre</th>
             <th className="pb-2 font-medium">Type</th>
-            <th className="pb-2 font-medium">Required</th>
+            <th className="pb-2 font-medium">Requis</th>
             <th className="pb-2 font-medium">Description</th>
           </tr>
         </thead>
@@ -98,9 +98,9 @@ function ParamTable({ params }: { params: { name: string; type: string; required
               <td className="py-2 text-xs text-gray-500">{p.type}</td>
               <td className="py-2">
                 {p.required ? (
-                  <span className="text-xs font-medium text-red-500">required</span>
+                  <span className="text-xs font-medium text-red-500">requis</span>
                 ) : (
-                  <span className="text-xs text-gray-400">optional</span>
+                  <span className="text-xs text-gray-400">optionnel</span>
                 )}
               </td>
               <td className="py-2 text-xs text-gray-600">{p.desc}</td>
@@ -116,7 +116,7 @@ function ResponseBlock({ status, body }: { status: number; body: string }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-medium text-gray-500">Response</span>
+        <span className="text-xs font-medium text-gray-500">R&eacute;ponse</span>
         <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${status < 300 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
           {status}
         </span>
@@ -187,10 +187,10 @@ export default function DocsPage() {
       <main className="mx-auto max-w-5xl px-6 py-10 space-y-10">
         {/* Hero */}
         <section>
-          <h1 className="text-3xl font-bold text-gray-900">API Documentation</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Documentation API</h1>
           <p className="mt-2 text-gray-600 max-w-2xl">
-            Integrate LTCPay into your application to accept payments via Mobile Money
-            and other local payment methods across Africa.
+            Int&eacute;grez LTCPay dans votre application pour accepter les paiements via Mobile Money
+            et autres moyens de paiement locaux en Afrique.
           </p>
           <div className="mt-5 rounded-xl bg-navy-500 p-5">
             <p className="text-xs font-medium text-gray-300 uppercase tracking-wide mb-1">Base URL</p>
@@ -200,16 +200,16 @@ export default function DocsPage() {
 
         {/* Integration Modes */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="integration-modes">Integration Modes</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="integration-modes">Modes d&apos;int&eacute;gration</h2>
 
           <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5 space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-2xl">🎉</span>
-              <h3 className="text-base font-bold text-blue-900">Unified Payment Flow - No More Browser Redirections!</h3>
+              <h3 className="text-base font-bold text-blue-900">Flux de paiement unifi&eacute; — Plus de redirections navigateur !</h3>
             </div>
             <p className="text-sm text-blue-800">
-              Both <strong>SDK</strong> and <strong>Direct API</strong> modes now use the same <strong>native payment interface</strong> with TouchPay Direct API.
-              All payments are processed server-to-server with <strong>zero browser redirections</strong>.
+              Les modes <strong>SDK</strong> et <strong>Direct API</strong> utilisent la m&ecirc;me <strong>interface de paiement native</strong> via TouchPay Direct API.
+              Tous les paiements sont trait&eacute;s serveur-&agrave;-serveur avec <strong>z&eacute;ro redirection navigateur</strong>.
             </p>
           </div>
 
@@ -218,20 +218,20 @@ export default function DocsPage() {
             <div className="rounded-xl border-2 border-purple-200 bg-purple-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-purple-500 px-2 py-1 text-xs font-bold text-white">SDK</span>
-                <h3 className="text-sm font-semibold text-purple-900">Payment Links</h3>
+                <h3 className="text-sm font-semibold text-purple-900">Liens de paiement</h3>
               </div>
               <p className="text-sm text-purple-800">
-                <strong>Best for:</strong> Reusable payment links, QR codes, invoices
+                <strong>Id&eacute;al pour :</strong> Liens de paiement r&eacute;utilisables, QR codes, factures
               </p>
               <ul className="text-sm text-purple-800 space-y-1 list-disc list-inside">
-                <li>Create payment <strong>without</strong> operator/phone</li>
-                <li>Customer chooses on LtcPay payment page</li>
-                <li>✅ No browser redirections</li>
-                <li>Native form with operator selector + phone input</li>
-                <li>Polling for real-time status updates</li>
+                <li>Cr&eacute;er un paiement <strong>sans</strong> op&eacute;rateur/t&eacute;l&eacute;phone</li>
+                <li>Le client choisit sur la page de paiement LtcPay</li>
+                <li>&#10003; Aucune redirection navigateur</li>
+                <li>Formulaire natif avec s&eacute;lecteur d&apos;op&eacute;rateur + saisie t&eacute;l&eacute;phone</li>
+                <li>Polling pour mises &agrave; jour en temps r&eacute;el</li>
               </ul>
               <div className="pt-2 border-t border-purple-200">
-                <p className="text-xs font-medium text-purple-700">Perfect for shareable payment URLs</p>
+                <p className="text-xs font-medium text-purple-700">Parfait pour les URLs de paiement partageables</p>
               </div>
             </div>
 
@@ -239,102 +239,102 @@ export default function DocsPage() {
             <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-green-500 px-2 py-1 text-xs font-bold text-white">DIRECT_API</span>
-                <h3 className="text-sm font-semibold text-green-900">Mobile Apps</h3>
+                <h3 className="text-sm font-semibold text-green-900">Applications mobiles</h3>
               </div>
               <p className="text-sm text-green-800">
-                <strong>Best for:</strong> Native mobile apps with custom UI
+                <strong>Id&eacute;al pour :</strong> Applications mobiles natives avec UI personnalis&eacute;e
               </p>
               <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
-                <li>Provide operator + phone <strong>at creation</strong></li>
-                <li>Immediate server-to-server initiation</li>
-                <li>✅ No browser/WebView needed</li>
-                <li>Build your own native UI</li>
-                <li>Poll via API for status updates</li>
+                <li>Fournir op&eacute;rateur + t&eacute;l&eacute;phone <strong>&agrave; la cr&eacute;ation</strong></li>
+                <li>Initiation imm&eacute;diate serveur-&agrave;-serveur</li>
+                <li>&#10003; Pas besoin de navigateur/WebView</li>
+                <li>Construisez votre propre UI native</li>
+                <li>Polling via API pour les mises &agrave; jour de statut</li>
               </ul>
               <div className="pt-2 border-t border-green-200">
-                <p className="text-xs font-bold text-green-900">⚠️ Requires: operator + customer_phone at creation</p>
+                <p className="text-xs font-bold text-green-900">&#9888;&#65039; Requis : operator + customer_phone &agrave; la cr&eacute;ation</p>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 space-y-2">
             <p className="text-sm font-bold text-green-900">
-              ✨ Automatic Mode Detection - No Configuration Needed!
+              &#10024; D&eacute;tection automatique du mode — Aucune configuration n&eacute;cessaire !
             </p>
             <p className="text-sm text-green-800">
-              The payment mode is <strong>automatically detected</strong> based on the fields you provide:
+              Le mode de paiement est <strong>d&eacute;tect&eacute; automatiquement</strong> selon les champs fournis :
             </p>
             <ul className="text-sm text-green-800 space-y-1 list-disc list-inside ml-2">
-              <li><strong>Without</strong> operator/phone → SDK mode (customer enters on payment page)</li>
-              <li><strong>With</strong> operator + phone → Direct API mode (immediate initiation)</li>
+              <li><strong>Sans</strong> operator/phone → mode SDK (le client saisit sur la page de paiement)</li>
+              <li><strong>Avec</strong> operator + phone → mode Direct API (initiation imm&eacute;diate)</li>
             </ul>
             <p className="text-sm text-green-800">
-              Both modes are <strong>always available</strong> - just create the payment and the system chooses the right mode automatically!
+              Les deux modes sont <strong>toujours disponibles</strong> — cr&eacute;ez le paiement et le syst&egrave;me choisit le bon mode automatiquement !
             </p>
           </div>
 
           {/* Comparison Table */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Mode Comparison</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Comparaison des modes</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 pr-4 font-medium">Feature</th>
-                    <th className="pb-2 pr-4 font-medium">SDK (Payment Links)</th>
+                    <th className="pb-2 pr-4 font-medium">Fonctionnalit&eacute;</th>
+                    <th className="pb-2 pr-4 font-medium">SDK (Liens de paiement)</th>
                     <th className="pb-2 font-medium">Direct API (Mobile)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Best for</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Payment links, QR codes, invoices</td>
-                    <td className="py-2 text-xs text-gray-600">Native mobile apps with custom UI</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Id&eacute;al pour</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Liens de paiement, QR codes, factures</td>
+                    <td className="py-2 text-xs text-gray-600">Apps mobiles natives avec UI personnalis&eacute;e</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Browser redirects</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600"><strong>✅ No redirections</strong></td>
-                    <td className="py-2 text-xs text-gray-600"><strong>✅ No redirections</strong></td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Redirections navigateur</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600"><strong>&#10003; Aucune redirection</strong></td>
+                    <td className="py-2 text-xs text-gray-600"><strong>&#10003; Aucune redirection</strong></td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Required at creation</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Requis &agrave; la cr&eacute;ation</td>
                     <td className="py-2 pr-4 text-xs text-gray-600">amount, currency</td>
                     <td className="py-2 text-xs text-gray-600"><strong>amount, currency, operator, customer_phone</strong></td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Operator selection</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Customer chooses on LtcPay payment page</td>
-                    <td className="py-2 text-xs text-gray-600">Merchant provides at creation</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">S&eacute;lection op&eacute;rateur</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Le client choisit sur la page LtcPay</td>
+                    <td className="py-2 text-xs text-gray-600">Le marchand fournit &agrave; la cr&eacute;ation</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Initial status</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Statut initial</td>
                     <td className="py-2 pr-4"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PENDING</code></td>
                     <td className="py-2"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PROCESSING</code></td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Payment UI</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">LtcPay native form (operator + phone)</td>
-                    <td className="py-2 text-xs text-gray-600">Your custom native UI</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Interface de paiement</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Formulaire natif LtcPay (op&eacute;rateur + t&eacute;l&eacute;phone)</td>
+                    <td className="py-2 text-xs text-gray-600">Votre propre UI native</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Payment initiation</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">On form submit → TouchPay Direct API</td>
-                    <td className="py-2 text-xs text-gray-600">Immediate → TouchPay Direct API</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Initiation du paiement</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">&Agrave; la soumission → TouchPay Direct API</td>
+                    <td className="py-2 text-xs text-gray-600">Imm&eacute;diate → TouchPay Direct API</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Status check</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Auto-polling on payment page + webhooks</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">V&eacute;rification du statut</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">Polling automatique sur la page + webhooks</td>
                     <td className="py-2 text-xs text-gray-600">Poll GET /payments/{'{reference}'} + webhooks</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Integration complexity</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">⭐⭐⭐ Simple (just redirect)</td>
-                    <td className="py-2 text-xs text-gray-600">⭐⭐⭐⭐ Medium (UI + polling)</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Complexit&eacute; d&apos;int&eacute;gration</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">&#11088;&#11088;&#11088; Simple (redirection)</td>
+                    <td className="py-2 text-xs text-gray-600">&#11088;&#11088;&#11088;&#11088; Moyen (UI + polling)</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Reusable links</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">✅ Yes - perfect for invoices</td>
-                    <td className="py-2 text-xs text-gray-600">❌ No - tied to specific customer</td>
+                    <td className="py-2 pr-4 font-medium text-gray-700">Liens r&eacute;utilisables</td>
+                    <td className="py-2 pr-4 text-xs text-gray-600">&#10003; Oui — parfait pour les factures</td>
+                    <td className="py-2 text-xs text-gray-600">&#10007; Non — li&eacute; &agrave; un client sp&eacute;cifique</td>
                   </tr>
                 </tbody>
               </table>
@@ -342,28 +342,28 @@ export default function DocsPage() {
           </div>
 
           <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-amber-900">💡 Direct API Mode (Immediate Initiation)</h3>
+            <h3 className="text-sm font-semibold text-amber-900">&#128161; Mode Direct API (Initiation imm&eacute;diate)</h3>
             <p className="text-sm text-amber-800">
-              To trigger <strong>Direct API mode</strong> with immediate payment initiation, provide <strong>both</strong> fields:
+              Pour d&eacute;clencher le <strong>mode Direct API</strong> avec initiation imm&eacute;diate, fournissez les <strong>deux</strong> champs :
             </p>
             <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
-              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> or <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
-              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> - Num&eacute;ro du client (9 chiffres sans indicatif, ex: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">6XXXXXXXX</code>)</li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> — Op&eacute;rateur Mobile Money : <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> ou <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> — Num&eacute;ro du client (9 chiffres sans indicatif, ex: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">6XXXXXXXX</code>)</li>
             </ul>
             <p className="text-sm text-amber-800">
-              Without these fields, the payment defaults to <strong>SDK mode</strong> (customer enters info on payment page).
+              Sans ces champs, le paiement utilise le <strong>mode SDK</strong> (le client saisit les infos sur la page de paiement).
             </p>
           </div>
         </section>
 
         {/* Authentication */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="authentication">Authentication</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="authentication">Authentification</h2>
           <p className="text-sm text-gray-600">
-            All API requests must include your API key in the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Key</code> header
-            and your API secret in the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Secret</code> header.
-            Use <strong>test keys</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_test_*</code>) for sandbox
-            and <strong>live keys</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_live_*</code>) for production.
+            Toutes les requ&ecirc;tes API doivent inclure votre cl&eacute; API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Key</code>
+            et votre secret API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Secret</code>.
+            Utilisez les <strong>cl&eacute;s de test</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_test_*</code>) pour le sandbox
+            et les <strong>cl&eacute;s live</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_live_*</code>) pour la production.
           </p>
           <CodeBlock
             language="bash"
@@ -407,43 +407,43 @@ payment = resp.json()`}
 
         {/* Endpoints */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="endpoints">Endpoints</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="endpoints">Points d&apos;acc&egrave;s (Endpoints)</h2>
 
           {/* Create Payment */}
           <EndpointSection
             method="POST"
             path="/payments"
-            title="Create Payment"
-            description="Create a new payment. Mode is automatically detected - no configuration needed!"
+            title="Cr&eacute;er un paiement"
+            description="Cr&eacute;er un nouveau paiement. Le mode est d&eacute;tect&eacute; automatiquement — aucune configuration n&eacute;cessaire !"
             defaultOpen
           >
             <div className="mb-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-bold text-green-900 mb-2">✨ Automatic Mode Detection</p>
+              <p className="text-sm font-bold text-green-900 mb-2">&#10024; D&eacute;tection automatique du mode</p>
               <ul className="text-sm text-green-800 space-y-1.5 list-disc list-inside">
-                <li><strong>Without operator/phone:</strong> SDK mode → returns <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → customer enters info on payment page</li>
-                <li><strong>With operator + phone:</strong> Direct API mode → immediate initiation → status <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
-                <li>No need to specify <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> - it&apos;s automatic!</li>
-                <li>Both modes use TouchPay Direct API (zero browser redirections)</li>
+                <li><strong>Sans operator/phone :</strong> mode SDK → retourne <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → le client saisit sur la page</li>
+                <li><strong>Avec operator + phone :</strong> mode Direct API → initiation imm&eacute;diate → statut <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
+                <li>Pas besoin de sp&eacute;cifier <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> — c&apos;est automatique !</li>
+                <li>Les deux modes utilisent TouchPay Direct API (z&eacute;ro redirection navigateur)</li>
               </ul>
             </div>
 
             <ParamTable
               params={[
-                { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF). Minimum: 100." },
-                { name: "currency", type: "string", required: false, desc: "ISO currency code (XAF, XOF, EUR, USD). Default: XAF" },
-                { name: "operator", type: "string", required: false, desc: "Mobile Money operator: 'MTN' or 'ORANGE'. Triggers Direct API mode if provided with customer_phone." },
-                { name: "customer_phone", type: "string", required: false, desc: "Customer phone (9 digits without country code, e.g. 677179670). Country code prefix is auto-stripped. Triggers Direct API mode if provided with operator." },
-                { name: "payment_mode", type: "string", required: false, desc: "Optional override: 'SDK' or 'DIRECT_API'. Auto-detected if omitted (recommended)." },
-                { name: "merchant_reference", type: "string", required: false, desc: "Your internal order/invoice reference for reconciliation" },
-                { name: "description", type: "string", required: false, desc: "Payment description shown to customer (max 500 chars)" },
-                { name: "customer_info", type: "object", required: false, desc: "Customer details: {name, email, phone}" },
-                { name: "callback_url", type: "string", required: false, desc: "Webhook URL for payment notifications (overrides merchant default)" },
-                { name: "return_url", type: "string", required: false, desc: "URL to redirect customer after payment completion" },
-                { name: "metadata", type: "object", required: false, desc: "Custom key-value data attached to the payment" },
+                { name: "amount", type: "number", required: true, desc: "Montant en unit\u00e9 de devise (ex: 5000 = 5 000 XAF). Minimum : 100." },
+                { name: "currency", type: "string", required: false, desc: "Code devise ISO (XAF, XOF, EUR, USD). Par d\u00e9faut : XAF" },
+                { name: "operator", type: "string", required: false, desc: "Op\u00e9rateur Mobile Money : 'MTN' ou 'ORANGE'. D\u00e9clenche le mode Direct API si fourni avec customer_phone." },
+                { name: "customer_phone", type: "string", required: false, desc: "T\u00e9l\u00e9phone client (9 chiffres sans indicatif, ex: 677179670). Le pr\u00e9fixe pays est retir\u00e9 automatiquement." },
+                { name: "payment_mode", type: "string", required: false, desc: "Forcer le mode : 'SDK' ou 'DIRECT_API'. D\u00e9tect\u00e9 automatiquement si omis (recommand\u00e9)." },
+                { name: "merchant_reference", type: "string", required: false, desc: "Votre r\u00e9f\u00e9rence interne commande/facture pour la r\u00e9conciliation" },
+                { name: "description", type: "string", required: false, desc: "Description du paiement affich\u00e9e au client (max 500 caract\u00e8res)" },
+                { name: "customer_info", type: "object", required: false, desc: "Informations client : {name, email, phone}" },
+                { name: "callback_url", type: "string", required: false, desc: "URL webhook pour les notifications de paiement (remplace le d\u00e9faut marchand)" },
+                { name: "return_url", type: "string", required: false, desc: "URL de redirection du client apr\u00e8s le paiement" },
+                { name: "metadata", type: "object", required: false, desc: "Donn\u00e9es cl\u00e9-valeur personnalis\u00e9es attach\u00e9es au paiement" },
               ]}
             />
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900">Example 1: SDK Mode (Payment Links)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Exemple 1 : Mode SDK (Liens de paiement)</h4>
               <CodeBlock
                 language="javascript"
                 code={`// SDK Mode - Create reusable payment link
@@ -485,7 +485,7 @@ window.location.href = payment.payment_url;
 // 4. Polling UI → redirect to return_url when COMPLETED`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Example 2: Direct API Mode (Mobile Apps with Custom UI)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Exemple 2 : Mode Direct API (Apps mobiles avec UI personnalis&eacute;e)</h4>
               <CodeBlock
                 language="javascript"
                 code={`// Direct API Mode - For mobile apps building custom native UI
@@ -549,7 +549,7 @@ async function pollPaymentStatus(reference) {
 pollPaymentStatus(payment.reference);`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Python Examples</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Exemples Python</h4>
               <CodeBlock
                 language="python"
                 code={`import httpx
@@ -611,7 +611,7 @@ print(f"Final status: {result['status']}")`}
               />
             </div>
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900">Response (SDK Mode)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">R&eacute;ponse (Mode SDK)</h4>
               <ResponseBlock
                 status={201}
                 body={`{
@@ -627,7 +627,7 @@ print(f"Final status: {result['status']}")`}
 }`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Response (Direct API Mode)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">R&eacute;ponse (Mode Direct API)</h4>
               <ResponseBlock
                 status={201}
                 body={`{
@@ -644,7 +644,7 @@ print(f"Final status: {result['status']}")`}
               />
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> In Direct API mode, status immediately becomes <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> because the payment is initiated server-to-server. The customer receives a push notification to approve it on their Mobile Money app.
+                  <strong>Note :</strong> En mode Direct API, le statut passe imm&eacute;diatement &agrave; <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> car le paiement est initi&eacute; serveur-&agrave;-serveur. Le client re&ccedil;oit une notification push pour approuver sur son app Mobile Money.
                 </p>
               </div>
             </div>
@@ -654,14 +654,14 @@ print(f"Final status: {result['status']}")`}
           <EndpointSection
             method="GET"
             path="/payments/{reference}"
-            title="Get Payment Status"
-            description="Retrieve the current status and details of a payment by its reference. For Direct API mode, poll this endpoint every 3-5 seconds to check if payment is completed."
+            title="Statut d&apos;un paiement"
+            description="R&eacute;cup&eacute;rer le statut et les d&eacute;tails d&apos;un paiement par sa r&eacute;f&eacute;rence. En mode Direct API, interrogez cet endpoint toutes les 3-5 secondes pour v&eacute;rifier si le paiement est termin&eacute;."
           >
             <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-semibold text-green-900 mb-2">Direct API Polling:</p>
+              <p className="text-sm font-semibold text-green-900 mb-2">Polling Direct API :</p>
               <p className="text-sm text-green-800">
-                Mobile apps using Direct API mode should poll this endpoint every 3-5 seconds to check payment status.
-                Stop polling when status becomes <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, or after 2 minutes (timeout).
+                Les apps mobiles en mode Direct API doivent interroger cet endpoint toutes les 3-5 secondes pour v&eacute;rifier le statut.
+                Arr&ecirc;tez le polling quand le statut devient <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, ou apr&egrave;s 2 minutes (timeout).
               </p>
             </div>
             <CodeBlock
@@ -724,14 +724,14 @@ print(payment["status"])  # "COMPLETED"`}
           <EndpointSection
             method="GET"
             path="/payments"
-            title="List Payments"
-            description="List all payments for the authenticated merchant. Supports pagination and optional status filtering."
+            title="Lister les paiements"
+            description="Lister tous les paiements du marchand authentifi&eacute;. Supporte la pagination et le filtrage par statut."
           >
             <ParamTable
               params={[
-                { name: "page", type: "number", required: false, desc: "Page number (default: 1)" },
-                { name: "page_size", type: "number", required: false, desc: "Items per page, 1-100 (default: 20)" },
-                { name: "status", type: "string", required: false, desc: "Filter by status: PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED" },
+                { name: "page", type: "number", required: false, desc: "Num\u00e9ro de page (par d\u00e9faut : 1)" },
+                { name: "page_size", type: "number", required: false, desc: "\u00c9l\u00e9ments par page, 1-100 (par d\u00e9faut : 20)" },
+                { name: "status", type: "string", required: false, desc: "Filtrer par statut : PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED" },
               ]}
             />
             <CodeBlock
@@ -867,20 +867,20 @@ console.log(data.payments);    // Array of payment objects`}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900" id="webhooks">Webhooks</h2>
           <p className="text-sm text-gray-600">
-            LTCPay sends <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code> requests
-            to your <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> when a
-            payment status changes. The payload is signed with HMAC-SHA256 using your <strong>webhook secret</strong>.
+            LTCPay envoie des requ&ecirc;tes <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code>
+            &agrave; votre <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> lorsque le
+            statut d&apos;un paiement change. Le payload est sign&eacute; avec HMAC-SHA256 en utilisant votre <strong>webhook secret</strong>.
           </p>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
             <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Webhooks work identically for both SDK and Direct API modes. You&apos;ll receive the same webhook payload when a payment reaches a terminal status (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
+              <strong>Note :</strong> Les webhooks fonctionnent de mani&egrave;re identique pour les modes SDK et Direct API. Vous recevrez le m&ecirc;me payload lorsqu&apos;un paiement atteint un statut terminal (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
             </p>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Webhook Headers</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Headers des webhooks</h3>
             <p className="text-sm text-gray-600">
-              Each webhook request includes the following headers:
+              Chaque requ&ecirc;te webhook inclut les headers suivants :
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -891,16 +891,16 @@ console.log(data.payments);    // Array of payment objects`}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Signature</td><td className="py-2 text-xs text-gray-600">HMAC-SHA256 signature of the raw JSON body</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Event</td><td className="py-2 text-xs text-gray-600">Event type (e.g. <code className="bg-gray-100 px-1 rounded">payment.status_changed</code>)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Delivery-Id</td><td className="py-2 text-xs text-gray-600">Unique delivery ID for idempotency</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Signature</td><td className="py-2 text-xs text-gray-600">Signature HMAC-SHA256 du body JSON brut</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Event</td><td className="py-2 text-xs text-gray-600">Type d&apos;&eacute;v&eacute;nement (ex: <code className="bg-gray-100 px-1 rounded">payment.status_changed</code>)</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Delivery-Id</td><td className="py-2 text-xs text-gray-600">ID de livraison unique pour l&apos;idempotence</td></tr>
                 </tbody>
               </table>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-900">Webhook Payload</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Payload du webhook</h3>
             <p className="text-sm text-gray-600">
-              The event is always <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. Check the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> field to determine the new status.
+              L&apos;&eacute;v&eacute;nement est toujours <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. V&eacute;rifiez le champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> pour d&eacute;terminer le nouveau statut.
             </p>
             <CodeBlock
               language="json"
@@ -927,9 +927,9 @@ console.log(data.payments);    // Array of payment objects`}
 }`}
             />
 
-            <h3 className="text-sm font-semibold text-gray-900">Verifying Signatures</h3>
+            <h3 className="text-sm font-semibold text-gray-900">V&eacute;rification des signatures</h3>
             <p className="text-sm text-gray-600">
-              The signature is computed as <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. You <strong>must</strong> verify the signature using the raw request body (not a re-serialized version) to avoid mismatches.
+              La signature est calcul&eacute;e comme <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. Vous <strong>devez</strong> v&eacute;rifier la signature en utilisant le body brut de la requ&ecirc;te (pas une version re-s&eacute;rialis&eacute;e) pour &eacute;viter les erreurs.
             </p>
             <CodeBlock
               language="javascript"
@@ -991,98 +991,98 @@ async def handle_webhook(request: Request):
     return {"status": "ok"}`}
             />
 
-            <h3 className="text-sm font-semibold text-gray-900">Payment Statuses</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Statuts de paiement</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium">Statut</th>
                     <th className="pb-2 font-medium">Description</th>
-                    <th className="pb-2 font-medium">Terminal?</th>
+                    <th className="pb-2 font-medium">Terminal ?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
                     <td className="py-2 font-mono text-xs">PENDING</td>
-                    <td className="py-2 text-xs text-gray-600">Payment created, awaiting customer action (SDK mode)</td>
-                    <td className="py-2 text-xs text-gray-500">No</td>
+                    <td className="py-2 text-xs text-gray-600">Paiement cr&eacute;&eacute;, en attente d&apos;action du client (mode SDK)</td>
+                    <td className="py-2 text-xs text-gray-500">Non</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">PROCESSING</td>
-                    <td className="py-2 text-xs text-gray-600">Payment initiated via Direct API, customer received push notification</td>
-                    <td className="py-2 text-xs text-gray-500">No</td>
+                    <td className="py-2 text-xs text-gray-600">Paiement initi&eacute; via Direct API, le client a re&ccedil;u la notification push</td>
+                    <td className="py-2 text-xs text-gray-500">Non</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">COMPLETED</td>
-                    <td className="py-2 text-xs text-gray-600">Payment was successfully processed</td>
-                    <td className="py-2 text-xs font-medium text-green-600">Yes ✓</td>
+                    <td className="py-2 text-xs text-gray-600">Paiement trait&eacute; avec succ&egrave;s</td>
+                    <td className="py-2 text-xs font-medium text-green-600">Oui &#10003;</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">FAILED</td>
-                    <td className="py-2 text-xs text-gray-600">Payment failed (insufficient funds, timeout, declined, etc.)</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                    <td className="py-2 text-xs text-gray-600">Paiement &eacute;chou&eacute; (solde insuffisant, timeout, refus&eacute;, etc.)</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">EXPIRED</td>
-                    <td className="py-2 text-xs text-gray-600">Payment link expired (30 minutes for SDK mode)</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                    <td className="py-2 text-xs text-gray-600">Lien de paiement expir&eacute; (30 minutes en mode SDK)</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">CANCELLED</td>
-                    <td className="py-2 text-xs text-gray-600">Payment was cancelled via API or by customer</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Yes ✗</td>
+                    <td className="py-2 text-xs text-gray-600">Paiement annul&eacute; par le client</td>
+                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-900">Retry Policy</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Politique de r&eacute;essai</h3>
             <p className="text-sm text-gray-600">
-              If your endpoint returns a non-2xx status code, LTCPay retries up to <strong>5 times</strong> with
-              exponential backoff (2s, 4s, 8s, 16s, 32s). Your endpoint must respond within <strong>30 seconds</strong>.
+              Si votre endpoint retourne un code non-2xx, LTCPay r&eacute;essaie jusqu&apos;&agrave; <strong>5 fois</strong> avec
+              un backoff exponentiel (2s, 4s, 8s, 16s, 32s). Votre endpoint doit r&eacute;pondre en moins de <strong>30 secondes</strong>.
             </p>
           </div>
 
           {/* Webhook Troubleshooting */}
           <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-red-900">Troubleshooting: &quot;Invalid webhook signature&quot;</h3>
+            <h3 className="text-sm font-semibold text-red-900">D&eacute;pannage : &quot;Invalid webhook signature&quot;</h3>
             <p className="text-sm text-red-800">
-              If you receive a <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code> error, check the following:
+              Si vous recevez une erreur <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code>, v&eacute;rifiez les points suivants :
             </p>
             <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
-              <li>Read the signature from the <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> header (not <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</li>
-              <li>Use the <strong>raw request body</strong> for HMAC verification &mdash; do NOT re-serialize the parsed JSON (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> may produce different whitespace/key ordering)</li>
-              <li>Make sure you are using your <strong>merchant webhook secret</strong> (set during registration), not your API key or API secret</li>
-              <li>The signing algorithm is <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> with hex digest output</li>
-              <li>If you have not set a webhook secret, contact the LTCPay admin to configure one for your merchant account</li>
+              <li>Lisez la signature depuis le header <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> (et non <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</li>
+              <li>Utilisez le <strong>body brut de la requ&ecirc;te</strong> pour la v&eacute;rification HMAC &mdash; ne re-s&eacute;rialisez PAS le JSON pars&eacute; (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> peut produire un formatage diff&eacute;rent)</li>
+              <li>Assurez-vous d&apos;utiliser votre <strong>webhook secret marchand</strong> (d&eacute;fini lors de l&apos;inscription), et non votre cl&eacute; API ou secret API</li>
+              <li>L&apos;algorithme de signature est <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> avec sortie hex digest</li>
+              <li>Si vous n&apos;avez pas de webhook secret, contactez l&apos;administrateur LTCPay pour en configurer un</li>
             </ul>
           </div>
         </section>
 
         {/* Error Handling */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="errors">Error Handling</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="errors">Gestion des erreurs</h2>
           <p className="text-sm text-gray-600">
-            The API returns standard HTTP status codes. Errors include a JSON body with a <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">detail</code> field.
+            L&apos;API retourne des codes HTTP standards. Les erreurs incluent un body JSON avec un champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">detail</code>.
           </p>
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium">Meaning</th>
+                    <th className="pb-2 font-medium">Code</th>
+                    <th className="pb-2 font-medium">Signification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">200</td><td className="py-2 text-xs text-gray-600">Success</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">201</td><td className="py-2 text-xs text-gray-600">Resource created</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">400</td><td className="py-2 text-xs text-gray-600">Bad request — check parameters</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">401</td><td className="py-2 text-xs text-gray-600">Invalid or missing API credentials</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">404</td><td className="py-2 text-xs text-gray-600">Resource not found</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">409</td><td className="py-2 text-xs text-gray-600">Conflict (e.g. duplicate email)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">429</td><td className="py-2 text-xs text-gray-600">Rate limit exceeded</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">500</td><td className="py-2 text-xs text-gray-600">Server error — contact support</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">200</td><td className="py-2 text-xs text-gray-600">Succ&egrave;s</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">201</td><td className="py-2 text-xs text-gray-600">Ressource cr&eacute;&eacute;e</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">400</td><td className="py-2 text-xs text-gray-600">Requ&ecirc;te invalide — v&eacute;rifiez les param&egrave;tres</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">401</td><td className="py-2 text-xs text-gray-600">Identifiants API invalides ou manquants</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">404</td><td className="py-2 text-xs text-gray-600">Ressource introuvable</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">409</td><td className="py-2 text-xs text-gray-600">Conflit (ex: email d&eacute;j&agrave; utilis&eacute;)</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">429</td><td className="py-2 text-xs text-gray-600">Limite de requ&ecirc;tes d&eacute;pass&eacute;e</td></tr>
+                  <tr><td className="py-2 font-mono text-xs">500</td><td className="py-2 text-xs text-gray-600">Erreur serveur — contactez le support</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1097,23 +1097,23 @@ async def handle_webhook(request: Request):
 
         {/* Test Mode */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="testing">Test Mode</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="testing">Mode test</h2>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-amber-900">Sandbox Testing</h3>
+            <h3 className="text-sm font-semibold text-amber-900">Tests en sandbox</h3>
             <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
-              <li>Use your <strong>test API key</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_test_*</code>) — no real money is charged</li>
-              <li>All endpoints work identically in test and live mode</li>
-              <li>Test payments auto-complete after a few seconds for easy integration testing</li>
-              <li>Webhook callbacks are sent for test payments just like live ones</li>
-              <li>Switch to your <strong>live API key</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_live_*</code>) when ready for production</li>
+              <li>Utilisez votre <strong>cl&eacute; API de test</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_test_*</code>) — aucun argent r&eacute;el n&apos;est d&eacute;bit&eacute;</li>
+              <li>Tous les endpoints fonctionnent de mani&egrave;re identique en mode test et live</li>
+              <li>Les paiements de test se compl&egrave;tent automatiquement apr&egrave;s quelques secondes</li>
+              <li>Les webhooks sont envoy&eacute;s pour les paiements de test comme pour les paiements r&eacute;els</li>
+              <li>Passez &agrave; votre <strong>cl&eacute; API live</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_live_*</code>) quand vous &ecirc;tes pr&ecirc;t pour la production</li>
             </ul>
           </div>
         </section>
 
         {/* Footer */}
         <footer className="border-t border-gray-200 pt-8 pb-12 text-center text-sm text-gray-500">
-          <p>Need help? Contact us at <a href="mailto:support@ltcgroup.site" className="text-navy-500 hover:underline">support@ltcgroup.site</a></p>
-          <p className="mt-1">LTCPay &mdash; Payment Gateway for Africa</p>
+          <p>Besoin d&apos;aide ? Contactez-nous &agrave; <a href="mailto:support@ltcgroup.site" className="text-navy-500 hover:underline">support@ltcgroup.site</a></p>
+          <p className="mt-1">LTCPay &mdash; Passerelle de paiement pour l&apos;Afrique</p>
         </footer>
       </main>
     </div>
