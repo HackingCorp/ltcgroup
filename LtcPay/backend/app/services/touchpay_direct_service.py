@@ -70,6 +70,24 @@ class TouchPayDirectService:
             raise TouchPayDirectError(f"Unsupported operator: {operator}")
         return code
 
+    @staticmethod
+    def _normalize_phone(phone: str) -> str:
+        """Normalize phone number to 9 digits (no country code).
+
+        TouchPay requires exactly 9 digits without the 237 prefix.
+        Examples:
+          237677179670 -> 677179670
+          +237677179670 -> 677179670
+          677179670 -> 677179670
+          00237682191827 -> 682191827
+        """
+        digits = "".join(c for c in phone if c.isdigit())
+        if digits.startswith("00237"):
+            digits = digits[5:]
+        elif digits.startswith("237") and len(digits) > 9:
+            digits = digits[3:]
+        return digits
+
     async def initiate_payment(
         self,
         payment_reference: str,
@@ -84,7 +102,7 @@ class TouchPayDirectService:
         Args:
             payment_reference: Our internal payment reference (idFromClient).
             amount: Payment amount in XAF (integer).
-            phone_number: Customer phone number (e.g. 237670000000).
+            phone_number: Customer phone number (e.g. 237670000000 or 670000000).
             operator: Mobile money operator (MTN or ORANGE).
             callback_url: URL for TouchPay to POST payment status updates.
             additional_info: Optional metadata dict.
@@ -97,11 +115,12 @@ class TouchPayDirectService:
         """
         service_code = self.get_service_code(operator)
         url = self._build_url()
+        normalized_phone = self._normalize_phone(phone_number)
 
         payload = {
             "idFromClient": payment_reference,
             "amount": str(amount),
-            "recipientNumber": phone_number,
+            "recipientNumber": normalized_phone,
             "serviceCode": service_code,
             "callback": callback_url,
         }
@@ -109,8 +128,8 @@ class TouchPayDirectService:
             payload["additionnalInfos"] = additional_info
 
         logger.info(
-            "TouchPay Direct: initiating payment ref=%s amount=%s operator=%s phone=%s",
-            payment_reference, amount, operator.value, phone_number,
+            "TouchPay Direct: initiating payment ref=%s amount=%s operator=%s phone=%s (raw=%s)",
+            payment_reference, amount, operator.value, normalized_phone, phone_number,
         )
 
         try:
