@@ -348,7 +348,7 @@ export default function DocsPage() {
             </p>
             <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
               <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> - Mobile Money operator: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> or <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
-              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> - Customer phone number in format <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">237XXXXXXXXX</code></li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> - Num&eacute;ro du client (9 chiffres sans indicatif, ex: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">6XXXXXXXX</code>)</li>
             </ul>
             <p className="text-sm text-amber-800">
               Without these fields, the payment defaults to <strong>SDK mode</strong> (customer enters info on payment page).
@@ -432,7 +432,7 @@ payment = resp.json()`}
                 { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF)" },
                 { name: "currency", type: "string", required: true, desc: "ISO currency code (XAF, XOF, USD)" },
                 { name: "operator", type: "string", required: false, desc: "Mobile Money operator: 'MTN' or 'ORANGE'. Triggers Direct API mode if provided with customer_phone." },
-                { name: "customer_phone", type: "string", required: false, desc: "Customer phone (format: 237XXXXXXXXX). Triggers Direct API mode if provided with operator." },
+                { name: "customer_phone", type: "string", required: false, desc: "Customer phone (9 digits without country code, e.g. 677179670). Country code prefix is auto-stripped. Triggers Direct API mode if provided with operator." },
                 { name: "payment_mode", type: "string", required: false, desc: "Optional override: 'SDK' or 'DIRECT_API'. Auto-detected if omitted (recommended)." },
                 { name: "description", type: "string", required: false, desc: "Payment description shown to customer" },
                 { name: "customer_info", type: "object", required: false, desc: "Customer details: {name, email, phone}" },
@@ -502,7 +502,7 @@ const response = await fetch("${BASE_URL}/payments", {
     currency: "XAF",
     // payment_mode: "DIRECT_API",       // Optional - auto-detected when operator+phone provided
     operator: "MTN",                      // Triggers Direct API mode
-    customer_phone: "237670000000",       // Triggers Direct API mode (format: 237XXXXXXXXX)
+    customer_phone: "670000000",          // 9 digits sans indicatif (237 auto-stripped)
     description: "Order #1234",
     customer_info: {
       name: "Jean Dupont",
@@ -585,7 +585,7 @@ direct_payment = httpx.post(
         "currency": "XAF",
         # "payment_mode": "DIRECT_API",  # Optional - auto-detected
         "operator": "MTN",              # Triggers Direct API mode
-        "customer_phone": "237670000000", # Triggers Direct API mode
+        "customer_phone": "670000000",    # 9 digits sans indicatif
         "description": "Order #1234",
     },
 ).json()
@@ -618,6 +618,7 @@ print(f"Final status: {result['status']}")`}
   "reference": "PAY-A1B2C3",
   "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "amount": "5000.00",
+  "fee": "87.50",
   "currency": "XAF",
   "status": "PENDING",
   "payment_mode": "SDK",
@@ -634,6 +635,7 @@ print(f"Final status: {result['status']}")`}
   "reference": "PAY-A1B2C3",
   "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "amount": "5000.00",
+  "fee": "87.50",
   "currency": "XAF",
   "status": "PROCESSING",
   "payment_mode": "DIRECT_API",
@@ -754,6 +756,95 @@ console.log(payment.status); // "cancelled"`}
 }`}
             />
           </EndpointSection>
+        </section>
+
+        {/* Fees */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900" id="fees">Frais</h2>
+          <p className="text-sm text-gray-600">
+            Des frais sont appliqu&eacute;s sur chaque paiement. Le taux est configur&eacute; par l&apos;administrateur LtcPay pour chaque marchand.
+            Selon la configuration, les frais sont soit support&eacute;s par le marchand, soit imput&eacute;s au client.
+          </p>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Mode d&apos;imputation des frais</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th className="pb-2 font-medium">Mode</th>
+                    <th className="pb-2 font-medium">Qui paie ?</th>
+                    <th className="pb-2 font-medium">Exemple (montant: 10 000 XAF)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-2 font-mono text-xs">MERCHANT</td>
+                    <td className="py-2 text-xs text-gray-600">Le marchand supporte les frais. Le client paie le montant exact.</td>
+                    <td className="py-2 text-xs text-gray-600">Client paie <strong>10 000</strong>, marchand re&ccedil;oit montant - frais</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">CLIENT</td>
+                    <td className="py-2 text-xs text-gray-600">Le client paie les frais en plus du montant. Le marchand re&ccedil;oit le montant int&eacute;gral.</td>
+                    <td className="py-2 text-xs text-gray-600">Client paie <strong>10 000 + frais</strong>, marchand re&ccedil;oit 10 000</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="text-sm text-blue-800">
+                Le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">fee</code> est retourn&eacute; dans toutes les r&eacute;ponses de paiement et dans les webhooks. En mode <strong>CLIENT</strong>, le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">amount</code> refl&egrave;te le montant total factur&eacute; (montant de base + frais).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Phone Number Format */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900" id="phone-format">Format du num&eacute;ro de t&eacute;l&eacute;phone</h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+            <p className="text-sm text-gray-600">
+              Pour le mode <strong>Direct API</strong>, le num&eacute;ro de t&eacute;l&eacute;phone doit contenir <strong>9 chiffres</strong> sans indicatif pays.
+              LtcPay normalise automatiquement le num&eacute;ro en retirant le pr&eacute;fixe <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">237</code>.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th className="pb-2 font-medium">Format envoy&eacute;</th>
+                    <th className="pb-2 font-medium">Accept&eacute; ?</th>
+                    <th className="pb-2 font-medium">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-2 font-mono text-xs">677179670</td>
+                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
+                    <td className="py-2 text-xs text-gray-600">Format correct (9 chiffres)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">237677179670</td>
+                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
+                    <td className="py-2 text-xs text-gray-600">Le pr&eacute;fixe 237 est retir&eacute; automatiquement</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">+237677179670</td>
+                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
+                    <td className="py-2 text-xs text-gray-600">Le +237 est retir&eacute; automatiquement</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 font-mono text-xs">00237677179670</td>
+                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
+                    <td className="py-2 text-xs text-gray-600">Le 00237 est retir&eacute; automatiquement</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-800">
+                <strong>Recommandation :</strong> Envoyez directement le format &agrave; 9 chiffres pour &eacute;viter toute ambigu&iuml;t&eacute;.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Webhooks */}

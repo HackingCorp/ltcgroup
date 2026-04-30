@@ -45,7 +45,7 @@ Body:
   "customer_info": {
     "name": "Jean Dupont",
     "email": "jean@example.com",
-    "phone": "237670000000"
+    "phone": "677000000"
   },
   "callback_url": "https://monsite.com/webhook/ltcpay",
   "return_url": "https://monsite.com/merci"
@@ -59,6 +59,7 @@ Body:
   "payment_id": "uuid",
   "reference": "PAY-ABC123",
   "amount": "5000.00",
+  "fee": "87.50",
   "currency": "XAF",
   "status": "PENDING",
   "payment_mode": "SDK",
@@ -165,7 +166,7 @@ Body:
   "currency": "XAF",
   "payment_mode": "DIRECT_API",
   "operator": "MTN",                  // OBLIGATOIRE
-  "customer_phone": "237670000000",   // OBLIGATOIRE
+  "customer_phone": "677179670",      // OBLIGATOIRE (9 chiffres, sans indicatif)
   "merchant_reference": "ORDER-123",
   "description": "Achat produit X",
   "customer_info": {
@@ -182,6 +183,7 @@ Body:
   "payment_id": "uuid",
   "reference": "PAY-ABC123",
   "amount": "5000.00",
+  "fee": "87.50",
   "currency": "XAF",
   "status": "PROCESSING",  // ← Immédiatement en cours
   "payment_mode": "DIRECT_API",
@@ -229,6 +231,7 @@ Headers:
   "reference": "PAY-ABC123",
   "status": "PROCESSING",  // ou COMPLETED, FAILED
   "amount": "5000.00",
+  "fee": "87.50",
   "currency": "XAF",
   "payment_mode": "DIRECT_API",
   "operator": "MTN",
@@ -325,16 +328,59 @@ void showErrorScreen(Payment payment) {
 
 ---
 
+## Format du numéro de téléphone
+
+Pour le mode **Direct API**, le numéro de téléphone doit contenir **exactement 9 chiffres** sans indicatif pays.
+
+| Format envoyé | Accepté ? | Notes |
+|---------------|-----------|-------|
+| `677179670` | ✅ Oui | Format correct (9 chiffres) |
+| `237677179670` | ✅ Oui | Le préfixe `237` est retiré automatiquement |
+| `+237677179670` | ✅ Oui | Le `+237` est retiré automatiquement |
+| `00237677179670` | ✅ Oui | Le `00237` est retiré automatiquement |
+
+> **Note :** LtcPay normalise automatiquement le numéro en retirant l'indicatif pays (`237`, `+237`, `00237`). Cependant, il est recommandé d'envoyer directement le format à 9 chiffres.
+
+---
+
+## Système de frais
+
+Chaque marchand dispose d'une **configuration de frais** définie par l'administrateur LtcPay. Le taux est propre à chaque marchand et n'a pas besoin d'être précisé dans les requêtes API — il est appliqué automatiquement.
+
+### Imputation des frais (`fee_bearer`)
+
+| Mode | Comportement |
+|------|-------------|
+| `MERCHANT` (défaut) | Le client paie le montant exact. Les frais sont déduits du solde du marchand. |
+| `CLIENT` | Les frais sont ajoutés au montant payé par le client. Le marchand reçoit le montant intégral. |
+
+**Exemple — Mode MERCHANT :**
+```
+Montant demandé : 10 000 XAF → Le client paie 10 000 XAF, le marchand reçoit montant - frais
+```
+
+**Exemple — Mode CLIENT :**
+```
+Montant demandé : 10 000 XAF → Le client paie 10 000 + frais, le marchand reçoit 10 000 XAF
+```
+
+Le champ `fee` est retourné dans toutes les réponses de paiement pour indiquer le montant des frais calculés.
+
+---
+
 ## Configuration Merchant
 
-Dans le dashboard admin, chaque merchant a un `default_payment_mode` :
+Dans le dashboard admin, chaque merchant a :
+
+- **`default_payment_mode`** : Mode de paiement par défaut (SDK ou DIRECT_API)
+- **`fee_bearer`** : Imputation des frais (`MERCHANT` ou `CLIENT`)
 
 ```
 SDK → Utilisé par défaut si payment_mode n'est pas fourni
 DIRECT_API → Utilisé par défaut si payment_mode n'est pas fourni
 ```
 
-**Mais vous pouvez toujours remplacer par paiement :**
+**Vous pouvez toujours remplacer le mode par paiement :**
 
 ```json
 {
@@ -364,6 +410,7 @@ Body:
     "reference": "PAY-ABC123",
     "merchant_reference": "ORDER-123",
     "amount": 5000.0,
+    "fee": 87.5,
     "currency": "XAF",
     "status": "COMPLETED",
     "payment_mode": "DIRECT_API",
@@ -393,3 +440,13 @@ Body:
 **Recommandation :**
 - 📱 **App mobile** → Direct API
 - 🌐 **Site web** → SDK
+
+---
+
+## Changelog
+
+| Date | Modification |
+|------|-------------|
+| 2026-04-30 | Ajout du système de frais (`fee_rate`, `fee_bearer`), champ `fee` dans les réponses |
+| 2026-04-30 | Normalisation automatique du numéro de téléphone (suppression indicatif `237`) |
+| 2026-04-09 | Version initiale : modes SDK et Direct API |
