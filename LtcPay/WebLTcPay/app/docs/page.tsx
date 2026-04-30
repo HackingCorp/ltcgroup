@@ -429,14 +429,15 @@ payment = resp.json()`}
 
             <ParamTable
               params={[
-                { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF)" },
-                { name: "currency", type: "string", required: true, desc: "ISO currency code (XAF, XOF, USD)" },
+                { name: "amount", type: "number", required: true, desc: "Amount in smallest currency unit (e.g. 5000 = 5,000 XAF). Minimum: 100." },
+                { name: "currency", type: "string", required: false, desc: "ISO currency code (XAF, XOF, EUR, USD). Default: XAF" },
                 { name: "operator", type: "string", required: false, desc: "Mobile Money operator: 'MTN' or 'ORANGE'. Triggers Direct API mode if provided with customer_phone." },
                 { name: "customer_phone", type: "string", required: false, desc: "Customer phone (9 digits without country code, e.g. 677179670). Country code prefix is auto-stripped. Triggers Direct API mode if provided with operator." },
                 { name: "payment_mode", type: "string", required: false, desc: "Optional override: 'SDK' or 'DIRECT_API'. Auto-detected if omitted (recommended)." },
-                { name: "description", type: "string", required: false, desc: "Payment description shown to customer" },
+                { name: "merchant_reference", type: "string", required: false, desc: "Your internal order/invoice reference for reconciliation" },
+                { name: "description", type: "string", required: false, desc: "Payment description shown to customer (max 500 chars)" },
                 { name: "customer_info", type: "object", required: false, desc: "Customer details: {name, email, phone}" },
-                { name: "callback_url", type: "string", required: false, desc: "Webhook URL for payment notifications" },
+                { name: "callback_url", type: "string", required: false, desc: "Webhook URL for payment notifications (overrides merchant default)" },
                 { name: "return_url", type: "string", required: false, desc: "URL to redirect customer after payment completion" },
                 { name: "metadata", type: "object", required: false, desc: "Custom key-value data attached to the payment" },
               ]}
@@ -618,7 +619,6 @@ print(f"Final status: {result['status']}")`}
   "reference": "PAY-A1B2C3",
   "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "amount": "5000.00",
-  "fee": "87.50",
   "currency": "XAF",
   "status": "PENDING",
   "payment_mode": "SDK",
@@ -635,7 +635,6 @@ print(f"Final status: {result['status']}")`}
   "reference": "PAY-A1B2C3",
   "payment_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
   "amount": "5000.00",
-  "fee": "87.50",
   "currency": "XAF",
   "status": "PROCESSING",
   "payment_mode": "DIRECT_API",
@@ -721,38 +720,55 @@ print(payment["status"])  # "COMPLETED"`}
             />
           </EndpointSection>
 
-          {/* Cancel Payment */}
+          {/* List Payments */}
           <EndpointSection
-            method="POST"
-            path="/payments/{id}/cancel"
-            title="Cancel Payment"
-            description="Cancel a pending payment. Only payments with status 'pending' can be cancelled."
+            method="GET"
+            path="/payments"
+            title="List Payments"
+            description="List all payments for the authenticated merchant. Supports pagination and optional status filtering."
           >
+            <ParamTable
+              params={[
+                { name: "page", type: "number", required: false, desc: "Page number (default: 1)" },
+                { name: "page_size", type: "number", required: false, desc: "Items per page, 1-100 (default: 20)" },
+                { name: "status", type: "string", required: false, desc: "Filter by status: PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED" },
+              ]}
+            />
             <CodeBlock
               language="javascript"
               code={`const response = await fetch(
-  "${BASE_URL}/payments/d290f1ee-6c54-4b01-90e6-d701748f0851/cancel",
+  "${BASE_URL}/payments?page=1&page_size=10&status=COMPLETED",
   {
-    method: "POST",
     headers: {
       "X-API-Key": "ltcpay_test_abc123...",
       "X-API-Secret": "your_api_secret",
     },
   }
 );
-const payment = await response.json();
-console.log(payment.status); // "cancelled"`}
+const data = await response.json();
+console.log(data.total_count); // Total matching payments
+console.log(data.payments);    // Array of payment objects`}
             />
             <ResponseBlock
               status={200}
               body={`{
-  "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
-  "reference": "PAY-A1B2C3",
-  "amount": 5000,
-  "currency": "XAF",
-  "status": "cancelled",
-  "created_at": "2026-04-03T12:00:00Z",
-  "updated_at": "2026-04-03T12:05:00Z"
+  "payments": [
+    {
+      "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
+      "merchant_id": "a1b2c3d4-...",
+      "reference": "PAY-A1B2C3",
+      "amount": "5000.00",
+      "fee": "87.50",
+      "currency": "XAF",
+      "status": "COMPLETED",
+      "payment_mode": "DIRECT_API",
+      "created_at": "2026-04-09T12:00:00Z",
+      "updated_at": "2026-04-09T12:01:30Z"
+    }
+  ],
+  "total_count": 42,
+  "page": 1,
+  "page_size": 10
 }`}
             />
           </EndpointSection>
@@ -762,8 +778,8 @@ console.log(payment.status); // "cancelled"`}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900" id="fees">Frais</h2>
           <p className="text-sm text-gray-600">
-            Des frais sont appliqu&eacute;s sur chaque paiement. Le taux est configur&eacute; par l&apos;administrateur LtcPay pour chaque marchand.
-            Selon la configuration, les frais sont soit support&eacute;s par le marchand, soit imput&eacute;s au client.
+            Des frais sont appliqu&eacute;s sur chaque paiement. Le taux de commission est configur&eacute; par l&apos;administrateur LtcPay pour chaque marchand.
+            Par d&eacute;faut, les frais sont support&eacute;s par le marchand (d&eacute;duits du montant re&ccedil;u).
           </p>
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <h3 className="text-sm font-semibold text-gray-900">Mode d&apos;imputation des frais</h3>
@@ -896,11 +912,9 @@ console.log(payment.status); // "cancelled"`}
     "merchant_reference": "order-1234",
     "provider_transaction_id": "1775499394985",
     "amount": 5000.0,
-    "fee": 75.0,
+    "fee": 87.5,
     "currency": "XAF",
     "status": "COMPLETED",
-    "payment_mode": "DIRECT_API",
-    "operator": "MTN",
     "method": "MOBILE_MONEY",
     "customer_name": "John Doe",
     "customer_email": "john@example.com",
