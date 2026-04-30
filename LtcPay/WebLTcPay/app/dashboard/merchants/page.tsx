@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, Loading, Button, Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
 import type { MerchantBalanceInfo } from "@/services/merchants.service";
-import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2, ChevronRight, Wallet } from "lucide-react";
+import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2, ChevronRight, Wallet, Pencil } from "lucide-react";
 import type { Merchant, MerchantCredentials } from "@/types";
-import type { CreateMerchantData } from "@/services/merchants.service";
+import type { CreateMerchantData, UpdateMerchantData } from "@/services/merchants.service";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -19,6 +19,7 @@ export default function MerchantsPage() {
   const [error, setError] = useState("");
   const [balances, setBalances] = useState<Record<string, MerchantBalanceInfo>>({});
   const [balancesLoading, setBalancesLoading] = useState(false);
+  const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
 
   const loadMerchants = () => {
     setIsLoading(true);
@@ -100,6 +101,7 @@ export default function MerchantsPage() {
                       balanceLoading={balancesLoading}
                       onCredentials={(creds) => setCredentials(creds)}
                       onRefresh={() => { loadMerchants(); loadBalances(); }}
+                      onEdit={(merchant) => setEditingMerchant(merchant)}
                     />
                   ))}
                 </tbody>
@@ -126,6 +128,18 @@ export default function MerchantsPage() {
           }}
         />
       )}
+
+      {editingMerchant && (
+        <EditMerchantModal
+          merchant={editingMerchant}
+          onClose={() => setEditingMerchant(null)}
+          onUpdated={() => {
+            setEditingMerchant(null);
+            loadMerchants();
+            loadBalances();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -136,12 +150,14 @@ function MerchantRow({
   balanceLoading,
   onCredentials,
   onRefresh,
+  onEdit,
 }: {
   merchant: Merchant;
   balance?: MerchantBalanceInfo;
   balanceLoading: boolean;
   onCredentials: (creds: MerchantCredentials) => void;
   onRefresh: () => void;
+  onEdit: (merchant: Merchant) => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [regenerating, setRegenerating] = useState<string | null>(null);
@@ -278,6 +294,21 @@ function MerchantRow({
               className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
             >
               {showDetails ? "Hide" : "Keys"}
+            </button>
+            <button
+              onClick={() => onEdit(m)}
+              className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={actionLoading}
+              className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" />
+              {actionLoading ? "..." : "Delete"}
             </button>
             <Link
               href={`/dashboard/merchants/${m.id}`}
@@ -618,6 +649,211 @@ function CreateMerchantModal({
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? "Creating..." : "Create Merchant"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditMerchantModal({
+  merchant,
+  onClose,
+  onUpdated,
+}: {
+  merchant: Merchant;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const [form, setForm] = useState<UpdateMerchantData>({
+    name: merchant.name,
+    phone: merchant.phone || "",
+    website: merchant.website || "",
+    callback_url: merchant.callback_url || "",
+    business_type: merchant.business_type || "",
+    description: merchant.description || "",
+    logo_url: merchant.logo_url || "",
+    is_active: merchant.is_active,
+    default_payment_mode: merchant.default_payment_mode,
+    fee_rate: merchant.fee_rate,
+    fee_bearer: merchant.fee_bearer,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      // Strip empty strings to undefined so backend ignores them
+      const payload: UpdateMerchantData = { ...form };
+      for (const key of ["phone", "website", "callback_url", "business_type", "description", "logo_url"] as const) {
+        if (payload[key] === "") payload[key] = undefined;
+      }
+      await merchantsService.update(merchant.id, payload);
+      onUpdated();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr.response?.data?.detail || "Failed to update merchant");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Edit Merchant</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Name *
+            </label>
+            <Input
+              value={form.name || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Merchant name"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <Input
+              value={merchant.email}
+              disabled
+              className="bg-gray-100 cursor-not-allowed"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              L&apos;email ne peut pas être modifié
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Phone
+              </label>
+              <Input
+                value={form.phone || ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="+237..."
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Business Type
+              </label>
+              <Input
+                value={form.business_type || ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, business_type: e.target.value }))}
+                placeholder="e-commerce, SaaS..."
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Website
+            </label>
+            <Input
+              value={form.website || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, website: e.target.value }))}
+              placeholder="https://example.com"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Callback URL
+            </label>
+            <Input
+              value={form.callback_url || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, callback_url: e.target.value }))}
+              placeholder="https://example.com/webhook"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <Input
+              value={form.description || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Description du marchand"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Logo URL
+            </label>
+            <Input
+              value={form.logo_url || ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, logo_url: e.target.value }))}
+              placeholder="https://example.com/logo.png"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Taux de frais (%) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="1.75"
+                max="20"
+                value={form.fee_rate ?? 1.75}
+                onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
+              />
+              <p className="mt-1 text-xs text-gray-400">Minimum 1.75%</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Frais supportés par
+              </label>
+              <select
+                value={form.fee_bearer ?? "MERCHANT"}
+                onChange={(e) => setForm((prev) => ({ ...prev, fee_bearer: e.target.value as "MERCHANT" | "CLIENT" }))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-1 focus:ring-gold-400"
+              >
+                <option value="MERCHANT">Marchand</option>
+                <option value="CLIENT">Client</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_active ?? true}
+                onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-navy-600 focus:ring-navy-500"
+              />
+              Marchand actif
+            </label>
+            <p className="text-xs text-gray-500">
+              {form.is_active ? "Le marchand peut utiliser l'API" : "Accès API désactivé"}
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>
