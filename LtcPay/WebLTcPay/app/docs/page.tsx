@@ -6,6 +6,646 @@ import { Copy, Check, ChevronDown, ChevronRight, ExternalLink } from "lucide-rea
 
 const BASE_URL = "https://pay.ltcgroup.site/api/v1";
 
+/* ─── Translations ─── */
+const translations = {
+  fr: {
+    // Header
+    apiDocs: "API Docs",
+    copyDocs: "Copy docs",
+    copied: "Copied!",
+    dashboard: "Dashboard",
+
+    // Hero
+    heroTitle: "Documentation API",
+    heroDesc: "Intégrez LTCPay dans votre application pour accepter les paiements via Mobile Money et autres moyens de paiement locaux en Afrique.",
+    baseUrl: "Base URL",
+
+    // Integration Modes
+    integrationModes: "Modes d\u2019intégration",
+    unifiedFlowTitle: "Flux de paiement unifié — Plus de redirections navigateur !",
+    unifiedFlowDesc: (
+      <>
+        Les modes <strong>SDK</strong> et <strong>Direct API</strong> utilisent la même <strong>interface de paiement native</strong> via TouchPay Direct API.
+        Tous les paiements sont traités serveur-à-serveur avec <strong>zéro redirection navigateur</strong>.
+      </>
+    ),
+
+    // SDK Mode card
+    sdkTitle: "Liens de paiement",
+    sdkIdealFor: "Idéal pour :",
+    sdkIdealDesc: "Liens de paiement réutilisables, QR codes, factures",
+    sdkBullets: [
+      <>Créer un paiement <strong>sans</strong> opérateur/téléphone</>,
+      "Le client choisit sur la page de paiement LtcPay",
+      "\u2713 Aucune redirection navigateur",
+      "Formulaire natif avec sélecteur d\u2019opérateur + saisie téléphone",
+      "Polling pour mises à jour en temps réel",
+    ],
+    sdkFooter: "Parfait pour les URLs de paiement partageables",
+
+    // Direct API Mode card
+    directTitle: "Applications mobiles",
+    directIdealFor: "Idéal pour :",
+    directIdealDesc: "Applications mobiles natives avec UI personnalisée",
+    directBullets: [
+      <>Fournir opérateur + téléphone <strong>à la création</strong></>,
+      "Initiation immédiate serveur-à-serveur",
+      "\u2713 Pas besoin de navigateur/WebView",
+      "Construisez votre propre UI native",
+      "Polling via API pour les mises à jour de statut",
+    ],
+    directFooter: "\u26A0\uFE0F Requis : operator + customer_phone à la création",
+
+    // Auto-detection banner
+    autoDetectTitle: "\u2728 Détection automatique du mode — Aucune configuration nécessaire !",
+    autoDetectDesc: (
+      <>Le mode de paiement est <strong>détecté automatiquement</strong> selon les champs fournis :</>
+    ),
+    autoDetectBullets: [
+      <><strong>Sans</strong> operator/phone → mode SDK (le client saisit sur la page de paiement)</>,
+      <><strong>Avec</strong> operator + phone → mode Direct API (initiation immédiate)</>,
+    ],
+    autoDetectFooter: (
+      <>Les deux modes sont <strong>toujours disponibles</strong> — créez le paiement et le système choisit le bon mode automatiquement !</>
+    ),
+
+    // Comparison table
+    comparisonTitle: "Comparaison des modes",
+    compFeature: "Fonctionnalité",
+    compSdk: "SDK (Liens de paiement)",
+    compDirect: "Direct API (Mobile)",
+    compRows: [
+      { feature: "Idéal pour", sdk: "Liens de paiement, QR codes, factures", direct: "Apps mobiles natives avec UI personnalisée" },
+      { feature: "Redirections navigateur", sdk: "\u2713 Aucune redirection", direct: "\u2713 Aucune redirection", bold: true },
+      { feature: "Requis à la création", sdk: "amount, currency", direct: "amount, currency, operator, customer_phone", directBold: true },
+      { feature: "Sélection opérateur", sdk: "Le client choisit sur la page LtcPay", direct: "Le marchand fournit à la création" },
+      { feature: "Statut initial", sdk: "PENDING", direct: "PROCESSING", code: true },
+      { feature: "Interface de paiement", sdk: "Formulaire natif LtcPay (opérateur + téléphone)", direct: "Votre propre UI native" },
+      { feature: "Initiation du paiement", sdk: "À la soumission → TouchPay Direct API", direct: "Immédiate → TouchPay Direct API" },
+      { feature: "Vérification du statut", sdk: "Polling automatique sur la page + webhooks", direct: "Poll GET /payments/{reference} + webhooks" },
+      { feature: "Complexité d\u2019intégration", sdk: "\u2B50\u2B50\u2B50 Simple (redirection)", direct: "\u2B50\u2B50\u2B50\u2B50 Moyen (UI + polling)" },
+      { feature: "Liens réutilisables", sdk: "\u2713 Oui — parfait pour les factures", direct: "\u2717 Non — lié à un client spécifique" },
+    ],
+
+    // Direct API tip box
+    directApiTipTitle: "\uD83D\uDCA1 Mode Direct API (Initiation immédiate)",
+    directApiTipDesc: (
+      <>Pour déclencher le <strong>mode Direct API</strong> avec initiation immédiate, fournissez les <strong>deux</strong> champs :</>
+    ),
+    directApiTipOperator: "Opérateur Mobile Money : ",
+    directApiTipPhone: "Numéro du client (9 chiffres sans indicatif, ex: ",
+    directApiTipFallback: (
+      <>Sans ces champs, le paiement utilise le <strong>mode SDK</strong> (le client saisit les infos sur la page de paiement).</>
+    ),
+
+    // Authentication
+    authTitle: "Authentification",
+    authDesc: (
+      <>
+        Toutes les requêtes API doivent inclure votre clé API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Key</code>
+        {" "}et votre secret API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Secret</code>.
+        Utilisez les <strong>clés de test</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_test_*</code>) pour le sandbox
+        {" "}et les <strong>clés live</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_live_*</code>) pour la production.
+      </>
+    ),
+
+    // Endpoints
+    endpointsTitle: "Points d\u2019accès (Endpoints)",
+
+    // Create Payment
+    createPaymentTitle: "Créer un paiement",
+    createPaymentDesc: "Créer un nouveau paiement. Le mode est détecté automatiquement — aucune configuration nécessaire !",
+    autoDetectEndpointTitle: "\u2728 Détection automatique du mode",
+    autoDetectEndpointBullets: [
+      <><strong>Sans operator/phone :</strong> mode SDK → retourne <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → le client saisit sur la page</>,
+      <><strong>Avec operator + phone :</strong> mode Direct API → initiation immédiate → statut <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></>,
+      <>Pas besoin de spécifier <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> — c&apos;est automatique !</>,
+      "Les deux modes utilisent TouchPay Direct API (zéro redirection navigateur)",
+    ],
+
+    // Param descriptions
+    paramAmount: "Montant en unité de devise (ex: 5000 = 5 000 XAF). Minimum : 100.",
+    paramCurrency: "Code devise ISO (XAF, XOF, EUR, USD). Par défaut : XAF",
+    paramOperator: "Opérateur Mobile Money : 'MTN' ou 'ORANGE'. Déclenche le mode Direct API si fourni avec customer_phone.",
+    paramPhone: "Téléphone client (9 chiffres sans indicatif, ex: 677179670). Le préfixe pays est retiré automatiquement.",
+    paramPaymentMode: "Forcer le mode : 'SDK' ou 'DIRECT_API'. Détecté automatiquement si omis (recommandé).",
+    paramMerchantRef: "Votre référence interne commande/facture pour la réconciliation",
+    paramDescription: "Description du paiement affichée au client (max 500 caractères)",
+    paramCustomerInfo: "Informations client : {name, email, phone}",
+    paramCallbackUrl: "URL webhook pour les notifications de paiement (remplace le défaut marchand)",
+    paramReturnUrl: "URL de redirection du client après le paiement",
+    paramMetadata: "Données clé-valeur personnalisées attachées au paiement",
+
+    // Create payment examples
+    exSdkTitle: "Exemple 1 : Mode SDK (Liens de paiement)",
+    exDirectTitle: "Exemple 2 : Mode Direct API (Apps mobiles avec UI personnalisée)",
+    exPythonTitle: "Exemples Python",
+    responseSdkTitle: "Réponse (Mode SDK)",
+    responseDirectTitle: "Réponse (Mode Direct API)",
+    responseDirectNote: (
+      <>
+        <strong>Note :</strong> En mode Direct API, le statut passe immédiatement à <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> car le paiement est initié serveur-à-serveur. Le client reçoit une notification push pour approuver sur son app Mobile Money.
+      </>
+    ),
+
+    // Get Payment
+    getPaymentTitle: "Statut d\u2019un paiement",
+    getPaymentDesc: "Récupérer le statut et les détails d\u2019un paiement par sa référence. En mode Direct API, interrogez cet endpoint toutes les 3-5 secondes pour vérifier si le paiement est terminé.",
+    pollingTitle: "Polling Direct API :",
+    pollingDesc: (
+      <>
+        Les apps mobiles en mode Direct API doivent interroger cet endpoint toutes les 3-5 secondes pour vérifier le statut.
+        Arrêtez le polling quand le statut devient <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, ou après 2 minutes (timeout).
+      </>
+    ),
+
+    // List Payments
+    listPaymentsTitle: "Lister les paiements",
+    listPaymentsDesc: "Lister tous les paiements du marchand authentifié. Supporte la pagination et le filtrage par statut.",
+    paramPage: "Numéro de page (par défaut : 1)",
+    paramPageSize: "Éléments par page, 1-100 (par défaut : 20)",
+    paramStatus: "Filtrer par statut : PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED",
+
+    // Fees
+    feesTitle: "Frais",
+    feesDesc: "Des frais sont appliqués sur chaque paiement. Le taux de commission est configuré par l\u2019administrateur LtcPay pour chaque marchand. Par défaut, les frais sont supportés par le marchand (déduits du montant reçu).",
+    feeModeTitle: "Mode d\u2019imputation des frais",
+    feeMode: "Mode",
+    feeWhoPays: "Qui paie ?",
+    feeExample: "Exemple (montant: 10 000 XAF)",
+    feeMerchantDesc: "Le marchand supporte les frais. Le client paie le montant exact.",
+    feeMerchantEx: (<>Client paie <strong>10 000</strong>, marchand reçoit montant - frais</>),
+    feeClientDesc: "Le client paie les frais en plus du montant. Le marchand reçoit le montant intégral.",
+    feeClientEx: (<>Client paie <strong>10 000 + frais</strong>, marchand reçoit 10 000</>),
+    feeNote: (
+      <>
+        Le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">fee</code> est retourné dans toutes les réponses de paiement et dans les webhooks. En mode <strong>CLIENT</strong>, le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">amount</code> reflète le montant total facturé (montant de base + frais).
+      </>
+    ),
+
+    // Phone Format
+    phoneTitle: "Format du numéro de téléphone",
+    phoneDesc: (
+      <>
+        Pour le mode <strong>Direct API</strong>, le numéro de téléphone doit contenir <strong>9 chiffres</strong> sans indicatif pays.
+        LtcPay normalise automatiquement le numéro en retirant le préfixe <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">237</code>.
+      </>
+    ),
+    phoneSent: "Format envoyé",
+    phoneAccepted: "Accepté ?",
+    phoneNotes: "Notes",
+    phoneRows: [
+      { format: "677179670", ok: true, note: "Format correct (9 chiffres)" },
+      { format: "237677179670", ok: true, note: "Le préfixe 237 est retiré automatiquement" },
+      { format: "+237677179670", ok: true, note: "Le +237 est retiré automatiquement" },
+      { format: "00237677179670", ok: true, note: "Le 00237 est retiré automatiquement" },
+    ],
+    phoneReco: "Recommandation :",
+    phoneRecoDesc: "Envoyez directement le format à 9 chiffres pour éviter toute ambiguïté.",
+
+    // Webhooks
+    webhooksTitle: "Webhooks",
+    webhooksDesc: (
+      <>
+        LTCPay envoie des requêtes <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code>
+        {" "}à votre <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> lorsque le
+        statut d&apos;un paiement change. Le payload est signé avec HMAC-SHA256 en utilisant votre <strong>webhook secret</strong>.
+      </>
+    ),
+    webhooksNote: (
+      <>
+        <strong>Note :</strong> Les webhooks fonctionnent de manière identique pour les modes SDK et Direct API. Vous recevrez le même payload lorsqu&apos;un paiement atteint un statut terminal (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
+      </>
+    ),
+    webhookHeadersTitle: "Headers des webhooks",
+    webhookHeadersDesc: "Chaque requête webhook inclut les headers suivants :",
+    headerCol: "Header",
+    descriptionCol: "Description",
+    webhookHeaders: [
+      { header: "X-LtcPay-Signature", desc: "Signature HMAC-SHA256 du body JSON brut" },
+      { header: "X-LtcPay-Event", desc: "Type d\u2019événement (ex: payment.status_changed)" },
+      { header: "X-LtcPay-Delivery-Id", desc: "ID de livraison unique pour l\u2019idempotence" },
+    ],
+    webhookPayloadTitle: "Payload du webhook",
+    webhookPayloadDesc: (
+      <>
+        L&apos;événement est toujours <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. Vérifiez le champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> pour déterminer le nouveau statut.
+      </>
+    ),
+
+    // Signature verification
+    sigVerifyTitle: "Vérification des signatures",
+    sigVerifyDesc: (
+      <>
+        La signature est calculée comme <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. Vous <strong>devez</strong> vérifier la signature en utilisant le body brut de la requête (pas une version re-sérialisée) pour éviter les erreurs.
+      </>
+    ),
+
+    // Payment statuses
+    statusTitle: "Statuts de paiement",
+    statusCol: "Statut",
+    terminalCol: "Terminal ?",
+    statusRows: [
+      { status: "PENDING", desc: "Paiement créé, en attente d\u2019action du client (mode SDK)", terminal: false },
+      { status: "PROCESSING", desc: "Paiement initié via Direct API, le client a reçu la notification push", terminal: false },
+      { status: "COMPLETED", desc: "Paiement traité avec succès", terminal: true, success: true },
+      { status: "FAILED", desc: "Paiement échoué (solde insuffisant, timeout, refusé, etc.)", terminal: true, success: false },
+      { status: "EXPIRED", desc: "Lien de paiement expiré (30 minutes en mode SDK)", terminal: true, success: false },
+      { status: "CANCELLED", desc: "Paiement annulé par le client", terminal: true, success: false },
+    ],
+    yes: "Oui",
+    no: "Non",
+
+    // Retry policy
+    retryTitle: "Politique de réessai",
+    retryDesc: (
+      <>
+        Si votre endpoint retourne un code non-2xx, LTCPay réessaie jusqu&apos;à <strong>5 fois</strong> avec
+        un backoff exponentiel (2s, 4s, 8s, 16s, 32s). Votre endpoint doit répondre en moins de <strong>30 secondes</strong>.
+      </>
+    ),
+
+    // Webhook troubleshooting
+    troubleshootTitle: "Dépannage : \"Invalid webhook signature\"",
+    troubleshootDesc: (
+      <>Si vous recevez une erreur <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code>, vérifiez les points suivants :</>
+    ),
+    troubleshootBullets: [
+      <>Lisez la signature depuis le header <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> (et non <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</>,
+      <>Utilisez le <strong>body brut de la requête</strong> pour la vérification HMAC &mdash; ne re-sérialisez PAS le JSON parsé (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> peut produire un formatage différent)</>,
+      <>Assurez-vous d&apos;utiliser votre <strong>webhook secret marchand</strong> (défini lors de l&apos;inscription), et non votre clé API ou secret API</>,
+      <>L&apos;algorithme de signature est <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> avec sortie hex digest</>,
+      "Si vous n\u2019avez pas de webhook secret, contactez l\u2019administrateur LTCPay pour en configurer un",
+    ],
+
+    // Error Handling
+    errorsTitle: "Gestion des erreurs",
+    errorsDesc: (
+      <>
+        L&apos;API retourne des codes HTTP standards. Les erreurs incluent un body JSON avec un champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">detail</code>.
+      </>
+    ),
+    codeCol: "Code",
+    meaningCol: "Signification",
+    errorCodes: [
+      { code: "200", desc: "Succès" },
+      { code: "201", desc: "Ressource créée" },
+      { code: "400", desc: "Requête invalide — vérifiez les paramètres" },
+      { code: "401", desc: "Identifiants API invalides ou manquants" },
+      { code: "404", desc: "Ressource introuvable" },
+      { code: "409", desc: "Conflit (ex: email déjà utilisé)" },
+      { code: "429", desc: "Limite de requêtes dépassée" },
+      { code: "500", desc: "Erreur serveur — contactez le support" },
+    ],
+
+    // Test Mode
+    testTitle: "Mode test",
+    testSubtitle: "Tests en sandbox",
+    testBullets: [
+      <>Utilisez votre <strong>clé API de test</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_test_*</code>) — aucun argent réel n&apos;est débité</>,
+      "Tous les endpoints fonctionnent de manière identique en mode test et live",
+      "Les paiements de test se complètent automatiquement après quelques secondes",
+      "Les webhooks sont envoyés pour les paiements de test comme pour les paiements réels",
+      <>Passez à votre <strong>clé API live</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_live_*</code>) quand vous êtes prêt pour la production</>,
+    ],
+
+    // Footer
+    footerHelp: "Besoin d\u2019aide ? Contactez-nous à ",
+    footerTagline: "LTCPay — Passerelle de paiement pour l\u2019Afrique",
+
+    // ParamTable headers
+    paramHeader: "Paramètre",
+    typeHeader: "Type",
+    requiredHeader: "Requis",
+    descHeader: "Description",
+    required: "requis",
+    optional: "optionnel",
+
+    // ResponseBlock
+    responseLabel: "Réponse",
+  },
+  en: {
+    // Header
+    apiDocs: "API Docs",
+    copyDocs: "Copy docs",
+    copied: "Copied!",
+    dashboard: "Dashboard",
+
+    // Hero
+    heroTitle: "API Documentation",
+    heroDesc: "Integrate LTCPay into your application to accept payments via Mobile Money and other local payment methods in Africa.",
+    baseUrl: "Base URL",
+
+    // Integration Modes
+    integrationModes: "Integration Modes",
+    unifiedFlowTitle: "Unified Payment Flow — No More Browser Redirects!",
+    unifiedFlowDesc: (
+      <>
+        Both <strong>SDK</strong> and <strong>Direct API</strong> modes use the same <strong>native payment interface</strong> via TouchPay Direct API.
+        All payments are processed server-to-server with <strong>zero browser redirects</strong>.
+      </>
+    ),
+
+    // SDK Mode card
+    sdkTitle: "Payment Links",
+    sdkIdealFor: "Ideal for:",
+    sdkIdealDesc: "Reusable payment links, QR codes, invoices",
+    sdkBullets: [
+      <>Create a payment <strong>without</strong> operator/phone</>,
+      "Customer chooses on the LtcPay payment page",
+      "\u2713 No browser redirects",
+      "Native form with operator selector + phone input",
+      "Polling for real-time updates",
+    ],
+    sdkFooter: "Perfect for shareable payment URLs",
+
+    // Direct API Mode card
+    directTitle: "Mobile Apps",
+    directIdealFor: "Ideal for:",
+    directIdealDesc: "Native mobile apps with custom UI",
+    directBullets: [
+      <>Provide operator + phone <strong>at creation</strong></>,
+      "Immediate server-to-server initiation",
+      "\u2713 No browser/WebView needed",
+      "Build your own native UI",
+      "Poll via API for status updates",
+    ],
+    directFooter: "\u26A0\uFE0F Required: operator + customer_phone at creation",
+
+    // Auto-detection banner
+    autoDetectTitle: "\u2728 Automatic Mode Detection — No Configuration Needed!",
+    autoDetectDesc: (
+      <>The payment mode is <strong>automatically detected</strong> based on the fields provided:</>
+    ),
+    autoDetectBullets: [
+      <><strong>Without</strong> operator/phone → SDK mode (customer enters info on payment page)</>,
+      <><strong>With</strong> operator + phone → Direct API mode (immediate initiation)</>,
+    ],
+    autoDetectFooter: (
+      <>Both modes are <strong>always available</strong> — create the payment and the system picks the right mode automatically!</>
+    ),
+
+    // Comparison table
+    comparisonTitle: "Mode Comparison",
+    compFeature: "Feature",
+    compSdk: "SDK (Payment Links)",
+    compDirect: "Direct API (Mobile)",
+    compRows: [
+      { feature: "Ideal for", sdk: "Payment links, QR codes, invoices", direct: "Native mobile apps with custom UI" },
+      { feature: "Browser redirects", sdk: "\u2713 No redirects", direct: "\u2713 No redirects", bold: true },
+      { feature: "Required at creation", sdk: "amount, currency", direct: "amount, currency, operator, customer_phone", directBold: true },
+      { feature: "Operator selection", sdk: "Customer chooses on LtcPay page", direct: "Merchant provides at creation" },
+      { feature: "Initial status", sdk: "PENDING", direct: "PROCESSING", code: true },
+      { feature: "Payment interface", sdk: "LtcPay native form (operator + phone)", direct: "Your own native UI" },
+      { feature: "Payment initiation", sdk: "On submission → TouchPay Direct API", direct: "Immediate → TouchPay Direct API" },
+      { feature: "Status check", sdk: "Auto-polling on page + webhooks", direct: "Poll GET /payments/{reference} + webhooks" },
+      { feature: "Integration complexity", sdk: "\u2B50\u2B50\u2B50 Simple (redirect)", direct: "\u2B50\u2B50\u2B50\u2B50 Medium (UI + polling)" },
+      { feature: "Reusable links", sdk: "\u2713 Yes — perfect for invoices", direct: "\u2717 No — tied to a specific customer" },
+    ],
+
+    // Direct API tip box
+    directApiTipTitle: "\uD83D\uDCA1 Direct API Mode (Immediate Initiation)",
+    directApiTipDesc: (
+      <>To trigger <strong>Direct API mode</strong> with immediate initiation, provide <strong>both</strong> fields:</>
+    ),
+    directApiTipOperator: "Mobile Money operator: ",
+    directApiTipPhone: "Customer phone number (9 digits without country code, e.g.: ",
+    directApiTipFallback: (
+      <>Without these fields, the payment uses <strong>SDK mode</strong> (customer enters info on the payment page).</>
+    ),
+
+    // Authentication
+    authTitle: "Authentication",
+    authDesc: (
+      <>
+        All API requests must include your API key in the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Key</code>
+        {" "}header and your API secret in the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Secret</code> header.
+        Use <strong>test keys</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_test_*</code>) for sandbox
+        {" "}and <strong>live keys</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_live_*</code>) for production.
+      </>
+    ),
+
+    // Endpoints
+    endpointsTitle: "Endpoints",
+
+    // Create Payment
+    createPaymentTitle: "Create a payment",
+    createPaymentDesc: "Create a new payment. The mode is automatically detected — no configuration needed!",
+    autoDetectEndpointTitle: "\u2728 Automatic mode detection",
+    autoDetectEndpointBullets: [
+      <><strong>Without operator/phone:</strong> SDK mode → returns <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → customer enters info on page</>,
+      <><strong>With operator + phone:</strong> Direct API mode → immediate initiation → status <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></>,
+      <>No need to specify <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> — it&apos;s automatic!</>,
+      "Both modes use TouchPay Direct API (zero browser redirects)",
+    ],
+
+    // Param descriptions
+    paramAmount: "Amount in currency unit (e.g.: 5000 = 5,000 XAF). Minimum: 100.",
+    paramCurrency: "ISO currency code (XAF, XOF, EUR, USD). Default: XAF",
+    paramOperator: "Mobile Money operator: 'MTN' or 'ORANGE'. Triggers Direct API mode if provided with customer_phone.",
+    paramPhone: "Customer phone (9 digits without country code, e.g.: 677179670). Country prefix is stripped automatically.",
+    paramPaymentMode: "Force mode: 'SDK' or 'DIRECT_API'. Auto-detected if omitted (recommended).",
+    paramMerchantRef: "Your internal order/invoice reference for reconciliation",
+    paramDescription: "Payment description shown to the customer (max 500 characters)",
+    paramCustomerInfo: "Customer information: {name, email, phone}",
+    paramCallbackUrl: "Webhook URL for payment notifications (overrides merchant default)",
+    paramReturnUrl: "Customer redirect URL after payment",
+    paramMetadata: "Custom key-value data attached to the payment",
+
+    // Create payment examples
+    exSdkTitle: "Example 1: SDK Mode (Payment Links)",
+    exDirectTitle: "Example 2: Direct API Mode (Mobile apps with custom UI)",
+    exPythonTitle: "Python Examples",
+    responseSdkTitle: "Response (SDK Mode)",
+    responseDirectTitle: "Response (Direct API Mode)",
+    responseDirectNote: (
+      <>
+        <strong>Note:</strong> In Direct API mode, the status immediately becomes <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> because the payment is initiated server-to-server. The customer receives a push notification to approve on their Mobile Money app.
+      </>
+    ),
+
+    // Get Payment
+    getPaymentTitle: "Payment status",
+    getPaymentDesc: "Retrieve the status and details of a payment by its reference. In Direct API mode, poll this endpoint every 3-5 seconds to check if the payment is complete.",
+    pollingTitle: "Direct API Polling:",
+    pollingDesc: (
+      <>
+        Mobile apps in Direct API mode should poll this endpoint every 3-5 seconds to check status.
+        Stop polling when status becomes <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, or after 2 minutes (timeout).
+      </>
+    ),
+
+    // List Payments
+    listPaymentsTitle: "List payments",
+    listPaymentsDesc: "List all payments for the authenticated merchant. Supports pagination and status filtering.",
+    paramPage: "Page number (default: 1)",
+    paramPageSize: "Items per page, 1-100 (default: 20)",
+    paramStatus: "Filter by status: PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED",
+
+    // Fees
+    feesTitle: "Fees",
+    feesDesc: "Fees are applied to each payment. The commission rate is configured by the LtcPay administrator for each merchant. By default, fees are borne by the merchant (deducted from the received amount).",
+    feeModeTitle: "Fee allocation mode",
+    feeMode: "Mode",
+    feeWhoPays: "Who pays?",
+    feeExample: "Example (amount: 10,000 XAF)",
+    feeMerchantDesc: "The merchant bears the fees. The customer pays the exact amount.",
+    feeMerchantEx: (<>Customer pays <strong>10,000</strong>, merchant receives amount - fees</>),
+    feeClientDesc: "The customer pays the fees on top of the amount. The merchant receives the full amount.",
+    feeClientEx: (<>Customer pays <strong>10,000 + fees</strong>, merchant receives 10,000</>),
+    feeNote: (
+      <>
+        The <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">fee</code> field is returned in all payment responses and in webhooks. In <strong>CLIENT</strong> mode, the <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">amount</code> field reflects the total billed amount (base amount + fees).
+      </>
+    ),
+
+    // Phone Format
+    phoneTitle: "Phone Number Format",
+    phoneDesc: (
+      <>
+        For <strong>Direct API</strong> mode, the phone number must contain <strong>9 digits</strong> without country code.
+        LtcPay automatically normalizes the number by stripping the <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">237</code> prefix.
+      </>
+    ),
+    phoneSent: "Format sent",
+    phoneAccepted: "Accepted?",
+    phoneNotes: "Notes",
+    phoneRows: [
+      { format: "677179670", ok: true, note: "Correct format (9 digits)" },
+      { format: "237677179670", ok: true, note: "237 prefix is stripped automatically" },
+      { format: "+237677179670", ok: true, note: "+237 is stripped automatically" },
+      { format: "00237677179670", ok: true, note: "00237 is stripped automatically" },
+    ],
+    phoneReco: "Recommendation:",
+    phoneRecoDesc: "Send the 9-digit format directly to avoid any ambiguity.",
+
+    // Webhooks
+    webhooksTitle: "Webhooks",
+    webhooksDesc: (
+      <>
+        LTCPay sends <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code>
+        {" "}requests to your <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> when a
+        payment status changes. The payload is signed with HMAC-SHA256 using your <strong>webhook secret</strong>.
+      </>
+    ),
+    webhooksNote: (
+      <>
+        <strong>Note:</strong> Webhooks work identically for both SDK and Direct API modes. You will receive the same payload when a payment reaches a terminal status (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
+      </>
+    ),
+    webhookHeadersTitle: "Webhook Headers",
+    webhookHeadersDesc: "Each webhook request includes the following headers:",
+    headerCol: "Header",
+    descriptionCol: "Description",
+    webhookHeaders: [
+      { header: "X-LtcPay-Signature", desc: "HMAC-SHA256 signature of the raw JSON body" },
+      { header: "X-LtcPay-Event", desc: "Event type (e.g.: payment.status_changed)" },
+      { header: "X-LtcPay-Delivery-Id", desc: "Unique delivery ID for idempotency" },
+    ],
+    webhookPayloadTitle: "Webhook Payload",
+    webhookPayloadDesc: (
+      <>
+        The event is always <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. Check the <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> field to determine the new status.
+      </>
+    ),
+
+    // Signature verification
+    sigVerifyTitle: "Signature Verification",
+    sigVerifyDesc: (
+      <>
+        The signature is computed as <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. You <strong>must</strong> verify the signature using the raw request body (not a re-serialized version) to avoid errors.
+      </>
+    ),
+
+    // Payment statuses
+    statusTitle: "Payment Statuses",
+    statusCol: "Status",
+    terminalCol: "Terminal?",
+    statusRows: [
+      { status: "PENDING", desc: "Payment created, awaiting customer action (SDK mode)", terminal: false },
+      { status: "PROCESSING", desc: "Payment initiated via Direct API, customer received push notification", terminal: false },
+      { status: "COMPLETED", desc: "Payment processed successfully", terminal: true, success: true },
+      { status: "FAILED", desc: "Payment failed (insufficient balance, timeout, rejected, etc.)", terminal: true, success: false },
+      { status: "EXPIRED", desc: "Payment link expired (30 minutes in SDK mode)", terminal: true, success: false },
+      { status: "CANCELLED", desc: "Payment cancelled by the customer", terminal: true, success: false },
+    ],
+    yes: "Yes",
+    no: "No",
+
+    // Retry policy
+    retryTitle: "Retry Policy",
+    retryDesc: (
+      <>
+        If your endpoint returns a non-2xx code, LTCPay retries up to <strong>5 times</strong> with
+        exponential backoff (2s, 4s, 8s, 16s, 32s). Your endpoint must respond within <strong>30 seconds</strong>.
+      </>
+    ),
+
+    // Webhook troubleshooting
+    troubleshootTitle: "Troubleshooting: \"Invalid webhook signature\"",
+    troubleshootDesc: (
+      <>If you receive a <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code> error, check the following:</>
+    ),
+    troubleshootBullets: [
+      <>Read the signature from the <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> header (not <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</>,
+      <>Use the <strong>raw request body</strong> for HMAC verification &mdash; do NOT re-serialize the parsed JSON (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> may produce different formatting)</>,
+      <>Make sure you are using your <strong>merchant webhook secret</strong> (set during registration), not your API key or API secret</>,
+      <>The signing algorithm is <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> with hex digest output</>,
+      "If you don\u2019t have a webhook secret, contact the LTCPay administrator to set one up",
+    ],
+
+    // Error Handling
+    errorsTitle: "Error Handling",
+    errorsDesc: (
+      <>
+        The API returns standard HTTP codes. Errors include a JSON body with a <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">detail</code> field.
+      </>
+    ),
+    codeCol: "Code",
+    meaningCol: "Meaning",
+    errorCodes: [
+      { code: "200", desc: "Success" },
+      { code: "201", desc: "Resource created" },
+      { code: "400", desc: "Invalid request — check parameters" },
+      { code: "401", desc: "Invalid or missing API credentials" },
+      { code: "404", desc: "Resource not found" },
+      { code: "409", desc: "Conflict (e.g.: email already in use)" },
+      { code: "429", desc: "Rate limit exceeded" },
+      { code: "500", desc: "Server error — contact support" },
+    ],
+
+    // Test Mode
+    testTitle: "Test Mode",
+    testSubtitle: "Sandbox Testing",
+    testBullets: [
+      <>Use your <strong>test API key</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_test_*</code>) — no real money is charged</>,
+      "All endpoints work identically in test and live mode",
+      "Test payments complete automatically after a few seconds",
+      "Webhooks are sent for test payments just like real payments",
+      <>Switch to your <strong>live API key</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_live_*</code>) when you are ready for production</>,
+    ],
+
+    // Footer
+    footerHelp: "Need help? Contact us at ",
+    footerTagline: "LTCPay — Payment Gateway for Africa",
+
+    // ParamTable headers
+    paramHeader: "Parameter",
+    typeHeader: "Type",
+    requiredHeader: "Required",
+    descHeader: "Description",
+    required: "required",
+    optional: "optional",
+
+    // ResponseBlock
+    responseLabel: "Response",
+  },
+} as const;
+
+type Lang = "fr" | "en";
+type Translations = typeof translations;
+type T = Translations[Lang];
+
 function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -79,16 +719,16 @@ function EndpointSection({
   );
 }
 
-function ParamTable({ params }: { params: { name: string; type: string; required: boolean; desc: string }[] }) {
+function ParamTable({ params, t }: { params: { name: string; type: string; required: boolean; desc: string }[]; t: T }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-200">
-            <th className="pb-2 font-medium">Param&egrave;tre</th>
-            <th className="pb-2 font-medium">Type</th>
-            <th className="pb-2 font-medium">Requis</th>
-            <th className="pb-2 font-medium">Description</th>
+            <th className="pb-2 font-medium">{t.paramHeader}</th>
+            <th className="pb-2 font-medium">{t.typeHeader}</th>
+            <th className="pb-2 font-medium">{t.requiredHeader}</th>
+            <th className="pb-2 font-medium">{t.descHeader}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -98,9 +738,9 @@ function ParamTable({ params }: { params: { name: string; type: string; required
               <td className="py-2 text-xs text-gray-500">{p.type}</td>
               <td className="py-2">
                 {p.required ? (
-                  <span className="text-xs font-medium text-red-500">requis</span>
+                  <span className="text-xs font-medium text-red-500">{t.required}</span>
                 ) : (
-                  <span className="text-xs text-gray-400">optionnel</span>
+                  <span className="text-xs text-gray-400">{t.optional}</span>
                 )}
               </td>
               <td className="py-2 text-xs text-gray-600">{p.desc}</td>
@@ -112,11 +752,11 @@ function ParamTable({ params }: { params: { name: string; type: string; required
   );
 }
 
-function ResponseBlock({ status, body }: { status: number; body: string }) {
+function ResponseBlock({ status, body, t }: { status: number; body: string; t: T }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs font-medium text-gray-500">R&eacute;ponse</span>
+        <span className="text-xs font-medium text-gray-500">{t.responseLabel}</span>
         <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${status < 300 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
           {status}
         </span>
@@ -126,12 +766,11 @@ function ResponseBlock({ status, body }: { status: number; body: string }) {
   );
 }
 
-function CopyDocsButton() {
+function CopyDocsButton({ t }: { t: T }) {
   const [copied, setCopied] = useState(false);
   const copyDocs = () => {
     const main = document.querySelector("main");
     if (!main) return;
-    // Collect text content from the docs, preserving code blocks
     const blocks: string[] = [];
     main.querySelectorAll("section, .rounded-xl").forEach((section) => {
       const headings = section.querySelectorAll("h1, h2, h3");
@@ -140,7 +779,6 @@ function CopyDocsButton() {
         blocks.push(`${level} ${h.textContent}`);
       });
     });
-    // Fallback: copy innerText of main
     const text = main.innerText || main.textContent || "";
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -152,12 +790,34 @@ function CopyDocsButton() {
       className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
     >
       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-      {copied ? "Copied!" : "Copy docs"}
+      {copied ? t.copied : t.copyDocs}
     </button>
   );
 }
 
+function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  return (
+    <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm font-medium">
+      <button
+        onClick={() => setLang("fr")}
+        className={`px-3 py-2 transition-colors ${lang === "fr" ? "bg-navy-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+      >
+        FR
+      </button>
+      <button
+        onClick={() => setLang("en")}
+        className={`px-3 py-2 transition-colors ${lang === "en" ? "bg-navy-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
+
 export default function DocsPage() {
+  const [lang, setLang] = useState<Lang>("fr");
+  const t = translations[lang];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -169,16 +829,17 @@ export default function DocsPage() {
             </div>
             <span className="text-lg font-bold text-navy-500">LTCPay</span>
             <span className="ml-2 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-              API Docs
+              {t.apiDocs}
             </span>
           </Link>
           <div className="flex items-center gap-3">
-            <CopyDocsButton />
+            <LangToggle lang={lang} setLang={setLang} />
+            <CopyDocsButton t={t} />
             <Link
               href="/auth/login"
               className="rounded-lg bg-navy-500 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600 transition-colors"
             >
-              Dashboard
+              {t.dashboard}
             </Link>
           </div>
         </div>
@@ -187,30 +848,24 @@ export default function DocsPage() {
       <main className="mx-auto max-w-5xl px-6 py-10 space-y-10">
         {/* Hero */}
         <section>
-          <h1 className="text-3xl font-bold text-gray-900">Documentation API</h1>
-          <p className="mt-2 text-gray-600 max-w-2xl">
-            Int&eacute;grez LTCPay dans votre application pour accepter les paiements via Mobile Money
-            et autres moyens de paiement locaux en Afrique.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{t.heroTitle}</h1>
+          <p className="mt-2 text-gray-600 max-w-2xl">{t.heroDesc}</p>
           <div className="mt-5 rounded-xl bg-navy-500 p-5">
-            <p className="text-xs font-medium text-gray-300 uppercase tracking-wide mb-1">Base URL</p>
+            <p className="text-xs font-medium text-gray-300 uppercase tracking-wide mb-1">{t.baseUrl}</p>
             <code className="text-lg font-mono text-white">{BASE_URL}</code>
           </div>
         </section>
 
         {/* Integration Modes */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="integration-modes">Modes d&apos;int&eacute;gration</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="integration-modes">{t.integrationModes}</h2>
 
           <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-5 space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-2xl">🎉</span>
-              <h3 className="text-base font-bold text-blue-900">Flux de paiement unifi&eacute; — Plus de redirections navigateur !</h3>
+              <h3 className="text-base font-bold text-blue-900">{t.unifiedFlowTitle}</h3>
             </div>
-            <p className="text-sm text-blue-800">
-              Les modes <strong>SDK</strong> et <strong>Direct API</strong> utilisent la m&ecirc;me <strong>interface de paiement native</strong> via TouchPay Direct API.
-              Tous les paiements sont trait&eacute;s serveur-&agrave;-serveur avec <strong>z&eacute;ro redirection navigateur</strong>.
-            </p>
+            <p className="text-sm text-blue-800">{t.unifiedFlowDesc}</p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -218,20 +873,16 @@ export default function DocsPage() {
             <div className="rounded-xl border-2 border-purple-200 bg-purple-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-purple-500 px-2 py-1 text-xs font-bold text-white">SDK</span>
-                <h3 className="text-sm font-semibold text-purple-900">Liens de paiement</h3>
+                <h3 className="text-sm font-semibold text-purple-900">{t.sdkTitle}</h3>
               </div>
               <p className="text-sm text-purple-800">
-                <strong>Id&eacute;al pour :</strong> Liens de paiement r&eacute;utilisables, QR codes, factures
+                <strong>{t.sdkIdealFor}</strong> {t.sdkIdealDesc}
               </p>
               <ul className="text-sm text-purple-800 space-y-1 list-disc list-inside">
-                <li>Cr&eacute;er un paiement <strong>sans</strong> op&eacute;rateur/t&eacute;l&eacute;phone</li>
-                <li>Le client choisit sur la page de paiement LtcPay</li>
-                <li>&#10003; Aucune redirection navigateur</li>
-                <li>Formulaire natif avec s&eacute;lecteur d&apos;op&eacute;rateur + saisie t&eacute;l&eacute;phone</li>
-                <li>Polling pour mises &agrave; jour en temps r&eacute;el</li>
+                {t.sdkBullets.map((b, i) => <li key={i}>{b}</li>)}
               </ul>
               <div className="pt-2 border-t border-purple-200">
-                <p className="text-xs font-medium text-purple-700">Parfait pour les URLs de paiement partageables</p>
+                <p className="text-xs font-medium text-purple-700">{t.sdkFooter}</p>
               </div>
             </div>
 
@@ -239,132 +890,73 @@ export default function DocsPage() {
             <div className="rounded-xl border-2 border-green-200 bg-green-50 p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-green-500 px-2 py-1 text-xs font-bold text-white">DIRECT_API</span>
-                <h3 className="text-sm font-semibold text-green-900">Applications mobiles</h3>
+                <h3 className="text-sm font-semibold text-green-900">{t.directTitle}</h3>
               </div>
               <p className="text-sm text-green-800">
-                <strong>Id&eacute;al pour :</strong> Applications mobiles natives avec UI personnalis&eacute;e
+                <strong>{t.directIdealFor}</strong> {t.directIdealDesc}
               </p>
               <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
-                <li>Fournir op&eacute;rateur + t&eacute;l&eacute;phone <strong>&agrave; la cr&eacute;ation</strong></li>
-                <li>Initiation imm&eacute;diate serveur-&agrave;-serveur</li>
-                <li>&#10003; Pas besoin de navigateur/WebView</li>
-                <li>Construisez votre propre UI native</li>
-                <li>Polling via API pour les mises &agrave; jour de statut</li>
+                {t.directBullets.map((b, i) => <li key={i}>{b}</li>)}
               </ul>
               <div className="pt-2 border-t border-green-200">
-                <p className="text-xs font-bold text-green-900">&#9888;&#65039; Requis : operator + customer_phone &agrave; la cr&eacute;ation</p>
+                <p className="text-xs font-bold text-green-900">{t.directFooter}</p>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border-2 border-green-200 bg-green-50 p-4 space-y-2">
-            <p className="text-sm font-bold text-green-900">
-              &#10024; D&eacute;tection automatique du mode — Aucune configuration n&eacute;cessaire !
-            </p>
-            <p className="text-sm text-green-800">
-              Le mode de paiement est <strong>d&eacute;tect&eacute; automatiquement</strong> selon les champs fournis :
-            </p>
+            <p className="text-sm font-bold text-green-900">{t.autoDetectTitle}</p>
+            <p className="text-sm text-green-800">{t.autoDetectDesc}</p>
             <ul className="text-sm text-green-800 space-y-1 list-disc list-inside ml-2">
-              <li><strong>Sans</strong> operator/phone → mode SDK (le client saisit sur la page de paiement)</li>
-              <li><strong>Avec</strong> operator + phone → mode Direct API (initiation imm&eacute;diate)</li>
+              {t.autoDetectBullets.map((b, i) => <li key={i}>{b}</li>)}
             </ul>
-            <p className="text-sm text-green-800">
-              Les deux modes sont <strong>toujours disponibles</strong> — cr&eacute;ez le paiement et le syst&egrave;me choisit le bon mode automatiquement !
-            </p>
+            <p className="text-sm text-green-800">{t.autoDetectFooter}</p>
           </div>
 
           {/* Comparison Table */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Comparaison des modes</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t.comparisonTitle}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 pr-4 font-medium">Fonctionnalit&eacute;</th>
-                    <th className="pb-2 pr-4 font-medium">SDK (Liens de paiement)</th>
-                    <th className="pb-2 font-medium">Direct API (Mobile)</th>
+                    <th className="pb-2 pr-4 font-medium">{t.compFeature}</th>
+                    <th className="pb-2 pr-4 font-medium">{t.compSdk}</th>
+                    <th className="pb-2 font-medium">{t.compDirect}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Id&eacute;al pour</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Liens de paiement, QR codes, factures</td>
-                    <td className="py-2 text-xs text-gray-600">Apps mobiles natives avec UI personnalis&eacute;e</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Redirections navigateur</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600"><strong>&#10003; Aucune redirection</strong></td>
-                    <td className="py-2 text-xs text-gray-600"><strong>&#10003; Aucune redirection</strong></td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Requis &agrave; la cr&eacute;ation</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">amount, currency</td>
-                    <td className="py-2 text-xs text-gray-600"><strong>amount, currency, operator, customer_phone</strong></td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">S&eacute;lection op&eacute;rateur</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Le client choisit sur la page LtcPay</td>
-                    <td className="py-2 text-xs text-gray-600">Le marchand fournit &agrave; la cr&eacute;ation</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Statut initial</td>
-                    <td className="py-2 pr-4"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PENDING</code></td>
-                    <td className="py-2"><code className="text-xs rounded bg-gray-100 px-1 py-0.5">PROCESSING</code></td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Interface de paiement</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Formulaire natif LtcPay (op&eacute;rateur + t&eacute;l&eacute;phone)</td>
-                    <td className="py-2 text-xs text-gray-600">Votre propre UI native</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Initiation du paiement</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">&Agrave; la soumission → TouchPay Direct API</td>
-                    <td className="py-2 text-xs text-gray-600">Imm&eacute;diate → TouchPay Direct API</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">V&eacute;rification du statut</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">Polling automatique sur la page + webhooks</td>
-                    <td className="py-2 text-xs text-gray-600">Poll GET /payments/{'{reference}'} + webhooks</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Complexit&eacute; d&apos;int&eacute;gration</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">&#11088;&#11088;&#11088; Simple (redirection)</td>
-                    <td className="py-2 text-xs text-gray-600">&#11088;&#11088;&#11088;&#11088; Moyen (UI + polling)</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 pr-4 font-medium text-gray-700">Liens r&eacute;utilisables</td>
-                    <td className="py-2 pr-4 text-xs text-gray-600">&#10003; Oui — parfait pour les factures</td>
-                    <td className="py-2 text-xs text-gray-600">&#10007; Non — li&eacute; &agrave; un client sp&eacute;cifique</td>
-                  </tr>
+                  {t.compRows.map((row, i) => (
+                    <tr key={i}>
+                      <td className="py-2 pr-4 font-medium text-gray-700">{row.feature}</td>
+                      <td className="py-2 pr-4 text-xs text-gray-600">
+                        {(row as any).code ? <code className="text-xs rounded bg-gray-100 px-1 py-0.5">{row.sdk}</code> : (row as any).bold ? <strong>{row.sdk}</strong> : row.sdk}
+                      </td>
+                      <td className="py-2 text-xs text-gray-600">
+                        {(row as any).code ? <code className="text-xs rounded bg-gray-100 px-1 py-0.5">{row.direct}</code> : ((row as any).directBold || (row as any).bold) ? <strong>{row.direct}</strong> : row.direct}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
 
           <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-amber-900">&#128161; Mode Direct API (Initiation imm&eacute;diate)</h3>
-            <p className="text-sm text-amber-800">
-              Pour d&eacute;clencher le <strong>mode Direct API</strong> avec initiation imm&eacute;diate, fournissez les <strong>deux</strong> champs :
-            </p>
+            <h3 className="text-sm font-semibold text-amber-900">{t.directApiTipTitle}</h3>
+            <p className="text-sm text-amber-800">{t.directApiTipDesc}</p>
             <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
-              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> — Op&eacute;rateur Mobile Money : <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> ou <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
-              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> — Num&eacute;ro du client (9 chiffres sans indicatif, ex: <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">6XXXXXXXX</code>)</li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">operator</code> — {t.directApiTipOperator}<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;MTN&quot;</code> {lang === "fr" ? "ou" : "or"} <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">&quot;ORANGE&quot;</code></li>
+              <li><code className="rounded bg-amber-100 px-1 py-0.5 text-xs">customer_phone</code> — {t.directApiTipPhone}<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">6XXXXXXXX</code>)</li>
             </ul>
-            <p className="text-sm text-amber-800">
-              Sans ces champs, le paiement utilise le <strong>mode SDK</strong> (le client saisit les infos sur la page de paiement).
-            </p>
+            <p className="text-sm text-amber-800">{t.directApiTipFallback}</p>
           </div>
         </section>
 
         {/* Authentication */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="authentication">Authentification</h2>
-          <p className="text-sm text-gray-600">
-            Toutes les requ&ecirc;tes API doivent inclure votre cl&eacute; API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Key</code>
-            et votre secret API dans le header <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">X-API-Secret</code>.
-            Utilisez les <strong>cl&eacute;s de test</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_test_*</code>) pour le sandbox
-            et les <strong>cl&eacute;s live</strong> (<code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ltcpay_live_*</code>) pour la production.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900" id="authentication">{t.authTitle}</h2>
+          <p className="text-sm text-gray-600">{t.authDesc}</p>
           <CodeBlock
             language="bash"
             code={`curl -X POST ${BASE_URL}/payments \\
@@ -407,43 +999,41 @@ payment = resp.json()`}
 
         {/* Endpoints */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="endpoints">Points d&apos;acc&egrave;s (Endpoints)</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="endpoints">{t.endpointsTitle}</h2>
 
           {/* Create Payment */}
           <EndpointSection
             method="POST"
             path="/payments"
-            title="Cr&eacute;er un paiement"
-            description="Cr&eacute;er un nouveau paiement. Le mode est d&eacute;tect&eacute; automatiquement — aucune configuration n&eacute;cessaire !"
+            title={t.createPaymentTitle}
+            description={t.createPaymentDesc}
             defaultOpen
           >
             <div className="mb-4 rounded-lg border-2 border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-bold text-green-900 mb-2">&#10024; D&eacute;tection automatique du mode</p>
+              <p className="text-sm font-bold text-green-900 mb-2">{t.autoDetectEndpointTitle}</p>
               <ul className="text-sm text-green-800 space-y-1.5 list-disc list-inside">
-                <li><strong>Sans operator/phone :</strong> mode SDK → retourne <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_url</code> → le client saisit sur la page</li>
-                <li><strong>Avec operator + phone :</strong> mode Direct API → initiation imm&eacute;diate → statut <code className="rounded bg-green-100 px-1 py-0.5 text-xs">PROCESSING</code></li>
-                <li>Pas besoin de sp&eacute;cifier <code className="rounded bg-green-100 px-1 py-0.5 text-xs">payment_mode</code> — c&apos;est automatique !</li>
-                <li>Les deux modes utilisent TouchPay Direct API (z&eacute;ro redirection navigateur)</li>
+                {t.autoDetectEndpointBullets.map((b, i) => <li key={i}>{b}</li>)}
               </ul>
             </div>
 
             <ParamTable
+              t={t}
               params={[
-                { name: "amount", type: "number", required: true, desc: "Montant en unit\u00e9 de devise (ex: 5000 = 5 000 XAF). Minimum : 100." },
-                { name: "currency", type: "string", required: false, desc: "Code devise ISO (XAF, XOF, EUR, USD). Par d\u00e9faut : XAF" },
-                { name: "operator", type: "string", required: false, desc: "Op\u00e9rateur Mobile Money : 'MTN' ou 'ORANGE'. D\u00e9clenche le mode Direct API si fourni avec customer_phone." },
-                { name: "customer_phone", type: "string", required: false, desc: "T\u00e9l\u00e9phone client (9 chiffres sans indicatif, ex: 677179670). Le pr\u00e9fixe pays est retir\u00e9 automatiquement." },
-                { name: "payment_mode", type: "string", required: false, desc: "Forcer le mode : 'SDK' ou 'DIRECT_API'. D\u00e9tect\u00e9 automatiquement si omis (recommand\u00e9)." },
-                { name: "merchant_reference", type: "string", required: false, desc: "Votre r\u00e9f\u00e9rence interne commande/facture pour la r\u00e9conciliation" },
-                { name: "description", type: "string", required: false, desc: "Description du paiement affich\u00e9e au client (max 500 caract\u00e8res)" },
-                { name: "customer_info", type: "object", required: false, desc: "Informations client : {name, email, phone}" },
-                { name: "callback_url", type: "string", required: false, desc: "URL webhook pour les notifications de paiement (remplace le d\u00e9faut marchand)" },
-                { name: "return_url", type: "string", required: false, desc: "URL de redirection du client apr\u00e8s le paiement" },
-                { name: "metadata", type: "object", required: false, desc: "Donn\u00e9es cl\u00e9-valeur personnalis\u00e9es attach\u00e9es au paiement" },
+                { name: "amount", type: "number", required: true, desc: t.paramAmount },
+                { name: "currency", type: "string", required: false, desc: t.paramCurrency },
+                { name: "operator", type: "string", required: false, desc: t.paramOperator },
+                { name: "customer_phone", type: "string", required: false, desc: t.paramPhone },
+                { name: "payment_mode", type: "string", required: false, desc: t.paramPaymentMode },
+                { name: "merchant_reference", type: "string", required: false, desc: t.paramMerchantRef },
+                { name: "description", type: "string", required: false, desc: t.paramDescription },
+                { name: "customer_info", type: "object", required: false, desc: t.paramCustomerInfo },
+                { name: "callback_url", type: "string", required: false, desc: t.paramCallbackUrl },
+                { name: "return_url", type: "string", required: false, desc: t.paramReturnUrl },
+                { name: "metadata", type: "object", required: false, desc: t.paramMetadata },
               ]}
             />
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900">Exemple 1 : Mode SDK (Liens de paiement)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">{t.exSdkTitle}</h4>
               <CodeBlock
                 language="javascript"
                 code={`// SDK Mode - Create reusable payment link
@@ -485,7 +1075,7 @@ window.location.href = payment.payment_url;
 // 4. Polling UI → redirect to return_url when COMPLETED`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Exemple 2 : Mode Direct API (Apps mobiles avec UI personnalis&eacute;e)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">{t.exDirectTitle}</h4>
               <CodeBlock
                 language="javascript"
                 code={`// Direct API Mode - For mobile apps building custom native UI
@@ -549,7 +1139,7 @@ async function pollPaymentStatus(reference) {
 pollPaymentStatus(payment.reference);`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">Exemples Python</h4>
+              <h4 className="text-sm font-semibold text-gray-900">{t.exPythonTitle}</h4>
               <CodeBlock
                 language="python"
                 code={`import httpx
@@ -611,8 +1201,9 @@ print(f"Final status: {result['status']}")`}
               />
             </div>
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900">R&eacute;ponse (Mode SDK)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">{t.responseSdkTitle}</h4>
               <ResponseBlock
+                t={t}
                 status={201}
                 body={`{
   "payment_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
@@ -627,8 +1218,9 @@ print(f"Final status: {result['status']}")`}
 }`}
               />
 
-              <h4 className="text-sm font-semibold text-gray-900">R&eacute;ponse (Mode Direct API)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">{t.responseDirectTitle}</h4>
               <ResponseBlock
+                t={t}
                 status={201}
                 body={`{
   "payment_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
@@ -643,9 +1235,7 @@ print(f"Final status: {result['status']}")`}
 }`}
               />
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>Note :</strong> En mode Direct API, le statut passe imm&eacute;diatement &agrave; <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">PROCESSING</code> car le paiement est initi&eacute; serveur-&agrave;-serveur. Le client re&ccedil;oit une notification push pour approuver sur son app Mobile Money.
-                </p>
+                <p className="text-sm text-blue-800">{t.responseDirectNote}</p>
               </div>
             </div>
           </EndpointSection>
@@ -654,15 +1244,12 @@ print(f"Final status: {result['status']}")`}
           <EndpointSection
             method="GET"
             path="/payments/{reference}"
-            title="Statut d&apos;un paiement"
-            description="R&eacute;cup&eacute;rer le statut et les d&eacute;tails d&apos;un paiement par sa r&eacute;f&eacute;rence. En mode Direct API, interrogez cet endpoint toutes les 3-5 secondes pour v&eacute;rifier si le paiement est termin&eacute;."
+            title={t.getPaymentTitle}
+            description={t.getPaymentDesc}
           >
             <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-semibold text-green-900 mb-2">Polling Direct API :</p>
-              <p className="text-sm text-green-800">
-                Les apps mobiles en mode Direct API doivent interroger cet endpoint toutes les 3-5 secondes pour v&eacute;rifier le statut.
-                Arr&ecirc;tez le polling quand le statut devient <code className="rounded bg-green-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-green-100 px-1 py-0.5 text-xs">FAILED</code>, ou apr&egrave;s 2 minutes (timeout).
-              </p>
+              <p className="text-sm font-semibold text-green-900 mb-2">{t.pollingTitle}</p>
+              <p className="text-sm text-green-800">{t.pollingDesc}</p>
             </div>
             <CodeBlock
               language="javascript"
@@ -691,6 +1278,7 @@ payment = resp.json()
 print(payment["status"])  # "COMPLETED"`}
             />
             <ResponseBlock
+              t={t}
               status={200}
               body={`{
   "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
@@ -724,14 +1312,15 @@ print(payment["status"])  # "COMPLETED"`}
           <EndpointSection
             method="GET"
             path="/payments"
-            title="Lister les paiements"
-            description="Lister tous les paiements du marchand authentifi&eacute;. Supporte la pagination et le filtrage par statut."
+            title={t.listPaymentsTitle}
+            description={t.listPaymentsDesc}
           >
             <ParamTable
+              t={t}
               params={[
-                { name: "page", type: "number", required: false, desc: "Num\u00e9ro de page (par d\u00e9faut : 1)" },
-                { name: "page_size", type: "number", required: false, desc: "\u00c9l\u00e9ments par page, 1-100 (par d\u00e9faut : 20)" },
-                { name: "status", type: "string", required: false, desc: "Filtrer par statut : PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED, CANCELLED" },
+                { name: "page", type: "number", required: false, desc: t.paramPage },
+                { name: "page_size", type: "number", required: false, desc: t.paramPageSize },
+                { name: "status", type: "string", required: false, desc: t.paramStatus },
               ]}
             />
             <CodeBlock
@@ -750,6 +1339,7 @@ console.log(data.total_count); // Total matching payments
 console.log(data.payments);    // Array of payment objects`}
             />
             <ResponseBlock
+              t={t}
               status={200}
               body={`{
   "payments": [
@@ -776,88 +1366,67 @@ console.log(data.payments);    // Array of payment objects`}
 
         {/* Fees */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="fees">Frais</h2>
-          <p className="text-sm text-gray-600">
-            Des frais sont appliqu&eacute;s sur chaque paiement. Le taux de commission est configur&eacute; par l&apos;administrateur LtcPay pour chaque marchand.
-            Par d&eacute;faut, les frais sont support&eacute;s par le marchand (d&eacute;duits du montant re&ccedil;u).
-          </p>
+          <h2 className="text-xl font-bold text-gray-900" id="fees">{t.feesTitle}</h2>
+          <p className="text-sm text-gray-600">{t.feesDesc}</p>
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Mode d&apos;imputation des frais</h3>
+            <h3 className="text-sm font-semibold text-gray-900">{t.feeModeTitle}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Mode</th>
-                    <th className="pb-2 font-medium">Qui paie ?</th>
-                    <th className="pb-2 font-medium">Exemple (montant: 10 000 XAF)</th>
+                    <th className="pb-2 font-medium">{t.feeMode}</th>
+                    <th className="pb-2 font-medium">{t.feeWhoPays}</th>
+                    <th className="pb-2 font-medium">{t.feeExample}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
                     <td className="py-2 font-mono text-xs">MERCHANT</td>
-                    <td className="py-2 text-xs text-gray-600">Le marchand supporte les frais. Le client paie le montant exact.</td>
-                    <td className="py-2 text-xs text-gray-600">Client paie <strong>10 000</strong>, marchand re&ccedil;oit montant - frais</td>
+                    <td className="py-2 text-xs text-gray-600">{t.feeMerchantDesc}</td>
+                    <td className="py-2 text-xs text-gray-600">{t.feeMerchantEx}</td>
                   </tr>
                   <tr>
                     <td className="py-2 font-mono text-xs">CLIENT</td>
-                    <td className="py-2 text-xs text-gray-600">Le client paie les frais en plus du montant. Le marchand re&ccedil;oit le montant int&eacute;gral.</td>
-                    <td className="py-2 text-xs text-gray-600">Client paie <strong>10 000 + frais</strong>, marchand re&ccedil;oit 10 000</td>
+                    <td className="py-2 text-xs text-gray-600">{t.feeClientDesc}</td>
+                    <td className="py-2 text-xs text-gray-600">{t.feeClientEx}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm text-blue-800">
-                Le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">fee</code> est retourn&eacute; dans toutes les r&eacute;ponses de paiement et dans les webhooks. En mode <strong>CLIENT</strong>, le champ <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">amount</code> refl&egrave;te le montant total factur&eacute; (montant de base + frais).
-              </p>
+              <p className="text-sm text-blue-800">{t.feeNote}</p>
             </div>
           </div>
         </section>
 
         {/* Phone Number Format */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="phone-format">Format du num&eacute;ro de t&eacute;l&eacute;phone</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="phone-format">{t.phoneTitle}</h2>
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <p className="text-sm text-gray-600">
-              Pour le mode <strong>Direct API</strong>, le num&eacute;ro de t&eacute;l&eacute;phone doit contenir <strong>9 chiffres</strong> sans indicatif pays.
-              LtcPay normalise automatiquement le num&eacute;ro en retirant le pr&eacute;fixe <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">237</code>.
-            </p>
+            <p className="text-sm text-gray-600">{t.phoneDesc}</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Format envoy&eacute;</th>
-                    <th className="pb-2 font-medium">Accept&eacute; ?</th>
-                    <th className="pb-2 font-medium">Notes</th>
+                    <th className="pb-2 font-medium">{t.phoneSent}</th>
+                    <th className="pb-2 font-medium">{t.phoneAccepted}</th>
+                    <th className="pb-2 font-medium">{t.phoneNotes}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="py-2 font-mono text-xs">677179670</td>
-                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
-                    <td className="py-2 text-xs text-gray-600">Format correct (9 chiffres)</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">237677179670</td>
-                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
-                    <td className="py-2 text-xs text-gray-600">Le pr&eacute;fixe 237 est retir&eacute; automatiquement</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">+237677179670</td>
-                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
-                    <td className="py-2 text-xs text-gray-600">Le +237 est retir&eacute; automatiquement</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">00237677179670</td>
-                    <td className="py-2 text-xs text-green-600 font-medium">&#10003; Oui</td>
-                    <td className="py-2 text-xs text-gray-600">Le 00237 est retir&eacute; automatiquement</td>
-                  </tr>
+                  {t.phoneRows.map((row, i) => (
+                    <tr key={i}>
+                      <td className="py-2 font-mono text-xs">{row.format}</td>
+                      <td className="py-2 text-xs text-green-600 font-medium">{row.ok ? `\u2713 ${t.yes}` : `\u2717 ${t.no}`}</td>
+                      <td className="py-2 text-xs text-gray-600">{row.note}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <p className="text-sm text-amber-800">
-                <strong>Recommandation :</strong> Envoyez directement le format &agrave; 9 chiffres pour &eacute;viter toute ambigu&iuml;t&eacute;.
+                <strong>{t.phoneReco}</strong> {t.phoneRecoDesc}
               </p>
             </div>
           </div>
@@ -865,43 +1434,36 @@ console.log(data.payments);    // Array of payment objects`}
 
         {/* Webhooks */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="webhooks">Webhooks</h2>
-          <p className="text-sm text-gray-600">
-            LTCPay envoie des requ&ecirc;tes <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">POST</code>
-            &agrave; votre <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">callback_url</code> lorsque le
-            statut d&apos;un paiement change. Le payload est sign&eacute; avec HMAC-SHA256 en utilisant votre <strong>webhook secret</strong>.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900" id="webhooks">{t.webhooksTitle}</h2>
+          <p className="text-sm text-gray-600">{t.webhooksDesc}</p>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="text-sm text-blue-800">
-              <strong>Note :</strong> Les webhooks fonctionnent de mani&egrave;re identique pour les modes SDK et Direct API. Vous recevrez le m&ecirc;me payload lorsqu&apos;un paiement atteint un statut terminal (<code className="rounded bg-blue-100 px-1 py-0.5 text-xs">COMPLETED</code>, <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">FAILED</code>, etc.).
-            </p>
+            <p className="text-sm text-blue-800">{t.webhooksNote}</p>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Headers des webhooks</h3>
-            <p className="text-sm text-gray-600">
-              Chaque requ&ecirc;te webhook inclut les headers suivants :
-            </p>
+            <h3 className="text-sm font-semibold text-gray-900">{t.webhookHeadersTitle}</h3>
+            <p className="text-sm text-gray-600">{t.webhookHeadersDesc}</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Header</th>
-                    <th className="pb-2 font-medium">Description</th>
+                    <th className="pb-2 font-medium">{t.headerCol}</th>
+                    <th className="pb-2 font-medium">{t.descriptionCol}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Signature</td><td className="py-2 text-xs text-gray-600">Signature HMAC-SHA256 du body JSON brut</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Event</td><td className="py-2 text-xs text-gray-600">Type d&apos;&eacute;v&eacute;nement (ex: <code className="bg-gray-100 px-1 rounded">payment.status_changed</code>)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">X-LtcPay-Delivery-Id</td><td className="py-2 text-xs text-gray-600">ID de livraison unique pour l&apos;idempotence</td></tr>
+                  {t.webhookHeaders.map((wh, i) => (
+                    <tr key={i}>
+                      <td className="py-2 font-mono text-xs">{wh.header}</td>
+                      <td className="py-2 text-xs text-gray-600">{wh.desc}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-900">Payload du webhook</h3>
-            <p className="text-sm text-gray-600">
-              L&apos;&eacute;v&eacute;nement est toujours <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">payment.status_changed</code>. V&eacute;rifiez le champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">data.status</code> pour d&eacute;terminer le nouveau statut.
-            </p>
+            <h3 className="text-sm font-semibold text-gray-900">{t.webhookPayloadTitle}</h3>
+            <p className="text-sm text-gray-600">{t.webhookPayloadDesc}</p>
             <CodeBlock
               language="json"
               code={`{
@@ -927,10 +1489,8 @@ console.log(data.payments);    // Array of payment objects`}
 }`}
             />
 
-            <h3 className="text-sm font-semibold text-gray-900">V&eacute;rification des signatures</h3>
-            <p className="text-sm text-gray-600">
-              La signature est calcul&eacute;e comme <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">HMAC-SHA256(raw_body, webhook_secret)</code>. Vous <strong>devez</strong> v&eacute;rifier la signature en utilisant le body brut de la requ&ecirc;te (pas une version re-s&eacute;rialis&eacute;e) pour &eacute;viter les erreurs.
-            </p>
+            <h3 className="text-sm font-semibold text-gray-900">{t.sigVerifyTitle}</h3>
+            <p className="text-sm text-gray-600">{t.sigVerifyDesc}</p>
             <CodeBlock
               language="javascript"
               code={`import crypto from "crypto";
@@ -991,98 +1551,72 @@ async def handle_webhook(request: Request):
     return {"status": "ok"}`}
             />
 
-            <h3 className="text-sm font-semibold text-gray-900">Statuts de paiement</h3>
+            <h3 className="text-sm font-semibold text-gray-900">{t.statusTitle}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Statut</th>
-                    <th className="pb-2 font-medium">Description</th>
-                    <th className="pb-2 font-medium">Terminal ?</th>
+                    <th className="pb-2 font-medium">{t.statusCol}</th>
+                    <th className="pb-2 font-medium">{t.descriptionCol}</th>
+                    <th className="pb-2 font-medium">{t.terminalCol}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="py-2 font-mono text-xs">PENDING</td>
-                    <td className="py-2 text-xs text-gray-600">Paiement cr&eacute;&eacute;, en attente d&apos;action du client (mode SDK)</td>
-                    <td className="py-2 text-xs text-gray-500">Non</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">PROCESSING</td>
-                    <td className="py-2 text-xs text-gray-600">Paiement initi&eacute; via Direct API, le client a re&ccedil;u la notification push</td>
-                    <td className="py-2 text-xs text-gray-500">Non</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">COMPLETED</td>
-                    <td className="py-2 text-xs text-gray-600">Paiement trait&eacute; avec succ&egrave;s</td>
-                    <td className="py-2 text-xs font-medium text-green-600">Oui &#10003;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">FAILED</td>
-                    <td className="py-2 text-xs text-gray-600">Paiement &eacute;chou&eacute; (solde insuffisant, timeout, refus&eacute;, etc.)</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">EXPIRED</td>
-                    <td className="py-2 text-xs text-gray-600">Lien de paiement expir&eacute; (30 minutes en mode SDK)</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-mono text-xs">CANCELLED</td>
-                    <td className="py-2 text-xs text-gray-600">Paiement annul&eacute; par le client</td>
-                    <td className="py-2 text-xs font-medium text-red-600">Oui &#10007;</td>
-                  </tr>
+                  {t.statusRows.map((row, i) => (
+                    <tr key={i}>
+                      <td className="py-2 font-mono text-xs">{row.status}</td>
+                      <td className="py-2 text-xs text-gray-600">{row.desc}</td>
+                      <td className="py-2 text-xs">
+                        {row.terminal ? (
+                          row.success ? (
+                            <span className="font-medium text-green-600">{t.yes} &#10003;</span>
+                          ) : (
+                            <span className="font-medium text-red-600">{t.yes} &#10007;</span>
+                          )
+                        ) : (
+                          <span className="text-gray-500">{t.no}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-900">Politique de r&eacute;essai</h3>
-            <p className="text-sm text-gray-600">
-              Si votre endpoint retourne un code non-2xx, LTCPay r&eacute;essaie jusqu&apos;&agrave; <strong>5 fois</strong> avec
-              un backoff exponentiel (2s, 4s, 8s, 16s, 32s). Votre endpoint doit r&eacute;pondre en moins de <strong>30 secondes</strong>.
-            </p>
+            <h3 className="text-sm font-semibold text-gray-900">{t.retryTitle}</h3>
+            <p className="text-sm text-gray-600">{t.retryDesc}</p>
           </div>
 
           {/* Webhook Troubleshooting */}
           <div className="rounded-xl border border-red-200 bg-red-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-red-900">D&eacute;pannage : &quot;Invalid webhook signature&quot;</h3>
-            <p className="text-sm text-red-800">
-              Si vous recevez une erreur <code className="rounded bg-red-100 px-1 py-0.5 text-xs">403 Invalid webhook signature</code>, v&eacute;rifiez les points suivants :
-            </p>
+            <h3 className="text-sm font-semibold text-red-900">{t.troubleshootTitle}</h3>
+            <p className="text-sm text-red-800">{t.troubleshootDesc}</p>
             <ul className="text-sm text-red-800 space-y-1.5 list-disc list-inside">
-              <li>Lisez la signature depuis le header <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-LtcPay-Signature</code> (et non <code className="rounded bg-red-100 px-1 py-0.5 text-xs">X-Webhook-Signature</code>)</li>
-              <li>Utilisez le <strong>body brut de la requ&ecirc;te</strong> pour la v&eacute;rification HMAC &mdash; ne re-s&eacute;rialisez PAS le JSON pars&eacute; (<code className="rounded bg-red-100 px-1 py-0.5 text-xs">JSON.stringify(req.body)</code> peut produire un formatage diff&eacute;rent)</li>
-              <li>Assurez-vous d&apos;utiliser votre <strong>webhook secret marchand</strong> (d&eacute;fini lors de l&apos;inscription), et non votre cl&eacute; API ou secret API</li>
-              <li>L&apos;algorithme de signature est <code className="rounded bg-red-100 px-1 py-0.5 text-xs">HMAC-SHA256</code> avec sortie hex digest</li>
-              <li>Si vous n&apos;avez pas de webhook secret, contactez l&apos;administrateur LTCPay pour en configurer un</li>
+              {t.troubleshootBullets.map((b, i) => <li key={i}>{b}</li>)}
             </ul>
           </div>
         </section>
 
         {/* Error Handling */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="errors">Gestion des erreurs</h2>
-          <p className="text-sm text-gray-600">
-            L&apos;API retourne des codes HTTP standards. Les erreurs incluent un body JSON avec un champ <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">detail</code>.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900" id="errors">{t.errorsTitle}</h2>
+          <p className="text-sm text-gray-600">{t.errorsDesc}</p>
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th className="pb-2 font-medium">Code</th>
-                    <th className="pb-2 font-medium">Signification</th>
+                    <th className="pb-2 font-medium">{t.codeCol}</th>
+                    <th className="pb-2 font-medium">{t.meaningCol}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 font-mono text-xs">200</td><td className="py-2 text-xs text-gray-600">Succ&egrave;s</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">201</td><td className="py-2 text-xs text-gray-600">Ressource cr&eacute;&eacute;e</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">400</td><td className="py-2 text-xs text-gray-600">Requ&ecirc;te invalide — v&eacute;rifiez les param&egrave;tres</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">401</td><td className="py-2 text-xs text-gray-600">Identifiants API invalides ou manquants</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">404</td><td className="py-2 text-xs text-gray-600">Ressource introuvable</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">409</td><td className="py-2 text-xs text-gray-600">Conflit (ex: email d&eacute;j&agrave; utilis&eacute;)</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">429</td><td className="py-2 text-xs text-gray-600">Limite de requ&ecirc;tes d&eacute;pass&eacute;e</td></tr>
-                  <tr><td className="py-2 font-mono text-xs">500</td><td className="py-2 text-xs text-gray-600">Erreur serveur — contactez le support</td></tr>
+                  {t.errorCodes.map((ec, i) => (
+                    <tr key={i}>
+                      <td className="py-2 font-mono text-xs">{ec.code}</td>
+                      <td className="py-2 text-xs text-gray-600">{ec.desc}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1097,23 +1631,19 @@ async def handle_webhook(request: Request):
 
         {/* Test Mode */}
         <section className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900" id="testing">Mode test</h2>
+          <h2 className="text-xl font-bold text-gray-900" id="testing">{t.testTitle}</h2>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-amber-900">Tests en sandbox</h3>
+            <h3 className="text-sm font-semibold text-amber-900">{t.testSubtitle}</h3>
             <ul className="text-sm text-amber-800 space-y-1.5 list-disc list-inside">
-              <li>Utilisez votre <strong>cl&eacute; API de test</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_test_*</code>) — aucun argent r&eacute;el n&apos;est d&eacute;bit&eacute;</li>
-              <li>Tous les endpoints fonctionnent de mani&egrave;re identique en mode test et live</li>
-              <li>Les paiements de test se compl&egrave;tent automatiquement apr&egrave;s quelques secondes</li>
-              <li>Les webhooks sont envoy&eacute;s pour les paiements de test comme pour les paiements r&eacute;els</li>
-              <li>Passez &agrave; votre <strong>cl&eacute; API live</strong> (<code className="rounded bg-amber-100 px-1 py-0.5 text-xs">ltcpay_live_*</code>) quand vous &ecirc;tes pr&ecirc;t pour la production</li>
+              {t.testBullets.map((b, i) => <li key={i}>{b}</li>)}
             </ul>
           </div>
         </section>
 
         {/* Footer */}
         <footer className="border-t border-gray-200 pt-8 pb-12 text-center text-sm text-gray-500">
-          <p>Besoin d&apos;aide ? Contactez-nous &agrave; <a href="mailto:support@ltcgroup.site" className="text-navy-500 hover:underline">support@ltcgroup.site</a></p>
-          <p className="mt-1">LTCPay &mdash; Passerelle de paiement pour l&apos;Afrique</p>
+          <p>{t.footerHelp}<a href="mailto:support@ltcgroup.site" className="text-navy-500 hover:underline">support@ltcgroup.site</a></p>
+          <p className="mt-1">{t.footerTagline}</p>
         </footer>
       </main>
     </div>
