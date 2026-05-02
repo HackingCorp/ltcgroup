@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, StatusBadge } from "@/components/ui";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 import { formatCurrency, getStatusColor } from "@/lib/utils";
 import { CreditCard, DollarSign, Wallet, TrendingUp } from "lucide-react";
+import { RevenueChart, StatusDistributionChart } from "@/components/dashboard";
 import type { MerchantDashboardStats, BalanceInfo } from "@/types";
 
 export default function MerchantDashboardPage() {
@@ -86,6 +87,11 @@ export default function MerchantDashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <RevenueChart data={stats?.revenue_chart ?? []} />
+        <StatusDistributionChart data={stats?.status_distribution ?? []} />
       </div>
 
       <Card>

@@ -5,6 +5,7 @@ import { Card, CardContent, Loading } from "@/components/ui";
 import { dashboardService } from "@/services/dashboard.service";
 import { formatCurrency } from "@/lib/utils";
 import { CreditCard, DollarSign, TrendingUp, CheckCircle } from "lucide-react";
+import { RevenueChart, StatusDistributionChart } from "@/components/dashboard";
 import type { DashboardStats } from "@/types";
 
 export default function DashboardPage() {
@@ -71,6 +72,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <RevenueChart data={stats?.revenue_chart ?? []} />
+        <StatusDistributionChart data={stats?.status_distribution ?? []} />
       </div>
 
       <Card>

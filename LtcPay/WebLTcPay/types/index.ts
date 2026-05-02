@@ -57,6 +57,11 @@ export interface Transaction {
   created_at: string;
 }
 
+export interface StatusDistributionItem {
+  status: string;
+  count: number;
+}
+
 export interface DashboardStats {
   total_payments: number;
   total_revenue: number;
@@ -64,6 +69,7 @@ export interface DashboardStats {
   success_rate: number;
   recent_payments: Payment[];
   revenue_chart: { date: string; amount: number }[];
+  status_distribution: StatusDistributionItem[];
 }
 
 export interface PaginatedResponse<T> {
@@ -175,6 +181,7 @@ export interface MerchantDashboardStats {
   success_rate: number;
   recent_payments: Payment[];
   revenue_chart: { date: string; amount: number }[];
+  status_distribution: StatusDistributionItem[];
 }
 
 export interface BalanceInfo {

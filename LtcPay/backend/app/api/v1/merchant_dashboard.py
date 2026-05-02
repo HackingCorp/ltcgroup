@@ -73,6 +73,23 @@ async def get_merchant_stats(
         {"date": str(r.date), "amount": float(r.amount)} for r in chart_q.all()
     ]
 
+    # Status distribution
+    status_dist_q = await db.execute(
+        select(
+            Payment.status,
+            func.count(Payment.id).label("count"),
+        )
+        .where(merchant_filter)
+        .group_by(Payment.status)
+    )
+    status_distribution = [
+        {
+            "status": r.status.value if hasattr(r.status, "value") else str(r.status),
+            "count": r.count,
+        }
+        for r in status_dist_q.all()
+    ]
+
     return {
         "total_payments": total_payments,
         "total_revenue": total_revenue,
@@ -94,6 +111,7 @@ async def get_merchant_stats(
             for p in recent_payments
         ],
         "revenue_chart": revenue_chart,
+        "status_distribution": status_distribution,
     }
 
 

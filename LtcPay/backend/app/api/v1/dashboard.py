@@ -87,6 +87,22 @@ async def get_dashboard_stats(
         for row in chart_result.all()
     ]
 
+    # Status distribution
+    status_dist_result = await db.execute(
+        select(
+            Payment.status,
+            func.count(Payment.id).label("count"),
+        )
+        .group_by(Payment.status)
+    )
+    status_distribution = [
+        {
+            "status": row.status.value if hasattr(row.status, "value") else str(row.status),
+            "count": row.count,
+        }
+        for row in status_dist_result.all()
+    ]
+
     return {
         "total_payments": total_payments,
         "total_revenue": total_revenue,
@@ -94,6 +110,7 @@ async def get_dashboard_stats(
         "success_rate": round(success_rate, 1),
         "recent_payments": recent_payments,
         "revenue_chart": revenue_chart,
+        "status_distribution": status_distribution,
     }
 
 
