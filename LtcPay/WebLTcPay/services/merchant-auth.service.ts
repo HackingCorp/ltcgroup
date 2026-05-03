@@ -42,6 +42,17 @@ export const merchantAuthService = {
     });
   },
 
+  async forgotPassword(email: string): Promise<void> {
+    await api.post("/merchant-auth/forgot-password", { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await api.post("/merchant-auth/reset-password", {
+      token,
+      new_password: newPassword,
+    });
+  },
+
   logout() {
     Cookies.remove("access_token");
     Cookies.remove("refresh_token");

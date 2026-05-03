@@ -77,6 +77,12 @@ export default function MerchantLoginPage() {
         </Button>
       </form>
 
+      <p className="mt-3 text-center text-sm">
+        <Link href="/merchant/forgot-password" className="font-medium text-gold-500 hover:text-gold-600">
+          Mot de passe oublié ?
+        </Link>
+      </p>
+
       <p className="mt-4 text-center text-sm text-gray-600">
         Don&apos;t have an account?{" "}
         <Link href="/merchant/register" className="font-medium text-gold-500 hover:text-gold-600">

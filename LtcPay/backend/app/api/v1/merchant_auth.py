@@ -1,6 +1,9 @@
 """
 Merchant portal authentication endpoints.
 """
+import logging
+from datetime import datetime, timedelta, timezone
+
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -20,7 +23,11 @@ from app.schemas.merchant import (
     MerchantCredentialsResponse,
     MerchantResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/merchant-auth", tags=["Merchant Auth"])
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -176,3 +183,66 @@ async def change_password(
     merchant.password_hash = _hash_password(data.new_password)
     await db.commit()
     return {"message": "Password changed successfully"}
+
+
+def _create_reset_token(merchant_id: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=1)
+    return jwt.encode(
+        {"sub": merchant_id, "type": "password_reset", "exp": expire},
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset link. The link is logged for admin to share."""
+    result = await db.execute(select(Merchant).where(Merchant.email == data.email))
+    merchant = result.scalar_one_or_none()
+
+    if merchant and merchant.is_active:
+        token = _create_reset_token(str(merchant.id))
+        reset_url = f"https://app.ltcgroup.site/merchant/reset-password?token={token}"
+        logger.info(
+            "PASSWORD RESET requested for merchant %s (%s) — reset link: %s",
+            merchant.name,
+            merchant.email,
+            reset_url,
+        )
+
+    return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset merchant password using a valid reset token."""
+    try:
+        payload = jwt.decode(
+            data.token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+
+    if payload.get("type") != "password_reset":
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+
+    merchant_id = payload.get("sub")
+    result = await db.execute(select(Merchant).where(Merchant.id == merchant_id))
+    merchant = result.scalar_one_or_none()
+
+    if not merchant:
+        raise HTTPException(status_code=400, detail="Token invalide ou expiré")
+
+    merchant.password_hash = _hash_password(data.new_password)
+    await db.commit()
+
+    logger.info("Password reset completed for merchant %s (%s)", merchant.name, merchant.email)
+    return {"message": "Mot de passe réinitialisé avec succès"}
