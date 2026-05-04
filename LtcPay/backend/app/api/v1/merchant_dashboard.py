@@ -162,7 +162,7 @@ async def list_merchant_payments(
                 "description": p.description,
                 "customer_email": p.customer_email,
                 "customer_phone": p.customer_phone,
-                "payment_method": p.payment_method.value if p.payment_method and hasattr(p.payment_method, "value") else p.payment_method,
+                "payment_method": p.payment_mode.value if p.payment_mode and hasattr(p.payment_mode, "value") else p.payment_mode,
                 "created_at": p.created_at.isoformat(),
                 "updated_at": p.updated_at.isoformat(),
             }
@@ -200,7 +200,7 @@ async def get_merchant_payment(
         "description": payment.description,
         "customer_email": payment.customer_email,
         "customer_phone": payment.customer_phone,
-        "payment_method": payment.payment_method.value if payment.payment_method and hasattr(payment.payment_method, "value") else payment.payment_method,
+        "payment_method": payment.payment_mode.value if payment.payment_mode and hasattr(payment.payment_mode, "value") else payment.payment_mode,
         "callback_url": payment.callback_url,
         "metadata": payment.payment_metadata,
         "created_at": payment.created_at.isoformat(),
