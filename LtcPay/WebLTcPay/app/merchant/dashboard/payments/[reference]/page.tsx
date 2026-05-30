@@ -3,15 +3,36 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardHeader } from "@/components/ui";
+import { Icon } from "@/components/ui/icon";
+import { Pill } from "@/components/ui/pill";
+import { MethodChip } from "@/components/ui/method-chip";
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { T, useLang } from "@/lib/i18n";
+import { fmtXAF, fmtDate, fmtTime } from "@/lib/format";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
-import { formatCurrency, getStatusColor } from "@/lib/utils";
-import { ArrowLeft } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import type { Payment } from "@/types";
+
+function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
+  if (s === "completed") return "success";
+  if (s === "pending") return "warn";
+  if (s === "failed") return "fail";
+  return "neutral";
+}
+
+function methodKind(m?: string): string {
+  if (!m) return "card";
+  const lower = m.toLowerCase();
+  if (lower.includes("orange") || lower.includes("om")) return "orange";
+  if (lower.includes("mtn") || lower.includes("momo")) return "mtn";
+  if (lower.includes("wave")) return "wave";
+  return "card";
+}
 
 export default function PaymentDetailPage() {
   const params = useParams();
   const reference = params.reference as string;
+  const { lang } = useLang();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,65 +53,213 @@ export default function PaymentDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500" />
+      <div style={{ display: "grid", placeItems: "center", height: 256 }}>
+        <div style={{ width: 32, height: 32, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
       </div>
     );
   }
 
   if (!payment) {
     return (
-      <div className="space-y-4">
-        <Link href="/merchant/dashboard/payments" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-          <ArrowLeft className="h-4 w-4" /> Back to payments
-        </Link>
-        <p className="text-center text-gray-500">Payment not found.</p>
-      </div>
+      <PageWrapper
+        crumb={[<T key="c1" fr="Encaissement" en="Collect" />, <T key="c2" fr="Transactions" en="Transactions" />]}
+        title={<T fr="Paiement introuvable" en="Payment not found" />}
+      >
+        <div className="card" style={{ padding: 40, textAlign: "center" }}>
+          <Icon name="alert" size={32} color="var(--muted)" />
+          <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 14 }}>
+            <T fr="Ce paiement n'existe pas ou a \u00e9t\u00e9 supprim\u00e9." en="This payment does not exist or has been removed." />
+          </p>
+          <Link href="/merchant/dashboard/payments" className="btn btn-ghost btn-sm" style={{ marginTop: 16, textDecoration: "none" }}>
+            <Icon name="arrowL" size={13} /> <T fr="Retour aux transactions" en="Back to transactions" />
+          </Link>
+        </div>
+      </PageWrapper>
     );
   }
 
-  const details = [
-    { label: "Reference", value: payment.reference },
-    { label: "Amount", value: formatCurrency(payment.amount, payment.currency) },
-    { label: "Currency", value: payment.currency },
-    { label: "Status", value: payment.status, isStatus: true },
-    { label: "Payment Method", value: payment.payment_method || "—" },
-    { label: "Description", value: payment.description || "—" },
-    { label: "Customer Email", value: payment.customer_email || "—" },
-    { label: "Customer Phone", value: payment.customer_phone || "—" },
-    { label: "Created", value: new Date(payment.created_at).toLocaleString() },
-    { label: "Updated", value: new Date(payment.updated_at).toLocaleString() },
+  const feeEstimate = Math.round(payment.amount * 0.03);
+  const netEstimate = payment.amount - feeEstimate;
+
+  const timeline = [
+    {
+      label: lang === "en" ? "Payment created" : "Paiement cr\u00e9\u00e9",
+      time: payment.created_at,
+      icon: "plus" as const,
+      done: true,
+    },
+    {
+      label: lang === "en" ? "Processing" : "En traitement",
+      time: payment.created_at,
+      icon: "refresh" as const,
+      done: payment.status !== "pending",
+    },
+    {
+      label: payment.status === "completed"
+        ? (lang === "en" ? "Payment succeeded" : "Paiement r\u00e9ussi")
+        : payment.status === "failed"
+        ? (lang === "en" ? "Payment failed" : "Paiement \u00e9chou\u00e9")
+        : (lang === "en" ? "Awaiting completion" : "En attente"),
+      time: payment.updated_at,
+      icon: payment.status === "completed" ? "check" as const : payment.status === "failed" ? "x" as const : "clock" as const,
+      done: payment.status === "completed" || payment.status === "failed",
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      <Link href="/merchant/dashboard/payments" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-        <ArrowLeft className="h-4 w-4" /> Back to payments
-      </Link>
+    <PageWrapper
+      crumb={[
+        <T key="c1" fr="Encaissement" en="Collect" />,
+        <T key="c2" fr="Transactions" en="Transactions" />,
+        <span key="c3">{payment.reference}</span>,
+      ]}
+      title={<T fr="D\u00e9tail du paiement" en="Payment detail" />}
+      actions={
+        <Link href="/merchant/dashboard/payments" className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>
+          <Icon name="arrowL" size={13} /> <T fr="Retour" en="Back" />
+        </Link>
+      }
+    >
+      {/* Hero amount + status */}
+      <div className="card" style={{ textAlign: "center", padding: "32px 24px" }}>
+        <Pill tone={statusTone(payment.status)}>{payment.status.toUpperCase()}</Pill>
+        <div className="display" style={{ fontSize: 40, fontWeight: 600, margin: "12px 0 4px", letterSpacing: -1 }}>
+          {formatCurrency(payment.amount, payment.currency)}
+        </div>
+        <div style={{ color: "var(--muted)", fontSize: 13 }}>
+          {payment.reference} {"\u00b7"} {fmtDate(payment.created_at)} {"\u00b7"} {fmtTime(payment.created_at)}
+        </div>
+        {payment.payment_method && (
+          <div style={{ marginTop: 12, display: "inline-block" }}>
+            <MethodChip kind={methodKind(payment.payment_method)} label={payment.payment_method} />
+          </div>
+        )}
+      </div>
 
-      <Card>
-        <CardHeader>
-          <h1 className="text-xl font-bold text-gray-900">Payment {payment.reference}</h1>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {details.map((d) => (
-              <div key={d.label}>
-                <dt className="text-sm font-medium text-gray-500">{d.label}</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {d.isStatus ? (
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(d.value as string)}`}>
-                      {d.value}
-                    </span>
-                  ) : (
-                    d.value
-                  )}
-                </dd>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+        {/* Customer info */}
+        <div className="card">
+          <div className="card-head">
+            <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="user" size={15} /> <T fr="Client" en="Customer" />
+            </h3>
+          </div>
+          <div style={{ padding: "12px 18px" }}>
+            <div style={{ display: "grid", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <T fr="Email" en="Email" />
+                </div>
+                <div style={{ fontSize: 14 }}>{payment.customer_email || "\u2014"}</div>
               </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
-    </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <T fr="T\u00e9l\u00e9phone" en="Phone" />
+                </div>
+                <div style={{ fontSize: 14 }}>{payment.customer_phone || "\u2014"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <T fr="Description" en="Description" />
+                </div>
+                <div style={{ fontSize: 14 }}>{payment.description || "\u2014"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment details */}
+        <div className="card">
+          <div className="card-head">
+            <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="receipt" size={15} /> <T fr="D\u00e9tail financier" en="Financial detail" />
+            </h3>
+          </div>
+          <div style={{ padding: "12px 18px" }}>
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted)", fontSize: 13 }}><T fr="Montant brut" en="Gross amount" /></span>
+                <span style={{ fontWeight: 500 }}>{formatCurrency(payment.amount, payment.currency)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted)", fontSize: 13 }}><T fr="Frais (3%)" en="Fees (3%)" /></span>
+                <span style={{ color: "var(--rose, #e74c3c)" }}>{"\u2212"} {formatCurrency(feeEstimate, payment.currency)}</span>
+              </div>
+              <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 600 }}><T fr="Net" en="Net" /></span>
+                <span className="display" style={{ fontWeight: 600, fontSize: 16 }}>{formatCurrency(netEstimate, payment.currency)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted)", fontSize: 13 }}><T fr="Devise" en="Currency" /></span>
+                <span>{payment.currency}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="card-head">
+          <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="clock" size={15} /> <T fr="Chronologie" en="Timeline" />
+          </h3>
+        </div>
+        <div style={{ padding: "16px 18px" }}>
+          {timeline.map((step, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", position: "relative", paddingBottom: i < timeline.length - 1 ? 20 : 0 }}>
+              {/* Vertical line */}
+              {i < timeline.length - 1 && (
+                <div style={{
+                  position: "absolute",
+                  left: 11,
+                  top: 24,
+                  bottom: 0,
+                  width: 1,
+                  background: step.done ? "var(--primary)" : "var(--line)",
+                }} />
+              )}
+              {/* Dot */}
+              <div style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                background: step.done ? "var(--primary)" : "var(--surface)",
+                border: step.done ? "none" : "1.5px solid var(--line)",
+              }}>
+                <Icon name={step.icon} size={12} color={step.done ? "white" : "var(--muted)"} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: step.done ? 500 : 400, color: step.done ? "var(--ink)" : "var(--muted)" }}>
+                  {step.label}
+                </div>
+                <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                  {fmtDate(step.time)} {"\u00b7"} {fmtTime(step.time)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Metadata */}
+      {payment.metadata && Object.keys(payment.metadata).length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="card-head">
+            <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="code" size={15} /> <T fr="M\u00e9tadonn\u00e9es" en="Metadata" />
+            </h3>
+          </div>
+          <div style={{ padding: "12px 18px" }}>
+            <pre style={{ fontSize: 12, background: "var(--bg-2)", padding: 12, borderRadius: 8, overflow: "auto", margin: 0, color: "var(--ink)" }}>
+              {JSON.stringify(payment.metadata, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+    </PageWrapper>
   );
 }

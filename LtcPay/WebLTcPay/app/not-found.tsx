@@ -2,15 +2,18 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
-      <h1 className="text-6xl font-bold text-navy-500">404</h1>
-      <p className="mt-4 text-lg text-gray-600">Page not found</p>
-      <Link
-        href="/dashboard"
-        className="mt-6 rounded-lg bg-gold-400 px-6 py-2 text-sm font-medium text-navy-800 hover:bg-gold-500 transition-colors"
-      >
-        Go to Dashboard
-      </Link>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 32 }}>
+      <div style={{ textAlign: "center", maxWidth: 480 }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "var(--ink)", color: "var(--accent)", display: "grid", placeItems: "center", fontFamily: "var(--mono)", fontWeight: 700, fontSize: 28, margin: "0 auto 24px" }}>N</div>
+        <div style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 120, lineHeight: 1, letterSpacing: "-0.04em", color: "var(--line-2)" }}>404</div>
+        <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 28, letterSpacing: "-0.02em", margin: "16px 0 8px" }}>Page introuvable</h1>
+        <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.5, margin: "0 0 28px" }}>
+          La page que vous cherchez n&apos;existe pas ou a été déplacée.
+        </p>
+        <Link href="/" className="btn btn-primary" style={{ textDecoration: "none" }}>
+          Retour à l&apos;accueil
+        </Link>
+      </div>
     </div>
   );
 }

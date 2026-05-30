@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, Loading, Button } from "@/components/ui";
+import Link from "next/link";
+import { Icon } from "@/components/ui/icon";
+import { Pill } from "@/components/ui/pill";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Avatar } from "@/components/ui/avatar";
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { T } from "@/lib/i18n";
+import { fmtXAF, fmtDate } from "@/lib/format";
 import { merchantsService } from "@/services/merchants.service";
 import type {
   MerchantBalanceInfo,
@@ -11,20 +18,32 @@ import type {
   PaginatedItems,
 } from "@/services/merchants.service";
 import type { Merchant } from "@/types";
-import { formatCurrency, getStatusColor } from "@/lib/utils";
-import {
-  ArrowLeft,
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+
+/* ── helpers ───────────────────────────────────────────────── */
 
 type Tab = "payments" | "withdrawals";
+
+function paymentStatusTone(s: string): "success" | "warn" | "fail" | "neutral" {
+  const upper = s.toUpperCase();
+  if (upper === "COMPLETED") return "success";
+  if (upper === "PENDING" || upper === "PROCESSING") return "warn";
+  if (upper === "FAILED") return "fail";
+  return "neutral";
+}
+
+function withdrawalStatusTone(s: string): "success" | "warn" | "fail" | "info" | "neutral" {
+  if (s === "COMPLETED") return "success";
+  if (s === "PENDING") return "warn";
+  if (s === "APPROVED" || s === "PROCESSING") return "info";
+  if (s === "REJECTED" || s === "FAILED") return "fail";
+  return "neutral";
+}
+
+const PAYMENT_STATUSES = ["", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
+const WITHDRAWAL_STATUSES = ["", "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
+
+/* ── page ──────────────────────────────────────────────────── */
 
 export default function MerchantDetailPage() {
   const params = useParams();
@@ -74,141 +93,85 @@ export default function MerchantDetailPage() {
       .catch(() => {});
   }, [merchantId, withdrawalsPage, withdrawalsStatus]);
 
-  if (loading) return <Loading className="py-20" size="lg" />;
-  if (error || !merchant)
+  if (loading) {
     return (
-      <div className="py-20 text-center text-red-500">{error || "Merchant not found"}</div>
+      <div style={{ display: "grid", placeItems: "center", height: 256 }}>
+        <div style={{ width: 32, height: 32, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+      </div>
     );
+  }
+
+  if (error || !merchant) {
+    return (
+      <div style={{ padding: 80, textAlign: "center", color: "var(--rose)" }}>
+        {error || "Merchant not found"}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.push("/dashboard/merchants")}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{merchant.name}</h1>
-          <p className="text-sm text-gray-500">{merchant.email}</p>
-        </div>
-        <span
-          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-            merchant.is_active
-              ? "bg-green-50 text-green-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          {merchant.is_active ? "Active" : "Inactive"}
+    <PageWrapper
+      crumb={[
+        <T key="c1" fr="Plateforme" en="Platform" />,
+        <Link key="c2" href="/dashboard/merchants" style={{ textDecoration: "none", color: "inherit" }}><T fr="Marchands" en="Merchants" /></Link>,
+        <span key="c3">{merchant.name}</span>,
+      ]}
+      title={
+        <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Avatar name={merchant.name} size={36} />
+          {merchant.name}
+          <Pill tone={merchant.is_active ? "success" : "fail"}>
+            {merchant.is_active ? <T fr="Actif" en="Active" /> : <T fr="Inactif" en="Inactive" />}
+          </Pill>
         </span>
-      </div>
-
-      {/* Balance Cards */}
+      }
+      sub={<span>{merchant.email}</span>}
+      actions={
+        <button className="btn btn-ghost btn-sm" onClick={() => router.push("/dashboard/merchants")}>
+          <Icon name="arrowL" size={13} /> <T fr="Retour" en="Back" />
+        </button>
+      }
+    >
+      {/* Balance KPIs */}
       {balance && (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <BalanceCard
-              label="Solde Marchand"
-              value={formatCurrency(balance.available_balance)}
-              subtitle={`${balance.completed_payments}/${balance.total_payments} paiements`}
-              icon={<Wallet className="h-5 w-5 text-green-600" />}
-              bgColor="bg-green-50"
-              textColor="text-green-700"
-            />
-            <BalanceCard
-              label="Total Gagné"
-              value={formatCurrency(balance.total_earned)}
-              subtitle={`- ${formatCurrency(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`}
-              icon={<TrendingUp className="h-5 w-5 text-blue-600" />}
-              bgColor="bg-blue-50"
-              textColor="text-blue-700"
-            />
-            <BalanceCard
-              label="Marge LtcPay"
-              value={formatCurrency(balance.ltcpay_margin)}
-              subtitle={`${((merchant.fee_rate ?? 1.75) - 1.5).toFixed(2)}% net`}
-              icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
-              bgColor="bg-emerald-50"
-              textColor="text-emerald-700"
-            />
-            <BalanceCard
-              label="Frais TouchPay"
-              value={formatCurrency(balance.touchpay_fees)}
-              subtitle="1.5% par transaction"
-              icon={<TrendingDown className="h-5 w-5 text-red-600" />}
-              bgColor="bg-red-50"
-              textColor="text-red-700"
-            />
+          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
+            <KpiCard hero label={<><T fr="Solde marchand" en="Merchant balance" /> {"\u00b7"} XAF</>} value={fmtXAF(balance.available_balance)} after={<Pill tone="success">{balance.completed_payments}/{balance.total_payments} <T fr="paiements" en="payments" /></Pill>} />
+            <KpiCard label={<T fr="Total gagn\u00e9" en="Total earned" />} value={fmtXAF(balance.total_earned)} delta={`- ${fmtXAF(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`} />
+            <KpiCard label={<T fr="Marge Nkap Pay" en="Nkap Pay margin" />} value={fmtXAF(balance.ltcpay_margin)} delta={`${((merchant.fee_rate ?? 1.75) - 1.5).toFixed(2)}% net`} deltaDir="up" />
+            <KpiCard label={<T fr="Frais TouchPay" en="TouchPay fees" />} value={fmtXAF(balance.touchpay_fees)} delta="1.5% par tx" />
           </div>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-            <BalanceCard
-              label="Total Retiré"
-              value={formatCurrency(balance.total_withdrawn)}
-              icon={<TrendingDown className="h-5 w-5 text-orange-600" />}
-              bgColor="bg-orange-50"
-              textColor="text-orange-700"
-            />
-            <BalanceCard
-              label="Retraits en Attente"
-              value={formatCurrency(balance.pending_withdrawals)}
-              icon={<Clock className="h-5 w-5 text-yellow-600" />}
-              bgColor="bg-yellow-50"
-              textColor="text-yellow-700"
-            />
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs font-medium text-gray-500">Configuration</p>
-                <p className="mt-1 text-lg font-bold text-gray-900">
-                  {merchant.fee_rate ?? 1.75}%
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  Frais supportés par : <span className="font-medium">{merchant.fee_bearer === "CLIENT" ? "Client" : "Marchand"}</span>
-                </p>
-              </CardContent>
-            </Card>
+          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 16 }}>
+            <KpiCard label={<T fr="Total retir\u00e9" en="Total withdrawn" />} value={fmtXAF(balance.total_withdrawn)} />
+            <KpiCard label={<T fr="Retraits en attente" en="Pending withdrawals" />} value={fmtXAF(balance.pending_withdrawals)} />
+            <KpiCard label={<T fr="Configuration" en="Configuration" />} value={`${merchant.fee_rate ?? 1.75}%`} after={<Pill tone="info">{merchant.fee_bearer === "CLIENT" ? "Client" : <T fr="Marchand" en="Merchant" />}</Pill>} />
           </div>
         </>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+      {/* Tab switches */}
+      <div style={{ display: "flex", gap: 4, background: "var(--bg-2)", borderRadius: 8, padding: 4, marginBottom: 16 }}>
         <button
           onClick={() => setTab("payments")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "payments"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
+          className={tab === "payments" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          style={{ flex: 1 }}
         >
-          <ArrowDownCircle className="h-4 w-4 text-green-500" />
-          Paiements (Entrées)
-          {payments && (
-            <span className="ml-1 rounded-full bg-gray-200 px-2 py-0.5 text-xs">
-              {payments.total}
-            </span>
-          )}
+          <Icon name="arrowDown" size={13} color={tab === "payments" ? "white" : "var(--success)"} />
+          <T fr="Paiements (Entr\u00e9es)" en="Payments (Inflows)" />
+          {payments && <Pill tone="neutral">{payments.total}</Pill>}
         </button>
         <button
           onClick={() => setTab("withdrawals")}
-          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "withdrawals"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-600 hover:text-gray-900"
-          }`}
+          className={tab === "withdrawals" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          style={{ flex: 1 }}
         >
-          <ArrowUpCircle className="h-4 w-4 text-red-500" />
-          Retraits (Sorties)
-          {withdrawals && (
-            <span className="ml-1 rounded-full bg-gray-200 px-2 py-0.5 text-xs">
-              {withdrawals.total}
-            </span>
-          )}
+          <Icon name="arrowUp" size={13} color={tab === "withdrawals" ? "white" : "var(--rose)"} />
+          <T fr="Retraits (Sorties)" en="Withdrawals (Outflows)" />
+          {withdrawals && <Pill tone="neutral">{withdrawals.total}</Pill>}
         </button>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab content */}
       {tab === "payments" ? (
         <PaymentsTable
           data={payments}
@@ -226,67 +189,30 @@ export default function MerchantDetailPage() {
           onStatusFilter={(s) => { setWithdrawalsStatus(s); setWithdrawalsPage(1); }}
         />
       )}
-    </div>
+    </PageWrapper>
   );
 }
 
-function BalanceCard({
-  label,
-  value,
-  subtitle,
-  icon,
-  bgColor,
-  textColor,
-}: {
-  label: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  bgColor: string;
-  textColor: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-500">{label}</p>
-            <p className={`mt-1 text-xl font-bold ${textColor}`}>{value}</p>
-            {subtitle && (
-              <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>
-            )}
-          </div>
-          <div className={`rounded-lg ${bgColor} p-2`}>{icon}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+/* ── Status filter pills ──────────────────────────────────── */
 
-const PAYMENT_STATUSES = ["", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
-const WITHDRAWAL_STATUSES = ["", "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
-
-function StatusFilter({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+function StatusFilterRow({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
       {options.map((s) => (
         <button
           key={s}
           onClick={() => onChange(s)}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            value === s
-              ? "bg-navy-500 text-white"
-              : s === ""
-              ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              : getStatusColor(s) + " hover:opacity-80"
-          }`}
+          className={value === s ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          style={{ fontSize: 11 }}
         >
-          {s || "Tous"}
+          {s || <T fr="Tous" en="All" />}
         </button>
       ))}
     </div>
   );
 }
+
+/* ── Payments table ───────────────────────────────────────── */
 
 function PaymentsTable({
   data,
@@ -301,109 +227,74 @@ function PaymentsTable({
   statusFilter: string;
   onStatusFilter: (s: string) => void;
 }) {
-  if (!data) return <Loading className="py-10" />;
+  if (!data) {
+    return (
+      <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
+        <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+      </div>
+    );
+  }
 
   const totalPages = Math.ceil(data.total / data.per_page);
 
   return (
-    <Card>
-      <CardContent>
-        <div className="mb-4">
-          <StatusFilter value={statusFilter} onChange={onStatusFilter} options={PAYMENT_STATUSES} />
-        </div>
-        {data.items.length > 0 ? (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
-                    <th className="pb-3 font-medium">Référence</th>
-                    <th className="pb-3 font-medium">Client</th>
-                    <th className="pb-3 font-medium text-right">Montant</th>
-                    <th className="pb-3 font-medium text-right">Frais</th>
-                    <th className="pb-3 font-medium">Opérateur</th>
-                    <th className="pb-3 font-medium">Statut</th>
-                    <th className="pb-3 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data.items.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50">
-                      <td className="py-3">
-                        <code className="text-xs font-medium text-gray-800">
-                          {p.reference}
-                        </code>
-                        {p.description && (
-                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">
-                            {p.description}
-                          </p>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <div className="text-xs">
-                          {p.customer_name && (
-                            <p className="text-gray-700">{p.customer_name}</p>
-                          )}
-                          {p.customer_phone && (
-                            <p className="text-gray-500">{p.customer_phone}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 text-right font-medium text-green-700">
-                        +{formatCurrency(p.amount, p.currency)}
-                      </td>
-                      <td className="py-3 text-right text-xs text-gray-500">
-                        {p.fee > 0 ? formatCurrency(p.fee, p.currency) : "-"}
-                      </td>
-                      <td className="py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          p.operator === "MTN" ? "bg-yellow-50 text-yellow-700" :
-                          p.operator === "ORANGE" ? "bg-orange-50 text-orange-700" :
-                          "bg-gray-50 text-gray-600"
-                        }`}>
-                          {p.operator || p.payment_method || "-"}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(
-                            p.status
-                          )}`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-xs text-gray-500">
-                        {new Date(p.created_at).toLocaleDateString("fr-FR", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              total={data.total}
-              onPageChange={onPageChange}
-            />
-          </>
-        ) : (
-          <div className="py-12 text-center text-gray-500">
-            <ArrowDownCircle className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm">Aucun paiement</p>
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)" }}>
+        <StatusFilterRow value={statusFilter} onChange={onStatusFilter} options={PAYMENT_STATUSES} />
+      </div>
+      {data.items.length > 0 ? (
+        <>
+          <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
+            <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+            <div><T fr="Client" en="Customer" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
+            <div><T fr="Op\u00e9rateur" en="Operator" /></div>
+            <div><T fr="Statut" en="Status" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div className="tbl">
+            {data.items.map((p) => (
+              <div key={p.id} className="row" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
+                <div>
+                  <div className="mono" style={{ fontSize: 12, fontWeight: 500 }}>{p.reference}</div>
+                  {p.description && <div style={{ fontSize: 11, color: "var(--muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.description}</div>}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {p.customer_name && <div>{p.customer_name}</div>}
+                  {p.customer_phone && <div>{p.customer_phone}</div>}
+                </div>
+                <div style={{ textAlign: "right", fontWeight: 500, color: "var(--success)" }}>+{formatCurrency(p.amount, p.currency)}</div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "\u2014"}</div>
+                <div>
+                  <Pill tone={
+                    p.operator === "MTN" ? "warn" :
+                    p.operator === "ORANGE" ? "info" :
+                    "neutral"
+                  }>
+                    {p.operator || p.payment_method || "\u2014"}
+                  </Pill>
+                </div>
+                <div><Pill tone={paymentStatusTone(p.status)}>{p.status}</Pill></div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{fmtDate(p.created_at)}</div>
+              </div>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
+          )}
+        </>
+      ) : (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+          <Icon name="receipt" size={28} color="var(--muted)" />
+          <p style={{ marginTop: 8 }}><T fr="Aucun paiement" en="No payments" /></p>
+        </div>
+      )}
+    </div>
   );
 }
+
+/* ── Withdrawals table ────────────────────────────────────── */
 
 function WithdrawalsTable({
   data,
@@ -418,102 +309,65 @@ function WithdrawalsTable({
   statusFilter: string;
   onStatusFilter: (s: string) => void;
 }) {
-  if (!data) return <Loading className="py-10" />;
+  if (!data) {
+    return (
+      <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
+        <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+      </div>
+    );
+  }
 
   const totalPages = Math.ceil(data.total / data.per_page);
 
   return (
-    <Card>
-      <CardContent>
-        <div className="mb-4">
-          <StatusFilter value={statusFilter} onChange={onStatusFilter} options={WITHDRAWAL_STATUSES} />
-        </div>
-        {data.items.length > 0 ? (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
-                    <th className="pb-3 font-medium">Référence</th>
-                    <th className="pb-3 font-medium">Méthode</th>
-                    <th className="pb-3 font-medium">Destination</th>
-                    <th className="pb-3 font-medium text-right">Montant</th>
-                    <th className="pb-3 font-medium">Statut</th>
-                    <th className="pb-3 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data.items.map((w) => (
-                    <tr key={w.id} className="hover:bg-gray-50">
-                      <td className="py-3">
-                        <code className="text-xs font-medium text-gray-800">
-                          {w.reference}
-                        </code>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-xs text-gray-600">
-                          {w.method === "MOBILE_MONEY" ? "Mobile Money" : "Virement"}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <div className="text-xs">
-                          {w.method === "MOBILE_MONEY" ? (
-                            <>
-                              <p className="text-gray-700">
-                                {w.mobile_money_operator} {w.mobile_money_number}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-gray-700">{w.bank_name}</p>
-                              <p className="text-gray-500">{w.bank_account_number}</p>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 text-right font-medium text-red-700">
-                        -{formatCurrency(w.amount, w.currency)}
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(
-                            w.status
-                          )}`}
-                        >
-                          {w.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-xs text-gray-500">
-                        {new Date(w.created_at).toLocaleDateString("fr-FR", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              total={data.total}
-              onPageChange={onPageChange}
-            />
-          </>
-        ) : (
-          <div className="py-12 text-center text-gray-500">
-            <ArrowUpCircle className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm">Aucun retrait</p>
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)" }}>
+        <StatusFilterRow value={statusFilter} onChange={onStatusFilter} options={WITHDRAWAL_STATUSES} />
+      </div>
+      {data.items.length > 0 ? (
+        <>
+          <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
+            <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+            <div><T fr="M\u00e9thode" en="Method" /></div>
+            <div><T fr="Destination" en="Destination" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+            <div><T fr="Statut" en="Status" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div className="tbl">
+            {data.items.map((w) => (
+              <div key={w.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
+                <div className="mono" style={{ fontSize: 12, fontWeight: 500 }}>{w.reference}</div>
+                <div style={{ fontSize: 12 }}>
+                  {w.method === "MOBILE_MONEY" ? "Mobile Money" : <T fr="Virement" en="Transfer" />}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                  {w.method === "MOBILE_MONEY"
+                    ? `${w.mobile_money_operator} ${w.mobile_money_number}`
+                    : <><div>{w.bank_name}</div><div>{w.bank_account_number}</div></>
+                  }
+                </div>
+                <div style={{ textAlign: "right", fontWeight: 500, color: "var(--rose)" }}>-{formatCurrency(w.amount, w.currency)}</div>
+                <div><Pill tone={withdrawalStatusTone(w.status)}>{w.status}</Pill></div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{fmtDate(w.created_at)}</div>
+              </div>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
+          )}
+        </>
+      ) : (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+          <Icon name="wallet" size={28} color="var(--muted)" />
+          <p style={{ marginTop: 8 }}><T fr="Aucun retrait" en="No withdrawals" /></p>
+        </div>
+      )}
+    </div>
   );
 }
+
+/* ── Pagination ───────────────────────────────────────────── */
 
 function Pagination({
   page,
@@ -526,28 +380,28 @@ function Pagination({
   total: number;
   onPageChange: (p: number) => void;
 }) {
-  if (totalPages <= 1) return null;
-
   return (
-    <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
-      <p className="text-xs text-gray-500">{total} résultat(s)</p>
-      <div className="flex items-center gap-2">
+    <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
+      <span style={{ fontSize: 13, color: "var(--muted)" }}>
+        <T fr={`${total} r\u00e9sultat(s)`} en={`${total} result(s)`} />
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+          className="btn btn-ghost btn-sm"
+          style={{ opacity: page <= 1 ? 0.3 : 1 }}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <Icon name="chevL" size={13} />
         </button>
-        <span className="text-xs text-gray-600">
-          {page} / {totalPages}
-        </span>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>{page} / {totalPages}</span>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+          className="btn btn-ghost btn-sm"
+          style={{ opacity: page >= totalPages ? 0.3 : 1 }}
         >
-          <ChevronRight className="h-4 w-4" />
+          <Icon name="chevR" size={13} />
         </button>
       </div>
     </div>

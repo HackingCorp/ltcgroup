@@ -2,10 +2,38 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Card, CardContent, CardHeader, Button } from "@/components/ui";
+import { Icon } from "@/components/ui/icon";
+import { Pill } from "@/components/ui/pill";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { T } from "@/lib/i18n";
+import { fmtXAF, fmtDate } from "@/lib/format";
 import { withdrawalsService } from "@/services/withdrawals.service";
-import { formatCurrency, getStatusColor } from "@/lib/utils";
 import type { Withdrawal, WithdrawalListResponse } from "@/types";
+
+/* ── helpers ───────────────────────────────────────────────── */
+
+function statusTone(s: string): "success" | "warn" | "fail" | "info" | "neutral" {
+  if (s === "COMPLETED") return "success";
+  if (s === "PENDING") return "warn";
+  if (s === "APPROVED" || s === "PROCESSING") return "info";
+  if (s === "REJECTED" || s === "FAILED") return "fail";
+  return "neutral";
+}
+
+const STATUSES = ["PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
+
+const STATUS_FILTERS: { key: string; fr: string; en: string }[] = [
+  { key: "",           fr: "Tous",        en: "All" },
+  { key: "PENDING",    fr: "En attente",  en: "Pending" },
+  { key: "APPROVED",   fr: "Approuv\u00e9",   en: "Approved" },
+  { key: "REJECTED",   fr: "Rejet\u00e9",     en: "Rejected" },
+  { key: "PROCESSING", fr: "En cours",    en: "Processing" },
+  { key: "COMPLETED",  fr: "Termin\u00e9",    en: "Completed" },
+  { key: "FAILED",     fr: "\u00c9chou\u00e9",     en: "Failed" },
+];
+
+/* ── page ──────────────────────────────────────────────────── */
 
 export default function AdminWithdrawalsPage() {
   const [data, setData] = useState<WithdrawalListResponse | null>(null);
@@ -52,142 +80,147 @@ export default function AdminWithdrawalsPage() {
     }
   };
 
-  const STATUSES = ["PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
+  const totalCount = data?.total_count ?? 0;
+  const totalPages = Math.ceil(totalCount / 20);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Withdrawal Requests</h1>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-lg font-semibold text-gray-900">All Withdrawals</h2>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gold-400 focus:outline-none"
+    <PageWrapper
+      crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Retraits" en="Withdrawals" />]}
+      title={<T fr="Demandes de retrait" en="Withdrawal Requests" />}
+      sub={<T fr={`${totalCount} demande(s) de retrait`} en={`${totalCount} withdrawal request(s)`} />}
+      actions={
+        <button className="btn btn-ghost btn-sm" onClick={loadData}>
+          <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
+        </button>
+      }
+    >
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {STATUS_FILTERS.map((sf) => (
+          <button
+            key={sf.key}
+            onClick={() => { setStatusFilter(sf.key); setPage(1); }}
+            className={statusFilter === sf.key ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+            style={{ fontSize: 12 }}
           >
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500" />
-            </div>
-          ) : data && data.withdrawals.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-gray-500">
-                      <th className="pb-3 font-medium">Reference</th>
-                      <th className="pb-3 font-medium">Amount</th>
-                      <th className="pb-3 font-medium">Method</th>
-                      <th className="pb-3 font-medium">Destination</th>
-                      <th className="pb-3 font-medium">Status</th>
-                      <th className="pb-3 font-medium">Date</th>
-                      <th className="pb-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {data.withdrawals.map((w) => (
-                      <tr key={w.id} className="hover:bg-gray-50">
-                        <td className="py-3 font-mono text-xs">{w.reference}</td>
-                        <td className="py-3 font-medium">{formatCurrency(w.amount, w.currency)}</td>
-                        <td className="py-3 text-xs">
-                          {w.method === "MOBILE_MONEY" ? "Mobile Money" : "Bank Transfer"}
-                        </td>
-                        <td className="py-3 text-xs text-gray-500">
-                          {w.method === "MOBILE_MONEY"
-                            ? `${w.mobile_money_operator} ${w.mobile_money_number}`
-                            : `${w.bank_name} - ${w.bank_account_number}`}
-                        </td>
-                        <td className="py-3">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(w.status)}`}>
-                            {w.status}
-                          </span>
-                        </td>
-                        <td className="py-3 text-gray-500 text-xs">
-                          {new Date(w.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex gap-1">
-                            {w.status === "PENDING" && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleAction(w.id, "approve")}
-                                  isLoading={actionLoading === w.id}
-                                  className="text-xs text-green-600 border-green-300 hover:bg-green-50"
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleAction(w.id, "reject")}
-                                  isLoading={actionLoading === w.id}
-                                  className="text-xs text-red-600 border-red-300 hover:bg-red-50"
-                                >
-                                  Reject
-                                </Button>
-                              </>
-                            )}
-                            {w.status === "APPROVED" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleAction(w.id, "complete")}
-                                isLoading={actionLoading === w.id}
-                                className="text-xs text-blue-600 border-blue-300 hover:bg-blue-50"
-                              >
-                                Complete
-                              </Button>
-                            )}
-                            {!["PENDING", "APPROVED"].includes(w.status) && (
-                              <span className="text-xs text-gray-400">—</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <T fr={sf.fr} en={sf.en} />
+          </button>
+        ))}
+      </div>
 
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                  {data.total_count} total withdrawal{data.total_count !== 1 ? "s" : ""}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page * 20 >= data.total_count}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Next
-                  </Button>
+      {/* Table */}
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
+            <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+          </div>
+        ) : data && data.withdrawals.length > 0 ? (
+          <>
+            <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.2fr 0.7fr 0.8fr 1fr" }}>
+              <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+              <div><T fr="M\u00e9thode" en="Method" /></div>
+              <div><T fr="Destination" en="Destination" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Actions" en="Actions" /></div>
+            </div>
+            <div className="tbl">
+              {data.withdrawals.map((w) => (
+                <div key={w.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.2fr 0.7fr 0.8fr 1fr" }}>
+                  <div className="mono" style={{ fontSize: 12 }}>{w.reference}</div>
+                  <div style={{ textAlign: "right", fontWeight: 500 }}>{fmtXAF(w.amount)}</div>
+                  <div style={{ fontSize: 13 }}>
+                    {w.method === "MOBILE_MONEY"
+                      ? <T fr="Mobile Money" en="Mobile Money" />
+                      : <T fr="Virement bancaire" en="Bank Transfer" />
+                    }
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {w.method === "MOBILE_MONEY"
+                      ? `${w.mobile_money_operator} ${w.mobile_money_number}`
+                      : `${w.bank_name} - ${w.bank_account_number}`
+                    }
+                  </div>
+                  <div><Pill tone={statusTone(w.status)}>{w.status}</Pill></div>
+                  <div style={{ textAlign: "right", fontSize: 13, color: "var(--muted)" }}>
+                    {fmtDate(w.created_at)}
+                  </div>
+                  <div style={{ textAlign: "right", display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                    {w.status === "PENDING" && (
+                      <>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11, color: "var(--success)" }}
+                          onClick={() => handleAction(w.id, "approve")}
+                          disabled={actionLoading === w.id}
+                        >
+                          <Icon name="check" size={12} color="var(--success)" />
+                          <T fr="Approuver" en="Approve" />
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11, color: "var(--rose)" }}
+                          onClick={() => handleAction(w.id, "reject")}
+                          disabled={actionLoading === w.id}
+                        >
+                          <Icon name="x" size={12} color="var(--rose)" />
+                          <T fr="Rejeter" en="Reject" />
+                        </button>
+                      </>
+                    )}
+                    {w.status === "APPROVED" && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: 11, color: "var(--primary)" }}
+                        onClick={() => handleAction(w.id, "complete")}
+                        disabled={actionLoading === w.id}
+                      >
+                        <Icon name="check" size={12} />
+                        <T fr="Compl\u00e9ter" en="Complete" />
+                      </button>
+                    )}
+                    {!["PENDING", "APPROVED"].includes(w.status) && (
+                      <span style={{ color: "var(--muted)", fontSize: 12 }}>{"\u2014"}</span>
+                    )}
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                <T
+                  fr={`Page ${page} sur ${totalPages} (${totalCount} r\u00e9sultats)`}
+                  en={`Page ${page} of ${totalPages} (${totalCount} results)`}
+                />
+              </span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  <Icon name="chevL" size={13} /> <T fr="Pr\u00e9c\u00e9dent" en="Previous" />
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  <T fr="Suivant" en="Next" /> <Icon name="chevR" size={13} />
+                </button>
               </div>
-            </>
-          ) : (
-            <p className="py-8 text-center text-sm text-gray-500">No withdrawal requests found.</p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+            <Icon name="wallet" size={32} color="var(--muted)" />
+            <p style={{ marginTop: 12 }}><T fr="Aucune demande de retrait trouv\u00e9e." en="No withdrawal requests found." /></p>
+          </div>
+        )}
+      </div>
+    </PageWrapper>
   );
 }

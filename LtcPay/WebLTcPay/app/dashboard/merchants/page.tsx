@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, Loading, Button, Input } from "@/components/ui";
+import Link from "next/link";
+import { Icon } from "@/components/ui/icon";
+import { Pill } from "@/components/ui/pill";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { Avatar } from "@/components/ui/avatar";
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { T } from "@/lib/i18n";
+import { fmtXAF } from "@/lib/format";
+import { Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
 import type { MerchantBalanceInfo } from "@/services/merchants.service";
-import { Store, Plus, Copy, Eye, EyeOff, X, RefreshCw, KeyRound, Shield, Power, Trash2, ChevronRight, Wallet, Pencil } from "lucide-react";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData, UpdateMerchantData } from "@/services/merchants.service";
 import { formatCurrency } from "@/lib/utils";
-import Link from "next/link";
+
+/* ── page ──────────────────────────────────────────────────── */
 
 export default function MerchantsPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
@@ -47,27 +55,31 @@ export default function MerchantsPage() {
     loadBalances();
   }, []);
 
-  if (isLoading) {
-    return <Loading className="py-20" size="lg" />;
-  }
+  const activeCount = merchants.filter((m) => m.is_active).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Merchants</h1>
-          <p className="text-sm text-gray-500">
-            {totalCount} merchant{totalCount !== 1 ? "s" : ""} registered
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Merchant
-        </Button>
+    <PageWrapper
+      crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
+      title={<T fr="Marchands" en="Merchants" />}
+      sub={<T fr={`${totalCount} marchand(s) enregistr\u00e9(s)`} en={`${totalCount} registered merchant(s)`} />}
+      actions={
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+          <Icon name="plus" size={13} color="white" /> <T fr="Ajouter" en="Add Merchant" />
+        </button>
+      }
+    >
+      {/* KPIs */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
+        <KpiCard hero label={<T fr="Total marchands" en="Total merchants" />} value={String(totalCount)} />
+        <KpiCard label={<T fr="Actifs" en="Active" />} value={String(activeCount)} after={<Pill tone="success"><T fr="en ligne" en="online" /></Pill>} />
+        <KpiCard label={<T fr="Inactifs" en="Inactive" />} value={String(totalCount - activeCount)} />
+        <KpiCard label={<T fr="Mode test" en="Test mode" />} value={String(merchants.filter((m) => m.is_test_mode).length)} />
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        <div className="card" style={{ padding: 14, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
+          {error}
+        </div>
       )}
 
       {credentials && (
@@ -77,45 +89,43 @@ export default function MerchantsPage() {
         />
       )}
 
-      <Card>
-        <CardContent>
-          {merchants.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
-                    <th className="pb-3 font-medium">Merchant</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium text-right">Balance</th>
-                    <th className="pb-3 font-medium text-right">Paiements</th>
-                    <th className="pb-3 font-medium text-center">Commission</th>
-                    <th className="pb-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {merchants.map((m) => (
-                    <MerchantRow
-                      key={m.id}
-                      merchant={m}
-                      balance={balances[m.id]}
-                      balanceLoading={balancesLoading}
-                      onCredentials={(creds) => setCredentials(creds)}
-                      onRefresh={() => { loadMerchants(); loadBalances(); }}
-                      onEdit={(merchant) => setEditingMerchant(merchant)}
-                    />
-                  ))}
-                </tbody>
-              </table>
+      {/* Table */}
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        {isLoading ? (
+          <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
+            <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+          </div>
+        ) : merchants.length > 0 ? (
+          <>
+            <div className="row head" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.9fr 0.7fr 0.6fr 1.2fr" }}>
+              <div><T fr="Marchand" en="Merchant" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Solde" en="Balance" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Paiements" en="Payments" /></div>
+              <div style={{ textAlign: "center" }}><T fr="Commission" en="Fee" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Actions" en="Actions" /></div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-              <Store className="mb-3 h-10 w-10 text-gray-300" />
-              <p>No merchants yet</p>
-              <p className="text-xs">Click &quot;Add Merchant&quot; to create one</p>
+            <div className="tbl">
+              {merchants.map((m) => (
+                <MerchantRow
+                  key={m.id}
+                  merchant={m}
+                  balance={balances[m.id]}
+                  balanceLoading={balancesLoading}
+                  onCredentials={(creds) => setCredentials(creds)}
+                  onRefresh={() => { loadMerchants(); loadBalances(); }}
+                  onEdit={(merchant) => setEditingMerchant(merchant)}
+                />
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        ) : (
+          <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+            <Icon name="building" size={32} color="var(--muted)" />
+            <p style={{ marginTop: 12 }}><T fr="Aucun marchand. Cliquez sur Ajouter pour en cr\u00e9er un." en="No merchants yet. Click Add to create one." /></p>
+          </div>
+        )}
+      </div>
 
       {showCreateModal && (
         <CreateMerchantModal
@@ -140,9 +150,11 @@ export default function MerchantsPage() {
           }}
         />
       )}
-    </div>
+    </PageWrapper>
   );
 }
+
+/* ── merchant row ──────────────────────────────────────────── */
 
 function MerchantRow({
   merchant: m,
@@ -237,177 +249,166 @@ function MerchantRow({
 
   return (
     <>
-      <tr className="hover:bg-gray-50">
-        <td className="py-3">
+      <div className="row" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.9fr 0.7fr 0.6fr 1.2fr" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Avatar name={m.name} size={28} />
           <div>
-            <p className="font-medium text-gray-900">{m.name}</p>
-            <p className="text-xs text-gray-500">{m.email}</p>
+            <div style={{ fontWeight: 500 }}>{m.name}</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>{m.email}</div>
           </div>
-        </td>
-        <td className="py-3">
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-              m.is_active
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
-            {m.is_active ? "Active" : "Inactive"}
-          </span>
-        </td>
-        <td className="py-3 text-right">
+        </div>
+        <div>
+          <Pill tone={m.is_active ? "success" : "fail"}>
+            {m.is_active ? <T fr="Actif" en="Active" /> : <T fr="Inactif" en="Inactive" />}
+          </Pill>
+        </div>
+        <div style={{ textAlign: "right" }}>
           {balanceLoading ? (
-            <span className="text-xs text-gray-400">...</span>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>...</span>
           ) : balance ? (
             <div>
-              <p className="font-semibold text-gray-900">
-                {formatCurrency(balance.available_balance)}
-              </p>
-              <p className="text-xs text-gray-500">
-                {formatCurrency(balance.total_earned)} earned
-              </p>
+              <div style={{ fontWeight: 600 }}>{fmtXAF(balance.available_balance)}</div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmtXAF(balance.total_earned)} <T fr="gagn\u00e9" en="earned" /></div>
             </div>
           ) : (
-            <span className="text-xs text-gray-400">-</span>
+            <span style={{ color: "var(--muted)" }}>{"\u2014"}</span>
           )}
-        </td>
-        <td className="py-3 text-right">
+        </div>
+        <div style={{ textAlign: "right" }}>
           {balance ? (
             <div>
-              <p className="font-medium text-gray-900">{balance.completed_payments}</p>
-              <p className="text-xs text-gray-500">{balance.total_payments} total</p>
+              <div style={{ fontWeight: 500 }}>{balance.completed_payments}</div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>{balance.total_payments} total</div>
             </div>
           ) : (
-            <span className="text-xs text-gray-400">-</span>
+            <span style={{ color: "var(--muted)" }}>{"\u2014"}</span>
           )}
-        </td>
-        <td className="py-3 text-center">
-          <p className="text-sm font-medium text-gray-900">{m.fee_rate ?? 1.75}%</p>
-        </td>
-        <td className="py-3">
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              {showDetails ? "Hide" : "Keys"}
-            </button>
-            <button
-              onClick={() => onEdit(m)}
-              className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-            >
-              <Pencil className="h-3 w-3" />
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={actionLoading}
-              className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-            >
-              <Trash2 className="h-3 w-3" />
-              {actionLoading ? "..." : "Delete"}
-            </button>
-            <Link
-              href={`/dashboard/merchants/${m.id}`}
-              className="inline-flex items-center gap-1 rounded-md bg-navy-500 px-2 py-1 text-xs font-medium text-white hover:bg-navy-600 transition-colors"
-            >
-              <Wallet className="h-3 w-3" />
-              Details
-              <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </td>
-      </tr>
+        </div>
+        <div style={{ textAlign: "center", fontWeight: 500 }}>{m.fee_rate ?? 1.75}%</div>
+        <div style={{ textAlign: "right", display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11 }}
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            <Icon name={showDetails ? "eyeOff" : "eye"} size={12} />
+            {showDetails ? <T fr="Masquer" en="Hide" /> : <T fr="Cl\u00e9s" en="Keys" />}
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11 }}
+            onClick={() => onEdit(m)}
+          >
+            <Icon name="settings" size={12} />
+            <T fr="Modifier" en="Edit" />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11, color: "var(--rose)" }}
+            onClick={handleDelete}
+            disabled={actionLoading}
+          >
+            <Icon name="trash" size={12} color="var(--rose)" />
+            {actionLoading ? "..." : <T fr="Suppr." en="Delete" />}
+          </button>
+          <Link
+            href={`/dashboard/merchants/${m.id}`}
+            className="btn btn-primary btn-sm"
+            style={{ fontSize: 11, textDecoration: "none" }}
+          >
+            <T fr="D\u00e9tails" en="Details" /> <Icon name="chevR" size={11} color="white" />
+          </Link>
+        </div>
+      </div>
       {showDetails && (
-        <tr className="bg-gray-50">
-          <td colSpan={6} className="px-4 py-4">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">API Key (Test)</p>
-                  <ApiKeyCell value={m.api_key_test} />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">API Key (Live)</p>
-                  <ApiKeyCell value={m.api_key_live} />
-                </div>
-              </div>
-              {m.webhook_secret && (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Webhook Secret</p>
-                  <ApiKeyCell value={m.webhook_secret} />
-                </div>
-              )}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                <button
-                  onClick={handleRegenerateApiSecret}
-                  disabled={regenerating !== null || actionLoading}
-                  className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  {regenerating === "api" ? "Regenerating..." : "Regenerate API Secret"}
-                </button>
-                <button
-                  onClick={handleRegenerateWebhookSecret}
-                  disabled={regenerating !== null || actionLoading}
-                  className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                >
-                  <Shield className="h-3.5 w-3.5" />
-                  {regenerating === "webhook" ? "Regenerating..." : "Regenerate Webhook Secret"}
-                </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    onClick={handleToggleActive}
-                    disabled={actionLoading || regenerating !== null}
-                    className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 transition-colors ${
-                      m.is_active
-                        ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
-                        : "bg-green-50 text-green-700 hover:bg-green-100"
-                    }`}
-                  >
-                    <Power className="h-3.5 w-3.5" />
-                    {actionLoading ? "..." : m.is_active ? "Deactivate" : "Reactivate"}
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={actionLoading || regenerating !== null}
-                    className="inline-flex items-center gap-1 rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    {actionLoading ? "..." : "Delete"}
-                  </button>
-                </div>
-              </div>
+        <div style={{ padding: "12px 18px", background: "var(--bg-2)", borderBottom: "1px solid var(--line)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Cl\u00e9 API (Test)" en="API Key (Test)" /></div>
+              <ApiKeyCell value={m.api_key_test} />
             </div>
-          </td>
-        </tr>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Cl\u00e9 API (Live)" en="API Key (Live)" /></div>
+              <ApiKeyCell value={m.api_key_live} />
+            </div>
+          </div>
+          {m.webhook_secret && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Secret Webhook" en="Webhook Secret" /></div>
+              <ApiKeyCell value={m.webhook_secret} />
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, paddingTop: 10, borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, color: "var(--warn)" }}
+              onClick={handleRegenerateApiSecret}
+              disabled={regenerating !== null || actionLoading}
+            >
+              <Icon name="refresh" size={12} />
+              {regenerating === "api" ? "..." : <T fr="R\u00e9g\u00e9n\u00e9rer API Secret" en="Regenerate API Secret" />}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11 }}
+              onClick={handleRegenerateWebhookSecret}
+              disabled={regenerating !== null || actionLoading}
+            >
+              <Icon name="shield" size={12} />
+              {regenerating === "webhook" ? "..." : <T fr="R\u00e9g\u00e9n\u00e9rer Webhook Secret" en="Regenerate Webhook Secret" />}
+            </button>
+            <div style={{ marginLeft: "auto" }} />
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, color: m.is_active ? "var(--warn)" : "var(--success)" }}
+              onClick={handleToggleActive}
+              disabled={actionLoading || regenerating !== null}
+            >
+              <Icon name="bolt" size={12} />
+              {actionLoading ? "..." : m.is_active ? <T fr="D\u00e9sactiver" en="Deactivate" /> : <T fr="R\u00e9activer" en="Reactivate" />}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 11, color: "var(--rose)" }}
+              onClick={handleDelete}
+              disabled={actionLoading || regenerating !== null}
+            >
+              <Icon name="trash" size={12} color="var(--rose)" />
+              {actionLoading ? "..." : <T fr="Supprimer" en="Delete" />}
+            </button>
+          </div>
+        </div>
       )}
     </>
   );
 }
+
+/* ── API key cell ──────────────────────────────────────────── */
 
 function ApiKeyCell({ value }: { value: string }) {
   const [visible, setVisible] = useState(false);
   const masked = value.slice(0, 14) + "..." + value.slice(-4);
 
   return (
-    <div className="flex items-center gap-1">
-      <code className="text-xs text-gray-600">{visible ? value : masked}</code>
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <code className="mono" style={{ fontSize: 11, color: "var(--ink)" }}>{visible ? value : masked}</code>
       <button
         onClick={() => setVisible(!visible)}
-        className="p-0.5 text-gray-400 hover:text-gray-600"
+        style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
       >
-        {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        <Icon name={visible ? "eyeOff" : "eye"} size={13} color="var(--muted)" />
       </button>
       <button
         onClick={() => navigator.clipboard.writeText(value)}
-        className="p-0.5 text-gray-400 hover:text-gray-600"
+        style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
       >
-        <Copy className="h-3.5 w-3.5" />
+        <Icon name="copy" size={13} color="var(--muted)" />
       </button>
     </div>
   );
 }
+
+/* ── Credentials card ─────────────────────────────────────── */
 
 function CredentialsCard({
   credentials,
@@ -417,29 +418,27 @@ function CredentialsCard({
   onClose: () => void;
 }) {
   return (
-    <Card>
-      <CardContent>
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Merchant Created: {credentials.name}
-            </h3>
-            <p className="mt-1 text-sm text-amber-600 font-medium">
-              Save the API Secret now — it will not be shown again.
-            </p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
-          </button>
+    <div className="card" style={{ marginBottom: 16, border: "1px solid var(--warn)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div>
+          <h3 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>
+            <T fr={`Marchand cr\u00e9\u00e9 : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
+          </h3>
+          <p style={{ color: "var(--warn)", fontSize: 13, fontWeight: 500, margin: "4px 0 0" }}>
+            <T fr="Sauvegardez le secret API maintenant \u2014 il ne sera plus affich\u00e9." en="Save the API Secret now \u2014 it will not be shown again." />
+          </p>
         </div>
-        <div className="mt-4 space-y-3">
-          <CredentialRow label="API Key (Live)" value={credentials.api_key_live} />
-          <CredentialRow label="API Key (Test)" value={credentials.api_key_test} />
-          <CredentialRow label="API Secret" value={credentials.api_secret} highlight />
-          <CredentialRow label="Webhook Secret" value={credentials.webhook_secret} />
-        </div>
-      </CardContent>
-    </Card>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+          <Icon name="x" size={16} color="var(--muted)" />
+        </button>
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>
+        <CredentialRow label="API Key (Live)" value={credentials.api_key_live} />
+        <CredentialRow label="API Key (Test)" value={credentials.api_key_test} />
+        <CredentialRow label="API Secret" value={credentials.api_secret} highlight />
+        <CredentialRow label="Webhook Secret" value={credentials.webhook_secret} />
+      </div>
+    </div>
   );
 }
 
@@ -453,26 +452,24 @@ function CredentialRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-gray-500">{label}</p>
-        <code
-          className={`text-xs break-all ${
-            highlight ? "text-amber-700 font-semibold" : "text-gray-800"
-          }`}
-        >
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-2)", borderRadius: 8, padding: "8px 12px" }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 11, color: "var(--muted)" }}>{label}</div>
+        <code className="mono" style={{ fontSize: 11, wordBreak: "break-all", color: highlight ? "var(--warn)" : "var(--ink)", fontWeight: highlight ? 600 : 400 }}>
           {value}
         </code>
       </div>
       <button
         onClick={() => navigator.clipboard.writeText(value)}
-        className="ml-2 shrink-0 p-1 text-gray-400 hover:text-gray-600"
+        style={{ background: "none", border: "none", padding: 4, cursor: "pointer", flexShrink: 0, marginLeft: 8 }}
       >
-        <Copy className="h-4 w-4" />
+        <Icon name="copy" size={14} color="var(--muted)" />
       </button>
     </div>
   );
 }
+
+/* ── Create modal ─────────────────────────────────────────── */
 
 function CreateMerchantModal({
   onClose,
@@ -507,103 +504,72 @@ function CreateMerchantModal({
     setForm((prev) => ({ ...prev, [field]: value || undefined }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Add Merchant</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", overflow: "auto", borderRadius: 12, background: "var(--surface)", padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontWeight: 600, fontSize: 18, margin: 0 }}><T fr="Ajouter un marchand" en="Add Merchant" /></h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}>
+            <Icon name="x" size={18} color="var(--muted)" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <div style={{ marginBottom: 14, padding: 10, borderRadius: 8, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Name *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Nom *" en="Name *" />
             </label>
-            <Input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="Merchant name"
-              required
-            />
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Merchant name" required />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Email *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Email *" en="Email *" />
             </label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => set("email", e.target.value)}
-              placeholder="merchant@example.com"
-              required
-            />
+            <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="merchant@example.com" required />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Phone
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="T\u00e9l\u00e9phone" en="Phone" />
               </label>
-              <Input
-                value={form.phone || ""}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="+237..."
-              />
+              <Input value={form.phone || ""} onChange={(e) => set("phone", e.target.value)} placeholder="+237..." />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Business Type
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Type d\u2019activit\u00e9" en="Business Type" />
               </label>
-              <Input
-                value={form.business_type || ""}
-                onChange={(e) => set("business_type", e.target.value)}
-                placeholder="e-commerce, SaaS..."
-              />
+              <Input value={form.business_type || ""} onChange={(e) => set("business_type", e.target.value)} placeholder="e-commerce, SaaS..." />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Website
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Site web" en="Website" />
             </label>
-            <Input
-              value={form.website || ""}
-              onChange={(e) => set("website", e.target.value)}
-              placeholder="https://example.com"
-            />
+            <Input value={form.website || ""} onChange={(e) => set("website", e.target.value)} placeholder="https://example.com" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Callback URL
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="URL Callback" en="Callback URL" />
             </label>
-            <Input
-              value={form.callback_url || ""}
-              onChange={(e) => set("callback_url", e.target.value)}
-              placeholder="https://example.com/webhook"
-            />
+            <Input value={form.callback_url || ""} onChange={(e) => set("callback_url", e.target.value)} placeholder="https://example.com/webhook" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Logo URL
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="URL Logo" en="Logo URL" />
             </label>
-            <Input
-              value={form.logo_url || ""}
-              onChange={(e) => set("logo_url", e.target.value)}
-              placeholder="https://example.com/logo.png"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              Affiché sur la page de paiement du client
+            <Input value={form.logo_url || ""} onChange={(e) => set("logo_url", e.target.value)} placeholder="https://example.com/logo.png" />
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+              <T fr="Affich\u00e9 sur la page de paiement du client" en="Displayed on the customer payment page" />
             </p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Taux de frais (%) *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Taux de frais (%) *" en="Fee rate (%) *" />
             </label>
             <Input
               type="number"
@@ -613,21 +579,25 @@ function CreateMerchantModal({
               value={form.fee_rate ?? 1.75}
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
-            <p className="mt-1 text-xs text-gray-400">Minimum 1.75% — par défaut supporté par le marchand</p>
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+              <T fr="Minimum 1.75% \u2014 par d\u00e9faut support\u00e9 par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
+            </p>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Creating..." : "Create Merchant"}
-            </Button>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              <T fr="Annuler" en="Cancel" />
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? <T fr="Cr\u00e9ation..." en="Creating..." /> : <T fr="Cr\u00e9er le marchand" en="Create Merchant" />}
+            </button>
           </div>
         </form>
       </div>
     </div>
   );
 }
+
+/* ── Edit modal ───────────────────────────────────────────── */
 
 function EditMerchantModal({
   merchant,
@@ -658,7 +628,6 @@ function EditMerchantModal({
     setSubmitting(true);
     setError("");
     try {
-      // Strip empty strings to undefined so backend ignores them
       const payload: UpdateMerchantData = { ...form };
       for (const key of ["phone", "website", "callback_url", "business_type", "description", "logo_url"] as const) {
         if (payload[key] === "") payload[key] = undefined;
@@ -674,25 +643,25 @@ function EditMerchantModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Edit Merchant</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", overflow: "auto", borderRadius: 12, background: "var(--surface)", padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontWeight: 600, fontSize: 18, margin: 0 }}><T fr="Modifier le marchand" en="Edit Merchant" /></h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}>
+            <Icon name="x" size={18} color="var(--muted)" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+          <div style={{ marginBottom: 14, padding: 10, borderRadius: 8, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Name *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Nom *" en="Name *" />
             </label>
             <Input
               value={form.name || ""}
@@ -702,22 +671,16 @@ function EditMerchantModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <Input
-              value={merchant.email}
-              disabled
-              className="bg-gray-100 cursor-not-allowed"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              L&apos;email ne peut pas être modifié
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Email</label>
+            <Input value={merchant.email} disabled style={{ opacity: 0.5 }} />
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+              <T fr="L\u2019email ne peut pas \u00eatre modifi\u00e9" en="Email cannot be changed" />
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Phone
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="T\u00e9l\u00e9phone" en="Phone" />
               </label>
               <Input
                 value={form.phone || ""}
@@ -726,8 +689,8 @@ function EditMerchantModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Business Type
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Type d\u2019activit\u00e9" en="Business Type" />
               </label>
               <Input
                 value={form.business_type || ""}
@@ -737,8 +700,8 @@ function EditMerchantModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Website
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Site web" en="Website" />
             </label>
             <Input
               value={form.website || ""}
@@ -747,8 +710,8 @@ function EditMerchantModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Callback URL
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="URL Callback" en="Callback URL" />
             </label>
             <Input
               value={form.callback_url || ""}
@@ -757,9 +720,7 @@ function EditMerchantModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Description
-            </label>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Description</label>
             <Input
               value={form.description || ""}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -767,8 +728,8 @@ function EditMerchantModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Logo URL
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="URL Logo" en="Logo URL" />
             </label>
             <Input
               value={form.logo_url || ""}
@@ -777,8 +738,8 @@ function EditMerchantModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Taux de frais (%) *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Taux de frais (%) *" en="Fee rate (%) *" />
             </label>
             <Input
               type="number"
@@ -788,29 +749,34 @@ function EditMerchantModal({
               value={form.fee_rate ?? 1.75}
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
-            <p className="mt-1 text-xs text-gray-400">Minimum 1.75% — par défaut supporté par le marchand</p>
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.is_active ?? true}
-                onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-navy-600 focus:ring-navy-500"
-              />
-              Marchand actif
-            </label>
-            <p className="text-xs text-gray-500">
-              {form.is_active ? "Le marchand peut utiliser l'API" : "Accès API désactivé"}
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+              <T fr="Minimum 1.75% \u2014 par d\u00e9faut support\u00e9 par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
             </p>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : "Save Changes"}
-            </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, border: "1px solid var(--line)" }}>
+            <input
+              type="checkbox"
+              checked={form.is_active ?? true}
+              onChange={(e) => setForm((prev) => ({ ...prev, is_active: e.target.checked }))}
+              style={{ width: 16, height: 16 }}
+            />
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 500 }}><T fr="Marchand actif" en="Active merchant" /></span>
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
+                {form.is_active
+                  ? <T fr="Le marchand peut utiliser l\u2019API" en="Merchant can use the API" />
+                  : <T fr="Acc\u00e8s API d\u00e9sactiv\u00e9" en="API access disabled" />
+                }
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              <T fr="Annuler" en="Cancel" />
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? <T fr="Enregistrement..." en="Saving..." /> : <T fr="Enregistrer" en="Save Changes" />}
+            </button>
           </div>
         </form>
       </div>

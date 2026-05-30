@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, Loading } from "@/components/ui";
+import { Icon } from "@/components/ui/icon";
+import { Pill } from "@/components/ui/pill";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { T } from "@/lib/i18n";
+import { fmtXAF, fmt, fmtDate } from "@/lib/format";
 import { dashboardService } from "@/services/dashboard.service";
 import { formatCurrency } from "@/lib/utils";
-import { CreditCard, DollarSign, TrendingUp, CheckCircle } from "lucide-react";
 import { RevenueChart, StatusDistributionChart } from "@/components/dashboard";
 import type { DashboardStats } from "@/types";
 
@@ -21,99 +25,125 @@ export default function DashboardPage() {
   }, []);
 
   if (isLoading) {
-    return <Loading className="py-20" size="lg" />;
+    return (
+      <div style={{ display: "grid", placeItems: "center", height: 256 }}>
+        <div style={{ width: 32, height: 32, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+      </div>
+    );
   }
 
-  const statCards = [
-    {
-      title: "Total Payments",
-      value: stats?.total_payments ?? 0,
-      icon: CreditCard,
-      color: "text-blue-600 bg-blue-50",
-    },
-    {
-      title: "Total Revenue",
-      value: formatCurrency(stats?.total_revenue ?? 0),
-      icon: DollarSign,
-      color: "text-green-600 bg-green-50",
-    },
-    {
-      title: "Transactions",
-      value: stats?.total_transactions ?? 0,
-      icon: TrendingUp,
-      color: "text-purple-600 bg-purple-50",
-    },
-    {
-      title: "Success Rate",
-      value: `${(stats?.success_rate ?? 0).toFixed(1)}%`,
-      icon: CheckCircle,
-      color: "text-gold-600 bg-gold-50",
-    },
-  ];
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500">Overview of your payment activity</p>
+    <PageWrapper
+      crumb={[
+        <T key="c1" fr="Plateforme" en="Platform" />,
+        <T key="c2" fr="Vue d'ensemble" en="Overview" />,
+      ]}
+      title={<T fr="Tableau de bord" en="Dashboard" />}
+      sub={<T fr="Vue globale de l'activite de la plateforme" en="Platform-wide activity overview" />}
+      actions={
+        <button className="btn btn-ghost btn-sm">
+          <Icon name="download" size={13} />
+          <T fr="Exporter" en="Export" />
+        </button>
+      }
+    >
+      {/* KPI row */}
+      <div
+        className="kpi-grid"
+        style={{ gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)", marginBottom: 12 }}
+      >
+        <KpiCard
+          hero
+          label={<><T fr="Volume total (GMV)" en="Total volume (GMV)" /> {"\u00b7"} XAF</>}
+          value={fmtXAF(stats?.total_revenue ?? 0)}
+        />
+        <KpiCard
+          label={<T fr="Marchands actifs" en="Active merchants" />}
+          value={fmt(stats?.total_payments ?? 0)}
+        />
+        <KpiCard
+          label={<T fr="TX / 24h" en="TX / 24h" />}
+          value={fmt(stats?.total_transactions ?? 0)}
+        />
+        <KpiCard
+          label={<T fr="Taux de succes" en="Success rate" />}
+          value={`${(stats?.success_rate ?? 0).toFixed(1)}`}
+          unit="%"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardContent className="flex items-center gap-4">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${stat.color}`}>
-                <stat.icon className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Charts row */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", gap: 12, marginBottom: 12 }}>
+        <div className="nk-card">
+          <div className="card-head">
+            <h3><T fr="Revenus" en="Revenue" /></h3>
+          </div>
+          <RevenueChart data={stats?.revenue_chart ?? []} />
+        </div>
+        <div className="nk-card">
+          <div className="card-head">
+            <h3><T fr="Statuts" en="Status distribution" /></h3>
+          </div>
+          <StatusDistributionChart data={stats?.status_distribution ?? []} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <RevenueChart data={stats?.revenue_chart ?? []} />
-        <StatusDistributionChart data={stats?.status_distribution ?? []} />
-      </div>
+      {/* Recent payments table */}
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: 18, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--line)" }}>
+          <div>
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
+              <T fr="Activite recente" en="Recent activity" />
+            </h3>
+            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+              <T fr="Derniers paiements traites sur la plateforme" en="Latest payments processed on the platform" />
+            </p>
+          </div>
+        </div>
 
-      <Card>
-        <CardContent>
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Payments</h2>
-          {stats?.recent_payments && stats.recent_payments.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 text-left text-gray-500">
-                    <th className="pb-3 font-medium">Reference</th>
-                    <th className="pb-3 font-medium">Amount</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {stats.recent_payments.map((payment) => (
-                    <tr key={payment.id}>
-                      <td className="py-3 font-mono text-xs">{payment.reference}</td>
-                      <td className="py-3">{formatCurrency(payment.amount, payment.currency)}</td>
-                      <td className="py-3">
-                        <span className="capitalize">{payment.status}</span>
-                      </td>
-                      <td className="py-3 text-gray-500">
-                        {new Date(payment.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {stats?.recent_payments && stats.recent_payments.length > 0 ? (
+          <div className="tbl">
+            <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.8fr 1fr" }}>
+              <div><T fr="Reference" en="Reference" /></div>
+              <div><T fr="Montant" en="Amount" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
             </div>
-          ) : (
-            <p className="py-8 text-center text-gray-500">No payments yet</p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            {stats.recent_payments.map((payment) => (
+              <div
+                key={payment.id}
+                className="row"
+                style={{ gridTemplateColumns: "1.4fr 1fr 0.8fr 1fr" }}
+              >
+                <div className="mono" style={{ fontSize: 12 }}>{payment.reference}</div>
+                <div className="display" style={{ fontWeight: 500, fontSize: 14 }}>
+                  {formatCurrency(payment.amount, payment.currency)}
+                </div>
+                <div>
+                  <Pill tone={
+                    payment.status === "completed" ? "success"
+                    : payment.status === "failed" ? "fail"
+                    : payment.status === "pending" ? "warn"
+                    : "neutral"
+                  }>
+                    {payment.status}
+                  </Pill>
+                </div>
+                <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>
+                  {fmtDate(payment.created_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+            <Icon name="receipt" size={32} color="var(--muted-2)" />
+            <p style={{ marginTop: 8 }}>
+              <T fr="Aucun paiement pour le moment" en="No payments yet" />
+            </p>
+          </div>
+        )}
+      </div>
+    </PageWrapper>
   );
 }

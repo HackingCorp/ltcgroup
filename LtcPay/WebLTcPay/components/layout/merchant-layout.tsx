@@ -2,44 +2,14 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search } from "lucide-react";
 import { MerchantSidebar } from "./merchant-sidebar";
+import { Header } from "./header";
 import { PageLoading } from "@/components/ui";
 import { useAuth } from "@/hooks/use-auth";
-
-function MerchantHeader() {
-  const { merchantUser } = useAuth();
-
-  return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="h-9 rounded-lg border border-gray-300 bg-gray-50 pl-9 pr-4 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button className="relative rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-          <Bell className="h-5 w-5" />
-        </button>
-        <div className="text-right">
-          <p className="text-sm font-medium text-gray-900">{merchantUser?.name}</p>
-          <p className="text-xs text-gray-500">
-            {merchantUser?.is_test_mode ? "Test Mode" : "Live Mode"}
-          </p>
-        </div>
-      </div>
-    </header>
-  );
-}
+import { LangProvider } from "@/lib/i18n";
 
 export function MerchantLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, loadUser, role } = useAuth();
+  const { isAuthenticated, isLoading, loadUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -50,26 +20,25 @@ export function MerchantLayout({ children }: { children: React.ReactNode }) {
     if (!isLoading && !isAuthenticated) {
       router.push("/merchant/login");
     }
-    if (!isLoading && isAuthenticated && role !== "merchant") {
-      router.push("/merchant/login");
-    }
-  }, [isLoading, isAuthenticated, role, router]);
+  }, [isLoading, isAuthenticated, router]);
 
   if (isLoading) {
     return <PageLoading />;
   }
 
-  if (!isAuthenticated || role !== "merchant") {
+  if (!isAuthenticated) {
     return null;
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <MerchantSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <MerchantHeader />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <LangProvider>
+      <div className="app">
+        <Header context="merchant" />
+        <div className="workspace">
+          <MerchantSidebar />
+          <div className="main-content">{children}</div>
+        </div>
       </div>
-    </div>
+    </LangProvider>
   );
 }

@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "LTCPay - Payment Gateway Dashboard",
-  description: "Manage your payments, transactions, and merchant settings with LTCPay",
+  title: "Nkap Pay - Payment Gateway",
+  description: "Acceptez les paiements mobile money et carte bancaire en Afrique Centrale avec Nkap Pay",
 };
 
 export default function RootLayout({
@@ -16,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="fr" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body>
         {children}
         <Toaster
           position="top-right"
@@ -25,8 +35,10 @@ export default function RootLayout({
             duration: 4000,
             style: {
               borderRadius: "8px",
-              background: "#001f3f",
-              color: "#fff",
+              background: "#0A0A0A",
+              color: "#FAFAF7",
+              fontFamily: "var(--body)",
+              fontSize: "13px",
             },
           }}
         />
