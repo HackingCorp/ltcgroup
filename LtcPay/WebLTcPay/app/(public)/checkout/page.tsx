@@ -8,7 +8,7 @@ import { T, useLang } from "@/lib/i18n";
 
 const ITEMS = [
   { qty: 2, fr: "Pagne Faso Dan Fani", en: "Faso Dan Fani fabric", price: "50 000 F" },
-  { qty: 1, fr: "Sac en raphia tress\u00e9", en: "Woven raffia bag", price: "22 500 F" },
+  { qty: 1, fr: "Sac en raphia tressé", en: "Woven raffia bag", price: "22 500 F" },
   { qty: 0, fr: "Livraison express", en: "Express delivery", price: "2 500 F" },
 ];
 
@@ -216,16 +216,16 @@ export default function CheckoutPage() {
               <T fr="Vous payez" en="You pay" /> <strong>Boutique Mami</strong>
             </span>
             <span className="ck-secured">
-              <T fr="S\u00e9curis\u00e9 par" en="Secured by" /> <strong>Nkap Pay</strong>
+              <T fr="Sécurisé par" en="Secured by" /> <strong>Nkap Pay</strong>
             </span>
           </div>
 
-          <div className="ck-amount-label"><T fr="Total \u00e0 payer" en="Total to pay" /></div>
+          <div className="ck-amount-label"><T fr="Total à payer" en="Total to pay" /></div>
           <div className="ck-amount">75 000<small>F CFA</small></div>
           <p className="ck-amount-desc">
             <T
-              fr="Commande #ORDER-3041 \u2014 3 articles, livraison Yaound\u00e9 sous 48h."
-              en="Order #ORDER-3041 \u2014 3 items, Yaound\u00e9 delivery in 48h."
+              fr="Commande #ORDER-3041 — 3 articles, livraison Yaoundé sous 48h."
+              en="Order #ORDER-3041 — 3 items, Yaoundé delivery in 48h."
             />
           </p>
 
@@ -233,7 +233,7 @@ export default function CheckoutPage() {
             {ITEMS.map((item, i) => (
               <div key={i} className="li">
                 <span>
-                  {item.qty > 0 && <span className="qty">{item.qty}\u00d7</span>}
+                  {item.qty > 0 && <span className="qty">{item.qty}×</span>}
                   <T fr={item.fr} en={item.en} />
                 </span>
                 <span>{item.price}</span>
@@ -246,7 +246,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="ck-foot">
-            <span>{"\u2197"} <T fr="Retour vers mamishop.cm" en="Back to mamishop.cm" /></span>
+            <span>{"↗"} <T fr="Retour vers mamishop.cm" en="Back to mamishop.cm" /></span>
             <span><T fr="Expire dans" en="Expires in" /> 27:42</span>
           </div>
         </aside>
@@ -258,7 +258,7 @@ export default function CheckoutPage() {
               <div className="ck-pay-head">
                 <div>
                   <h2><T fr="Comment voulez-vous payer ?" en="How would you like to pay?" /></h2>
-                  <p className="sub"><T fr="Choisissez votre m\u00e9thode. Aucun compte requis." en="Pick your method. No account needed." /></p>
+                  <p className="sub"><T fr="Choisissez votre méthode. Aucun compte requis." en="Pick your method. No account needed." /></p>
                 </div>
               </div>
 
@@ -291,7 +291,7 @@ export default function CheckoutPage() {
                 >
                   <div className="pm-logo" style={{ background: "var(--ink)" }}>VS</div>
                   <div className="pm-label">
-                    <strong>Visa \u00b7 Mastercard \u00b7 GIM-UEMOA</strong>
+                    <strong>Visa · Mastercard · GIM-UEMOA</strong>
                     <small>3-D Secure</small>
                   </div>
                   <div className="pm-meta">
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <div className="pm-section-label"><T fr="Num\u00e9ro mobile money" en="Mobile money number" /></div>
+                <div className="pm-section-label"><T fr="Numéro mobile money" en="Mobile money number" /></div>
                 <div className="ck-input-row">
                   <span className="flag">
                     <span className="flag-emoji" />
@@ -312,7 +312,7 @@ export default function CheckoutPage() {
                 </div>
                 <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
                   <T
-                    fr="Demande de paiement envoy\u00e9e \u00e0 ce num\u00e9ro. Confirmez avec votre PIN."
+                    fr="Demande de paiement envoyée à ce numéro. Confirmez avec votre PIN."
                     en="A payment request goes to this number. Confirm with your PIN."
                   />
                 </div>
@@ -320,13 +320,13 @@ export default function CheckoutPage() {
 
               <button className="pay-btn" onClick={() => setStep("confirm")}>
                 <span><T fr="Payer maintenant" en="Pay now" /></span>
-                <span className="amt">75 000 F {"\u2192"}</span>
+                <span className="amt">75 000 F {"→"}</span>
               </button>
 
               <div className="trust">
                 <span><Icon name="lock" size={10} /> TLS 1.3</span>
                 <span><Icon name="shield" size={10} /> PCI-DSS</span>
-                <span><T fr="BEAC agr\u00e9\u00e9" en="BEAC certified" /></span>
+                <span><T fr="BEAC agréé" en="BEAC certified" /></span>
               </div>
             </>
           )}
@@ -334,9 +334,9 @@ export default function CheckoutPage() {
           {step === "confirm" && (
             <div className="otp-stage">
               <div className="otp-glyph">{"\ud83d\udcf1"}</div>
-              <h3><T fr="Confirmez sur votre t\u00e9l\u00e9phone" en="Confirm on your phone" /></h3>
+              <h3><T fr="Confirmez sur votre téléphone" en="Confirm on your phone" /></h3>
               <p>
-                <T fr="Une notification Orange Money a \u00e9t\u00e9 envoy\u00e9e au" en="An Orange Money notification went to" />{" "}
+                <T fr="Une notification Orange Money a été envoyée au" en="An Orange Money notification went to" />{" "}
                 <strong className="mono" style={{ color: "var(--ink)", fontSize: 13 }}>+237 {phone}</strong>.{" "}
                 <T fr="Composez" en="Dial" />{" "}
                 <span style={{
@@ -353,7 +353,7 @@ export default function CheckoutPage() {
               <div className="otp-cells">
                 {[true, true, true, true, false].map((filled, i) => (
                   <div key={i} className={"otp-cell " + (filled ? "filled" : "cursor")}>
-                    {filled ? "\u2022" : ""}
+                    {filled ? "•" : ""}
                   </div>
                 ))}
               </div>
@@ -363,10 +363,10 @@ export default function CheckoutPage() {
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 28 }}>
                 <button className="btn btn-ghost" onClick={() => setStep("select")}>
-                  {"\u2190"} <T fr="Annuler" en="Cancel" />
+                  {"←"} <T fr="Annuler" en="Cancel" />
                 </button>
                 <button className="btn btn-primary" onClick={() => setStep("success")}>
-                  <T fr="J\u0027ai confirm\u00e9" en="I confirmed" /> {"\u2192"}
+                  <T fr="J'ai confirmé" en="I confirmed" /> {"→"}
                 </button>
               </div>
             </div>
@@ -377,25 +377,25 @@ export default function CheckoutPage() {
               <div className="succ-mark">
                 <Icon name="check" size={36} color="var(--ink)" />
               </div>
-              <h3><T fr="Paiement r\u00e9ussi" en="Payment successful" /></h3>
+              <h3><T fr="Paiement réussi" en="Payment successful" /></h3>
               <div className="ref">
-                PAY-A1B2C3D4E5F6 \u00b7 <T fr="il y a quelques secondes" en="a few seconds ago" />
+                PAY-A1B2C3D4E5F6 · <T fr="il y a quelques secondes" en="a few seconds ago" />
               </div>
               <div className="succ-summary">
                 <div className="s-row"><span className="k"><T fr="Montant" en="Amount" /></span><span className="v">75 000 F</span></div>
-                <div className="s-row"><span className="k"><T fr="M\u00e9thode" en="Method" /></span><span className="v">Orange Money</span></div>
-                <div className="s-row"><span className="k"><T fr="B\u00e9n\u00e9ficiaire" en="Beneficiary" /></span><span className="v">Boutique Mami</span></div>
+                <div className="s-row"><span className="k"><T fr="Méthode" en="Method" /></span><span className="v">Orange Money</span></div>
+                <div className="s-row"><span className="k"><T fr="Bénéficiaire" en="Beneficiary" /></span><span className="v">Boutique Mami</span></div>
                 <div className="s-row"><span className="k"><T fr="Date" en="Date" /></span><span className="v">26 mai 14:42</span></div>
               </div>
               <button className="btn btn-primary" style={{ marginBottom: 10 }}>
-                <T fr="Retour \u00e0 mamishop.cm" en="Back to mamishop.cm" /> <Icon name="arrow" size={14} color="white" />
+                <T fr="Retour à mamishop.cm" en="Back to mamishop.cm" /> <Icon name="arrow" size={14} color="white" />
               </button>
               <button className="btn btn-ghost">
-                <Icon name="download" size={13} /> <T fr="T\u00e9l\u00e9charger le re\u00e7u" en="Download receipt" />
+                <Icon name="download" size={13} /> <T fr="Télécharger le reçu" en="Download receipt" />
               </button>
               <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 24, maxWidth: 320, lineHeight: 1.5 }}>
                 <T
-                  fr="Un SMS de confirmation a \u00e9t\u00e9 envoy\u00e9 \u00e0 votre num\u00e9ro. Conservez la r\u00e9f\u00e9rence pour toute r\u00e9clamation."
+                  fr="Un SMS de confirmation a été envoyé à votre numéro. Conservez la référence pour toute réclamation."
                   en="A confirmation SMS has been sent. Keep the reference for any claim."
                 />
               </p>

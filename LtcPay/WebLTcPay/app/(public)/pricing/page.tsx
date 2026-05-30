@@ -17,8 +17,8 @@ const PRICING_GRID = [
   { hub: "central", country: "Congo", flag: "\u{1F1E8}\u{1F1EC}", op: "MTN Money", rate: "4,5%" },
   { hub: "central", country: "Tchad", flag: "\u{1F1F9}\u{1F1E9}", op: "Moov Money", rate: "4%" },
   { hub: "central", country: "RCA", flag: "\u{1F1E8}\u{1F1EB}", op: "Orange Money", rate: "4%" },
-  { hub: "west", country: "B\u00e9nin", flag: "\u{1F1E7}\u{1F1EF}", op: "MTN Money", rate: "3,5%" },
-  { hub: "west", country: "B\u00e9nin", flag: "\u{1F1E7}\u{1F1EF}", op: "Moov Money", rate: "3,5%" },
+  { hub: "west", country: "Bénin", flag: "\u{1F1E7}\u{1F1EF}", op: "MTN Money", rate: "3,5%" },
+  { hub: "west", country: "Bénin", flag: "\u{1F1E7}\u{1F1EF}", op: "Moov Money", rate: "3,5%" },
   { hub: "west", country: "Togo", flag: "\u{1F1F9}\u{1F1EC}", op: "T-Money", rate: "3,5%" },
   { hub: "west", country: "Togo", flag: "\u{1F1F9}\u{1F1EC}", op: "Moov Money", rate: "3,5%" },
   { hub: "west", country: "Burkina Faso", flag: "\u{1F1E7}\u{1F1EB}", op: "Moov Money", rate: "3,5%" },
@@ -26,10 +26,10 @@ const PRICING_GRID = [
   { hub: "west", country: "Burkina Faso", flag: "\u{1F1E7}\u{1F1EB}", op: "Digital Cash", rate: "2,5%" },
   { hub: "west", country: "Mali", flag: "\u{1F1F2}\u{1F1F1}", op: "Orange Money", rate: "3,5%" },
   { hub: "west", country: "Mali", flag: "\u{1F1F2}\u{1F1F1}", op: "Wave", rate: "3,5%" },
-  { hub: "west", country: "S\u00e9n\u00e9gal", flag: "\u{1F1F8}\u{1F1F3}", op: "Orange Money", rate: "3%" },
-  { hub: "west", country: "S\u00e9n\u00e9gal", flag: "\u{1F1F8}\u{1F1F3}", op: "Wave", rate: "3%" },
-  { hub: "west", country: "C\u00f4te d'Ivoire", flag: "\u{1F1E8}\u{1F1EE}", op: "Orange Money", rate: "3%" },
-  { hub: "west", country: "C\u00f4te d'Ivoire", flag: "\u{1F1E8}\u{1F1EE}", op: "MTN Money", rate: "3%" },
+  { hub: "west", country: "Sénégal", flag: "\u{1F1F8}\u{1F1F3}", op: "Orange Money", rate: "3%" },
+  { hub: "west", country: "Sénégal", flag: "\u{1F1F8}\u{1F1F3}", op: "Wave", rate: "3%" },
+  { hub: "west", country: "Côte d'Ivoire", flag: "\u{1F1E8}\u{1F1EE}", op: "Orange Money", rate: "3%" },
+  { hub: "west", country: "Côte d'Ivoire", flag: "\u{1F1E8}\u{1F1EE}", op: "MTN Money", rate: "3%" },
   { hub: "east", country: "Kenya", flag: "\u{1F1F0}\u{1F1EA}", op: "M-Pesa", rate: "3%" },
   { hub: "east", country: "Uganda", flag: "\u{1F1FA}\u{1F1EC}", op: "MTN", rate: "4%" },
   { hub: "east", country: "Nigeria", flag: "\u{1F1F3}\u{1F1EC}", op: "Bank transfer", rate: "2,5%" },
@@ -64,14 +64,14 @@ export default function PricingPage() {
         <header style={{ maxWidth: 760, margin: "0 0 40px" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 12px", borderRadius: 999, background: "var(--surface)", border: "1px solid var(--line)", fontFamily: "var(--mono)", fontSize: 11, fontWeight: 500, color: "var(--ink-2)", letterSpacing: "0.04em" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />
-            <T fr="Tarifs \u00b7 18 pays" en="Pricing \u00b7 18 countries" />
+            <T fr="Tarifs · 18 pays" en="Pricing · 18 countries" />
           </span>
           <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: "clamp(40px, 6vw, 64px)", lineHeight: 1.02, letterSpacing: "-0.03em", margin: "20px 0 16px" }}>
-            <T fr={<>Un tarif clair, <span style={{ background: "var(--accent)", padding: "0 8px", borderRadius: 8 }}>par pays</span> et par op\u00e9rateur.</>}
+            <T fr={<>Un tarif clair, <span style={{ background: "var(--accent)", padding: "0 8px", borderRadius: 8 }}>par pays</span> et par opérateur.</>}
                en={<>Clear pricing, <span style={{ background: "var(--accent)", padding: "0 8px", borderRadius: 8 }}>by country</span> and operator.</>} />
           </h1>
           <p style={{ color: "var(--ink-3)", fontSize: 17, lineHeight: 1.45, margin: 0, maxWidth: 620 }}>
-            <T fr="Frais de pay-in d\u00e9duits automatiquement \u00e0 chaque encaissement. Pas d'abonnement, pas de frais cach\u00e9s."
+            <T fr="Frais de pay-in déduits automatiquement à chaque encaissement. Pas d'abonnement, pas de frais cachés."
                en="Pay-in fees auto-deducted on each collection. No subscription, no hidden fees." />
           </p>
         </header>
@@ -79,19 +79,19 @@ export default function PricingPage() {
         {/* Summary cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, margin: "36px 0" }}>
           <div style={{ background: "var(--ink)", color: "var(--bg)", borderRadius: 14, padding: 22 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.5)" }}><T fr="\u00c0 partir de" en="Starting from" /></div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.5)" }}><T fr="À partir de" en="Starting from" /></div>
             <div style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.025em", lineHeight: 1.05, marginTop: 8 }}>2,5<small style={{ fontSize: 18, opacity: 0.5 }}>%</small></div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 6 }}>Digital Cash {"\u00b7"} Burkina & Mali</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 6 }}>Digital Cash {"·"} Burkina & Mali</div>
           </div>
           <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
-            <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}><T fr="Taux m\u00e9dian" en="Median rate" /></div>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}><T fr="Taux médian" en="Median rate" /></div>
             <div style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.025em", lineHeight: 1.05, marginTop: 8 }}>3,5<small style={{ fontSize: 18, opacity: 0.5 }}>%</small></div>
             <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}><T fr="Mobile money Afrique de l'Ouest" en="West Africa mobile money" /></div>
           </div>
           <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: 22 }}>
             <div style={{ fontFamily: "var(--mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}><T fr="Couverture" en="Coverage" /></div>
             <div style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 44, letterSpacing: "-0.025em", lineHeight: 1.05, marginTop: 8 }}>{new Set(PRICING_GRID.map(r => r.country)).size}<small style={{ fontSize: 18, opacity: 0.5 }}> <T fr="pays" en="countries" /></small></div>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{PRICING_GRID.length} <T fr="routes op\u00e9rateur actives" en="active operator routes" /></div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>{PRICING_GRID.length} <T fr="routes opérateur actives" en="active operator routes" /></div>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export default function PricingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 220, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 8 }}>
             <Icon name="search" size={14} color="var(--muted)" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={lang === "en" ? "Search country or operator\u2026" : "Rechercher un pays ou op\u00e9rateur\u2026"} style={{ border: 0, background: "transparent", outline: "none", flex: 1, fontFamily: "var(--body)", fontSize: 13, color: "var(--ink)" }} />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder={lang === "en" ? "Search country or operator…" : "Rechercher un pays ou opérateur…"} style={{ border: 0, background: "transparent", outline: "none", flex: 1, fontFamily: "var(--body)", fontSize: 13, color: "var(--ink)" }} />
           </div>
           <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--bg-2)", borderRadius: 8 }}>
             {[
@@ -123,7 +123,7 @@ export default function PricingPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <span style={{ width: 28, height: 4, borderRadius: 2, background: meta.color }} />
                 <span style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, letterSpacing: "-0.015em" }}>{lang === "en" ? meta.en : meta.fr}</span>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{Object.keys(countries).length} <T fr="pays" en="countries" /> {"\u00b7"} {routeCount} routes</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)" }}>{Object.keys(countries).length} <T fr="pays" en="countries" /> {"·"} {routeCount} routes</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                 {Object.entries(countries).map(([country, data]) => (
@@ -151,7 +151,7 @@ export default function PricingPage() {
 
         {rows.length === 0 && (
           <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)" }}>
-            <T fr="Aucun r\u00e9sultat. Essayez un autre pays ou op\u00e9rateur." en="No results. Try another country or operator." />
+            <T fr="Aucun résultat. Essayez un autre pays ou opérateur." en="No results. Try another country or operator." />
           </div>
         )}
 
@@ -163,7 +163,7 @@ export default function PricingPage() {
           <div>
             <strong style={{ fontWeight: 500 }}><T fr="Comment lire ces taux" en="How to read these rates" /></strong>
             <p style={{ margin: "4px 0 0", color: "var(--ink-3)", fontSize: 13, lineHeight: 1.5 }}>
-              <T fr="Le pourcentage est pr\u00e9lev\u00e9 sur chaque encaissement. Les cartes bancaires et virements internationaux sont tarif\u00e9s sur devis."
+              <T fr="Le pourcentage est prélevé sur chaque encaissement. Les cartes bancaires et virements internationaux sont tarifés sur devis."
                  en="The percentage is taken on each collection. Bank cards and international transfers are quoted on request." />
             </p>
           </div>
@@ -171,7 +171,7 @@ export default function PricingPage() {
 
         <div style={{ display: "flex", gap: 12, marginTop: 32, alignItems: "center", flexWrap: "wrap" }}>
           <Link href="/merchant/register" className="btn btn-primary btn-lg" style={{ textDecoration: "none" }}>
-            <T fr="Cr\u00e9er un compte gratuit" en="Create a free account" /> <Icon name="arrow" size={14} color="white" />
+            <T fr="Créer un compte gratuit" en="Create a free account" /> <Icon name="arrow" size={14} color="white" />
           </Link>
           <button className="btn btn-ghost btn-lg"><T fr="Demander un tarif sur mesure" en="Request custom pricing" /></button>
         </div>

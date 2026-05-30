@@ -60,7 +60,7 @@ export default function DocsPage() {
         <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Payments</div>
         <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 36, letterSpacing: "-0.02em", margin: "0 0 8px" }}>Create a payment</h1>
         <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
-          <T fr="Cr\u00e9e un nouveau paiement et retourne une URL de checkout vers laquelle rediriger votre client. La r\u00e9f\u00e9rence retourn\u00e9e est unique et stable."
+          <T fr="Crée un nouveau paiement et retourne une URL de checkout vers laquelle rediriger votre client. La référence retournée est unique et stable."
              en="Creates a new payment and returns a checkout URL to redirect your customer to. The returned reference is unique and stable." />
         </p>
 
@@ -126,7 +126,7 @@ export default function DocsPage() {
 
         <p style={{ marginTop: 24, padding: 16, background: "var(--primary-faint)", borderRadius: 8, color: "var(--primary-2)", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="info" size={14} color="var(--primary)" />
-          <T fr="Redirigez imm\u00e9diatement vers payment_url. La session expire en 30 minutes par d\u00e9faut." en="Redirect immediately to payment_url. Sessions expire in 30 minutes by default." />
+          <T fr="Redirigez immédiatement vers payment_url. La session expire en 30 minutes par défaut." en="Redirect immediately to payment_url. Sessions expire in 30 minutes by default." />
         </p>
       </main>
     </div>
