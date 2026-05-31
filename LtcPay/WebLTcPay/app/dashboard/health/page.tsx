@@ -8,137 +8,124 @@ import { T } from "@/lib/i18n";
 
 /* ── mock data ─────────────────────────────────────────────── */
 
-type ServiceStatus = "operational" | "degraded" | "down";
-
-interface ServiceItem {
-  name: string;
-  status: ServiceStatus;
-  uptime: string;
-  latency: string;
-  category: string;
-}
-
-const SERVICES: ServiceItem[] = [
-  { name: "API Gateway",       status: "operational", uptime: "99.99%", latency: "45ms",  category: "core" },
-  { name: "Checkout",          status: "operational", uptime: "99.98%", latency: "62ms",  category: "core" },
-  { name: "Webhook Delivery",  status: "operational", uptime: "99.97%", latency: "142ms", category: "core" },
-  { name: "MTN CM",            status: "operational", uptime: "99.95%", latency: "189ms", category: "provider" },
-  { name: "Orange CM",         status: "operational", uptime: "99.93%", latency: "156ms", category: "provider" },
-  { name: "Wave SN",           status: "operational", uptime: "99.90%", latency: "178ms", category: "provider" },
-  { name: "Wave CI",           status: "operational", uptime: "99.88%", latency: "192ms", category: "provider" },
-  { name: "Airtel GA",         status: "degraded",    uptime: "98.50%", latency: "890ms", category: "provider" },
-  { name: "M-Pesa",            status: "operational", uptime: "99.80%", latency: "210ms", category: "provider" },
-  { name: "Dashboard",         status: "operational", uptime: "99.99%", latency: "38ms",  category: "infra" },
-  { name: "Merchant API",      status: "operational", uptime: "99.98%", latency: "52ms",  category: "infra" },
-  { name: "Database",          status: "operational", uptime: "99.99%", latency: "12ms",  category: "infra" },
-  { name: "Redis",             status: "operational", uptime: "99.99%", latency: "3ms",   category: "infra" },
+const SERVICES = [
+  { name: "API Gateway", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "42ms" },
+  { name: "Checkout pages", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "180ms" },
+  { name: "Webhook engine", region: "eu-west-3", status: "ok" as const, uptime: "99.94%", p99: "142ms" },
+  { name: "Dashboard frontend", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "240ms" },
+  { name: "TouchPay client", region: "eu-west-3", status: "degraded" as const, uptime: "98.42%", p99: "1.2s" },
+  { name: "S3P / Smobilpay", region: "africa-cm", status: "ok" as const, uptime: "99.92%", p99: "320ms" },
+  { name: "E-nkap connector", region: "africa-cm", status: "ok" as const, uptime: "99.91%", p99: "412ms" },
+  { name: "PostgreSQL primary", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "12ms" },
+  { name: "PostgreSQL replica", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "14ms" },
+  { name: "Redis cache", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "1.2ms" },
+  { name: "Object storage (S3)", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "82ms" },
+  { name: "Email delivery (SES)", region: "eu-west-3", status: "ok" as const, uptime: "99.98%", p99: "1.8s" },
 ];
 
-function statusTone(s: ServiceStatus): "success" | "warn" | "fail" {
-  if (s === "operational") return "success";
-  if (s === "degraded") return "warn";
-  return "fail";
-}
+const OPERATORS = [
+  { name: "Orange Money CM", p50: 980, p99: 2400, degraded: false },
+  { name: "Orange Money CI", p50: 1240, p99: 8200, degraded: true },
+  { name: "MTN MoMo CM", p50: 1100, p99: 2600, degraded: false },
+  { name: "MTN MoMo CI", p50: 1200, p99: 2800, degraded: false },
+  { name: "Wave SN", p50: 420, p99: 1100, degraded: false },
+  { name: "Card 3DS (BNP)", p50: 2200, p99: 5800, degraded: false },
+];
 
-function statusLabel(s: ServiceStatus, lang: "fr" | "en"): string {
-  if (s === "operational") return lang === "fr" ? "Opérationnel" : "Operational";
-  if (s === "degraded") return lang === "fr" ? "Dégradé" : "Degraded";
-  return lang === "fr" ? "Hors service" : "Down";
-}
-
-function categoryLabel(c: string, lang: "fr" | "en"): string {
-  if (c === "core") return lang === "fr" ? "Services principaux" : "Core services";
-  if (c === "provider") return lang === "fr" ? "Fournisseurs de paiement" : "Payment providers";
-  return lang === "fr" ? "Infrastructure" : "Infrastructure";
-}
+const RESOURCES = [
+  { name: "CPU api-prod-cluster", v: 42, max: "8 vCPU \u00d7 6 nodes" },
+  { name: "RAM api-prod-cluster", v: 58, max: "32 GB \u00d7 6 nodes" },
+  { name: "DB connections", v: 64, max: "200 max" },
+  { name: "Redis memory", v: 31, max: "4 GB" },
+  { name: "Disk write IOPS", v: 22, max: "16k" },
+];
 
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function HealthPage() {
-  const operationalCount = SERVICES.filter((s) => s.status === "operational").length;
-
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Santé système" en="System Health" />]}
-      title={<T fr="Santé système" en="System Health" />}
-      sub={<T fr="Surveillance en temps réel de tous les services" en="Real-time monitoring of all services" />}
-      actions={
-        <button className="btn btn-ghost btn-sm">
-          <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
-        </button>
-      }
+      crumb={[<T key="c1" fr="Op\u00e9rations" en="Operations" />, <T key="c2" fr="Sant\u00e9" en="Health" />]}
+      title={<T fr="Sant\u00e9 syst\u00e8me" en="System health" />}
+      sub={<T fr="Infrastructure, d\u00e9pendances, latences. Mise \u00e0 jour toutes les 30 secondes." en="Infrastructure, dependencies, latencies. Refreshed every 30 seconds." />}
+      actions={<Pill tone="success">all green</Pill>}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Disponibilité globale" en="Overall uptime" />} value="99,98" unit="%" delta="+0.01%" deltaDir="up" />
-        <KpiCard label={<T fr="Services actifs" en="Active services" />} value={`${operationalCount}/${SERVICES.length}`} />
-        <KpiCard label={<T fr="Temps de réponse moy." en="Avg response time" />} value="89" unit="ms" delta="-5ms" deltaDir="down" />
-        <KpiCard label={<T fr="Incidents 30j" en="Incidents 30d" />} value="1" after={<Pill tone="warn"><T fr="mineur" en="minor" /></Pill>} />
-      </div>
-
-      {/* Overall status bar */}
-      <div className="card" style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, padding: 18 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", background: operationalCount === SERVICES.length ? "var(--success)" : "var(--warn)", flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>
-            {operationalCount === SERVICES.length
-              ? <T fr="Tous les systèmes sont opérationnels" en="All systems operational" />
-              : <T fr="Certains services sont dégradés" en="Some services are degraded" />
-            }
-          </span>
-          <p style={{ color: "var(--muted)", fontSize: 13, margin: "2px 0 0" }}>
-            <T fr="Derniere vérification : il y a 30 secondes" en="Last checked: 30 seconds ago" />
-          </p>
-        </div>
-        <Pill tone={operationalCount === SERVICES.length ? "success" : "warn"}>
-          {operationalCount}/{SERVICES.length} <T fr="actifs" en="active" />
-        </Pill>
-      </div>
-
-      {/* Services grouped by category */}
-      {["core", "provider", "infra"].map((cat) => {
-        const items = SERVICES.filter((s) => s.category === cat);
-        return (
-          <div key={cat} className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-            <div style={{ padding: 18, borderBottom: "1px solid var(--line)" }}>
-              <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-                <T fr={categoryLabel(cat, "fr")} en={categoryLabel(cat, "en")} />
-              </h3>
-            </div>
-            <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr" }}>
-              <div><T fr="Service" en="Service" /></div>
-              <div><T fr="Statut" en="Status" /></div>
-              <div style={{ textAlign: "right" }}><T fr="Uptime" en="Uptime" /></div>
-              <div style={{ textAlign: "right" }}><T fr="Latence" en="Latency" /></div>
-            </div>
-            <div className="tbl">
-              {items.map((s) => (
-                <div key={s.name} className="row" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: s.status === "operational" ? "var(--success)" : s.status === "degraded" ? "var(--warn)" : "var(--rose)",
-                      flexShrink: 0,
-                    }} />
-                    <span style={{ fontWeight: 500 }}>{s.name}</span>
-                  </div>
-                  <div>
-                    <Pill tone={statusTone(s.status)}>
-                      <T fr={statusLabel(s.status, "fr")} en={statusLabel(s.status, "en")} />
-                    </Pill>
-                  </div>
-                  <div style={{ textAlign: "right" }} className="mono">{s.uptime}</div>
-                  <div style={{ textAlign: "right", color: parseInt(s.latency) > 500 ? "var(--rose)" : "var(--muted)" }} className="mono">
-                    {s.latency}
-                  </div>
-                </div>
-              ))}
-            </div>
+        <KpiCard hero label="API p99 latency" value="42" unit="ms" delta={"\u22124 ms"} deltaDir="down" />
+        <KpiCard label={<T fr="Disponibilit\u00e9 30j" en="Uptime 30d" />} value="99,98" unit="%" />
+        <KpiCard label="Requests / sec" value="1 284" delta="+8%" deltaDir="up" />
+        <KpiCard label={<T fr="Containers actifs" en="Running pods" />} value="42 / 48">
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+            <T fr="Auto-scaling actif" en="Auto-scaling on" />
           </div>
-        );
-      })}
+        </KpiCard>
+      </div>
+
+      {/* Services — flat table with sparklines */}
+      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
+          <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
+            <T fr="Services" en="Services" />
+          </h3>
+        </div>
+        <div className="tbl">
+          {SERVICES.map((s, i) => (
+            <div key={i} className="row" style={{ gridTemplateColumns: "auto 1.4fr 0.7fr 1fr 0.6fr 0.6fr" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.status === "ok" ? "var(--success)" : "var(--warn)" }} />
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
+              <div className="mono" style={{ fontSize: 10, color: "var(--muted)", padding: "2px 6px", borderRadius: 3, background: "var(--bg-2)", display: "inline-block" }}>{s.region}</div>
+              <div style={{ display: "flex", gap: 1 }}>
+                {Array.from({ length: 60 }).map((_, j) => (
+                  <div key={j} style={{ width: 3, height: 16, background: s.status === "degraded" && j > 55 ? "var(--warn)" : "var(--success)" }} />
+                ))}
+              </div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{s.uptime}</div>
+              <div className="mono" style={{ fontSize: 11 }}>{s.p99}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Latency by operator + Resources */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {/* Latency by operator */}
+        <div className="card">
+          <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
+            <T fr="Latence par op\u00e9rateur" en="Latency by operator" />
+          </h3>
+          {OPERATORS.map((s, i) => (
+            <div key={i} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontWeight: 500 }}>{s.name}</span>
+                <span className="mono" style={{ color: s.degraded ? "var(--warn)" : "var(--muted)" }}>p50 {s.p50}ms &middot; p99 {s.p99}ms</span>
+              </div>
+              <div style={{ height: 4, background: "var(--bg-2)", borderRadius: 2, position: "relative" }}>
+                <div style={{ position: "absolute", left: 0, height: "100%", width: Math.min(100, s.p99 / 100) + "%", background: s.degraded ? "var(--warn)" : "var(--primary)", opacity: 0.4, borderRadius: 2 }} />
+                <div style={{ position: "absolute", left: 0, height: "100%", width: Math.min(100, s.p50 / 30) + "%", background: "var(--primary)", borderRadius: 2 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Resources */}
+        <div className="card">
+          <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
+            <T fr="Ressources" en="Resources" />
+          </h3>
+          {RESOURCES.map((s, i) => (
+            <div key={i} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontWeight: 500 }}>{s.name}</span>
+                <span className="mono">{s.v}% <span style={{ color: "var(--muted)" }}>&middot; {s.max}</span></span>
+              </div>
+              <div style={{ height: 6, background: "var(--bg-2)", borderRadius: 3 }}>
+                <div style={{ width: s.v + "%", height: "100%", background: s.v > 80 ? "var(--rose)" : s.v > 60 ? "var(--warn)" : "var(--success)", borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </PageWrapper>
   );
 }

@@ -11,72 +11,64 @@ type Tab = "account" | "payouts" | "security" | "branding" | "danger";
 
 const TABS: { key: Tab; fr: string; en: string; icon: string }[] = [
   { key: "account", fr: "Compte", en: "Account", icon: "building" },
-  { key: "payouts", fr: "Règlements", en: "Payouts", icon: "bank" },
-  { key: "security", fr: "Sécurité", en: "Security", icon: "shield" },
-  { key: "branding", fr: "Marque", en: "Branding", icon: "star" },
-  { key: "danger", fr: "Zone danger", en: "Danger zone", icon: "alert" },
+  { key: "payouts", fr: "R\u00e8glements", en: "Payouts", icon: "bank" },
+  { key: "security", fr: "S\u00e9curit\u00e9", en: "Security", icon: "shield" },
+  { key: "branding", fr: "Branding checkout", en: "Checkout branding", icon: "star" },
+  { key: "danger", fr: "Zone rouge", en: "Danger zone", icon: "alert" },
 ];
 
 const BUSINESS_INFO = [
-  { labelFr: "Raison sociale", labelEn: "Business name", value: "LTC Group SARL", verified: true },
-  { labelFr: "Numéro RCCM", labelEn: "RCCM number", value: "RC/DLA/2024/B/1847", verified: true },
-  { labelFr: "NIU", labelEn: "Tax ID", value: "M012400028471R", verified: true },
-  { labelFr: "Adresse", labelEn: "Address", value: "Rue 1.033, Bonanjo, Douala", verified: false },
-  { labelFr: "Secteur d'activité", labelEn: "Industry", value: "Fintech / Paiements", verified: false },
-  { labelFr: "Site web", labelEn: "Website", value: "https://nkap.pay", verified: true },
-  { labelFr: "Email de contact", labelEn: "Contact email", value: "contact@ltcgroup.cm", verified: true },
-  { labelFr: "Téléphone", labelEn: "Phone", value: "+237 6 99 12 34 56", verified: false },
-];
-
-const BANK_ACCOUNTS = [
-  { bank: "Afriland First Bank", account: "****7823", type: "Compte courant", typeEn: "Current account", primary: true },
-  { bank: "Ecobank Cameroun", account: "****4501", type: "Épargne", typeEn: "Savings", primary: false },
+  { labelFr: "Raison sociale", labelEn: "Legal name", value: "Boutique Mami SARL", verified: false, action: "edit" as const },
+  { labelFr: "Registre de commerce", labelEn: "Trade register", value: "RC/YDE/2024/B/0421", verified: true, action: "verified" as const },
+  { labelFr: "Num\u00e9ro contribuable", labelEn: "Tax ID", value: "M0824100021T", verified: true, action: "verified" as const },
+  { labelFr: "Email principal", labelEn: "Primary email", value: "contact@mamishop.cm", verified: false, action: "edit" as const },
+  { labelFr: "T\u00e9l\u00e9phone", labelEn: "Phone", value: "+237 670 12 34 56", verified: true, action: "verified" as const },
+  { labelFr: "Adresse", labelEn: "Address", value: "Yaound\u00e9, BP 1234", verified: false, action: "edit" as const },
 ];
 
 const IP_WHITELIST = [
-  "102.16.45.0/24",
-  "41.202.219.12",
-  "196.168.1.0/24",
+  "41.202.0.0/16",
+  "154.0.0.0/24",
 ];
+
+const BRAND_COLORS = ["#2D24E5", "#0E4D3A", "#E07852", "#C77900", "#0A0A0A"];
 
 export default function MerchantSettingsPage() {
   const [tab, setTab] = useState<Tab>("account");
   const [twoFA, setTwoFA] = useState(true);
   const [ipWhitelist, setIpWhitelist] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
-  const [loginAlerts, setLoginAlerts] = useState(true);
+  const [emailConfirm, setEmailConfirm] = useState(true);
+  const [payoutSchedule, setPayoutSchedule] = useState("daily");
+  const [selectedColor, setSelectedColor] = useState("#2D24E5");
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Paramètres" en="Settings" />]}
-      title={<T fr="Paramètres" en="Settings" />}
-      sub={<T fr="Configuration générale de votre compte marchand Nkap Pay" en="General configuration for your Nkap Pay merchant account" />}
+      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Param\u00e8tres" en="Settings" />]}
+      title={<T fr="Param\u00e8tres" en="Settings" />}
+      sub={<T fr="Compte, s\u00e9curit\u00e9, branding, et autres r\u00e9glages" en="Account, security, branding, and other settings" />}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 24 }}>
         {/* Tab navigation */}
-        <div className="card" style={{ padding: 8, alignSelf: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: "100%",
-                padding: "10px 12px",
-                border: "none",
-                borderRadius: 6,
-                background: tab === t.key ? "var(--bg-2)" : "transparent",
-                color: tab === t.key ? "var(--ink)" : "var(--muted)",
-                fontWeight: tab === t.key ? 600 : 400,
-                fontSize: 13,
+                appearance: "none",
+                border: 0,
                 cursor: "pointer",
                 textAlign: "left",
+                padding: "8px 12px",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 450,
                 fontFamily: "inherit",
+                background: tab === t.key ? "var(--ink)" : "transparent",
+                color: tab === t.key ? "var(--bg)" : "var(--muted)",
               }}
             >
-              <Icon name={t.icon} size={14} />
               <T fr={t.fr} en={t.en} />
             </button>
           ))}
@@ -86,112 +78,103 @@ export default function MerchantSettingsPage() {
         <div>
           {/* Account tab */}
           {tab === "account" && (
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-                    <T fr="Informations de l'entreprise" en="Business information" />
-                  </h3>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                    <T fr="Données vérifiées lors du KYC" en="Data verified during KYC" />
-                  </div>
-                </div>
-                <button className="btn btn-ghost btn-sm">
-                  <Icon name="settings" size={13} /> <T fr="Modifier" en="Edit" />
-                </button>
-              </div>
-              {BUSINESS_INFO.map((info, i) => (
-                <div
-                  key={info.labelFr}
-                  style={{
-                    padding: "12px 20px",
-                    display: "grid",
-                    gridTemplateColumns: "180px 1fr auto",
-                    alignItems: "center",
-                    borderBottom: i < BUSINESS_INFO.length - 1 ? "1px solid var(--line)" : "none",
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>
-                    <T fr={info.labelFr} en={info.labelEn} />
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{info.value}</div>
-                  <div>
-                    {info.verified ? (
-                      <Pill tone="success"><Icon name="check" size={10} /> <T fr="vérifié" en="verified" /></Pill>
+            <div className="card">
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px" }}>
+                <T fr="Informations entreprise" en="Business information" />
+              </h3>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 24px" }}>
+                <T fr="Donn\u00e9es l\u00e9gales et de contact. Modifications soumises \u00e0 validation KYC." en="Legal and contact data. Edits subject to KYC review." />
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {BUSINESS_INFO.map((r, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: i < BUSINESS_INFO.length - 1 ? "1px solid var(--line)" : "none" }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: 14 }}>{r.value}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        <T fr={r.labelFr} en={r.labelEn} />
+                        {r.labelFr === "Registre de commerce" && " \u2014 Cameroun"}
+                      </div>
+                    </div>
+                    {r.action === "verified" ? (
+                      <Pill tone="success">verified</Pill>
                     ) : (
-                      <Pill tone="neutral"><T fr="non vérifié" en="unverified" /></Pill>
+                      <button className="btn btn-ghost btn-sm">
+                        <T fr="Modifier" en="Edit" />
+                      </button>
                     )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Payouts tab */}
           {tab === "payouts" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-                    <T fr="Comptes bancaires" en="Bank accounts" />
-                  </h3>
+            <div className="card">
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 24px" }}>
+                <T fr="Comptes de r\u00e8glement" en="Payout accounts" />
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Primary bank account */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: 14, border: "1px solid var(--ink)", borderRadius: 10, background: "oklch(0.97 0.01 260)" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "white", display: "grid", placeItems: "center" }}>
+                    <Icon name="bank" size={18} color="var(--ink)" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ fontWeight: 500, display: "block" }}>Afriland First Bank \u00b7 \u2022\u2022\u2022\u20224912</strong>
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                      <T fr="Compte principal \u2014 r\u00e8glement T+1" en="Primary account \u2014 T+1 settlement" />
+                    </span>
+                  </div>
+                  <Pill tone="info">primary</Pill>
+                </div>
+
+                {/* Secondary wallet */}
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: 14, border: "1px solid var(--line)", borderRadius: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "#FF6600", display: "grid", placeItems: "center", color: "white", fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700 }}>OM</div>
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ fontWeight: 500, display: "block" }}>Orange Money \u00b7 \u2022\u2022\u2022 56</strong>
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                      <T fr="Wallet secondaire \u2014 retrait instantan\u00e9" en="Secondary wallet \u2014 instant withdraw" />
+                    </span>
+                  </div>
                   <button className="btn btn-ghost btn-sm">
-                    <Icon name="plus" size={13} /> <T fr="Ajouter" en="Add" />
+                    <T fr="D\u00e9finir par d\u00e9faut" en="Set as default" />
                   </button>
                 </div>
-                {BANK_ACCOUNTS.map((ba, i) => (
-                  <div
-                    key={ba.account}
-                    style={{
-                      padding: "14px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      borderBottom: i < BANK_ACCOUNTS.length - 1 ? "1px solid var(--line)" : "none",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 8,
-                        background: "var(--bg-2)",
-                        display: "grid",
-                        placeItems: "center",
-                      }}>
-                        <Icon name="bank" size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{ba.bank}</div>
-                        <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
-                          {ba.account} {"·"} <T fr={ba.type} en={ba.typeEn} />
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {ba.primary && <Pill tone="info"><T fr="principal" en="primary" /></Pill>}
-                      <button className="btn btn-ghost btn-sm"><Icon name="more" size={14} /></button>
-                    </div>
-                  </div>
-                ))}
+
+                <button className="btn btn-ghost" style={{ marginTop: 8, justifyContent: "center" }}>
+                  <Icon name="plus" size={14} /> <T fr="Ajouter un compte" en="Add account" />
+                </button>
               </div>
 
-              <div className="card" style={{ padding: 20 }}>
-                <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-                  <T fr="Calendrier de règlement" en="Payout schedule" />
-                </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {/* Payout schedule as selectable cards */}
+              <div style={{ marginTop: 32 }}>
+                <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 16, margin: "0 0 12px" }}>
+                  <T fr="Fr\u00e9quence de r\u00e8glement" en="Payout schedule" />
+                </h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                   {[
-                    { fr: "Fréquence", en: "Frequency", value: "Hebdomadaire", valueEn: "Weekly" },
-                    { fr: "Jour de règlement", en: "Payout day", value: "Vendredi", valueEn: "Friday" },
-                    { fr: "Seuil minimum", en: "Minimum threshold", value: "50 000 F", valueEn: "50,000 F" },
-                  ].map(item => (
-                    <div key={item.fr} style={{ padding: 14, background: "var(--bg-2)", borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 500, marginBottom: 6 }}>
-                        <T fr={item.fr} en={item.en} />
+                    { v: "daily", labelFr: "Quotidien", labelEn: "Daily", sub: "T+1" },
+                    { v: "weekly", labelFr: "Hebdomadaire", labelEn: "Weekly", subFr: "Tous les vendredis", subEn: "Every Friday" },
+                    { v: "manual", labelFr: "Manuel", labelEn: "Manual", subFr: "\u00c0 la demande", subEn: "On demand" },
+                  ].map(o => (
+                    <div
+                      key={o.v}
+                      onClick={() => setPayoutSchedule(o.v)}
+                      style={{
+                        padding: 14,
+                        border: "1px solid " + (payoutSchedule === o.v ? "var(--ink)" : "var(--line)"),
+                        borderRadius: 10,
+                        background: payoutSchedule === o.v ? "var(--bg-2)" : "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: 14 }}>
+                        <T fr={o.labelFr} en={o.labelEn} />
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>
-                        <T fr={item.value} en={item.valueEn} />
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                        {o.sub ? o.sub : <T fr={o.subFr || ""} en={o.subEn || ""} />}
                       </div>
                     </div>
                   ))}
@@ -202,184 +185,124 @@ export default function MerchantSettingsPage() {
 
           {/* Security tab */}
           {tab === "security" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div className="card" style={{ padding: 20 }}>
-                <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 16px" }}>
-                  <T fr="Authentification" en="Authentication" />
-                </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--bg-2)", display: "grid", placeItems: "center" }}>
-                        <Icon name="lock" size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>
-                          <T fr="Authentification à deux facteurs (2FA)" en="Two-factor authentication (2FA)" />
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          <T fr="Code TOTP requis à chaque connexion" en="TOTP code required on each login" />
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <Pill tone={twoFA ? "success" : "warn"}>{twoFA ? <T fr="actif" en="active" /> : <T fr="inactif" en="inactive" />}</Pill>
-                      <Toggle on={twoFA} onChange={setTwoFA} />
-                    </div>
+            <div className="card">
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 24px" }}>
+                <T fr="S\u00e9curit\u00e9" en="Security" />
+              </h3>
+              {[
+                { t: <T fr="Authentification \u00e0 deux facteurs (TOTP)" en="Two-factor auth (TOTP)" />, d: <T fr="Application authenticator requise \u00e0 la connexion" en="Authenticator app required to sign in" />, on: twoFA, toggle: setTwoFA },
+                { t: <T fr="Restriction IP sur l'API" en="API IP whitelist" />, d: IP_WHITELIST.join(", "), on: ipWhitelist, toggle: setIpWhitelist },
+                { t: <T fr="Notifications SMS pour grosses transactions" en="SMS alerts for large transactions" />, d: <T fr="Pour les transactions > 1 000 000 F" en="For transactions > 1,000,000 F" />, on: smsAlerts, toggle: setSmsAlerts },
+                { t: <T fr="Confirmation par email pour retraits" en="Email confirmation for withdrawals" />, d: <T fr="Active une \u00e9tape de validation par email" en="Adds an email validation step" />, on: emailConfirm, toggle: setEmailConfirm },
+              ].map((s, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: i < 3 ? "1px solid var(--line)" : "none" }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{s.t}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.d}</div>
                   </div>
-
-                  <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--bg-2)", display: "grid", placeItems: "center" }}>
-                        <Icon name="bell" size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>
-                          <T fr="Alertes SMS" en="SMS alerts" />
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          <T fr="Recevoir un SMS pour chaque paiement > 100 000 F" en="Receive SMS for each payment > 100,000 F" />
-                        </div>
-                      </div>
-                    </div>
-                    <Toggle on={smsAlerts} onChange={setSmsAlerts} />
-                  </div>
-
-                  <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--bg-2)", display: "grid", placeItems: "center" }}>
-                        <Icon name="shield" size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>
-                          <T fr="Alertes de connexion" en="Login alerts" />
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          <T fr="Email lors d'une connexion depuis un nouvel appareil" en="Email on login from a new device" />
-                        </div>
-                      </div>
-                    </div>
-                    <Toggle on={loginAlerts} onChange={setLoginAlerts} />
-                  </div>
+                  <Toggle on={s.on} onChange={s.toggle} />
                 </div>
-              </div>
-
-              <div className="card" style={{ padding: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                  <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-                    <T fr="Liste blanche IP" en="IP whitelist" />
-                  </h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Toggle on={ipWhitelist} onChange={setIpWhitelist} />
-                    <Pill tone={ipWhitelist ? "success" : "neutral"}>{ipWhitelist ? <T fr="actif" en="active" /> : <T fr="inactif" en="inactive" />}</Pill>
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 12 }}>
-                  <T fr="Seules ces adresses IP pourront appeler votre API" en="Only these IP addresses can call your API" />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {IP_WHITELIST.map(ip => (
-                    <div key={ip} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-2)", borderRadius: 6 }}>
-                      <span className="mono" style={{ fontSize: 12 }}>{ip}</span>
-                      <button className="btn btn-ghost btn-sm"><Icon name="x" size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-                <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>
-                  <Icon name="plus" size={12} /> <T fr="Ajouter une IP" en="Add IP" />
-                </button>
-              </div>
+              ))}
             </div>
           )}
 
           {/* Branding tab */}
           {tab === "branding" && (
-            <div className="card" style={{ padding: 20 }}>
-              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 6px" }}>
-                <T fr="Personnalisation du checkout" en="Checkout customization" />
+            <div className="card">
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px" }}>
+                <T fr="Branding du checkout" en="Checkout branding" />
               </h3>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 20 }}>
-                <T fr="Adaptez l'apparence de la page de paiement à votre marque" en="Adapt the payment page appearance to your brand" />
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                {/* Logo */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 20, borderBottom: "1px solid var(--line)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 56, height: 56, borderRadius: 12, background: "var(--bg-2)", display: "grid", placeItems: "center", border: "2px dashed var(--line-2)" }}>
-                      <Icon name="upload" size={20} color="var(--muted)" />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}><T fr="Logo de l'entreprise" en="Company logo" /></div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}><T fr="PNG ou SVG, 512x512 max" en="PNG or SVG, 512x512 max" /></div>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 24px" }}>
+                <T fr="Personnalisez la page de paiement vue par vos clients." en="Customize the payment page your customers see." />
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                {/* Left: controls */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Logo upload */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}><T fr="Logo" en="Logo" /></div>
+                    <div style={{
+                      height: 80,
+                      background: "var(--bg-2)",
+                      border: "2px dashed var(--line-2)",
+                      borderRadius: 8,
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 12,
+                      color: "var(--muted)",
+                    }}>
+                      upload PNG/SVG \u00b7 200\u00d7200
                     </div>
                   </div>
-                  <button className="btn btn-ghost btn-sm"><Icon name="upload" size={13} /> <T fr="Importer" en="Upload" /></button>
+
+                  {/* Color swatches */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}><T fr="Couleur primaire" en="Primary color" /></div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {BRAND_COLORS.map(c => (
+                        <div
+                          key={c}
+                          onClick={() => setSelectedColor(c)}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: c,
+                            cursor: "pointer",
+                            border: c === selectedColor ? "2px solid var(--ink)" : "none",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subdomain */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}><T fr="Sous-domaine" en="Subdomain" /></div>
+                    <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6 }}>
+                      <T fr="Votre URL checkout personnalis\u00e9e" en="Your custom checkout URL" />
+                    </div>
+                    <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 8 }}>
+                      <input
+                        className="input"
+                        style={{ borderRadius: "8px 0 0 8px", border: 0, padding: "9px 12px", fontSize: 13, flex: 1 }}
+                        defaultValue="mamishop"
+                      />
+                      <span style={{ padding: "9px 12px", color: "var(--muted)", fontSize: 13, background: "var(--bg-2)", borderRadius: "0 8px 8px 0" }}>
+                        .checkout.nkap.pay
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Colors */}
-                <div style={{ paddingBottom: 20, borderBottom: "1px solid var(--line)" }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                    <T fr="Couleurs" en="Colors" />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 6, background: "#1a1a2e", border: "2px solid var(--line)" }} />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 500 }}><T fr="Couleur primaire" en="Primary color" /></div>
-                        <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>#1a1a2e</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 6, background: "#e8b931", border: "2px solid var(--line)" }} />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 500 }}><T fr="Couleur d'accent" en="Accent color" /></div>
-                        <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>#e8b931</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subdomain */}
+                {/* Right: preview */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
-                    <T fr="Sous-domaine de paiement" en="Payment subdomain" />
+                  <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                    <T fr="Aper\u00e7u" en="Preview" />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    <div style={{
-                      padding: "8px 14px",
-                      background: "var(--bg-2)",
-                      borderRadius: "6px 0 0 6px",
-                      border: "1px solid var(--line)",
-                      borderRight: "none",
-                      fontSize: 13,
-                      color: "var(--muted)",
-                    }}>
-                      https://
-                    </div>
-                    <div style={{
-                      padding: "8px 14px",
-                      border: "1px solid var(--line)",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      minWidth: 120,
-                    }}>
-                      ltcgroup
-                    </div>
-                    <div style={{
-                      padding: "8px 14px",
-                      background: "var(--bg-2)",
-                      borderRadius: "0 6px 6px 0",
-                      border: "1px solid var(--line)",
-                      borderLeft: "none",
-                      fontSize: 13,
-                      color: "var(--muted)",
-                    }}>
-                      .pay.nkap.cm
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
-                    <T fr="Les clients verront cette URL lors du paiement" en="Customers will see this URL during payment" />
+                  <div style={{ background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 10, padding: 20, fontSize: 12 }}>
+                    <div style={{ height: 24, background: "var(--bg-2)", borderRadius: 4, marginBottom: 16 }} />
+                    <div style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 32, letterSpacing: "-0.025em" }}>75 000 F</div>
+                    <div style={{ color: "var(--muted)", marginTop: 4 }}>Boutique Mami \u00b7 Commande #3041</div>
+                    <button
+                      className="btn"
+                      style={{
+                        width: "100%",
+                        marginTop: 16,
+                        justifyContent: "center",
+                        background: selectedColor,
+                        color: "white",
+                        border: "none",
+                        padding: "10px 16px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontSize: 13,
+                        fontWeight: 500,
+                      }}
+                    >
+                      <T fr="Payer" en="Pay" /> 75 000 F
+                    </button>
                   </div>
                 </div>
               </div>
@@ -388,56 +311,40 @@ export default function MerchantSettingsPage() {
 
           {/* Danger zone tab */}
           {tab === "danger" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div className="card" style={{ padding: 20, border: "1px solid oklch(0.7 0.15 30)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "oklch(0.5 0.15 30)" }}>
-                      <T fr="Désactiver le mode production" en="Disable live mode" />
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      <T
-                        fr="Basculer en mode test. Les paiements en production seront refusés."
-                        en="Switch to test mode. Live payments will be rejected."
-                      />
-                    </div>
+            <div className="card" style={{ borderColor: "oklch(0.7 0.15 30)" }}>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px", color: "oklch(0.55 0.2 25)" }}>
+                <T fr="Zone rouge" en="Danger zone" />
+              </h3>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 24px" }}>
+                <T fr="Actions destructives. Sauvegardez vos donn\u00e9es avant." en="Destructive actions. Back up your data first." />
+              </p>
+              {[
+                {
+                  t: <T fr="D\u00e9sactiver le mode production" en="Disable live mode" />,
+                  d: <T fr="Repasse le compte en sandbox. Les paiements en cours sont annul\u00e9s." en="Reverts the account to sandbox. In-flight payments are cancelled." />,
+                  btn: <T fr="D\u00e9sactiver" en="Disable" />,
+                  danger: false,
+                },
+                {
+                  t: <T fr="Supprimer le compte" en="Delete account" />,
+                  d: <T fr="Supprime d\u00e9finitivement votre compte et toutes vos donn\u00e9es. Irr\u00e9versible." en="Permanently deletes your account and all data. Irreversible." />,
+                  btn: <T fr="Supprimer" en="Delete" />,
+                  danger: true,
+                },
+              ].map((d, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderTop: i > 0 ? "1px solid oklch(0.7 0.15 30)" : "none" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, fontSize: 14 }}>{d.t}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{d.d}</div>
                   </div>
-                  <button className="btn btn-danger btn-sm">
-                    <T fr="Désactiver" en="Disable" />
+                  <button
+                    className={"btn " + (d.danger ? "btn-danger" : "btn-ghost")}
+                    style={d.danger ? {} : { borderColor: "oklch(0.7 0.15 30)", color: "oklch(0.55 0.2 25)" }}
+                  >
+                    {d.btn}
                   </button>
                 </div>
-              </div>
-
-              <div className="card" style={{ padding: 20, border: "1px solid oklch(0.65 0.2 25)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "oklch(0.45 0.2 25)" }}>
-                      <T fr="Supprimer le compte" en="Delete account" />
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      <T
-                        fr="Cette action est irréversible. Toutes les données seront supprimées définitivement."
-                        en="This action is irreversible. All data will be permanently deleted."
-                      />
-                    </div>
-                  </div>
-                  <button className="btn btn-danger btn-sm">
-                    <Icon name="trash" size={13} /> <T fr="Supprimer" en="Delete" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="card" style={{ padding: 20, borderLeft: "3px solid var(--ink)" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <Icon name="info" size={16} color="var(--ink)" />
-                  <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-                    <T
-                      fr="Avant de supprimer votre compte, assurez-vous que tous les règlements en attente ont été traités et que vous avez téléchargé tous vos rapports fiscaux."
-                      en="Before deleting your account, make sure all pending payouts have been processed and you have downloaded all your tax reports."
-                    />
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           )}
         </div>

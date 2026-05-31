@@ -1,112 +1,81 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
-import { Avatar } from "@/components/ui/avatar";
 import { T } from "@/lib/i18n";
 import { fmtXAF } from "@/lib/format";
 
 /* ── mock data ─────────────────────────────────────────────── */
 
-const DISPUTES = [
-  { id: "DSP-4201", merchant: "ShopEase",   customer: "+237 690 112 345", amount: 125_000, reason: "Non livré",          status: "open",      date: "29 mai 2026" },
-  { id: "DSP-4200", merchant: "PayGate CM", customer: "+237 677 889 012", amount: 85_000,  reason: "Double débit",        status: "open",      date: "28 mai 2026" },
-  { id: "DSP-4199", merchant: "AfroBuy",    customer: "+237 655 234 567", amount: 210_000, reason: "Produit défectueux",  status: "under_review", date: "27 mai 2026" },
-  { id: "DSP-4198", merchant: "TechMarket", customer: "+237 699 345 678", amount: 45_000,  reason: "Montant incorrect",    status: "resolved",  date: "26 mai 2026" },
-  { id: "DSP-4197", merchant: "FastFood DLA", customer: "+237 670 456 789", amount: 18_500, reason: "Non autorisé",       status: "resolved",  date: "25 mai 2026" },
-  { id: "DSP-4196", merchant: "ShopEase",   customer: "+237 691 567 890", amount: 320_000, reason: "Non livré",          status: "escalated", date: "24 mai 2026" },
-  { id: "DSP-4195", merchant: "PayGate CM", customer: "+237 678 678 901", amount: 92_000,  reason: "Double débit",        status: "open",      date: "23 mai 2026" },
+const DISPUTES: { id: string; merchant: string; ref: string; customer: string; amount: number; reason: string; filed: string; deadline: string; status: string; priority?: boolean }[] = [
+  { id: "DSP-2026-0142", merchant: "Boutique Mami SARL", ref: "PAY-1A4C82E7", customer: "Cabinet Atangana", amount: 15000, reason: "Service non rendu", filed: "il y a 2 j", deadline: "5 j", status: "evidence_required" },
+  { id: "DSP-2026-0141", merchant: "Restaurant Le Baobab", ref: "PAY-7A9F1B2C", customer: "Olivier Mbu", amount: 8500, reason: "Double facturation", filed: "il y a 1 j", deadline: "6 j", status: "evidence_received" },
+  { id: "DSP-2026-0140", merchant: "KILIMO SARL", ref: "PAY-4F2D9E8B", customer: "Cooperative Bafia", amount: 245000, reason: "Produit non conforme", filed: "il y a 3 j", deadline: "4 j", status: "under_review" },
+  { id: "DSP-2026-0139", merchant: "Agro Export Cameroun", ref: "PAY-3B7C82A1", customer: "Wholesale Lagos", amount: 1850000, reason: "Fraude presumee", filed: "il y a 5 j", deadline: "2 j", status: "escalated", priority: true },
+  { id: "DSP-2026-0138", merchant: "Beaute Africaine", ref: "PAY-9E1D7F3C", customer: "Adele Toure", amount: 32000, reason: "Annulation tardive", filed: "il y a 6 j", deadline: "1 j", status: "won" },
+  { id: "DSP-2026-0137", merchant: "Boutique Mami SARL", ref: "PAY-2A8B71D4", customer: "Marc Belinga", amount: 67000, reason: "Erreur livraison", filed: "il y a 1 sem", deadline: "expiree", status: "lost" },
 ];
-
-type DisputeStatus = "all" | "open" | "under_review" | "escalated" | "resolved";
-
-const STATUS_FILTERS: { key: DisputeStatus; fr: string; en: string }[] = [
-  { key: "all",          fr: "Tous",        en: "All" },
-  { key: "open",         fr: "Ouverts",     en: "Open" },
-  { key: "under_review", fr: "En examen",   en: "Under review" },
-  { key: "escalated",    fr: "Escaladés",  en: "Escalated" },
-  { key: "resolved",     fr: "Résolus",    en: "Resolved" },
-];
-
-function disputeTone(s: string): "warn" | "info" | "fail" | "success" | "neutral" {
-  if (s === "open") return "warn";
-  if (s === "under_review") return "info";
-  if (s === "escalated") return "fail";
-  if (s === "resolved") return "success";
-  return "neutral";
-}
 
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function DisputesPage() {
-  const [filter, setFilter] = useState<DisputeStatus>("all");
-
-  const filtered = filter === "all" ? DISPUTES : DISPUTES.filter((d) => d.status === filter);
-
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Litiges & remboursements" en="Disputes & Refunds" />]}
-      title={<T fr="Litiges & remboursements" en="Disputes & Refunds" />}
-      sub={<T fr="Gestion des réclamations et remboursements clients" en="Customer complaints and refunds management" />}
+      crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Litiges" en="Disputes" />]}
+      title={<T fr="Litiges & remboursements" en="Disputes & refunds" />}
+      sub={<T fr="7 actifs \u00B7 1 prioritaire \u00B7 2 delais < 24h" en="7 active \u00B7 1 priority \u00B7 2 deadlines < 24h" />}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Litiges ouverts" en="Open disputes" />} value="7" delta="+2 cette semaine" deltaDir="up" />
-        <KpiCard label={<T fr="Taux de résolution" en="Resolution rate" />} value="92" unit="%" delta="+3%" deltaDir="up" />
-        <KpiCard label={<T fr="Temps moy. résolution" en="Avg resolution time" />} value="2,1" unit="j" delta="-0.5j" deltaDir="down" />
-        <KpiCard label={<T fr="Montant litigé" en="Total disputed" />} value="890K" unit="F" />
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        {STATUS_FILTERS.map((sf) => (
-          <button
-            key={sf.key}
-            onClick={() => setFilter(sf.key)}
-            className={filter === sf.key ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-            style={{ fontSize: 12 }}
-          >
-            <T fr={sf.fr} en={sf.en} />
-          </button>
-        ))}
+        <KpiCard label={<T fr="Litiges actifs" en="Active disputes" />} value="7" after={<Pill tone="warn">deadline</Pill>} />
+        <KpiCard label={<T fr="Taux de gain" en="Win rate" />} value="78" unit="%" delta="+4 pt" />
+        <KpiCard label={<T fr="Delai moyen" en="Avg resolution" />} value="3,2" unit="j" />
+        <KpiCard label={<T fr="Exposition" en="Exposure" />} value="2,2" unit="M F" />
       </div>
 
       {/* Disputes table */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="row head" style={{ gridTemplateColumns: "0.8fr 1fr 1fr 0.8fr 1fr 0.8fr 0.8fr" }}>
-          <div>ID</div>
-          <div><T fr="Marchand" en="Merchant" /></div>
-          <div><T fr="Client" en="Customer" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-          <div><T fr="Raison" en="Reason" /></div>
-          <div><T fr="Statut" en="Status" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-        </div>
         <div className="tbl">
-          {filtered.map((d) => (
-            <div key={d.id} className="row clickable" style={{ gridTemplateColumns: "0.8fr 1fr 1fr 0.8fr 1fr 0.8fr 0.8fr" }}>
-              <div className="mono" style={{ fontSize: 12, fontWeight: 500 }}>{d.id}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Avatar name={d.merchant} size={22} />
-                <span style={{ fontSize: 13 }}>{d.merchant}</span>
+          <div className="row head" style={{ gridTemplateColumns: "1fr 1.4fr 1fr 0.9fr 1.4fr 0.8fr 0.6fr 24px" }}>
+            <span>ID</span>
+            <span><T fr="Marchand" en="Merchant" /></span>
+            <span><T fr="Client" en="Customer" /></span>
+            <span style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></span>
+            <span><T fr="Motif" en="Reason" /></span>
+            <span><T fr="Delai" en="Deadline" /></span>
+            <span><T fr="Statut" en="Status" /></span>
+            <span></span>
+          </div>
+          {DISPUTES.map(d => (
+            <div
+              className="row clickable"
+              key={d.id}
+              style={{
+                gridTemplateColumns: "1fr 1.4fr 1fr 0.9fr 1.4fr 0.8fr 0.6fr 24px",
+                background: d.priority ? "var(--rose-soft)" : undefined,
+              }}
+            >
+              <div>
+                <div className="mono" style={{ fontSize: 12 }}>{d.id}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{d.ref}</div>
               </div>
-              <div className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{d.customer}</div>
-              <div style={{ textAlign: "right", fontWeight: 500 }}>{fmtXAF(d.amount)}</div>
-              <div style={{ fontSize: 13 }}>{d.reason}</div>
-              <div><Pill tone={disputeTone(d.status)}>{d.status.replace("_", " ")}</Pill></div>
-              <div style={{ textAlign: "right", fontSize: 13, color: "var(--muted)" }}>{d.date}</div>
+              <div style={{ fontSize: 13 }}>{d.merchant}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{d.customer}</div>
+              <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtXAF(d.amount)}</div>
+              <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{d.reason}</div>
+              <div className="mono" style={{
+                fontSize: 11,
+                color: d.deadline === "expiree" ? "var(--rose)"
+                  : d.deadline.includes("1 j") || d.deadline.includes("2 j") ? "var(--warn)"
+                  : "var(--muted)",
+              }}>{d.deadline}</div>
+              <Pill tone={d.status === "won" ? "success" : d.status === "lost" ? "fail" : d.status === "escalated" ? "fail" : "warn"}>{d.status}</Pill>
+              <Icon name="chevR" size={14} color="var(--muted)" />
             </div>
           ))}
         </div>
-        {filtered.length === 0 && (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-            <Icon name="check" size={28} color="var(--success)" />
-            <p style={{ marginTop: 8 }}><T fr="Aucun litige trouvé" en="No disputes found" /></p>
-          </div>
-        )}
       </div>
     </PageWrapper>
   );

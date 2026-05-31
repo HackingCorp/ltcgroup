@@ -1,132 +1,127 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
+import { Sparkline } from "@/components/ui/sparkline";
 import { T } from "@/lib/i18n";
-import { fmtXAF, fmt } from "@/lib/format";
+import { fmtCompact } from "@/lib/format";
 
 /* ── mock data ─────────────────────────────────────────────── */
 
-const REVENUE_BREAKDOWN = [
-  { method: "Orange Money", country: "CM", volume: 14_320, gross: 412_800_000, fees: 6_192_000, net: 406_608_000, color: "var(--orange-money)" },
-  { method: "MTN MoMo",    country: "CM", volume: 11_840, gross: 298_400_000, fees: 4_476_000, net: 293_924_000, color: "var(--mtn)" },
-  { method: "Wave",        country: "SN", volume: 4_210,  gross: 86_200_000,  fees: 1_293_000, net: 84_907_000,  color: "var(--wave)" },
-  { method: "Carte bancaire", country: "CM", volume: 1_980,  gross: 26_600_000,  fees: 399_000,   net: 26_201_000,  color: "var(--primary)" },
-];
+const A_REVENUE = [380, 412, 458, 502, 547, 612, 680, 725, 802, 884, 921, 1024, 1118, 1247, 1382, 1450, 1521, 1684, 1820, 1924, 2118, 2287, 2421, 2620, 2812, 3045, 3284, 3520, 3812, 4140];
 
 const SETTLEMENTS = [
-  { id: "SET-20260528", merchant: "ShopEase", amount: 4_200_000, status: "completed", date: "28 mai 2026" },
-  { id: "SET-20260527", merchant: "PayGate CM", amount: 2_800_000, status: "completed", date: "27 mai 2026" },
-  { id: "SET-20260526", merchant: "AfroBuy", amount: 1_950_000, status: "processing", date: "26 mai 2026" },
-  { id: "SET-20260525", merchant: "TechMarket", amount: 3_100_000, status: "completed", date: "25 mai 2026" },
-  { id: "SET-20260524", merchant: "FastFood DLA", amount: 890_000, status: "pending", date: "24 mai 2026" },
+  { id: "SETT-26-MAI", date: "26 mai 2026", gross: 92420000, fees: 1556400, net: 90863600, status: "scheduled" },
+  { id: "SETT-25-MAI", date: "25 mai 2026", gross: 86150000, fees: 1438200, net: 84711800, status: "completed" },
+  { id: "SETT-24-MAI", date: "24 mai 2026", gross: 79200000, fees: 1322600, net: 77877400, status: "completed" },
+  { id: "SETT-23-MAI", date: "23 mai 2026", gross: 72400000, fees: 1208400, net: 71191600, status: "completed" },
+  { id: "SETT-22-MAI", date: "22 mai 2026", gross: 68900000, fees: 1150200, net: 67749800, status: "completed" },
 ];
 
-function settlementTone(s: string): "success" | "warn" | "info" | "neutral" {
-  if (s === "completed") return "success";
-  if (s === "processing") return "info";
-  if (s === "pending") return "warn";
-  return "neutral";
-}
+const REVENUE_COST_SPLIT = [
+  { nameFr: "Frais marchands", nameEn: "Merchant fees", v: 47400000, pct: 100, c: "var(--primary)" },
+  { nameFr: "TouchPay (interchange)", nameEn: "TouchPay (interchange)", v: -12800000, pct: 27, c: "var(--rose)" },
+  { nameFr: "Cout infrastructure", nameEn: "Infrastructure", v: -3200000, pct: 7, c: "var(--warn)" },
+  { nameFr: "Support & operations", nameEn: "Support & ops", v: -2100000, pct: 4, c: "var(--warn)" },
+  { nameFr: "EBITDA", nameEn: "EBITDA", v: 29300000, pct: 62, c: "var(--success)" },
+];
+
+const OPERATING_ACCOUNTS = [
+  { name: "Afriland First Bank \u00B7 LTC Group", bal: 142800000, status: "main", cur: "XAF" },
+  { name: "Societe Generale CI \u00B7 LTC Group", bal: 84200000, status: "secondary", cur: "XOF" },
+  { name: "BNP Paribas \u00B7 LTC Europe", bal: 412000, status: "secondary", cur: "EUR" },
+  { name: "Float TouchPay (en attente settle)", bal: 92420000, status: "float", cur: "XAF" },
+];
 
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function FinancePage() {
-  const [period] = useState("30d");
-
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Finance" en="Finance" />]}
-      title={<T fr="Vue d'ensemble financière" en="Finance Overview" />}
-      sub={<T fr="Revenus, frais et règlements" en="Revenue, fees and settlements" />}
+      crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <span key="c2">Finance</span>]}
+      title={<T fr="Finance LTC" en="LTC finance" />}
+      sub={<T fr="Revenus de la plateforme, settlements bancaires, comptabilite" en="Platform revenue, bank settlements, accounting" />}
       actions={
         <button className="btn btn-ghost btn-sm">
-          <Icon name="download" size={13} /> <T fr="Export" en="Export" />
+          <Icon name="download" size={13} /> <T fr="Rapport mensuel" en="Monthly report" />
         </button>
       }
     >
       {/* KPIs */}
-      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Revenu net" en="Net revenue" />} value="12,4M" unit="F" delta="+18.2% vs M-1" deltaDir="up" />
-        <KpiCard label={<T fr="GMV (Volume brut)" en="GMV (Gross volume)" />} value="824M" unit="F" delta="+12%" deltaDir="up" />
-        <KpiCard label={<T fr="Frais collectés" en="Total fees collected" />} value="12,4M" unit="F" delta="+15.5%" deltaDir="up" />
-        <KpiCard label={<T fr="Règlements en attente" en="Pending settlements" />} value="2,1M" unit="F" />
+      <div className="kpi-grid" style={{ gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)", marginBottom: 12 }}>
+        <KpiCard hero label={<T fr="Revenu net 30 jours" en="Net revenue 30 days" />} value="47,4" unit="M F" delta="+24,8%">
+          <div style={{ marginTop: 12 }}><Sparkline data={A_REVENUE.map(v => v * 0.017)} width={240} height={36} color="var(--accent)" /></div>
+        </KpiCard>
+        <KpiCard label={<T fr="GMV / Revenu" en="GMV / Revenue" />} value="60\u00D7">
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>2,84 Md / 47,4M</div>
+        </KpiCard>
+        <KpiCard label={<T fr="Take rate moyen" en="Avg take rate" />} value="1,67" unit="%" delta={"\u22120,03 pt"} deltaDir="down" />
+        <KpiCard label={<T fr="Marge brute" en="Gross margin" />} value="62" unit="%">
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>29,4M F / 47,4M F</div>
+        </KpiCard>
       </div>
 
-      {/* Revenue breakdown */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-              <T fr="Décomposition par méthode" en="Revenue breakdown by method" />
-            </h3>
-            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Période : 30 derniers jours" en="Period: last 30 days" />
-            </p>
-          </div>
-        </div>
-        <div className="row head" style={{ gridTemplateColumns: "1.4fr 0.6fr 0.8fr 1fr 1fr 1fr" }}>
-          <div><T fr="Méthode" en="Method" /></div>
-          <div><T fr="Pays" en="Country" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Volume" en="Volume" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Montant brut" en="Gross amount" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Net" en="Net" /></div>
+      {/* Settlements table */}
+      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
+          <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Settlements bancaires" en="Bank settlements" /></h3>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 0" }}><T fr="Virements de TouchPay vers les comptes de reglement marchands" en="TouchPay \u2192 merchant payout accounts" /></p>
         </div>
         <div className="tbl">
-          {REVENUE_BREAKDOWN.map((r) => (
-            <div key={r.method} className="row" style={{ gridTemplateColumns: "1.4fr 0.6fr 0.8fr 1fr 1fr 1fr" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: r.color, flexShrink: 0 }} />
-                <span style={{ fontWeight: 500 }}>{r.method}</span>
-              </div>
-              <div><Pill tone="neutral">{r.country}</Pill></div>
-              <div style={{ textAlign: "right" }} className="mono">{fmt(r.volume)}</div>
-              <div style={{ textAlign: "right", fontWeight: 500 }}>{fmtXAF(r.gross)}</div>
-              <div style={{ textAlign: "right", color: "var(--muted)" }}>{fmtXAF(r.fees)}</div>
-              <div style={{ textAlign: "right", fontWeight: 500, color: "var(--success)" }}>{fmtXAF(r.net)}</div>
+          <div className="row head" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr" }}>
+            <span>ID</span>
+            <span><T fr="Date" en="Date" /></span>
+            <span style={{ textAlign: "right" }}><T fr="Volume brut" en="Gross volume" /></span>
+            <span style={{ textAlign: "right" }}><T fr="Frais LTC" en="LTC fees" /></span>
+            <span style={{ textAlign: "right" }}><T fr="Verse marchands" en="Paid to merchants" /></span>
+            <span><T fr="Statut" en="Status" /></span>
+          </div>
+          {SETTLEMENTS.map(s => (
+            <div className="row" key={s.id} style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr" }}>
+              <div className="mono" style={{ fontSize: 12 }}>{s.id}</div>
+              <div className="mono" style={{ fontSize: 11 }}>{s.date}</div>
+              <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right" }}>{fmtCompact(s.gross)} F</div>
+              <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right", color: "var(--success)" }}>{fmtCompact(s.fees)} F</div>
+              <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right" }}>{fmtCompact(s.net)} F</div>
+              <Pill tone={s.status === "completed" ? "success" : "info"}>{s.status}</Pill>
             </div>
           ))}
         </div>
-        {/* Totals */}
-        <div className="row" style={{ gridTemplateColumns: "1.4fr 0.6fr 0.8fr 1fr 1fr 1fr", borderTop: "2px solid var(--line)", fontWeight: 600 }}>
-          <div><T fr="Total" en="Total" /></div>
-          <div />
-          <div style={{ textAlign: "right" }} className="mono">{fmt(REVENUE_BREAKDOWN.reduce((a, r) => a + r.volume, 0))}</div>
-          <div style={{ textAlign: "right" }}>{fmtXAF(REVENUE_BREAKDOWN.reduce((a, r) => a + r.gross, 0))}</div>
-          <div style={{ textAlign: "right", color: "var(--muted)" }}>{fmtXAF(REVENUE_BREAKDOWN.reduce((a, r) => a + r.fees, 0))}</div>
-          <div style={{ textAlign: "right", color: "var(--success)" }}>{fmtXAF(REVENUE_BREAKDOWN.reduce((a, r) => a + r.net, 0))}</div>
-        </div>
       </div>
 
-      {/* Settlement schedule */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: 18, borderBottom: "1px solid var(--line)" }}>
-          <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-            <T fr="Derniers règlements" en="Recent settlements" />
-          </h3>
-          <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-            <T fr="5 derniers règlements programmés" en="Last 5 scheduled settlements" />
-          </p>
+      {/* Bottom two-column: Revenue/cost split + Operating accounts */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {/* Revenue / cost split */}
+        <div className="nk-card">
+          <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Repartition revenus / couts" en="Revenue / cost split" /></h3>
+          {REVENUE_COST_SPLIT.map((r, i) => (
+            <div key={i} style={{ padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 13 }}><T fr={r.nameFr} en={r.nameEn} /></span>
+                <span className="display" style={{ fontWeight: 500, fontSize: 14, color: r.v < 0 ? "var(--rose)" : r.nameEn === "EBITDA" ? "var(--success)" : "var(--ink)" }}>
+                  {r.v < 0 ? "\u2212" : ""}{fmtCompact(Math.abs(r.v))} F
+                </span>
+              </div>
+              <div style={{ height: 4, background: "var(--bg-2)", borderRadius: 2 }}>
+                <div style={{ width: `${r.pct}%`, height: "100%", background: r.c, borderRadius: 2 }} />
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="row head" style={{ gridTemplateColumns: "1fr 1.2fr 1fr 0.8fr 0.8fr" }}>
-          <div><T fr="ID" en="ID" /></div>
-          <div><T fr="Marchand" en="Merchant" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-          <div><T fr="Statut" en="Status" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-        </div>
-        <div className="tbl">
-          {SETTLEMENTS.map((s) => (
-            <div key={s.id} className="row" style={{ gridTemplateColumns: "1fr 1.2fr 1fr 0.8fr 0.8fr" }}>
-              <div className="mono" style={{ fontSize: 12 }}>{s.id}</div>
-              <div style={{ fontWeight: 500 }}>{s.merchant}</div>
-              <div style={{ textAlign: "right", fontWeight: 500 }}>{fmtXAF(s.amount)}</div>
-              <div><Pill tone={settlementTone(s.status)}>{s.status}</Pill></div>
-              <div style={{ textAlign: "right", fontSize: 13, color: "var(--muted)" }}>{s.date}</div>
+
+        {/* Operating accounts */}
+        <div className="nk-card">
+          <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Comptes operationnels" en="Operating accounts" /></h3>
+          {OPERATING_ACCOUNTS.map((a, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+              <Icon name={a.status === "float" ? "clock" : "bank"} size={16} color={a.status === "main" ? "var(--primary)" : "var(--muted)"} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{a.name}</div>
+                <Pill tone={a.status === "main" ? "info" : a.status === "float" ? "warn" : "neutral"} plain>{a.status}</Pill>
+              </div>
+              <div className="display" style={{ fontWeight: 500, fontSize: 16 }}>{fmtCompact(a.bal)} {a.cur === "XAF" ? "F" : a.cur}</div>
             </div>
           ))}
         </div>

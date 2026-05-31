@@ -9,124 +9,128 @@ import { T } from "@/lib/i18n";
 
 /* ── mock data ─────────────────────────────────────────────── */
 
-type Severity = "all" | "critical" | "warning" | "info";
+type SeverityKey = "high" | "medium" | "info" | "low";
 
 interface AuditEvent {
-  time: string;
-  actor: string;
+  sev: SeverityKey;
   action: string;
+  who: string;
   target: string;
   ip: string;
-  severity: "critical" | "warning" | "info";
+  time: string;
+  reason: string;
 }
 
 const AUDIT_LOG: AuditEvent[] = [
-  { time: "14:32:18", actor: "admin@nkap.cm",    action: "login_success",       target: "Dashboard",       ip: "41.204.89.12",   severity: "info" },
-  { time: "14:28:05", actor: "ops@nkap.cm",      action: "merchant_deactivated", target: "FraudShop Inc",  ip: "41.204.89.12",   severity: "critical" },
-  { time: "14:15:42", actor: "admin@nkap.cm",    action: "api_key_rotated",     target: "ShopEase",        ip: "41.204.89.12",   severity: "warning" },
-  { time: "13:58:30", actor: "unknown",          action: "login_failed",        target: "admin@nkap.cm",   ip: "185.220.101.45", severity: "critical" },
-  { time: "13:45:12", actor: "unknown",          action: "login_failed",        target: "admin@nkap.cm",   ip: "185.220.101.45", severity: "critical" },
-  { time: "13:30:00", actor: "support@nkap.cm",  action: "dispute_resolved",    target: "DSP-4198",        ip: "41.204.89.15",   severity: "info" },
-  { time: "13:22:18", actor: "admin@nkap.cm",    action: "fee_rate_updated",    target: "PayGate CM",      ip: "41.204.89.12",   severity: "warning" },
-  { time: "13:10:55", actor: "ops@nkap.cm",      action: "withdrawal_approved", target: "WDR-8842",        ip: "41.204.89.12",   severity: "info" },
-  { time: "12:58:33", actor: "admin@nkap.cm",    action: "user_created",        target: "viewer@nkap.cm",  ip: "41.204.89.12",   severity: "info" },
-  { time: "12:45:10", actor: "unknown",          action: "login_failed",        target: "ops@nkap.cm",     ip: "103.152.34.78",  severity: "critical" },
-  { time: "12:30:22", actor: "admin@nkap.cm",    action: "webhook_secret_rotated", target: "AfroBuy",     ip: "41.204.89.12",   severity: "warning" },
-  { time: "12:15:00", actor: "support@nkap.cm",  action: "merchant_verified",   target: "TechMarket",      ip: "41.204.89.15",   severity: "info" },
+  { sev: "high", action: "merchant.suspended", who: "system", target: "MER-008 \u00b7 Mobile Plus Center", ip: "\u2014", time: "il y a 2 h", reason: "auto-fraud-detection: 18 chargebacks/24h" },
+  { sev: "info", action: "admin.login", who: "Sarah Mendomo", target: "\u2014", ip: "41.202.143.22", time: "il y a 3 h", reason: "MFA TOTP" },
+  { sev: "medium", action: "fees.modified", who: "Jean Kameni", target: "MER-009 \u00b7 Agro Export", ip: "41.202.143.18", time: "il y a 1 h", reason: "Custom rate 0,9% \u2192 0,8%" },
+  { sev: "info", action: "kyc.approved", who: "Nad\u00e8ge Tchana", target: "MER-247 \u00b7 Studio Foto Pro", ip: "41.202.143.31", time: "il y a 12 min", reason: "manual review" },
+  { sev: "high", action: "api_key.rotated", who: "system", target: "MER-003 \u00b7 KILIMO SARL", ip: "\u2014", time: "il y a 4 h", reason: "rotation auto 90j" },
+  { sev: "low", action: "report.generated", who: "A\u00efcha Bello", target: "Encaissements_2026-05.csv", ip: "154.0.42.18", time: "il y a 6 h", reason: "\u2014" },
+  { sev: "medium", action: "user.invited", who: "Sarah Mendomo", target: "patrick@ltc.cm \u00b7 role analyst", ip: "41.202.143.22", time: "il y a 8 h", reason: "\u2014" },
+  { sev: "high", action: "secret.accessed", who: "Sarah Mendomo", target: "TOUCHPAY_SECRET", ip: "41.202.143.22", time: "il y a 9 h", reason: "rotation pr\u00e9paration" },
 ];
 
-const SEVERITY_FILTERS: { key: Severity; fr: string; en: string }[] = [
-  { key: "all",      fr: "Tous",      en: "All" },
-  { key: "critical", fr: "Critique",  en: "Critical" },
-  { key: "warning",  fr: "Avertissement", en: "Warning" },
-  { key: "info",     fr: "Info",      en: "Info" },
+const SEV_TONE: Record<SeverityKey, "fail" | "warn" | "info" | "neutral"> = {
+  high: "fail",
+  medium: "warn",
+  info: "info",
+  low: "neutral",
+};
+
+const SEVERITY_FILTERS: { key: "all" | SeverityKey; label: string }[] = [
+  { key: "all", label: "all" },
+  { key: "high", label: "high" },
+  { key: "medium", label: "medium" },
+  { key: "info", label: "info" },
+  { key: "low", label: "low" },
 ];
-
-function severityTone(s: string): "fail" | "warn" | "info" | "neutral" {
-  if (s === "critical") return "fail";
-  if (s === "warning") return "warn";
-  return "info";
-}
-
-function actionLabel(a: string): string {
-  const map: Record<string, string> = {
-    login_success: "Connexion réussie",
-    login_failed: "Tentative de connexion échouée",
-    merchant_deactivated: "Marchand désactivé",
-    api_key_rotated: "Clé API régénérée",
-    dispute_resolved: "Litige résolu",
-    fee_rate_updated: "Taux de frais modifié",
-    withdrawal_approved: "Retrait approuvé",
-    user_created: "Utilisateur créé",
-    webhook_secret_rotated: "Secret webhook régénéré",
-    merchant_verified: "Marchand vérifié",
-  };
-  return map[a] || a;
-}
 
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function SecurityPage() {
-  const [filter, setFilter] = useState<Severity>("all");
+  const [filter, setFilter] = useState<"all" | SeverityKey>("all");
 
-  const filtered = filter === "all" ? AUDIT_LOG : AUDIT_LOG.filter((e) => e.severity === filter);
+  const filtered = filter === "all" ? AUDIT_LOG : AUDIT_LOG.filter((e) => e.sev === filter);
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Sécurité & audit" en="Security & Audit" />]}
-      title={<T fr="Sécurité & journal d'audit" en="Security & Audit Log" />}
-      sub={<T fr="Événements de sécurité et traçabilité des actions" en="Security events and action traceability" />}
+      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="S\u00e9curit\u00e9 & audit" en="Security & audit" />]}
+      title={<T fr="Journal d'audit" en="Audit log" />}
+      sub={<T fr="Toutes les actions sensibles sur la plateforme. Conservation 7 ans, immutable." en="All sensitive actions on the platform. 7-year retention, immutable." />}
+      actions={<>
+        <button className="btn btn-ghost btn-sm">
+          <Icon name="filter" size={13} /> <T fr="Filtres" en="Filters" />
+        </button>
+        <button className="btn btn-ghost btn-sm">
+          <Icon name="download" size={13} /> <T fr="Export forensic" en="Export forensic" />
+        </button>
+      </>}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Événements 24h" en="Events 24h" />} value="342" delta="+12% vs hier" deltaDir="up" />
-        <KpiCard label={<T fr="Connexions échouées" en="Failed logins" />} value="3" after={<Pill tone="fail"><T fr="bloquées" en="blocked" /></Pill>} />
-        <KpiCard label={<T fr="Rotations clés API" en="API key rotations" />} value="1" />
-        <KpiCard label={<T fr="Sessions actives" en="Active sessions" />} value="12" />
+        <KpiCard hero label={<T fr="\u00c9v\u00e9nements 24h" en="Events 24h" />} value="1 842" />
+        <KpiCard label={<T fr="S\u00e9v\u00e9rit\u00e9 haute" en="High severity" />} value="12" after={<Pill tone="fail">!</Pill>} />
+        <KpiCard label={<T fr="\u00c9checs MFA" en="MFA failures" />} value="3" delta="+2" deltaDir="up" />
+        <KpiCard label={<T fr="Nouveaux secrets" en="New secrets" />} value="2" />
       </div>
 
-      {/* Severity filters */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+      {/* Severity filter pills + date context */}
+      <div className="card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         {SEVERITY_FILTERS.map((sf) => (
           <button
             key={sf.key}
             onClick={() => setFilter(sf.key)}
-            className={filter === sf.key ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-            style={{ fontSize: 12 }}
+            style={{ appearance: "none", border: 0, cursor: "pointer", background: "none", padding: 0 }}
           >
-            <T fr={sf.fr} en={sf.en} />
+            <Pill tone={sf.key === "all" ? "info" : SEV_TONE[sf.key]} className={filter === sf.key ? "pill-active" : ""}>
+              {sf.label}
+            </Pill>
           </button>
         ))}
+        <div style={{ flex: 1 }} />
+        <span className="mono" style={{
+          fontSize: 11,
+          color: "var(--muted)",
+          background: "var(--bg-2)",
+          padding: "4px 10px",
+          borderRadius: 4,
+          border: "1px solid var(--line)",
+        }}>
+          26 mai 2026 &middot; 24h
+        </span>
       </div>
 
       {/* Audit log table */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="row head" style={{ gridTemplateColumns: "0.6fr 1fr 1.2fr 1fr 0.8fr 0.7fr" }}>
-          <div><T fr="Heure" en="Time" /></div>
-          <div><T fr="Acteur" en="Actor" /></div>
-          <div><T fr="Action" en="Action" /></div>
-          <div><T fr="Cible" en="Target" /></div>
-          <div><T fr="Adresse IP" en="IP Address" /></div>
-          <div><T fr="Sévérité" en="Severity" /></div>
-        </div>
         <div className="tbl">
+          <div className="row head" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
+            <span><T fr="S\u00e9v." en="Sev." /></span>
+            <span><T fr="Action" en="Action" /></span>
+            <span><T fr="Acteur" en="Actor" /></span>
+            <span><T fr="Cible" en="Target" /></span>
+            <span><T fr="Raison" en="Reason" /></span>
+            <span><T fr="Quand" en="When" /></span>
+          </div>
           {filtered.map((e, i) => (
-            <div key={i} className="row" style={{ gridTemplateColumns: "0.6fr 1fr 1.2fr 1fr 0.8fr 0.7fr" }}>
-              <div className="mono" style={{ fontSize: 12 }}>{e.time}</div>
-              <div style={{ fontSize: 13, fontWeight: e.actor === "unknown" ? 600 : 400, color: e.actor === "unknown" ? "var(--rose)" : undefined }}>
-                {e.actor}
+            <div key={i} className="row" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
+              <Pill tone={SEV_TONE[e.sev]}>{e.sev}</Pill>
+              <div className="mono" style={{ fontSize: 12 }}>{e.action}</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{e.who}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{e.ip}</div>
               </div>
-              <div style={{ fontSize: 13 }}>{actionLabel(e.action)}</div>
-              <div className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{e.target}</div>
-              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{e.ip}</div>
-              <div><Pill tone={severityTone(e.severity)}>{e.severity}</Pill></div>
+              <div style={{ fontSize: 12 }}>{e.target}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{e.reason}</div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{e.time}</div>
             </div>
           ))}
         </div>
         {filtered.length === 0 && (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="shield" size={28} color="var(--success)" />
-            <p style={{ marginTop: 8 }}><T fr="Aucun événement trouvé" en="No events found" /></p>
+            <p style={{ marginTop: 8 }}><T fr="Aucun \u00e9v\u00e9nement trouv\u00e9" en="No events found" /></p>
           </div>
         )}
       </div>

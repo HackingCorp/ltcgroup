@@ -7,9 +7,10 @@ import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Avatar } from "@/components/ui/avatar";
+import { MethodChip } from "@/components/ui/method-chip";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
-import { fmtXAF, fmtDate } from "@/lib/format";
+import { fmtXAF, fmtDate, fmtCompact } from "@/lib/format";
 import { merchantsService } from "@/services/merchants.service";
 import type {
   MerchantBalanceInfo,
@@ -42,6 +43,16 @@ function withdrawalStatusTone(s: string): "success" | "warn" | "fail" | "info" |
 
 const PAYMENT_STATUSES = ["", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
 const WITHDRAWAL_STATUSES = ["", "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
+
+/* ── mock recent transactions for design ───────────────────── */
+
+const MOCK_RECENT_TX = [
+  { ref: "PAY-1A4C82E7", customer: "Cabinet Atangana", method: "orange", status: "success", amount: 15000 },
+  { ref: "PAY-7A9F1B2C", customer: "Olivier Mbu", method: "mtn", status: "success", amount: 8500 },
+  { ref: "PAY-4F2D9E8B", customer: "Cooperative Bafia", method: "orange", status: "pending", amount: 245000 },
+  { ref: "PAY-3B7C82A1", customer: "Wholesale Lagos", method: "card", status: "failed", amount: 1850000 },
+  { ref: "PAY-9E1D7F3C", customer: "Adele Toure", method: "wave", status: "success", amount: 32000 },
+];
 
 /* ── page ──────────────────────────────────────────────────── */
 
@@ -109,45 +120,123 @@ export default function MerchantDetailPage() {
     );
   }
 
+  const feeRate = merchant.fee_rate ?? 1.75;
+  const gmv30 = balance?.total_earned ?? 5240000;
+  const txCount = balance?.total_payments ?? 1247;
+  const feeStr = `${feeRate}%`;
+  const ltcRevenue = gmv30 * (feeRate / 100);
+
   return (
     <PageWrapper
       crumb={[
-        <T key="c1" fr="Plateforme" en="Platform" />,
-        <Link key="c2" href="/dashboard/merchants" style={{ textDecoration: "none", color: "inherit" }}><T fr="Marchands" en="Merchants" /></Link>,
-        <span key="c3">{merchant.name}</span>,
+        <Link key="c1" href="/dashboard/merchants" style={{ cursor: "pointer", color: "var(--primary)", textDecoration: "none" }}><T fr="Marchands" en="Merchants" /></Link>,
+        <span key="c2">{merchant.id}</span>,
       ]}
-      title={
-        <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Avatar name={merchant.name} size={36} />
-          {merchant.name}
-          <Pill tone={merchant.is_active ? "success" : "fail"}>
-            {merchant.is_active ? <T fr="Actif" en="Active" /> : <T fr="Inactif" en="Inactive" />}
-          </Pill>
-        </span>
-      }
-      sub={<span>{merchant.email}</span>}
-      actions={
-        <button className="btn btn-ghost btn-sm" onClick={() => router.push("/dashboard/merchants")}>
-          <Icon name="arrowL" size={13} /> <T fr="Retour" en="Back" />
-        </button>
-      }
+      title={merchant.name}
+      sub={<>
+        <Pill tone={merchant.is_active ? "success" : "fail"}>{merchant.is_active ? "live" : "suspended"}</Pill>
+        <span style={{ marginLeft: 8 }}>{merchant.id} \u00B7 CM \u00B7 {feeStr}</span>
+      </>}
+      actions={<>
+        <button className="btn btn-ghost btn-sm"><Icon name="external" size={13} /> <T fr="Voir comme marchand" en="View as merchant" /></button>
+        <button className="btn btn-ghost btn-sm"><Icon name="message" size={13} /> <T fr="Contacter" en="Contact" /></button>
+        <button className="btn btn-ghost btn-sm" style={{ color: "var(--rose)", borderColor: "var(--rose)" }}><T fr="Suspendre" en="Suspend" /></button>
+      </>}
     >
-      {/* Balance KPIs */}
-      {balance && (
-        <>
-          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
-            <KpiCard hero label={<><T fr="Solde marchand" en="Merchant balance" /> {"·"} XAF</>} value={fmtXAF(balance.available_balance)} after={<Pill tone="success">{balance.completed_payments}/{balance.total_payments} <T fr="paiements" en="payments" /></Pill>} />
-            <KpiCard label={<T fr="Total gagné" en="Total earned" />} value={fmtXAF(balance.total_earned)} delta={`- ${fmtXAF(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`} />
-            <KpiCard label={<T fr="Marge Nkap Pay" en="Nkap Pay margin" />} value={fmtXAF(balance.ltcpay_margin)} delta={`${((merchant.fee_rate ?? 1.75) - 1.5).toFixed(2)}% net`} deltaDir="up" />
-            <KpiCard label={<T fr="Frais TouchPay" en="TouchPay fees" />} value={fmtXAF(balance.touchpay_fees)} delta="1.5% par tx" />
+      {/* KPI cards */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
+        <KpiCard label={<T fr="GMV 30 jours" en="30d GMV" />} value={fmtCompact(gmv30)} unit="F" delta="+18%" />
+        <KpiCard label="Transactions" value={String(txCount)} delta="+12%" />
+        <KpiCard label={<T fr="Take rate effectif" en="Effective take rate" />} value={feeStr} />
+        <KpiCard label={<T fr="Revenu LTC" en="LTC revenue" />} value={fmtCompact(ltcRevenue)} unit="F" />
+      </div>
+
+      {/* Two-column layout: left (legal info + activity) / right (risk + admin) */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div>
+          {/* Legal info card */}
+          <div className="nk-card" style={{ marginBottom: 12 }}>
+            <div className="card-head">
+              <h3><T fr="Informations legales" en="Legal information" /></h3>
+              <Pill tone="success"><T fr="KYC valide" en="KYC verified" /></Pill>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, fontSize: 13 }}>
+              {[
+                ["Raison sociale", merchant.name],
+                ["RCCM", "RC/YDE/2024/B/0421"],
+                ["NIU", "M0824100021T"],
+                ["Pays", "\u{1F1E8}\u{1F1F2} Cameroun"],
+                ["Representant legal", "Marie Kamga"],
+                ["Adresse", "Yaounde, BP 1234"],
+                ["Email", merchant.email],
+                ["Telephone", merchant.phone || "+237 222 22 11 00"],
+              ].map((r, i) => (
+                <div key={i}>
+                  <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{r[0]}</div>
+                  <div style={{ marginTop: 4 }}>{r[1]}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 16 }}>
-            <KpiCard label={<T fr="Total retiré" en="Total withdrawn" />} value={fmtXAF(balance.total_withdrawn)} />
-            <KpiCard label={<T fr="Retraits en attente" en="Pending withdrawals" />} value={fmtXAF(balance.pending_withdrawals)} />
-            <KpiCard label={<T fr="Configuration" en="Configuration" />} value={`${merchant.fee_rate ?? 1.75}%`} after={<Pill tone="info">{merchant.fee_bearer === "CLIENT" ? "Client" : <T fr="Marchand" en="Merchant" />}</Pill>} />
+
+          {/* Recent activity card */}
+          <div className="nk-card" style={{ marginBottom: 12 }}>
+            <div className="card-head">
+              <h3><T fr="Activite recente" en="Recent activity" /></h3>
+              <button className="btn btn-link"><T fr="Voir tout" en="View all" /> {"\u2192"}</button>
+            </div>
+            <div className="tbl">
+              {MOCK_RECENT_TX.map((tx) => (
+                <div className="row" key={tx.ref} style={{ gridTemplateColumns: "1fr 1.4fr 0.7fr 0.8fr 1fr 24px", paddingTop: 10, paddingBottom: 10 }}>
+                  <div className="mono" style={{ fontSize: 12 }}>{tx.ref}</div>
+                  <div style={{ fontSize: 13 }}>{tx.customer}</div>
+                  <div><MethodChip kind={tx.method} /></div>
+                  <Pill tone={tx.status === "success" ? "success" : tx.status === "pending" ? "warn" : "fail"}>{tx.status === "success" ? "paid" : tx.status}</Pill>
+                  <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtXAF(tx.amount)}</div>
+                  <Icon name="chevR" size={13} color="var(--muted)" />
+                </div>
+              ))}
+            </div>
           </div>
-        </>
-      )}
+        </div>
+
+        <div>
+          {/* Risk score card */}
+          <div className="nk-card" style={{ marginBottom: 12 }}>
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Score de risque" en="Risk score" /></h3>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
+              <span className="display" style={{ fontWeight: 500, fontSize: 48, letterSpacing: "-0.025em", lineHeight: 1, color: "var(--success)" }}>92</span>
+              <span style={{ color: "var(--muted)", fontSize: 13 }}>/ 100 \u00B7 <T fr="Faible" en="Low" /></span>
+            </div>
+            <div style={{ height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+              <div style={{ width: "92%", height: "100%", background: "linear-gradient(to right, var(--rose), var(--warn), var(--success))" }} />
+            </div>
+            {[
+              { name: <T fr="Chargebacks" en="Chargebacks" />, v: "0,02%", tone: "success" },
+              { name: <T fr="Taux echec" en="Failure rate" />, v: "5,2%", tone: "success" },
+              { name: <T fr="Volume coherent" en="Volume coherence" />, v: "\u2713", tone: "success" },
+              { name: <T fr="Pattern IP" en="IP pattern" />, v: <T fr="Normal" en="Normal" />, tone: "success" },
+            ].map((s, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+                <span style={{ color: "var(--muted)" }}>{s.name}</span>
+                <span className="mono" style={{ color: "var(--success)" }}>{s.v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Admin actions card */}
+          <div className="nk-card">
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Actions admin" en="Admin actions" /></h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start", color: "var(--rose)", borderColor: "var(--rose-soft)" }}><Icon name="pause" size={13} color="var(--rose)" /> <T fr="Suspendre compte" en="Suspend account" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Tab switches */}
       <div style={{ display: "flex", gap: 4, background: "var(--bg-2)", borderRadius: 8, padding: 4, marginBottom: 16 }}>
@@ -157,7 +246,7 @@ export default function MerchantDetailPage() {
           style={{ flex: 1 }}
         >
           <Icon name="arrowDown" size={13} color={tab === "payments" ? "white" : "var(--success)"} />
-          <T fr="Paiements (Entrées)" en="Payments (Inflows)" />
+          <T fr="Paiements (Entrees)" en="Payments (Inflows)" />
           {payments && <Pill tone="neutral">{payments.total}</Pill>}
         </button>
         <button
@@ -245,11 +334,11 @@ function PaymentsTable({
       {data.items.length > 0 ? (
         <>
           <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="Référence" en="Reference" /></div>
+            <div><T fr="Reference" en="Reference" /></div>
             <div><T fr="Client" en="Customer" /></div>
             <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
             <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
-            <div><T fr="Opérateur" en="Operator" /></div>
+            <div><T fr="Operateur" en="Operator" /></div>
             <div><T fr="Statut" en="Status" /></div>
             <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
           </div>
@@ -265,14 +354,14 @@ function PaymentsTable({
                   {p.customer_phone && <div>{p.customer_phone}</div>}
                 </div>
                 <div style={{ textAlign: "right", fontWeight: 500, color: "var(--success)" }}>+{formatCurrency(p.amount, p.currency)}</div>
-                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "—"}</div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "\u2014"}</div>
                 <div>
                   <Pill tone={
                     p.operator === "MTN" ? "warn" :
                     p.operator === "ORANGE" ? "info" :
                     "neutral"
                   }>
-                    {p.operator || p.payment_method || "—"}
+                    {p.operator || p.payment_method || "\u2014"}
                   </Pill>
                 </div>
                 <div><Pill tone={paymentStatusTone(p.status)}>{p.status}</Pill></div>
@@ -281,7 +370,7 @@ function PaymentsTable({
             ))}
           </div>
           {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
+            <PaginationRow page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
           )}
         </>
       ) : (
@@ -327,8 +416,8 @@ function WithdrawalsTable({
       {data.items.length > 0 ? (
         <>
           <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="Référence" en="Reference" /></div>
-            <div><T fr="Méthode" en="Method" /></div>
+            <div><T fr="Reference" en="Reference" /></div>
+            <div><T fr="Methode" en="Method" /></div>
             <div><T fr="Destination" en="Destination" /></div>
             <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
             <div><T fr="Statut" en="Status" /></div>
@@ -354,7 +443,7 @@ function WithdrawalsTable({
             ))}
           </div>
           {totalPages > 1 && (
-            <Pagination page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
+            <PaginationRow page={page} totalPages={totalPages} total={data.total} onPageChange={onPageChange} />
           )}
         </>
       ) : (
@@ -369,7 +458,7 @@ function WithdrawalsTable({
 
 /* ── Pagination ───────────────────────────────────────────── */
 
-function Pagination({
+function PaginationRow({
   page,
   totalPages,
   total,
@@ -383,7 +472,7 @@ function Pagination({
   return (
     <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
       <span style={{ fontSize: 13, color: "var(--muted)" }}>
-        <T fr={`${total} résultat(s)`} en={`${total} result(s)`} />
+        <T fr={`${total} resultat(s)`} en={`${total} result(s)`} />
       </span>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button

@@ -7,18 +7,18 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
 
 const STEPS = [
-  { key: "company", fr: "Entreprise", en: "Company", status: "completed" as const },
-  { key: "documents", fr: "Documents", en: "Documents", status: "current" as const },
-  { key: "beneficiary", fr: "Bénéficiaire effectif", en: "Beneficial owner", status: "pending" as const },
-  { key: "validation", fr: "Validation", en: "Validation", status: "pending" as const },
+  { id: 1, fr: "Entreprise", en: "Business", status: "completed" as const },
+  { id: 2, fr: "Documents", en: "Documents", status: "current" as const },
+  { id: 3, fr: "B\u00e9n\u00e9ficiaire effectif", en: "Beneficial owner", status: "pending" as const },
+  { id: 4, fr: "Validation", en: "Validation", status: "pending" as const },
 ];
 
 const DOCUMENTS = [
-  { name: "RCCM", fr: "Registre du Commerce", en: "Business Registration", status: "uploaded" as const, file: "rccm_ltcgroup.pdf", date: "12 mars 2026" },
-  { name: "Tax ID", fr: "Numéro d'Identifiant Unique", en: "Tax Identification Number", status: "uploaded" as const, file: "niu_ltcgroup.pdf", date: "12 mars 2026" },
-  { name: "Statuts", fr: "Statuts de la société", en: "Company bylaws", status: "todo" as const, file: null, date: null },
-  { name: "ID", fr: "Pièce d'identité du dirigeant", en: "Manager ID document", status: "todo" as const, file: null, date: null },
-  { name: "Address", fr: "Justificatif de domicile", en: "Proof of address", status: "todo" as const, file: null, date: null },
+  { name: "RCCM", fr: "Registre de commerce (RCCM)", en: "Trade register (RCCM)", status: "uploaded" as const, file: "RCCM_BOUTIQUE_MAMI.pdf" },
+  { name: "NIU", fr: "Num\u00e9ro d'identification fiscale", en: "Tax ID certificate", status: "uploaded" as const, file: "NIU_M0824100021T.pdf" },
+  { name: "Statuts", fr: "Statuts de soci\u00e9t\u00e9", en: "Articles of incorporation", status: "todo" as const, file: null },
+  { name: "ID", fr: "Pi\u00e8ce d'identit\u00e9 du repr\u00e9sentant l\u00e9gal", en: "Legal rep ID document", status: "todo" as const, file: null },
+  { name: "Address", fr: "Justificatif d'adresse (< 3 mois)", en: "Proof of address (< 3 months)", status: "todo" as const, file: null },
 ];
 
 const stepColors = {
@@ -28,46 +28,45 @@ const stepColors = {
 };
 
 export default function MerchantKycPage() {
-  const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
+  const [step, setStep] = useState(2);
 
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="KYC" en="KYC" />]}
-      title={<T fr="Vérification KYC" en="KYC verification" />}
-      sub={<T fr="Complétez la vérification pour activer le mode production" en="Complete verification to enable live mode" />}
+      title={<T fr="V\u00e9rification KYC" en="KYC verification" />}
+      sub={<T fr="Activez le mode production en moins de 24h en compl\u00e9tant ces 4 \u00e9tapes" en="Activate live mode in under 24h by completing these 4 steps" />}
     >
       {/* Progress stepper */}
-      <div className="card" style={{ padding: "24px 20px", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-          {STEPS.map((step, i) => (
-            <div key={step.key} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "0 0 auto" }}>
+      <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {STEPS.map((s, i) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", flex: i === 3 ? "0" : "1" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 32,
                   height: 32,
                   borderRadius: "50%",
-                  background: stepColors[step.status],
-                  color: step.status === "pending" ? "var(--muted)" : "white",
+                  background: stepColors[s.status],
+                  color: s.status === "pending" ? "var(--muted)" : "white",
                   display: "grid",
                   placeItems: "center",
-                  fontSize: 13,
-                  fontWeight: 600,
                   fontFamily: "var(--mono)",
+                  fontSize: 12,
+                  fontWeight: 600,
                 }}>
-                  {step.status === "completed" ? <Icon name="check" size={14} color="white" /> : i + 1}
+                  {s.status === "completed" ? <Icon name="check" size={14} color="white" /> : s.id}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, marginTop: 6, color: step.status === "pending" ? "var(--muted)" : "var(--ink)", textAlign: "center", whiteSpace: "nowrap" }}>
-                  <T fr={step.fr} en={step.en} />
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: 13 }}>
+                    <T fr={s.fr} en={s.en} />
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                    {s.status === "completed" ? <T fr="Valid\u00e9" en="Done" /> : s.status === "current" ? <T fr="En cours" en="In progress" /> : <T fr="\u00c0 faire" en="To do" />}
+                  </div>
                 </div>
               </div>
               {i < STEPS.length - 1 && (
-                <div style={{
-                  flex: 1,
-                  height: 2,
-                  background: step.status === "completed" ? "var(--accent-success)" : "var(--line-2)",
-                  margin: "0 8px",
-                  marginBottom: 20,
-                }} />
+                <div style={{ height: 2, flex: 1, background: s.status === "completed" ? "var(--accent-success)" : "var(--line)", marginLeft: 8, marginRight: 8 }} />
               )}
             </div>
           ))}
@@ -75,134 +74,68 @@ export default function MerchantKycPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-        {/* Documents list */}
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
-            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-              <T fr="Documents requis" en="Required documents" />
-            </h3>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="2 sur 5 documents soumis" en="2 of 5 documents submitted" />
-            </div>
+        {/* Main content */}
+        <div className="card">
+          <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+            <T fr="\u00c9tape 2 sur 4" en="Step 2 of 4" />
           </div>
-          {DOCUMENTS.map(doc => (
-            <div
-              key={doc.name}
-              style={{
-                padding: "14px 20px",
-                borderBottom: "1px solid var(--line)",
-                cursor: "pointer",
-              }}
-              onClick={() => setExpandedDoc(expandedDoc === doc.name ? null : doc.name)}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 6,
-                    background: doc.status === "uploaded" ? "oklch(0.93 0.05 145)" : "var(--bg-2)",
-                    display: "grid",
-                    placeItems: "center",
-                  }}>
-                    <Icon
-                      name={doc.status === "uploaded" ? "check" : "upload"}
-                      size={13}
-                      color={doc.status === "uploaded" ? "var(--accent-success)" : "var(--muted)"}
-                    />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}><T fr={doc.fr} en={doc.en} /></div>
-                    {doc.file && <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{doc.file}</div>}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Pill tone={doc.status === "uploaded" ? "success" : "neutral"}>
-                    {doc.status === "uploaded" ? <T fr="soumis" en="submitted" /> : <T fr="requis" en="required" />}
-                  </Pill>
-                  <Icon name="chevR" size={12} color="var(--muted)" />
-                </div>
+          <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 8px" }}>
+            <T fr="Documents l\u00e9gaux" en="Legal documents" />
+          </h2>
+          <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 24px" }}>
+            <T fr="PDF, JPG, PNG. 10 MB max par fichier. Vos documents sont chiffr\u00e9s et accessibles uniquement \u00e0 notre \u00e9quipe KYC." en="PDF, JPG, PNG. 10 MB max per file. Files are encrypted and only accessible to our KYC team." />
+          </p>
+
+          {DOCUMENTS.map((d, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: d.status === "uploaded" ? "oklch(0.93 0.05 145)" : "var(--bg-2)", display: "grid", placeItems: "center" }}>
+                <Icon name={d.status === "uploaded" ? "check" : "upload"} size={16} color={d.status === "uploaded" ? "var(--accent-success)" : "var(--muted)"} />
               </div>
-              {expandedDoc === doc.name && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-                  {doc.status === "uploaded" ? (
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                      <T fr="Soumis le" en="Submitted on" /> {doc.date}
-                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                        <button className="btn btn-ghost btn-sm"><Icon name="eye" size={12} /> <T fr="Voir" en="View" /></button>
-                        <button className="btn btn-ghost btn-sm"><Icon name="refresh" size={12} /> <T fr="Remplacer" en="Replace" /></button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
-                        <T fr="Formats acceptés: PDF, JPG, PNG (max 5 Mo)" en="Accepted formats: PDF, JPG, PNG (max 5 MB)" />
-                      </div>
-                      <button className="btn btn-primary btn-sm"><Icon name="upload" size={12} /> <T fr="Téléverser" en="Upload" /></button>
-                    </div>
-                  )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 500, fontSize: 14 }}>
+                  <T fr={d.fr} en={d.en} />
                 </div>
+                {d.file && <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{d.file}</div>}
+              </div>
+              {d.status === "uploaded" ? (
+                <Pill tone="success">uploaded</Pill>
+              ) : (
+                <button className="btn btn-ghost btn-sm">
+                  <Icon name="upload" size={12} /> Upload
+                </button>
               )}
             </div>
           ))}
+
+          {/* Back / Continue navigation buttons */}
+          <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+            <button className="btn btn-ghost" onClick={() => setStep(Math.max(1, step - 1))}>
+              <Icon name="arrowL" size={14} /> <T fr="Retour" en="Back" />
+            </button>
+            <button className="btn btn-primary" style={{ marginLeft: "auto" }} onClick={() => setStep(Math.min(4, step + 1))}>
+              <T fr="Continuer" en="Continue" /> <Icon name="arrow" size={14} color="white" />
+            </button>
+          </div>
         </div>
 
         {/* Info sidebar */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="card" style={{ padding: 20, borderLeft: "3px solid var(--ink)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <Icon name="info" size={16} color="var(--ink)" />
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                  <T fr="Délai de validation" en="Validation timeline" />
-                </div>
-                <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-                  <T
-                    fr="Une fois tous les documents soumis, notre équipe de conformité vérifie votre dossier sous 24 heures ouvrées. Vous recevrez un email de confirmation."
-                    en="Once all documents are submitted, our compliance team reviews your file within 24 business hours. You will receive a confirmation email."
-                  />
-                </div>
-              </div>
+        <div className="card" style={{ background: "oklch(0.97 0.01 260)", borderColor: "oklch(0.85 0.05 260)" }}>
+          <Icon name="info" size={20} color="var(--ink)" />
+          <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "12px 0 8px" }}>
+            <T fr="Validation sous 24h ouvr\u00e9es" en="Reviewed within 24 business hours" />
+          </h4>
+          <p style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+            <T fr="Notre \u00e9quipe KYC v\u00e9rifie vos documents et active votre compte production. Vous recevez un email \u00e0 chaque \u00e9tape." en="Our KYC team reviews your documents and activates your live account. You get an email at each step." />
+          </p>
+          <hr style={{ border: 0, borderTop: "1px solid oklch(0.85 0.05 260)", margin: "16px 0" }} />
+          <div style={{ fontSize: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: "var(--muted)" }}><T fr="Conformit\u00e9" en="Compliance" /></span>
+              <span>COBAC \u00b7 BEAC \u00b7 CEMAC</span>
             </div>
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
-              <T fr="Progression" en="Progress" />
-            </div>
-            <div style={{
-              width: "100%",
-              height: 8,
-              background: "var(--bg-2)",
-              borderRadius: 4,
-              overflow: "hidden",
-              marginBottom: 8,
-            }}>
-              <div style={{
-                width: "40%",
-                height: "100%",
-                background: "var(--ink)",
-                borderRadius: 4,
-                transition: "width 0.3s",
-              }} />
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>
-              2/5 {"·"} <T fr="40% complété" en="40% complete" />
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Icon name="shield" size={14} />
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                <T fr="Pourquoi le KYC ?" en="Why KYC?" />
-              </div>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-              <T
-                fr="La vérification KYC est requise par la réglementation COBAC/CEMAC pour les services de paiement. Elle protège vos clients et votre entreprise."
-                en="KYC verification is required by COBAC/CEMAC regulations for payment services. It protects your customers and your business."
-              />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--muted)" }}><T fr="Standard" en="Standard" /></span>
+              <span>AML / CFT 2021</span>
             </div>
           </div>
         </div>

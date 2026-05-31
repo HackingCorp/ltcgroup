@@ -8,13 +8,27 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { Avatar } from "@/components/ui/avatar";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
-import { fmtXAF } from "@/lib/format";
+import { fmtCompact } from "@/lib/format";
 import { Input } from "@/components/ui";
 import { merchantsService } from "@/services/merchants.service";
 import type { MerchantBalanceInfo } from "@/services/merchants.service";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData, UpdateMerchantData } from "@/services/merchants.service";
-import { formatCurrency } from "@/lib/utils";
+
+/* ── mock data for design alignment ────────────────────────── */
+
+const ADMIN_MERCHANTS_MOCK = [
+  { id: "MER-001", name: "Boutique Mami SARL", country: "CM", volume30: 5240000, txCount: 1247, status: "live", plan: "Growth", fee: "1,5%", since: "12 mars 2026", risk: "low" },
+  { id: "MER-002", name: "Restaurant Le Baobab", country: "CM", volume30: 2180000, txCount: 432, status: "live", plan: "Starter", fee: "2,5%", since: "08 avr 2026", risk: "low" },
+  { id: "MER-003", name: "KILIMO SARL", country: "CI", volume30: 18500000, txCount: 3287, status: "live", plan: "Growth", fee: "1,5%", since: "22 fev 2026", risk: "medium" },
+  { id: "MER-004", name: "Ecole Nkapla Pro", country: "SN", volume30: 920000, txCount: 184, status: "live", plan: "Starter", fee: "2,5%", since: "01 mai 2026", risk: "low" },
+  { id: "MER-005", name: "TaxiYde Mobile", country: "CM", volume30: 412000, txCount: 1054, status: "kyc_pending", plan: "\u2014", fee: "\u2014", since: "24 mai 2026", risk: "\u2014" },
+  { id: "MER-006", name: "Beaute Africaine SAS", country: "CI", volume30: 8420000, txCount: 1820, status: "live", plan: "Growth", fee: "1,5%", since: "14 jan 2026", risk: "low" },
+  { id: "MER-007", name: "Cabinet Atangana & Co", country: "CM", volume30: 1240000, txCount: 87, status: "live", plan: "Starter", fee: "2,5%", since: "03 fev 2026", risk: "low" },
+  { id: "MER-008", name: "Mobile Plus Center", country: "SN", volume30: 0, txCount: 0, status: "suspended", plan: "Starter", fee: "\u2014", since: "18 jan 2026", risk: "high" },
+  { id: "MER-009", name: "Agro Export Cameroun", country: "CM", volume30: 124500000, txCount: 412, status: "live", plan: "Scale", fee: "0,9%", since: "10 sept 2025", risk: "low" },
+  { id: "MER-010", name: "Wave Senegal Reseller", country: "SN", volume30: 6240000, txCount: 2148, status: "live", plan: "Growth", fee: "1,2%", since: "28 nov 2025", risk: "low" },
+];
 
 /* ── page ──────────────────────────────────────────────────── */
 
@@ -28,6 +42,7 @@ export default function MerchantsPage() {
   const [balances, setBalances] = useState<Record<string, MerchantBalanceInfo>>({});
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
+  const [filter, setFilter] = useState("all");
 
   const loadMerchants = () => {
     setIsLoading(true);
@@ -56,28 +71,34 @@ export default function MerchantsPage() {
   }, []);
 
   const activeCount = merchants.filter((m) => m.is_active).length;
+  const suspendedCount = merchants.filter((m) => !m.is_active).length;
+
+  /* Use real merchants if loaded, otherwise show mock data */
+  const hasMerchants = merchants.length > 0;
+
+  const FILTERS = [
+    { id: "all", label: <T fr="Tous" en="All" />, count: hasMerchants ? totalCount : 2482 },
+    { id: "live", label: "Live", count: hasMerchants ? activeCount : 2463 },
+    { id: "kyc", label: <T fr="KYC en attente" en="Pending KYC" />, count: 7, tone: "warn" as const },
+    { id: "suspended", label: <T fr="Suspendus" en="Suspended" />, count: hasMerchants ? suspendedCount : 12, tone: "fail" as const },
+    { id: "scale", label: "Scale", count: 24, tone: "info" as const },
+  ];
 
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
       title={<T fr="Marchands" en="Merchants" />}
-      sub={<T fr={`${totalCount} marchand(s) enregistré(s)`} en={`${totalCount} registered merchant(s)`} />}
-      actions={
+      sub={<T fr={`${hasMerchants ? activeCount : 2482} actifs \u00B7 7 en attente KYC \u00B7 ${hasMerchants ? suspendedCount : 12} suspendus`} en={`${hasMerchants ? activeCount : "2,482"} active \u00B7 7 pending KYC \u00B7 ${hasMerchants ? suspendedCount : 12} suspended`} />}
+      actions={<>
+        <button className="btn btn-ghost btn-sm"><Icon name="filter" size={13} /> <T fr="Filtres" en="Filters" /></button>
+        <button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> CSV</button>
         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
-          <Icon name="plus" size={13} color="white" /> <T fr="Ajouter" en="Add Merchant" />
+          <Icon name="plus" size={13} color="white" /> <T fr="Onboard marchand" en="Onboard merchant" />
         </button>
-      }
+      </>}
     >
-      {/* KPIs */}
-      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Total marchands" en="Total merchants" />} value={String(totalCount)} />
-        <KpiCard label={<T fr="Actifs" en="Active" />} value={String(activeCount)} after={<Pill tone="success"><T fr="en ligne" en="online" /></Pill>} />
-        <KpiCard label={<T fr="Inactifs" en="Inactive" />} value={String(totalCount - activeCount)} />
-        <KpiCard label={<T fr="Mode test" en="Test mode" />} value={String(merchants.filter((m) => m.is_test_mode).length)} />
-      </div>
-
       {error && (
-        <div className="card" style={{ padding: 14, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
+        <div className="card" style={{ padding: 14, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13, marginBottom: 12 }}>
           {error}
         </div>
       )}
@@ -89,41 +110,109 @@ export default function MerchantsPage() {
         />
       )}
 
+      {/* Search + filter pills */}
+      <div className="card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 240, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-2)", borderRadius: 6 }}>
+          <Icon name="search" size={14} color="var(--muted)" />
+          <input className="input" style={{ border: 0, padding: 0, background: "transparent", outline: "none", width: "100%", fontSize: 13 }} placeholder="nom, ID, RCCM, email..." />
+        </div>
+        {FILTERS.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            style={{
+              appearance: "none" as const, border: 0, cursor: "pointer", padding: "5px 10px", borderRadius: 6,
+              background: filter === f.id ? "var(--ink)" : "var(--bg-2)",
+              color: filter === f.id ? "white" : "var(--ink-2)",
+              fontSize: 12, display: "inline-flex", gap: 6, alignItems: "center",
+            }}
+          >
+            {f.label}
+            <span style={{
+              fontFamily: "var(--mono)", fontSize: 10, padding: "1px 5px", borderRadius: 3,
+              background: filter === f.id ? "rgba(255,255,255,0.15)" : "var(--surface)",
+            }}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Table */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         {isLoading ? (
           <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
             <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
           </div>
-        ) : merchants.length > 0 ? (
+        ) : (
           <>
-            <div className="row head" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.9fr 0.7fr 0.6fr 1.2fr" }}>
-              <div><T fr="Marchand" en="Merchant" /></div>
-              <div><T fr="Statut" en="Status" /></div>
-              <div style={{ textAlign: "right" }}><T fr="Solde" en="Balance" /></div>
-              <div style={{ textAlign: "right" }}><T fr="Paiements" en="Payments" /></div>
-              <div style={{ textAlign: "center" }}><T fr="Commission" en="Fee" /></div>
-              <div style={{ textAlign: "right" }}><T fr="Actions" en="Actions" /></div>
-            </div>
             <div className="tbl">
-              {merchants.map((m) => (
-                <MerchantRow
-                  key={m.id}
-                  merchant={m}
-                  balance={balances[m.id]}
-                  balanceLoading={balancesLoading}
-                  onCredentials={(creds) => setCredentials(creds)}
-                  onRefresh={() => { loadMerchants(); loadBalances(); }}
-                  onEdit={(merchant) => setEditingMerchant(merchant)}
-                />
-              ))}
+              <div className="row head" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.8fr 1fr 0.8fr 0.7fr 0.7fr 24px" }}>
+                <span><T fr="Marchand" en="Merchant" /></span>
+                <span><T fr="Pays" en="Country" /></span>
+                <span><T fr="Plan" en="Plan" /></span>
+                <span style={{ textAlign: "right" }}><T fr="GMV 30j" en="30d GMV" /></span>
+                <span><T fr="Risque" en="Risk" /></span>
+                <span><T fr="Depuis" en="Since" /></span>
+                <span><T fr="Statut" en="Status" /></span>
+                <span></span>
+              </div>
+              {hasMerchants ? (
+                /* Real merchants from API */
+                merchants.map((m) => {
+                  const bal = balances[m.id];
+                  return (
+                    <Link href={`/dashboard/merchants/${m.id}`} key={m.id} style={{ textDecoration: "none", color: "inherit" }}>
+                      <div className="row clickable" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.8fr 1fr 0.8fr 0.7fr 0.7fr 24px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Avatar name={m.name} size={28} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                            <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.id}</div>
+                          </div>
+                        </div>
+                        <div className="mono" style={{ fontSize: 11 }}>CM</div>
+                        <div><Pill tone="neutral" plain>{"\u2014"}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee_rate ?? 1.75}%</span></div>
+                        <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{bal ? fmtCompact(bal.total_earned) + " F" : "\u2014"}</div>
+                        <div><Pill tone="success">low</Pill></div>
+                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>\u2014</div>
+                        <div>
+                          <Pill tone={m.is_active ? "success" : "fail"}>{m.is_active ? "live" : "suspended"}</Pill>
+                        </div>
+                        <Icon name="chevR" size={14} color="var(--muted)" />
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                /* Mock data matching design */
+                ADMIN_MERCHANTS_MOCK.map((m) => (
+                  <div className="row clickable" key={m.id} style={{ gridTemplateColumns: "1.6fr 0.6fr 0.8fr 1fr 0.8fr 0.7fr 0.7fr 24px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Avatar name={m.name} size={28} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.id}</div>
+                      </div>
+                    </div>
+                    <div className="mono" style={{ fontSize: 11 }}>{m.country}</div>
+                    <div><Pill tone={m.plan === "Scale" ? "info" : "neutral"} plain>{m.plan}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee}</span></div>
+                    <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtCompact(m.volume30)} F</div>
+                    <div>
+                      {m.risk !== "\u2014" && <Pill tone={m.risk === "low" ? "success" : m.risk === "medium" ? "warn" : "fail"}>{m.risk}</Pill>}
+                      {m.risk === "\u2014" && <span style={{ color: "var(--muted-2)" }}>{"\u2014"}</span>}
+                    </div>
+                    <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.since}</div>
+                    <div>
+                      <Pill tone={m.status === "live" ? "success" : m.status === "kyc_pending" ? "warn" : "fail"}>{m.status === "kyc_pending" ? "kyc" : m.status}</Pill>
+                    </div>
+                    <Icon name="chevR" size={14} color="var(--muted)" />
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 18px", borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--muted)" }}>
+              <span><T fr={`Affichage 1-${hasMerchants ? merchants.length : 10} sur ${hasMerchants ? totalCount : "2 482"} marchands`} en={`Showing 1-${hasMerchants ? merchants.length : 10} of ${hasMerchants ? totalCount : "2,482"} merchants`} /></span>
             </div>
           </>
-        ) : (
-          <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-            <Icon name="building" size={32} color="var(--muted)" />
-            <p style={{ marginTop: 12 }}><T fr="Aucun marchand. Cliquez sur Ajouter pour en créer un." en="No merchants yet. Click Add to create one." /></p>
-          </div>
         )}
       </div>
 
@@ -154,260 +243,6 @@ export default function MerchantsPage() {
   );
 }
 
-/* ── merchant row ──────────────────────────────────────────── */
-
-function MerchantRow({
-  merchant: m,
-  balance,
-  balanceLoading,
-  onCredentials,
-  onRefresh,
-  onEdit,
-}: {
-  merchant: Merchant;
-  balance?: MerchantBalanceInfo;
-  balanceLoading: boolean;
-  onCredentials: (creds: MerchantCredentials) => void;
-  onRefresh: () => void;
-  onEdit: (merchant: Merchant) => void;
-}) {
-  const [showDetails, setShowDetails] = useState(false);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const handleRegenerateApiSecret = async () => {
-    if (!confirm(`Regenerate API secret for "${m.name}"? The old secret will stop working immediately.`))
-      return;
-    setRegenerating("api");
-    try {
-      const creds = await merchantsService.regenerateApiSecret(m.id);
-      onCredentials(creds);
-    } catch {
-      alert("Failed to regenerate API secret");
-    } finally {
-      setRegenerating(null);
-    }
-  };
-
-  const handleRegenerateWebhookSecret = async () => {
-    if (!confirm(`Regenerate webhook secret for "${m.name}"? Update your webhook handler with the new secret.`))
-      return;
-    setRegenerating("webhook");
-    try {
-      const result = await merchantsService.regenerateWebhookSecret(m.id);
-      alert(`New webhook secret:\n\n${result.webhook_secret}\n\nSave it now.`);
-      onRefresh();
-    } catch {
-      alert("Failed to regenerate webhook secret");
-    } finally {
-      setRegenerating(null);
-    }
-  };
-
-  const handleToggleActive = async () => {
-    const action = m.is_active ? "deactivate" : "reactivate";
-    if (!confirm(`${m.is_active ? "Deactivate" : "Reactivate"} "${m.name}"? ${m.is_active ? "They will lose API access immediately." : "They will regain API access."}`))
-      return;
-    setActionLoading(true);
-    try {
-      await merchantsService.update(m.id, { is_active: !m.is_active });
-      onRefresh();
-    } catch {
-      alert(`Failed to ${action} merchant`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm(`Delete merchant "${m.name}"? This action cannot be undone.`))
-      return;
-    setActionLoading(true);
-    try {
-      await merchantsService.delete(m.id);
-      onRefresh();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number; data?: { detail?: string } } };
-      if (axiosErr.response?.status === 409) {
-        const detail = axiosErr.response.data?.detail || "Merchant has payments.";
-        if (confirm(`${detail}\n\nForce delete and remove all associated payments?`)) {
-          try {
-            const result = await merchantsService.delete(m.id, true);
-            alert(`${result.detail} (${result.payments_deleted} payment(s) removed)`);
-            onRefresh();
-          } catch {
-            alert("Failed to force-delete merchant");
-          }
-        }
-      } else {
-        alert("Failed to delete merchant");
-      }
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="row" style={{ gridTemplateColumns: "1.6fr 0.6fr 0.9fr 0.7fr 0.6fr 1.2fr" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar name={m.name} size={28} />
-          <div>
-            <div style={{ fontWeight: 500 }}>{m.name}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>{m.email}</div>
-          </div>
-        </div>
-        <div>
-          <Pill tone={m.is_active ? "success" : "fail"}>
-            {m.is_active ? <T fr="Actif" en="Active" /> : <T fr="Inactif" en="Inactive" />}
-          </Pill>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          {balanceLoading ? (
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>...</span>
-          ) : balance ? (
-            <div>
-              <div style={{ fontWeight: 600 }}>{fmtXAF(balance.available_balance)}</div>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmtXAF(balance.total_earned)} <T fr="gagné" en="earned" /></div>
-            </div>
-          ) : (
-            <span style={{ color: "var(--muted)" }}>{"—"}</span>
-          )}
-        </div>
-        <div style={{ textAlign: "right" }}>
-          {balance ? (
-            <div>
-              <div style={{ fontWeight: 500 }}>{balance.completed_payments}</div>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>{balance.total_payments} total</div>
-            </div>
-          ) : (
-            <span style={{ color: "var(--muted)" }}>{"—"}</span>
-          )}
-        </div>
-        <div style={{ textAlign: "center", fontWeight: 500 }}>{m.fee_rate ?? 1.75}%</div>
-        <div style={{ textAlign: "right", display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 11 }}
-            onClick={() => setShowDetails(!showDetails)}
-          >
-            <Icon name={showDetails ? "eyeOff" : "eye"} size={12} />
-            {showDetails ? <T fr="Masquer" en="Hide" /> : <T fr="Clés" en="Keys" />}
-          </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 11 }}
-            onClick={() => onEdit(m)}
-          >
-            <Icon name="settings" size={12} />
-            <T fr="Modifier" en="Edit" />
-          </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 11, color: "var(--rose)" }}
-            onClick={handleDelete}
-            disabled={actionLoading}
-          >
-            <Icon name="trash" size={12} color="var(--rose)" />
-            {actionLoading ? "..." : <T fr="Suppr." en="Delete" />}
-          </button>
-          <Link
-            href={`/dashboard/merchants/${m.id}`}
-            className="btn btn-primary btn-sm"
-            style={{ fontSize: 11, textDecoration: "none" }}
-          >
-            <T fr="Détails" en="Details" /> <Icon name="chevR" size={11} color="white" />
-          </Link>
-        </div>
-      </div>
-      {showDetails && (
-        <div style={{ padding: "12px 18px", background: "var(--bg-2)", borderBottom: "1px solid var(--line)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Clé API (Test)" en="API Key (Test)" /></div>
-              <ApiKeyCell value={m.api_key_test} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Clé API (Live)" en="API Key (Live)" /></div>
-              <ApiKeyCell value={m.api_key_live} />
-            </div>
-          </div>
-          {m.webhook_secret && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Secret Webhook" en="Webhook Secret" /></div>
-              <ApiKeyCell value={m.webhook_secret} />
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 6, paddingTop: 10, borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, color: "var(--warn)" }}
-              onClick={handleRegenerateApiSecret}
-              disabled={regenerating !== null || actionLoading}
-            >
-              <Icon name="refresh" size={12} />
-              {regenerating === "api" ? "..." : <T fr="Régénérer API Secret" en="Regenerate API Secret" />}
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11 }}
-              onClick={handleRegenerateWebhookSecret}
-              disabled={regenerating !== null || actionLoading}
-            >
-              <Icon name="shield" size={12} />
-              {regenerating === "webhook" ? "..." : <T fr="Régénérer Webhook Secret" en="Regenerate Webhook Secret" />}
-            </button>
-            <div style={{ marginLeft: "auto" }} />
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, color: m.is_active ? "var(--warn)" : "var(--success)" }}
-              onClick={handleToggleActive}
-              disabled={actionLoading || regenerating !== null}
-            >
-              <Icon name="bolt" size={12} />
-              {actionLoading ? "..." : m.is_active ? <T fr="Désactiver" en="Deactivate" /> : <T fr="Réactiver" en="Reactivate" />}
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 11, color: "var(--rose)" }}
-              onClick={handleDelete}
-              disabled={actionLoading || regenerating !== null}
-            >
-              <Icon name="trash" size={12} color="var(--rose)" />
-              {actionLoading ? "..." : <T fr="Supprimer" en="Delete" />}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-/* ── API key cell ──────────────────────────────────────────── */
-
-function ApiKeyCell({ value }: { value: string }) {
-  const [visible, setVisible] = useState(false);
-  const masked = value.slice(0, 14) + "..." + value.slice(-4);
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <code className="mono" style={{ fontSize: 11, color: "var(--ink)" }}>{visible ? value : masked}</code>
-      <button
-        onClick={() => setVisible(!visible)}
-        style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
-      >
-        <Icon name={visible ? "eyeOff" : "eye"} size={13} color="var(--muted)" />
-      </button>
-      <button
-        onClick={() => navigator.clipboard.writeText(value)}
-        style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
-      >
-        <Icon name="copy" size={13} color="var(--muted)" />
-      </button>
-    </div>
-  );
-}
-
 /* ── Credentials card ─────────────────────────────────────── */
 
 function CredentialsCard({
@@ -422,10 +257,10 @@ function CredentialsCard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div>
           <h3 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>
-            <T fr={`Marchand créé : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
+            <T fr={`Marchand cree : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
           </h3>
           <p style={{ color: "var(--warn)", fontSize: 13, fontWeight: 500, margin: "4px 0 0" }}>
-            <T fr="Sauvegardez le secret API maintenant — il ne sera plus affiché." en="Save the API Secret now — it will not be shown again." />
+            <T fr="Sauvegardez le secret API maintenant \u2014 il ne sera plus affiche." en="Save the API Secret now \u2014 it will not be shown again." />
           </p>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -535,13 +370,13 @@ function CreateMerchantModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Téléphone" en="Phone" />
+                <T fr="Telephone" en="Phone" />
               </label>
               <Input value={form.phone || ""} onChange={(e) => set("phone", e.target.value)} placeholder="+237..." />
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Type d'activité" en="Business Type" />
+                <T fr="Type d'activite" en="Business Type" />
               </label>
               <Input value={form.business_type || ""} onChange={(e) => set("business_type", e.target.value)} placeholder="e-commerce, SaaS..." />
             </div>
@@ -564,7 +399,7 @@ function CreateMerchantModal({
             </label>
             <Input value={form.logo_url || ""} onChange={(e) => set("logo_url", e.target.value)} placeholder="https://example.com/logo.png" />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Affiché sur la page de paiement du client" en="Displayed on the customer payment page" />
+              <T fr="Affiche sur la page de paiement du client" en="Displayed on the customer payment page" />
             </p>
           </div>
           <div>
@@ -580,7 +415,7 @@ function CreateMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% — par défaut supporté par le marchand" en="Minimum 1.75% — borne by merchant by default" />
+              <T fr="Minimum 1.75% \u2014 par defaut supporte par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
@@ -588,7 +423,7 @@ function CreateMerchantModal({
               <T fr="Annuler" en="Cancel" />
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? <T fr="Création..." en="Creating..." /> : <T fr="Créer le marchand" en="Create Merchant" />}
+              {submitting ? <T fr="Creation..." en="Creating..." /> : <T fr="Creer le marchand" en="Create Merchant" />}
             </button>
           </div>
         </form>
@@ -674,13 +509,13 @@ function EditMerchantModal({
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Email</label>
             <Input value={merchant.email} disabled style={{ opacity: 0.5 }} />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="L'email ne peut pas être modifié" en="Email cannot be changed" />
+              <T fr="L'email ne peut pas etre modifie" en="Email cannot be changed" />
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Téléphone" en="Phone" />
+                <T fr="Telephone" en="Phone" />
               </label>
               <Input
                 value={form.phone || ""}
@@ -690,7 +525,7 @@ function EditMerchantModal({
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Type d'activité" en="Business Type" />
+                <T fr="Type d'activite" en="Business Type" />
               </label>
               <Input
                 value={form.business_type || ""}
@@ -750,7 +585,7 @@ function EditMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% — par défaut supporté par le marchand" en="Minimum 1.75% — borne by merchant by default" />
+              <T fr="Minimum 1.75% \u2014 par defaut supporte par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, border: "1px solid var(--line)" }}>
@@ -765,7 +600,7 @@ function EditMerchantModal({
               <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
                 {form.is_active
                   ? <T fr="Le marchand peut utiliser l'API" en="Merchant can use the API" />
-                  : <T fr="Accès API désactivé" en="API access disabled" />
+                  : <T fr="Acces API desactive" en="API access disabled" />
                 }
               </p>
             </div>

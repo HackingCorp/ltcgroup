@@ -237,6 +237,14 @@
   .btn-sm { padding: 6px 10px; font-size: 12px; }
   .btn-lg { padding: 12px 20px; font-size: 14px; }
 
+  /* ─── Kbd pill (period selector) ─── */
+  .kbd-pill {
+    display: inline-flex; gap: 2px; align-items: center;
+    font-family: var(--mono); font-size: 11px;
+    padding: 4px 10px; border-radius: 6px;
+    background: var(--bg-2); color: var(--muted);
+  }
+
   /* ─── Inputs ─── */
   .nk-input {
     appearance: none;

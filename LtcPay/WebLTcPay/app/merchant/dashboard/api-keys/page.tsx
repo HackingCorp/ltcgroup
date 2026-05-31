@@ -10,16 +10,17 @@ import { T } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 
 const WEBHOOK_DELIVERIES = [
-  { id: "wh-001", event: "payment.success", url: "https://api.myshop.cm/hook", status: "delivered" as const, code: 200, time: "Il y a 12 min", duration: "120ms" },
-  { id: "wh-002", event: "payment.success", url: "https://api.myshop.cm/hook", status: "delivered" as const, code: 200, time: "Il y a 45 min", duration: "95ms" },
-  { id: "wh-003", event: "payment.failed", url: "https://api.myshop.cm/hook", status: "failed" as const, code: 500, time: "Il y a 2h", duration: "3012ms" },
-  { id: "wh-004", event: "payment.success", url: "https://api.myshop.cm/hook", status: "delivered" as const, code: 200, time: "Il y a 3h", duration: "88ms" },
-  { id: "wh-005", event: "refund.created", url: "https://api.myshop.cm/hook", status: "delivered" as const, code: 200, time: "Hier, 18:40", duration: "142ms" },
+  { id: "wh-001", event: "payment.completed", url: "https://api.mamishop.cm/webhooks/nkap", status: "delivered" as const, code: 200, time: "14:42:35", duration: "142ms" },
+  { id: "wh-002", event: "payment.completed", url: "https://api.mamishop.cm/webhooks/nkap", status: "delivered" as const, code: 200, time: "14:35:14", duration: "188ms" },
+  { id: "wh-003", event: "payment.completed", url: "https://api.mamishop.cm/webhooks/nkap", status: "delivered" as const, code: 200, time: "14:22:51", duration: "201ms" },
+  { id: "wh-004", event: "payment.failed", url: "https://api.mamishop.cm/webhooks/nkap", status: "delivered" as const, code: 200, time: "14:08:33", duration: "164ms" },
+  { id: "wh-005", event: "payment.completed", url: "https://api.mamishop.cm/webhooks/nkap", status: "failed" as const, code: 500, time: "13:55:01", duration: "5022ms" },
+  { id: "wh-006", event: "payment.completed", url: "https://api.mamishop.cm/webhooks/nkap", status: "delivered" as const, code: 200, time: "13:42:22", duration: "158ms" },
 ];
 
 const WEBHOOK_ENDPOINTS = [
-  { url: "https://api.myshop.cm/hook", events: ["payment.success", "payment.failed", "refund.created"], active: true },
-  { url: "https://staging.myshop.cm/hook", events: ["payment.success"], active: false },
+  { url: "https://api.mamishop.cm/webhooks/nkap", events: "payment.completed \u00b7 payment.failed \u00b7 payment.refunded", active: true, uptime: "99.2%" },
+  { url: "https://staging.mamishop.cm/webhooks/nkap", events: "payment.completed", active: true, uptime: "100%" },
 ];
 
 export default function ApiKeysPage() {
@@ -27,7 +28,6 @@ export default function ApiKeysPage() {
   const [env, setEnv] = useState<"live" | "test">(merchantUser?.is_test_mode ? "test" : "live");
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
-  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -35,245 +35,175 @@ export default function ApiKeysPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const apiKey = env === "live"
-    ? (merchantUser?.api_key_live || "nkap_live_xxxxxxxxxxxxxxxx")
-    : (merchantUser?.api_key_test || "nkap_test_xxxxxxxxxxxxxxxx");
+  const webhookVerifyExample = `// Node.js \u2014 verify webhook signature
+import crypto from 'crypto';
 
-  const webhookSecret = merchantUser?.webhook_secret || "whsec_xxxxxxxxxxxxxxxxxxxxxxxx";
+function verifyWebhook(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
 
-  const curlExample = `curl -X POST ${typeof window !== "undefined" ? window.location.origin : "https://pay.ltcgroup.site"}/api/v1/payments \\
-  -H "X-API-Key: ${apiKey}" \\
-  -H "X-API-Secret: YOUR_API_SECRET" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "amount": 5000,
-    "currency": "XAF",
-    "description": "Commande #123",
-    "customer_phone": "237699123456",
-    "payment_method": "om",
-    "webhook_url": "https://api.myshop.cm/hook"
-  }'`;
+app.post('/webhooks/nkap', (req, res) => {
+  const sig = req.headers['x-ltcpay-signature'];
+  if (!verifyWebhook(req.rawBody, sig, process.env.NKAP_SECRET)) {
+    return res.status(401).send('invalid signature');
+  }
+  const { event, data } = JSON.parse(req.rawBody);
+  if (event === 'payment.completed') {
+    fulfillOrder(data.merchant_reference);
+  }
+  res.status(200).send('ok');
+});`;
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Développeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
-      title={<T fr="API & Webhooks" en="API & Webhooks" />}
-      sub={<T fr="Clés d'authentification, endpoints webhook et intégration" en="Authentication keys, webhook endpoints and integration" />}
+      crumb={[<T key="c1" fr="D\u00e9veloppeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
+      title="API & Webhooks"
+      sub={<T fr="Cl\u00e9s d'API, endpoints webhook, livraisons" en="API keys, webhook endpoints, deliveries" />}
       actions={
-        <a href="/merchant/dashboard/docs" className="btn btn-ghost btn-sm">
-          <Icon name="book" size={13} /> <T fr="Documentation" en="Documentation" />
-        </a>
-      }
-    >
-      {/* Environment toggle */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <button
-          className={env === "test" ? "btn btn-sm" : "btn btn-ghost btn-sm"}
-          style={env === "test" ? { background: "oklch(0.92 0.08 80)", color: "oklch(0.45 0.12 80)", fontWeight: 600 } : {}}
-          onClick={() => setEnv("test")}
-        >
-          <Pill tone="test"><T fr="Test" en="Test" /></Pill>
-        </button>
-        <button
-          className={env === "live" ? "btn btn-sm" : "btn btn-ghost btn-sm"}
-          style={env === "live" ? { background: "oklch(0.92 0.1 145)", color: "oklch(0.4 0.12 145)", fontWeight: 600 } : {}}
-          onClick={() => setEnv("live")}
-        >
-          <Pill tone="live"><T fr="Production" en="Live" /></Pill>
-        </button>
-        {merchantUser?.is_test_mode && (
-          <div style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
-            <Icon name="info" size={12} /> <T fr="Votre compte est en mode test" en="Your account is in test mode" />
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        {/* API Key card */}
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="bolt" size={14} />
-              <span style={{ fontSize: 14, fontWeight: 600 }}>
-                <T fr="Clé API" en="API Key" />
-              </span>
-            </div>
-            <Pill tone={env === "live" ? "live" : "test"}>{env === "live" ? "Live" : "Test"}</Pill>
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-            <T fr="Identifie votre compte dans chaque requête" en="Identifies your account in each request" />
-          </div>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 12px",
-            background: "var(--bg-2)",
-            borderRadius: 6,
-          }}>
-            <code className="mono" style={{ flex: 1, fontSize: 12, wordBreak: "break-all" }}>
-              {apiKey}
-            </code>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => copyToClipboard(apiKey, "api-key")}
-            >
-              <Icon name={copiedField === "api-key" ? "check" : "copy"} size={13} color={copiedField === "api-key" ? "var(--accent-success)" : undefined} />
-            </button>
-          </div>
-          <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 6 }}>
-            Header: X-API-Key
-          </div>
-        </div>
-
-        {/* Webhook Secret card */}
-        <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="lock" size={14} />
-              <span style={{ fontSize: 14, fontWeight: 600 }}>
-                <T fr="Secret Webhook" en="Webhook Secret" />
-              </span>
-            </div>
-            <Pill tone="neutral">HMAC-SHA256</Pill>
-          </div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-            <T fr="Vérifie l'authenticité des callbacks webhook" en="Verifies webhook callback authenticity" />
-          </div>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 12px",
-            background: "var(--bg-2)",
-            borderRadius: 6,
-          }}>
-            <code className="mono" style={{ flex: 1, fontSize: 12, wordBreak: "break-all" }}>
-              {showWebhookSecret ? webhookSecret : "••••••••••••••••••••••••"}
-            </code>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowWebhookSecret(!showWebhookSecret)}
-            >
-              <Icon name={showWebhookSecret ? "eyeOff" : "eye"} size={13} />
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => copyToClipboard(webhookSecret, "webhook-secret")}
-            >
-              <Icon name={copiedField === "webhook-secret" ? "check" : "copy"} size={13} color={copiedField === "webhook-secret" ? "var(--accent-success)" : undefined} />
-            </button>
-          </div>
-          <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 6 }}>
-            Header: X-LtcPay-Signature
-          </div>
-        </div>
-      </div>
-
-      {/* Webhook endpoints */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-              <T fr="Endpoints Webhook" en="Webhook endpoints" />
-            </h3>
-            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-              <T fr="URLs qui reçoivent les notifications de paiement" en="URLs that receive payment notifications" />
-            </div>
-          </div>
-          <button className="btn btn-primary btn-sm">
-            <Icon name="plus" size={13} /> <T fr="Ajouter" en="Add" />
+        <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-2)", borderRadius: 8 }}>
+          <button
+            className={"btn btn-sm " + (env === "test" ? "btn-primary" : "btn-ghost")}
+            style={{ border: 0, background: env === "test" ? "var(--ink)" : "transparent", color: env === "test" ? "white" : "var(--muted)" }}
+            onClick={() => setEnv("test")}
+          >
+            Test
+          </button>
+          <button
+            className={"btn btn-sm " + (env === "live" ? "btn-primary" : "btn-ghost")}
+            style={{ border: 0, background: env === "live" ? "var(--ink)" : "transparent", color: env === "live" ? "white" : "var(--muted)" }}
+            onClick={() => setEnv("live")}
+          >
+            Live
           </button>
         </div>
-        {WEBHOOK_ENDPOINTS.map((ep, i) => (
-          <div key={ep.url} style={{
-            padding: "14px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderBottom: i < WEBHOOK_ENDPOINTS.length - 1 ? "1px solid var(--line)" : "none",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: ep.active ? "var(--accent-success)" : "var(--line-2)",
-              }} />
-              <div>
-                <div className="mono" style={{ fontSize: 12, fontWeight: 500 }}>{ep.url}</div>
-                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                  {ep.events.join(", ")}
-                </div>
-              </div>
+      }
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        {/* API Keys card */}
+        <div className="card">
+          <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
+                <T fr="Cl\u00e9s d'API" en="API keys" />
+              </h3>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+                <T fr="Ne partagez jamais votre secret." en="Never share your secret." />
+              </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Pill tone={ep.active ? "success" : "neutral"}>
-                {ep.active ? <T fr="actif" en="active" /> : <T fr="inactif" en="inactive" />}
-              </Pill>
-              <button className="btn btn-ghost btn-sm"><Icon name="more" size={14} /></button>
+            <Pill tone={env === "live" ? "live" : "test"}>{env}</Pill>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "var(--bg-2)", borderRadius: 6 }}>
+              <span className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", width: 80 }}>pk_{env}</span>
+              <span className="mono" style={{ flex: 1, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                ltcpay_{env}_pk_8a3f9c2e1b4d7f50a9b...
+              </span>
+              <button className="btn btn-ghost btn-sm" style={{ padding: "4px 8px" }} onClick={() => copyToClipboard(`ltcpay_${env}_pk_8a3f9c2e1b4d7f50a9b`, "pk")}>
+                <Icon name={copiedField === "pk" ? "check" : "copy"} size={12} />
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "var(--bg-2)", borderRadius: 6 }}>
+              <span className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", width: 80 }}>sk_{env}</span>
+              <span className="mono" style={{ flex: 1, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {showSecret ? `ltcpay_${env}_sk_3f9c2e1b4d7f50a9b8c7d6e...` : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}
+              </span>
+              <button className="btn btn-ghost btn-sm" style={{ padding: "4px 8px" }} onClick={() => setShowSecret(!showSecret)}>
+                <Icon name={showSecret ? "eyeOff" : "eye"} size={12} />
+              </button>
+              <button className="btn btn-ghost btn-sm" style={{ padding: "4px 8px" }} onClick={() => copyToClipboard(`ltcpay_${env}_sk_3f9c2e1b4d7f50a9b8c7d6e`, "sk")}>
+                <Icon name={copiedField === "sk" ? "check" : "copy"} size={12} />
+              </button>
             </div>
           </div>
-        ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
+            <button className="btn btn-ghost btn-sm">
+              <Icon name="refresh" size={12} /> <T fr="Faire tourner" en="Rotate" />
+            </button>
+            <span style={{ flex: 1 }} />
+            <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+              <T fr="Cr\u00e9\u00e9e le 12 mars 2026" en="Created Mar 12, 2026" />
+            </span>
+          </div>
+        </div>
+
+        {/* Webhooks card */}
+        <div className="card">
+          <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>Webhooks</h3>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+                <T fr="Notifications sign\u00e9es HMAC-SHA256" en="HMAC-SHA256 signed notifications" />
+              </p>
+            </div>
+          </div>
+          {WEBHOOK_ENDPOINTS.map((w, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto", gap: 12, padding: "12px 0", borderBottom: i === 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-success)" }} />
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "oklch(0.93 0.05 145)", color: "var(--accent-success)", fontWeight: 600 }}>POST</span>
+                  <span className="mono" style={{ fontSize: 12 }}>{w.url}</span>
+                </div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>{w.events}</div>
+              </div>
+              <span className="mono" style={{ fontSize: 11, color: "var(--accent-success)" }}>{w.uptime}</span>
+              <button className="btn btn-ghost btn-sm">
+                <T fr="Tester" en="Test" />
+              </button>
+            </div>
+          ))}
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }}>
+            <Icon name="plus" size={12} /> <T fr="Ajouter un endpoint" en="Add endpoint" />
+          </button>
+        </div>
       </div>
 
-      {/* Recent webhook deliveries */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Livraisons récentes" en="Recent deliveries" />
-          </h3>
-          <button className="btn btn-ghost btn-sm">
-            <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
+      {/* Recent deliveries */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+          <div>
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
+              <T fr="Livraisons r\u00e9centes" en="Recent deliveries" />
+            </h3>
+            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+              <T fr="12 derni\u00e8res heures \u00b7 100% succ\u00e8s" en="Last 12h \u00b7 100% success" />
+            </p>
+          </div>
+          <button className="btn btn-link" style={{ fontSize: 13, padding: 0, background: "none", border: "none", color: "var(--ink)", cursor: "pointer", textDecoration: "underline" }}>
+            <T fr="Journal complet" en="Full log" />
           </button>
         </div>
         <div className="tbl">
-          <div className="row head" style={{ gridTemplateColumns: "1fr 1.5fr 1.5fr 80px 80px 100px" }}>
-            <span><T fr="Événement" en="Event" /></span>
-            <span>URL</span>
-            <span><T fr="Statut" en="Status" /></span>
-            <span>Code</span>
-            <span><T fr="Durée" en="Duration" /></span>
-            <span style={{ textAlign: "right" }}><T fr="Quand" en="When" /></span>
-          </div>
-          {WEBHOOK_DELIVERIES.map(d => (
-            <div className="row clickable" key={d.id} style={{ gridTemplateColumns: "1fr 1.5fr 1.5fr 80px 80px 100px" }}>
-              <div className="mono" style={{ fontSize: 11 }}>{d.event}</div>
-              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{d.url}</div>
+          {WEBHOOK_DELIVERIES.map((d) => (
+            <div key={d.id} className="row" style={{ gridTemplateColumns: "auto 1fr auto auto auto", padding: "10px 0", borderBottom: "none" }}>
+              <span className="mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "oklch(0.93 0.05 145)", color: "var(--accent-success)", fontWeight: 600 }}>POST</span>
               <div>
-                <Pill tone={d.status === "delivered" ? "success" : "fail"}>
-                  {d.status === "delivered" ? <T fr="livré" en="delivered" /> : <T fr="échoué" en="failed" />}
-                </Pill>
+                <div className="mono" style={{ fontSize: 11 }}>{d.url}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{d.event}</div>
               </div>
-              <div className="mono" style={{ fontSize: 11, color: d.code === 200 ? "var(--accent-success)" : "oklch(0.55 0.2 25)" }}>{d.code}</div>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>{d.duration}</div>
-              <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>{d.time}</div>
+              <span className="mono" style={{ fontSize: 11, color: d.code === 500 ? "oklch(0.55 0.2 25)" : "var(--accent-success)", fontWeight: 500 }}>{d.code}</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{d.duration}</span>
+              <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{d.time}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Integration example */}
-      <div className="card" style={{ padding: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <Icon name="code" size={14} />
+      {/* Integration example — Node.js webhook verification */}
+      <div className="card">
+        <div className="card-head" style={{ marginBottom: 14 }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Exemple d'intégration" en="Integration example" />
+            <T fr="Exemple d'int\u00e9gration" en="Integration example" />
           </h3>
         </div>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
-          <T
-            fr="Créez un paiement en envoyant une requête POST avec vos clés API dans les headers."
-            en="Create a payment by sending a POST request with your API keys in the headers."
-          />
-        </div>
-        <CodeBlock lang="bash">{curlExample}</CodeBlock>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
-          <T
-            fr="Configurez votre Callback URL dans les paramètres pour recevoir les notifications de paiement."
-            en="Set up your Callback URL in settings to receive payment notifications."
-          />
-        </div>
+        <CodeBlock lang="javascript">{webhookVerifyExample}</CodeBlock>
       </div>
     </PageWrapper>
   );
