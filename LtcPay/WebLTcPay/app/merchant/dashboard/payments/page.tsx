@@ -35,15 +35,6 @@ function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
   return "neutral";
 }
 
-function statusLabel(s: string): { fr: string; en: string } {
-  const lower = s.toLowerCase();
-  if (lower === "completed") return { fr: "payé", en: "paid" };
-  if (lower === "pending") return { fr: "attente", en: "pending" };
-  if (lower === "processing") return { fr: "en cours", en: "processing" };
-  if (lower === "expired") return { fr: "expiré", en: "expired" };
-  if (lower === "cancelled") return { fr: "annulé", en: "cancelled" };
-  return { fr: "échoué", en: "failed" };
-}
 
 function customerDisplay(p: Payment): { primary: string; secondary?: string } {
   const name = (p as any).customer_name;
@@ -232,7 +223,7 @@ function DetailPanel({ payment, onClose }: { payment: Payment; onClose: () => vo
         {/* Status + Method row */}
         <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
           <Pill tone={statusTone(payment.status)}>
-            <T fr={statusLabel(payment.status).fr} en={statusLabel(payment.status).en} />
+            {payment.status.toLowerCase()}
           </Pill>
           <MethodChip kind={kind} />
         </div>
@@ -453,7 +444,7 @@ export default function MerchantPaymentsPage() {
     >
       {/* Search bar + status filter pills */}
       <div
-        className="card"
+        className="nk-card"
         style={{
           padding: 14,
           marginBottom: 12,
@@ -478,7 +469,7 @@ export default function MerchantPaymentsPage() {
           <Icon name="search" size={14} color="var(--muted)" />
           <input
             id="tx-search"
-            className="input"
+            className="nk-input"
             style={{ border: 0, padding: 0, background: "transparent" }}
             placeholder={
               lang === "en"
@@ -513,7 +504,7 @@ export default function MerchantPaymentsPage() {
       {/* Loading state */}
       {loading && (
         <div
-          className="card"
+          className="nk-card"
           style={{
             padding: "64px 24px",
             display: "flex",
@@ -543,7 +534,7 @@ export default function MerchantPaymentsPage() {
       {/* Empty state */}
       {!loading && filtered.length === 0 && (
         <div
-          className="card"
+          className="nk-card"
           style={{
             padding: "64px 24px",
             display: "flex",
@@ -573,7 +564,7 @@ export default function MerchantPaymentsPage() {
       {!loading && filtered.length > 0 && (
         <div style={{ display: "flex", gap: 0 }}>
           {/* Left: transaction table */}
-          <div className="card" style={{ padding: 0, overflow: "hidden", flex: "1 1 0%", minWidth: 0 }}>
+          <div className="nk-card" style={{ padding: 0, overflow: "hidden", flex: "1 1 0%", minWidth: 0 }}>
             <div className="tbl">
               {/* Header row */}
               <div
@@ -644,7 +635,7 @@ export default function MerchantPaymentsPage() {
                   {/* Status */}
                   <div>
                     <Pill tone={statusTone(p.status)}>
-                      <T fr={statusLabel(p.status).fr} en={statusLabel(p.status).en} />
+                      {p.status.toLowerCase()}
                     </Pill>
                   </div>
 

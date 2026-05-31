@@ -96,7 +96,7 @@ export default function RefundsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 12 }}>
         {/* Refund table */}
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
           <div className="row head" style={{ gridTemplateColumns: "1.2fr 1fr 0.7fr 0.6fr 0.8fr 0.7fr" }}>
             <div><T fr="Reference" en="Reference" /></div>
             <div><T fr="Client" en="Customer" /></div>
@@ -129,7 +129,7 @@ export default function RefundsPage() {
 
         {/* Refund policy info card */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div className="card" style={{ padding: 20 }}>
+          <div className="nk-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <Icon name="shield" size={18} color="var(--primary)" />
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 600, fontSize: 16, margin: 0 }}>
@@ -156,7 +156,7 @@ export default function RefundsPage() {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 20 }}>
+          <div className="nk-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <Icon name="alert" size={18} color="var(--warn, #f59e0b)" />
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 600, fontSize: 16, margin: 0 }}>

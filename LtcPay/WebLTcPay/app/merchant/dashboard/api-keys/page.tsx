@@ -73,7 +73,7 @@ app.post('/webhooks/nkap', (req, res) => {
     >
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
         {/* API Keys card */}
-        <div className="card">
+        <div className="nk-card">
           <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
             <div>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
@@ -122,7 +122,7 @@ app.post('/webhooks/nkap', (req, res) => {
         </div>
 
         {/* Webhooks card */}
-        <div className="card">
+        <div className="nk-card">
           <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
             <div>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>Webhooks</h3>
@@ -133,10 +133,10 @@ app.post('/webhooks/nkap', (req, res) => {
           </div>
           {merchantUser?.callback_url ? (
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, padding: "12px 0", alignItems: "center" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-success)" }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success)" }} />
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "oklch(0.93 0.05 145)", color: "var(--accent-success)", fontWeight: 600 }}>POST</span>
+                  <span className="mono" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 3, background: "oklch(0.93 0.05 145)", color: "var(--success)", fontWeight: 600 }}>POST</span>
                   <span className="mono" style={{ fontSize: 12 }}>{merchantUser.callback_url}</span>
                 </div>
                 <div className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 4 }}>payment.completed · payment.failed · payment.refunded</div>
@@ -157,7 +157,7 @@ app.post('/webhooks/nkap', (req, res) => {
       </div>
 
       {/* Webhook info */}
-      <div className="card" style={{ marginBottom: 12 }}>
+      <div className="nk-card" style={{ marginBottom: 12 }}>
         <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
           <div>
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
@@ -169,7 +169,7 @@ app.post('/webhooks/nkap', (req, res) => {
           </div>
         </div>
         <div style={{ padding: "16px 0", color: "var(--muted)", fontSize: 13, textAlign: "center" }}>
-          <Icon name="check" size={24} color="var(--accent-success)" />
+          <Icon name="check" size={24} color="var(--success)" />
           <p style={{ marginTop: 8 }}>
             <T fr="Le journal des livraisons sera disponible prochainement." en="Delivery log will be available soon." />
           </p>
@@ -177,7 +177,7 @@ app.post('/webhooks/nkap', (req, res) => {
       </div>
 
       {/* Integration example — Node.js webhook verification */}
-      <div className="card">
+      <div className="nk-card">
         <div className="card-head" style={{ marginBottom: 14 }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
             <T fr="Exemple d'intégration" en="Integration example" />

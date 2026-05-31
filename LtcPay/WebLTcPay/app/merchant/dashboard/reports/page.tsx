@@ -46,7 +46,7 @@ export default function MerchantReportsPage() {
       {/* Report type cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
         {reportTypes.map((r, i) => (
-          <div key={r.key || i} className="card" style={{ cursor: "pointer" }}>
+          <div key={r.key || i} className="nk-card" style={{ cursor: "pointer" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--bg-2)", display: "grid", placeItems: "center", marginBottom: 14 }}>
               <Icon name={r.icon || "receipt"} size={17} />
             </div>
@@ -64,7 +64,7 @@ export default function MerchantReportsPage() {
       </div>
 
       {/* Recent reports table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
             <T fr="Rapports recents" en="Recent reports" />

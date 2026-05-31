@@ -43,6 +43,29 @@ async def get_merchant_stats(
     # Success rate
     success_rate = (completed_count / total_payments * 100) if total_payments > 0 else 0
 
+    # Today's revenue
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_q = await db.execute(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            and_(merchant_filter, Payment.status == PaymentStatus.COMPLETED, Payment.created_at >= today_start)
+        )
+    )
+    today_revenue = float(today_q.scalar() or 0)
+
+    # 7-day revenue
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    week_q = await db.execute(
+        select(
+            func.coalesce(func.sum(Payment.amount), 0).label("revenue"),
+            func.count(Payment.id).label("count"),
+        ).where(
+            and_(merchant_filter, Payment.status == PaymentStatus.COMPLETED, Payment.created_at >= seven_days_ago)
+        )
+    )
+    week_row = week_q.one()
+    revenue_7d = float(week_row.revenue or 0)
+    payments_7d = week_row.count or 0
+
     # Recent payments
     recent_q = await db.execute(
         select(Payment)
@@ -115,6 +138,9 @@ async def get_merchant_stats(
     return {
         "total_payments": total_payments,
         "total_revenue": total_revenue,
+        "today_revenue": today_revenue,
+        "revenue_7d": revenue_7d,
+        "payments_7d": payments_7d,
         "total_transactions": completed_count,
         "success_rate": round(success_rate, 1),
         "recent_payments": [

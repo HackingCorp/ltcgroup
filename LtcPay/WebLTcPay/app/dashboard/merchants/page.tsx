@@ -78,7 +78,7 @@ export default function MerchantsPage() {
       </>}
     >
       {error && (
-        <div className="card" style={{ padding: 14, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13, marginBottom: 12 }}>
+        <div className="nk-card" style={{ padding: 14, background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13, marginBottom: 12 }}>
           {error}
         </div>
       )}
@@ -91,10 +91,10 @@ export default function MerchantsPage() {
       )}
 
       {/* Search + filter pills */}
-      <div className="card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="nk-card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 240, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-2)", borderRadius: 6 }}>
           <Icon name="search" size={14} color="var(--muted)" />
-          <input className="input" style={{ border: 0, padding: 0, background: "transparent", outline: "none", width: "100%", fontSize: 13 }} placeholder="nom, ID, RCCM, email..." />
+          <input className="nk-input" style={{ border: 0, padding: 0, background: "transparent", outline: "none", width: "100%", fontSize: 13 }} placeholder="nom, ID, RCCM, email..." />
         </div>
         {FILTERS.map(f => (
           <button
@@ -117,7 +117,7 @@ export default function MerchantsPage() {
       </div>
 
       {/* Table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         {isLoading ? (
           <div style={{ display: "grid", placeItems: "center", padding: 48 }}>
             <div style={{ width: 28, height: 28, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
@@ -211,7 +211,7 @@ function CredentialsCard({
   onClose: () => void;
 }) {
   return (
-    <div className="card" style={{ marginBottom: 16, border: "1px solid var(--warn)" }}>
+    <div className="nk-card" style={{ marginBottom: 16, border: "1px solid var(--warn)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div>
           <h3 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>

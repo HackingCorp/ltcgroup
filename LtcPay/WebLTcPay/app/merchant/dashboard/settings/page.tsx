@@ -118,7 +118,7 @@ export default function MerchantSettingsPage() {
         <div>
           {/* Account tab */}
           {tab === "account" && (
-            <div className="card">
+            <div className="nk-card">
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px" }}>
                 <T fr="Informations entreprise" en="Business information" />
               </h3>
@@ -150,7 +150,7 @@ export default function MerchantSettingsPage() {
 
           {/* Payouts tab */}
           {tab === "payouts" && (
-            <div className="card">
+            <div className="nk-card">
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 24px" }}>
                 <T fr="Comptes de reglement" en="Payout accounts" />
               </h3>
@@ -213,7 +213,7 @@ export default function MerchantSettingsPage() {
 
           {/* Security tab */}
           {tab === "security" && (
-            <div className="card">
+            <div className="nk-card">
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 24px" }}>
                 <T fr="Securite" en="Security" />
               </h3>
@@ -236,7 +236,7 @@ export default function MerchantSettingsPage() {
 
           {/* Branding tab */}
           {tab === "branding" && (
-            <div className="card">
+            <div className="nk-card">
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px" }}>
                 <T fr="Branding du checkout" en="Checkout branding" />
               </h3>
@@ -296,7 +296,7 @@ export default function MerchantSettingsPage() {
                     </div>
                     <div style={{ display: "flex", border: "1px solid var(--line)", borderRadius: 8 }}>
                       <input
-                        className="input"
+                        className="nk-input"
                         style={{ borderRadius: "8px 0 0 8px", border: 0, padding: "9px 12px", fontSize: 13, flex: 1 }}
                         defaultValue={branding.checkout_subdomain || ""}
                       />
@@ -343,7 +343,7 @@ export default function MerchantSettingsPage() {
 
           {/* Danger zone tab */}
           {tab === "danger" && (
-            <div className="card" style={{ borderColor: "oklch(0.7 0.15 30)" }}>
+            <div className="nk-card" style={{ borderColor: "oklch(0.7 0.15 30)" }}>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px", color: "oklch(0.55 0.2 25)" }}>
                 <T fr="Zone rouge" en="Danger zone" />
               </h3>

@@ -102,7 +102,7 @@ export default function DisputesPage() {
       </div>
 
       {/* Disputes table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "1fr 1.4fr 1fr 0.9fr 1.4fr 0.8fr 0.6fr 24px" }}>
             <span>ID</span>

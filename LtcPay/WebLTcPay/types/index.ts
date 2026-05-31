@@ -178,6 +178,9 @@ export interface MerchantRegisterRequest {
 export interface MerchantDashboardStats {
   total_payments: number;
   total_revenue: number;
+  today_revenue: number;
+  revenue_7d: number;
+  payments_7d: number;
   total_transactions: number;
   success_rate: number;
   recent_payments: Payment[];

@@ -120,7 +120,7 @@ export default function FinancePage() {
               <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right" }}>{fmtCompact(s.gross)} F</div>
               <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right", color: "var(--success)" }}>{fmtCompact(s.fees)} F</div>
               <div className="display" style={{ fontWeight: 500, fontSize: 15, textAlign: "right" }}>{fmtCompact(s.net)} F</div>
-              <Pill tone={s.status === "completed" ? "success" : "info"}>{s.status}</Pill>
+              <Pill tone={s.status?.toLowerCase() === "completed" ? "success" : "info"}>{s.status}</Pill>
             </div>
           ))}
         </div>

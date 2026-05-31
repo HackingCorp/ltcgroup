@@ -92,7 +92,7 @@ export default function HealthPage() {
       </div>
 
       {/* Services -- flat table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
             <T fr="Services" en="Services" />
@@ -124,7 +124,7 @@ export default function HealthPage() {
       {/* Latency by operator + Resources (static -- from monitoring infrastructure) */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* Latency by operator (static placeholder) */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Latence par operateur" en="Latency by operator" />
           </h3>
@@ -143,7 +143,7 @@ export default function HealthPage() {
         </div>
 
         {/* Resources (static placeholder) */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Ressources" en="Resources" />
           </h3>

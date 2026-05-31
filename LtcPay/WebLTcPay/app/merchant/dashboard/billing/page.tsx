@@ -58,7 +58,7 @@ export default function MerchantBillingPage() {
         </KpiCard>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Factures" en="Invoices" /></h3>
         </div>
@@ -77,7 +77,7 @@ export default function MerchantBillingPage() {
               <div className="display" style={{ fontWeight: 500, fontSize: 16, textAlign: "right" }}>{fmtXAF(inv.amount)}</div>
               <div>
                 <Pill tone={inv.status?.toLowerCase() === "paid" ? "success" : "warn"}>
-                  {inv.status?.toLowerCase() === "paid" ? <><T fr="payee" en="paid" /> {"\u00b7"} {inv.paid_at || ""}</> : <T fr="en cours" en="current" />}
+                  {(inv.status || "").toLowerCase()}{inv.status?.toLowerCase() === "paid" && inv.paid_at ? ` \u00b7 ${inv.paid_at}` : ""}
                 </Pill>
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>

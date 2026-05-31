@@ -49,7 +49,7 @@ export default function PayoutsPage() {
     >
       {/* Dark hero card: next payout */}
       <div
-        className="card hero"
+        className="nk-card hero"
         style={{
           background: "var(--ink)",
           color: "white",
@@ -104,7 +104,7 @@ export default function PayoutsPage() {
       </div>
 
       {/* Payout history */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
@@ -163,7 +163,7 @@ export default function PayoutsPage() {
       </div>
 
       {/* Info note */}
-      <div className="card" style={{ marginTop: 12, padding: 18, display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div className="nk-card" style={{ marginTop: 12, padding: 18, display: "flex", gap: 12, alignItems: "flex-start" }}>
         <Icon name="info" size={18} color="var(--primary)" />
         <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--muted)" }}>
           <T

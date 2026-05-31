@@ -8,7 +8,7 @@ import { T } from "@/lib/i18n";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 
 const stepColors: Record<string, string> = {
-  completed: "var(--accent-success)",
+  completed: "var(--success)",
   current: "var(--ink)",
   pending: "var(--line-2)",
 };
@@ -66,7 +66,7 @@ export default function MerchantKycPage() {
       sub={<T fr="Activez le mode production en moins de 24h en completant ces 4 etapes" en="Activate live mode in under 24h by completing these 4 steps" />}
     >
       {/* Progress stepper */}
-      <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+      <div className="nk-card" style={{ padding: 24, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           {steps.map((s, i) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", flex: i === 3 ? "0" : "1" }}>
@@ -95,7 +95,7 @@ export default function MerchantKycPage() {
                 </div>
               </div>
               {i < steps.length - 1 && (
-                <div style={{ height: 2, flex: 1, background: s.status === "completed" ? "var(--accent-success)" : "var(--line)", marginLeft: 8, marginRight: 8 }} />
+                <div style={{ height: 2, flex: 1, background: s.status === "completed" ? "var(--success)" : "var(--line)", marginLeft: 8, marginRight: 8 }} />
               )}
             </div>
           ))}
@@ -104,7 +104,7 @@ export default function MerchantKycPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
         {/* Main content */}
-        <div className="card">
+        <div className="nk-card">
           <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
             <T fr={`Etape ${currentStep} sur 4`} en={`Step ${currentStep} of 4`} />
           </div>
@@ -120,7 +120,7 @@ export default function MerchantKycPage() {
             return (
               <div key={d.id || i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: isUploaded ? "oklch(0.93 0.05 145)" : "var(--bg-2)", display: "grid", placeItems: "center" }}>
-                  <Icon name={isUploaded ? "check" : "upload"} size={16} color={isUploaded ? "var(--accent-success)" : "var(--muted)"} />
+                  <Icon name={isUploaded ? "check" : "upload"} size={16} color={isUploaded ? "var(--success)" : "var(--muted)"} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 500, fontSize: 14 }}>
@@ -156,7 +156,7 @@ export default function MerchantKycPage() {
         </div>
 
         {/* Info sidebar */}
-        <div className="card" style={{ background: "oklch(0.97 0.01 260)", borderColor: "oklch(0.85 0.05 260)" }}>
+        <div className="nk-card" style={{ background: "oklch(0.97 0.01 260)", borderColor: "oklch(0.85 0.05 260)" }}>
           <Icon name="info" size={20} color="var(--ink)" />
           <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "12px 0 8px" }}>
             <T fr="Validation sous 24h ouvrees" en="Reviewed within 24 business hours" />

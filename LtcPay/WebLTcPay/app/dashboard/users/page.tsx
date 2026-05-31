@@ -95,7 +95,7 @@ export default function UsersPage() {
       }
     >
       {/* Users table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "auto 1.4fr 1fr 1fr 0.5fr 0.7fr 0.8fr 24px" }}>
             <span></span>
@@ -143,7 +143,7 @@ export default function UsersPage() {
       {/* Roles & permissions + Security policy - 2fr 1fr layout */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
         {/* Roles & permissions (from API) */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Roles & permissions" en="Roles & permissions" />
           </h3>
@@ -171,7 +171,7 @@ export default function UsersPage() {
         </div>
 
         {/* Security policy (static UI config) */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Politique de securite" en="Security policy" />
           </h3>

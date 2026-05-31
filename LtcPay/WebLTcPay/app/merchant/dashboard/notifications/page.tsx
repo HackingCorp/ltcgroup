@@ -120,7 +120,7 @@ export default function MerchantNotificationsPage() {
                   return (
                     <div
                       key={n.id || j}
-                      className="card"
+                      className="nk-card"
                       style={{
                         padding: "14px 18px",
                         display: "flex",
@@ -157,7 +157,7 @@ export default function MerchantNotificationsPage() {
         {/* Sidebar: channels & alert types */}
         <div>
           {/* Channels */}
-          <div className="card">
+          <div className="nk-card">
             <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}>
               <T fr="Canaux" en="Channels" />
             </h4>
@@ -173,7 +173,7 @@ export default function MerchantNotificationsPage() {
           </div>
 
           {/* Alert types */}
-          <div className="card" style={{ marginTop: 12 }}>
+          <div className="nk-card" style={{ marginTop: 12 }}>
             <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 4px" }}>
               <T fr="Types d'alertes" en="Alert types" />
             </h4>

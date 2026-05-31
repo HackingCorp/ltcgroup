@@ -185,8 +185,8 @@ export default function MerchantDashboardPage() {
       ]}
       title={
         <T
-          fr={`Aujourd'hui, vous avez encaissé ${fmtXAF(stats?.total_revenue ?? 0)}`}
-          en={`Today, you collected ${fmtXAF(stats?.total_revenue ?? 0)}`}
+          fr={`Aujourd'hui, vous avez encaissé ${fmtXAF(stats?.today_revenue ?? 0)}`}
+          en={`Today, you collected ${fmtXAF(stats?.today_revenue ?? 0)}`}
         />
       }
       sub={
@@ -257,7 +257,7 @@ export default function MerchantDashboardPage() {
         {/* Volume 7j */}
         <KpiCard
           label={<T fr="Volume 7j" en="7d volume" />}
-          value={fmtXAF(stats?.total_revenue ?? 0)}
+          value={fmtXAF(stats?.revenue_7d ?? 0)}
         >
           {revenueChartData.length > 0 && (
             <div style={{ marginTop: 8, marginBottom: -4 }}>
@@ -268,13 +268,13 @@ export default function MerchantDashboardPage() {
 
         {/* Transactions */}
         <KpiCard
-          label={<T fr="Transactions" en="Transactions" />}
-          value={String(stats?.total_payments ?? 0)}
+          label={<T fr="Paiements reussis" en="Successful payments" />}
+          value={String(stats?.total_transactions ?? 0)}
         >
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
             <T
-              fr={`Total transactions : ${stats?.total_transactions ?? 0}`}
-              en={`Total transactions: ${stats?.total_transactions ?? 0}`}
+              fr={`Sur ${stats?.total_payments ?? 0} paiements au total`}
+              en={`Out of ${stats?.total_payments ?? 0} total payments`}
             />
           </div>
         </KpiCard>
@@ -304,7 +304,7 @@ export default function MerchantDashboardPage() {
         }}
       >
         {/* Revenue chart */}
-        <div className="card">
+        <div className="nk-card">
           <div className="card-head">
             <div>
               <h3>
@@ -353,7 +353,7 @@ export default function MerchantDashboardPage() {
         </div>
 
         {/* Method mix donut */}
-        <div className="card">
+        <div className="nk-card">
           <h3
             style={{
               fontFamily: "var(--display)",
@@ -415,7 +415,7 @@ export default function MerchantDashboardPage() {
       </div>
 
       {/* ── Recent transactions ───────────────────────────────── */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div
           style={{
             padding: 18,
@@ -515,17 +515,7 @@ export default function MerchantDashboardPage() {
                 {/* Status */}
                 <div>
                   <Pill tone={statusTone(p.status)}>
-                    {p.status === "completed" ? (
-                      <T fr="payé" en="paid" />
-                    ) : p.status === "pending" ? (
-                      <T fr="attente" en="pending" />
-                    ) : p.status === "expired" ? (
-                      <T fr="expiré" en="expired" />
-                    ) : p.status === "cancelled" ? (
-                      <T fr="annulé" en="cancelled" />
-                    ) : (
-                      <T fr="échoué" en="failed" />
-                    )}
+                    {p.status.toLowerCase()}
                   </Pill>
                 </div>
 
@@ -557,102 +547,6 @@ export default function MerchantDashboardPage() {
         )}
       </div>
 
-      {/* ── Alert cards ───────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          marginTop: 12,
-        }}
-      >
-        {/* Pending payments alert */}
-        <div className="card" style={{ borderLeft: "3px solid var(--warn)" }}>
-          <div
-            style={{ display: "flex", gap: 14, alignItems: "flex-start" }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "var(--warn-soft)",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <Icon name="alert" size={16} color="var(--warn)" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontWeight: 500 }}>
-                <T
-                  fr="3 paiements en attente > 10 min"
-                  en="3 payments pending > 10 min"
-                />
-              </strong>
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  color: "var(--muted)",
-                  fontSize: 12,
-                }}
-              >
-                <T
-                  fr="PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7. OTP non confirmé."
-                  en="PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7. OTP not confirmed."
-                />
-              </p>
-            </div>
-            <button className="btn btn-ghost btn-sm">
-              <T fr="Inspecter" en="Inspect" />
-            </button>
-          </div>
-        </div>
-
-        {/* Security alert */}
-        <div className="card" style={{ borderLeft: "3px solid var(--primary)" }}>
-          <div
-            style={{ display: "flex", gap: 14, alignItems: "flex-start" }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "var(--primary-faint)",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <Icon name="shield" size={16} color="var(--primary)" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <strong style={{ fontWeight: 500 }}>
-                <T
-                  fr="2 nouvelles IPs sur votre clé API"
-                  en="2 new IPs on your API key"
-                />
-              </strong>
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  color: "var(--muted)",
-                  fontSize: 12,
-                }}
-              >
-                41.202.x.x (Douala), 154.0.x.x (Yaoundé).{" "}
-                <T
-                  fr="Faites tourner si ce n'est pas vous."
-                  en="Rotate if it isn't you."
-                />
-              </p>
-            </div>
-            <button className="btn btn-ghost btn-sm">
-              <T fr="Détails" en="Details" />
-            </button>
-          </div>
-        </div>
-      </div>
     </PageWrapper>
   );
 }

@@ -66,7 +66,7 @@ export default function PaymentLinksPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 12 }}>
         {/* Links table */}
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
           <div className="row head" style={{ gridTemplateColumns: "1.5fr 0.8fr 0.6fr 0.5fr 0.7fr" }}>
             <div><T fr="Nom" en="Name" /></div>
             <div><T fr="Montant" en="Amount" /></div>
@@ -116,7 +116,7 @@ export default function PaymentLinksPage() {
 
         {/* QR / preview panel */}
         {selected && (
-          <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: 24 }}>
+          <div className="nk-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: 24 }}>
             <div style={{ fontWeight: 600, fontSize: 16 }}>{selected.name}</div>
 
             {/* QR code placeholder */}

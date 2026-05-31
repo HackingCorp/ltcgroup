@@ -148,7 +148,7 @@ export default function WebhooksPage() {
       </div>
 
       {/* Volume / errors 24h chart */}
-      <div className="card" style={{ marginBottom: 12 }}>
+      <div className="nk-card" style={{ marginBottom: 12 }}>
         <div className="card-head" style={{ marginBottom: 8 }}>
           <div>
             <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
@@ -165,7 +165,7 @@ export default function WebhooksPage() {
       {/* Par methode + Erreurs recentes */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
         {/* By method */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Par methode" en="By method" />
           </h3>
@@ -194,7 +194,7 @@ export default function WebhooksPage() {
         </div>
 
         {/* Recent errors */}
-        <div className="card">
+        <div className="nk-card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Erreurs recentes" en="Recent errors" />
           </h3>
@@ -219,7 +219,7 @@ export default function WebhooksPage() {
       </div>
 
       {/* Recent callbacks table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
             <T fr="Callbacks recents" en="Recent callbacks" />

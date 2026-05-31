@@ -57,7 +57,7 @@ export default function MerchantTeamPage() {
       }
     >
       {/* Members table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "auto 1.4fr 1fr 0.8fr 0.8fr 24px" }}>
             <span style={{ width: 32 }} />
@@ -93,7 +93,7 @@ export default function MerchantTeamPage() {
       </div>
 
       {/* Roles as card grid */}
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="nk-card" style={{ marginTop: 16 }}>
         <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 4px" }}>
           <T fr="Roles disponibles" en="Available roles" />
         </h3>

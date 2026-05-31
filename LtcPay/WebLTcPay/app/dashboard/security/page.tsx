@@ -110,7 +110,7 @@ export default function SecurityPage() {
       </div>
 
       {/* Severity filter pills + date context */}
-      <div className="card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="nk-card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         {SEVERITY_FILTERS.map((sf) => (
           <button
             key={sf.key}
@@ -136,7 +136,7 @@ export default function SecurityPage() {
       </div>
 
       {/* Audit log table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
             <span><T fr="Sev." en="Sev." /></span>

@@ -90,7 +90,7 @@ export default function FeesPage() {
       </div>
 
       {/* Standard rules per plan */}
-      <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Regles standard par plan" en="Standard rules per plan" /></h3>
         </div>
@@ -122,7 +122,7 @@ export default function FeesPage() {
       </div>
 
       {/* Custom rates (per-merchant override) */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Tarifs custom (override par marchand)" en="Custom rates (per-merchant override)" /></h3>
         </div>

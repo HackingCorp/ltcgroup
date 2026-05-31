@@ -70,7 +70,7 @@ export default function PaymentDetailPage() {
         crumb={[<T key="c1" fr="Encaissement" en="Collect" />, <T key="c2" fr="Transactions" en="Transactions" />]}
         title={<T fr="Paiement introuvable" en="Payment not found" />}
       >
-        <div className="card" style={{ padding: 40, textAlign: "center" }}>
+        <div className="nk-card" style={{ padding: 40, textAlign: "center" }}>
           <Icon name="alert" size={32} color="var(--muted)" />
           <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 14 }}>
             <T fr="Ce paiement n'existe pas ou a été supprimé." en="This payment does not exist or has been removed." />
@@ -97,17 +97,17 @@ export default function PaymentDetailPage() {
       label: lang === "en" ? "Processing" : "En traitement",
       time: payment.created_at,
       icon: "refresh" as const,
-      done: payment.status !== "pending",
+      done: payment.status.toLowerCase() !== "pending",
     },
     {
-      label: payment.status === "completed"
+      label: payment.status.toLowerCase() === "completed"
         ? (lang === "en" ? "Payment succeeded" : "Paiement réussi")
-        : payment.status === "failed"
+        : payment.status.toLowerCase() === "failed"
         ? (lang === "en" ? "Payment failed" : "Paiement échoué")
         : (lang === "en" ? "Awaiting completion" : "En attente"),
       time: payment.updated_at,
-      icon: payment.status === "completed" ? "check" as const : payment.status === "failed" ? "x" as const : "clock" as const,
-      done: payment.status === "completed" || payment.status === "failed",
+      icon: payment.status.toLowerCase() === "completed" ? "check" as const : payment.status.toLowerCase() === "failed" ? "x" as const : "clock" as const,
+      done: payment.status.toLowerCase() === "completed" || payment.status.toLowerCase() === "failed",
     },
   ];
 
@@ -126,7 +126,7 @@ export default function PaymentDetailPage() {
       }
     >
       {/* Hero amount + status */}
-      <div className="card" style={{ textAlign: "center", padding: "32px 24px" }}>
+      <div className="nk-card" style={{ textAlign: "center", padding: "32px 24px" }}>
         <Pill tone={statusTone(payment.status)}>{payment.status.toUpperCase()}</Pill>
         <div className="display" style={{ fontSize: 40, fontWeight: 600, margin: "12px 0 4px", letterSpacing: -1 }}>
           {formatCurrency(payment.amount, payment.currency)}
@@ -143,7 +143,7 @@ export default function PaymentDetailPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
         {/* Customer info */}
-        <div className="card">
+        <div className="nk-card">
           <div className="card-head">
             <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Icon name="user" size={15} /> <T fr="Client" en="Customer" />
@@ -174,7 +174,7 @@ export default function PaymentDetailPage() {
         </div>
 
         {/* Payment details */}
-        <div className="card">
+        <div className="nk-card">
           <div className="card-head">
             <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Icon name="receipt" size={15} /> <T fr="Détail financier" en="Financial detail" />
@@ -204,7 +204,7 @@ export default function PaymentDetailPage() {
       </div>
 
       {/* Timeline */}
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="nk-card" style={{ marginTop: 12 }}>
         <div className="card-head">
           <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Icon name="clock" size={15} /> <T fr="Chronologie" en="Timeline" />
@@ -252,7 +252,7 @@ export default function PaymentDetailPage() {
 
       {/* Metadata */}
       {payment.metadata && Object.keys(payment.metadata).length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
+        <div className="nk-card" style={{ marginTop: 12 }}>
           <div className="card-head">
             <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <Icon name="code" size={15} /> <T fr="Métadonnées" en="Metadata" />
