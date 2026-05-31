@@ -15,21 +15,6 @@ import type { MerchantBalanceInfo } from "@/services/merchants.service";
 import type { Merchant, MerchantCredentials } from "@/types";
 import type { CreateMerchantData, UpdateMerchantData } from "@/services/merchants.service";
 
-/* ── mock data for design alignment ────────────────────────── */
-
-const ADMIN_MERCHANTS_MOCK = [
-  { id: "MER-001", name: "Boutique Mami SARL", country: "CM", volume30: 5240000, txCount: 1247, status: "live", plan: "Growth", fee: "1,5%", since: "12 mars 2026", risk: "low" },
-  { id: "MER-002", name: "Restaurant Le Baobab", country: "CM", volume30: 2180000, txCount: 432, status: "live", plan: "Starter", fee: "2,5%", since: "08 avr 2026", risk: "low" },
-  { id: "MER-003", name: "KILIMO SARL", country: "CI", volume30: 18500000, txCount: 3287, status: "live", plan: "Growth", fee: "1,5%", since: "22 fev 2026", risk: "medium" },
-  { id: "MER-004", name: "Ecole Nkapla Pro", country: "SN", volume30: 920000, txCount: 184, status: "live", plan: "Starter", fee: "2,5%", since: "01 mai 2026", risk: "low" },
-  { id: "MER-005", name: "TaxiYde Mobile", country: "CM", volume30: 412000, txCount: 1054, status: "kyc_pending", plan: "—", fee: "—", since: "24 mai 2026", risk: "—" },
-  { id: "MER-006", name: "Beaute Africaine SAS", country: "CI", volume30: 8420000, txCount: 1820, status: "live", plan: "Growth", fee: "1,5%", since: "14 jan 2026", risk: "low" },
-  { id: "MER-007", name: "Cabinet Atangana & Co", country: "CM", volume30: 1240000, txCount: 87, status: "live", plan: "Starter", fee: "2,5%", since: "03 fev 2026", risk: "low" },
-  { id: "MER-008", name: "Mobile Plus Center", country: "SN", volume30: 0, txCount: 0, status: "suspended", plan: "Starter", fee: "—", since: "18 jan 2026", risk: "high" },
-  { id: "MER-009", name: "Agro Export Cameroun", country: "CM", volume30: 124500000, txCount: 412, status: "live", plan: "Scale", fee: "0,9%", since: "10 sept 2025", risk: "low" },
-  { id: "MER-010", name: "Wave Senegal Reseller", country: "SN", volume30: 6240000, txCount: 2148, status: "live", plan: "Growth", fee: "1,2%", since: "28 nov 2025", risk: "low" },
-];
-
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function MerchantsPage() {
@@ -73,22 +58,17 @@ export default function MerchantsPage() {
   const activeCount = merchants.filter((m) => m.is_active).length;
   const suspendedCount = merchants.filter((m) => !m.is_active).length;
 
-  /* Use real merchants if loaded, otherwise show mock data */
-  const hasMerchants = merchants.length > 0;
-
   const FILTERS = [
-    { id: "all", label: <T fr="Tous" en="All" />, count: hasMerchants ? totalCount : 2482 },
-    { id: "live", label: "Live", count: hasMerchants ? activeCount : 2463 },
-    { id: "kyc", label: <T fr="KYC en attente" en="Pending KYC" />, count: 7, tone: "warn" as const },
-    { id: "suspended", label: <T fr="Suspendus" en="Suspended" />, count: hasMerchants ? suspendedCount : 12, tone: "fail" as const },
-    { id: "scale", label: "Scale", count: 24, tone: "info" as const },
+    { id: "all", label: <T fr="Tous" en="All" />, count: totalCount },
+    { id: "live", label: "Live", count: activeCount },
+    { id: "suspended", label: <T fr="Suspendus" en="Suspended" />, count: suspendedCount, tone: "fail" as const },
   ];
 
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
       title={<T fr="Marchands" en="Merchants" />}
-      sub={<T fr={`${hasMerchants ? activeCount : 2482} actifs · 7 en attente KYC · ${hasMerchants ? suspendedCount : 12} suspendus`} en={`${hasMerchants ? activeCount : "2,482"} active · 7 pending KYC · ${hasMerchants ? suspendedCount : 12} suspended`} />}
+      sub={<T fr={`${activeCount} actifs · ${suspendedCount} suspendus`} en={`${activeCount} active · ${suspendedCount} suspended`} />}
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="filter" size={13} /> <T fr="Filtres" en="Filters" /></button>
         <button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> CSV</button>
@@ -155,8 +135,7 @@ export default function MerchantsPage() {
                 <span><T fr="Statut" en="Status" /></span>
                 <span></span>
               </div>
-              {hasMerchants ? (
-                /* Real merchants from API */
+              {merchants.length > 0 ? (
                 merchants.map((m) => {
                   const bal = balances[m.id];
                   return (
@@ -183,34 +162,13 @@ export default function MerchantsPage() {
                   );
                 })
               ) : (
-                /* Mock data matching design */
-                ADMIN_MERCHANTS_MOCK.map((m) => (
-                  <div className="row clickable" key={m.id} style={{ gridTemplateColumns: "1.6fr 0.6fr 0.8fr 1fr 0.8fr 0.7fr 0.7fr 24px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Avatar name={m.name} size={28} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.id}</div>
-                      </div>
-                    </div>
-                    <div className="mono" style={{ fontSize: 11 }}>{m.country}</div>
-                    <div><Pill tone={m.plan === "Scale" ? "info" : "neutral"} plain>{m.plan}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee}</span></div>
-                    <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtCompact(m.volume30)} F</div>
-                    <div>
-                      {m.risk !== "—" && <Pill tone={m.risk === "low" ? "success" : m.risk === "medium" ? "warn" : "fail"}>{m.risk}</Pill>}
-                      {m.risk === "—" && <span style={{ color: "var(--muted-2)" }}>{"—"}</span>}
-                    </div>
-                    <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.since}</div>
-                    <div>
-                      <Pill tone={m.status === "live" ? "success" : m.status === "kyc_pending" ? "warn" : "fail"}>{m.status === "kyc_pending" ? "kyc" : m.status}</Pill>
-                    </div>
-                    <Icon name="chevR" size={14} color="var(--muted)" />
-                  </div>
-                ))
+                <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14, gridColumn: "1 / -1" }}>
+                  <T fr="Aucun marchand pour le moment" en="No merchants yet" />
+                </div>
               )}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 18px", borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--muted)" }}>
-              <span><T fr={`Affichage 1-${hasMerchants ? merchants.length : 10} sur ${hasMerchants ? totalCount : "2 482"} marchands`} en={`Showing 1-${hasMerchants ? merchants.length : 10} of ${hasMerchants ? totalCount : "2,482"} merchants`} /></span>
+              <span><T fr={`Affichage 1-${merchants.length} sur ${totalCount} marchands`} en={`Showing 1-${merchants.length} of ${totalCount} merchants`} /></span>
             </div>
           </>
         )}

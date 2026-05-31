@@ -10,7 +10,14 @@ import { paymentsService } from "@/services/payments.service";
 import { formatCurrency } from "@/lib/utils";
 import type { Payment } from "@/types";
 
-const STATUS_OPTIONS = ["all", "completed", "pending", "failed", "expired", "cancelled"] as const;
+const STATUS_OPTIONS = [
+  { key: "all", label: "All" },
+  { key: "COMPLETED", label: "completed" },
+  { key: "PENDING", label: "pending" },
+  { key: "FAILED", label: "failed" },
+  { key: "EXPIRED", label: "expired" },
+  { key: "CANCELLED", label: "cancelled" },
+] as const;
 
 function statusTone(s: string): "success" | "fail" | "warn" | "neutral" {
   switch (s.toLowerCase()) {
@@ -38,7 +45,7 @@ export default function PaymentsPage() {
   const filtered = useMemo(() => {
     let list = payments;
     if (statusFilter !== "all") {
-      list = list.filter((p) => p.status === statusFilter);
+      list = list.filter((p) => p.status.toUpperCase() === statusFilter);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -99,12 +106,12 @@ export default function PaymentsPage() {
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {STATUS_OPTIONS.map((s) => (
             <button
-              key={s}
-              className={`btn btn-sm ${statusFilter === s ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setStatusFilter(s)}
+              key={s.key}
+              className={`btn btn-sm ${statusFilter === s.key ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setStatusFilter(s.key)}
               style={{ fontSize: 11, padding: "5px 10px", textTransform: "capitalize" }}
             >
-              {s === "all" ? <T fr="Tous" en="All" /> : s}
+              {s.key === "all" ? <T fr="Tous" en="All" /> : s.label}
             </button>
           ))}
         </div>

@@ -144,19 +144,19 @@ export default function DashboardPage() {
         className="kpi-grid"
         style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", marginBottom: 12 }}
       >
-        <KpiCard hero label="GMV · 30 jours" value="2,84" unit="Md F" delta="+24,8%">
+        <KpiCard hero label={<T fr="Revenu total" en="Total revenue" />} value={stats ? fmtCompact(stats.total_revenue) : "—"} unit="F">
           <div style={{ marginTop: 12 }}>
             <Sparkline data={A_REVENUE} width={240} height={36} color="var(--accent)" />
           </div>
         </KpiCard>
-        <KpiCard label={<T fr="Marchands actifs" en="Active merchants" />} value="2 482" delta="+142 ce mois">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>+ 7 <T fr="en attente KYC" en="pending KYC" /></div>
+        <KpiCard label={<T fr="Total paiements" en="Total payments" />} value={stats ? String(stats.total_payments) : "—"}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Tous les paiements" en="All payments" /></div>
         </KpiCard>
-        <KpiCard label={<T fr="Transactions / 24h" en="Transactions / 24h" />} value="58 412" delta="+18%">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Pic a" en="Peak at" /> 12 482 /h · 14:00</div>
+        <KpiCard label={<T fr="Transactions traitees" en="Processed transactions" />} value={stats ? String(stats.total_transactions) : "—"}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Reussies + echouees + remboursees" en="Completed + failed + refunded" /></div>
         </KpiCard>
-        <KpiCard label={<T fr="Take rate moyen" en="Avg take rate" />} value="1,67" unit="%">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Revenu LTC ce mois" en="LTC revenue this month" /> · 47,4M F</div>
+        <KpiCard label={<T fr="Taux de succes" en="Success rate" />} value={stats ? String(stats.success_rate) : "—"} unit="%">
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Paiements reussis" en="Successful payments" /></div>
         </KpiCard>
       </div>
 

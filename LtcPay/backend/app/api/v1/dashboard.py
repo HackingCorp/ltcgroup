@@ -65,7 +65,12 @@ async def get_dashboard_stats(
             "currency": p.currency,
             "status": p.status.value,
             "description": p.description,
+            "customer_email": p.customer_email,
+            "customer_phone": p.customer_phone,
+            "payment_method": p.payment_mode.value if p.payment_mode and hasattr(p.payment_mode, "value") else p.payment_mode,
+            "operator": p.operator.value if p.operator and hasattr(p.operator, "value") else p.operator,
             "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
         })
 
     # Revenue chart (last 30 days)
@@ -150,7 +155,8 @@ async def list_payments_admin(
             "currency": p.currency,
             "status": p.status.value,
             "description": p.description,
-            "payment_method": p.method.value if p.method else None,
+            "payment_method": p.payment_mode.value if p.payment_mode and hasattr(p.payment_mode, "value") else p.payment_mode,
+            "operator": p.operator.value if p.operator and hasattr(p.operator, "value") else p.operator,
             "customer_email": p.customer_info.get("email") if p.customer_info else None,
             "customer_phone": p.customer_info.get("phone") if p.customer_info else None,
             "created_at": p.created_at.isoformat() if p.created_at else None,

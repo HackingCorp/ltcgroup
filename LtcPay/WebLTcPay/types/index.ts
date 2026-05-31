@@ -31,11 +31,12 @@ export interface Payment {
   reference: string;
   amount: number;
   currency: string;
-  status: "pending" | "completed" | "failed" | "expired" | "cancelled";
+  status: string;
   description?: string;
   customer_email?: string;
   customer_phone?: string;
   payment_method?: string;
+  operator?: string;
   callback_url?: string;
   redirect_url?: string;
   metadata?: Record<string, unknown>;
