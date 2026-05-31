@@ -81,6 +81,28 @@ class Merchant(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # Extended business info
+    legal_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    trade_register: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tax_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Payout configuration
+    payout_schedule: Mapped[str] = mapped_column(String(20), default="daily", server_default="daily", nullable=False)
+
+    # Security
+    two_fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    ip_whitelist: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sms_alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    email_confirm_withdrawals: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+
+    # Branding
+    checkout_primary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    checkout_subdomain: Mapped[str | None] = mapped_column(String(63), nullable=True)
+
+    # Plan
+    plan: Mapped[str] = mapped_column(String(20), default="STARTER", server_default="STARTER", nullable=False)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False

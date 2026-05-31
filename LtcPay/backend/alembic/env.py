@@ -17,6 +17,19 @@ from app.core.database import Base
 from app.models.merchant import Merchant  # noqa: F401
 from app.models.payment import Payment  # noqa: F401
 from app.models.transaction import Transaction  # noqa: F401
+from app.models.admin_user import AdminUser  # noqa: F401
+from app.models.withdrawal import Withdrawal  # noqa: F401
+from app.models.payment_link import PaymentLink  # noqa: F401
+from app.models.refund import Refund  # noqa: F401
+from app.models.invoice import Invoice  # noqa: F401
+from app.models.notification import Notification, NotificationPreference  # noqa: F401
+from app.models.report import Report  # noqa: F401
+from app.models.team_member import MerchantTeamMember  # noqa: F401
+from app.models.kyc import KycSubmission, KycDocument  # noqa: F401
+from app.models.fee_rule import FeeRule, FeeOverride  # noqa: F401
+from app.models.dispute import Dispute  # noqa: F401
+from app.models.webhook_log import WebhookLog  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401
 
 config = context.config
 
