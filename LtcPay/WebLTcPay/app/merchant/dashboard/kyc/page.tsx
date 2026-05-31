@@ -9,15 +9,15 @@ import { T } from "@/lib/i18n";
 const STEPS = [
   { id: 1, fr: "Entreprise", en: "Business", status: "completed" as const },
   { id: 2, fr: "Documents", en: "Documents", status: "current" as const },
-  { id: 3, fr: "B\u00e9n\u00e9ficiaire effectif", en: "Beneficial owner", status: "pending" as const },
+  { id: 3, fr: "Bénéficiaire effectif", en: "Beneficial owner", status: "pending" as const },
   { id: 4, fr: "Validation", en: "Validation", status: "pending" as const },
 ];
 
 const DOCUMENTS = [
   { name: "RCCM", fr: "Registre de commerce (RCCM)", en: "Trade register (RCCM)", status: "uploaded" as const, file: "RCCM_BOUTIQUE_MAMI.pdf" },
-  { name: "NIU", fr: "Num\u00e9ro d'identification fiscale", en: "Tax ID certificate", status: "uploaded" as const, file: "NIU_M0824100021T.pdf" },
-  { name: "Statuts", fr: "Statuts de soci\u00e9t\u00e9", en: "Articles of incorporation", status: "todo" as const, file: null },
-  { name: "ID", fr: "Pi\u00e8ce d'identit\u00e9 du repr\u00e9sentant l\u00e9gal", en: "Legal rep ID document", status: "todo" as const, file: null },
+  { name: "NIU", fr: "Numéro d'identification fiscale", en: "Tax ID certificate", status: "uploaded" as const, file: "NIU_M0824100021T.pdf" },
+  { name: "Statuts", fr: "Statuts de société", en: "Articles of incorporation", status: "todo" as const, file: null },
+  { name: "ID", fr: "Pièce d'identité du représentant légal", en: "Legal rep ID document", status: "todo" as const, file: null },
   { name: "Address", fr: "Justificatif d'adresse (< 3 mois)", en: "Proof of address (< 3 months)", status: "todo" as const, file: null },
 ];
 
@@ -33,8 +33,8 @@ export default function MerchantKycPage() {
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="KYC" en="KYC" />]}
-      title={<T fr="V\u00e9rification KYC" en="KYC verification" />}
-      sub={<T fr="Activez le mode production en moins de 24h en compl\u00e9tant ces 4 \u00e9tapes" en="Activate live mode in under 24h by completing these 4 steps" />}
+      title={<T fr="Vérification KYC" en="KYC verification" />}
+      sub={<T fr="Activez le mode production en moins de 24h en complétant ces 4 étapes" en="Activate live mode in under 24h by completing these 4 steps" />}
     >
       {/* Progress stepper */}
       <div className="card" style={{ padding: 24, marginBottom: 16 }}>
@@ -61,7 +61,7 @@ export default function MerchantKycPage() {
                     <T fr={s.fr} en={s.en} />
                   </div>
                   <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                    {s.status === "completed" ? <T fr="Valid\u00e9" en="Done" /> : s.status === "current" ? <T fr="En cours" en="In progress" /> : <T fr="\u00c0 faire" en="To do" />}
+                    {s.status === "completed" ? <T fr="Validé" en="Done" /> : s.status === "current" ? <T fr="En cours" en="In progress" /> : <T fr="Ã faire" en="To do" />}
                   </div>
                 </div>
               </div>
@@ -77,13 +77,13 @@ export default function MerchantKycPage() {
         {/* Main content */}
         <div className="card">
           <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-            <T fr="\u00c9tape 2 sur 4" en="Step 2 of 4" />
+            <T fr="Ãtape 2 sur 4" en="Step 2 of 4" />
           </div>
           <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 26, letterSpacing: "-0.02em", margin: "0 0 8px" }}>
-            <T fr="Documents l\u00e9gaux" en="Legal documents" />
+            <T fr="Documents légaux" en="Legal documents" />
           </h2>
           <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 24px" }}>
-            <T fr="PDF, JPG, PNG. 10 MB max par fichier. Vos documents sont chiffr\u00e9s et accessibles uniquement \u00e0 notre \u00e9quipe KYC." en="PDF, JPG, PNG. 10 MB max per file. Files are encrypted and only accessible to our KYC team." />
+            <T fr="PDF, JPG, PNG. 10 MB max par fichier. Vos documents sont chiffrés et accessibles uniquement à notre équipe KYC." en="PDF, JPG, PNG. 10 MB max per file. Files are encrypted and only accessible to our KYC team." />
           </p>
 
           {DOCUMENTS.map((d, i) => (
@@ -122,16 +122,16 @@ export default function MerchantKycPage() {
         <div className="card" style={{ background: "oklch(0.97 0.01 260)", borderColor: "oklch(0.85 0.05 260)" }}>
           <Icon name="info" size={20} color="var(--ink)" />
           <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "12px 0 8px" }}>
-            <T fr="Validation sous 24h ouvr\u00e9es" en="Reviewed within 24 business hours" />
+            <T fr="Validation sous 24h ouvrées" en="Reviewed within 24 business hours" />
           </h4>
           <p style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-            <T fr="Notre \u00e9quipe KYC v\u00e9rifie vos documents et active votre compte production. Vous recevez un email \u00e0 chaque \u00e9tape." en="Our KYC team reviews your documents and activates your live account. You get an email at each step." />
+            <T fr="Notre équipe KYC vérifie vos documents et active votre compte production. Vous recevez un email à chaque étape." en="Our KYC team reviews your documents and activates your live account. You get an email at each step." />
           </p>
           <hr style={{ border: 0, borderTop: "1px solid oklch(0.85 0.05 260)", margin: "16px 0" }} />
           <div style={{ fontSize: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ color: "var(--muted)" }}><T fr="Conformit\u00e9" en="Compliance" /></span>
-              <span>COBAC \u00b7 BEAC \u00b7 CEMAC</span>
+              <span style={{ color: "var(--muted)" }}><T fr="Conformité" en="Compliance" /></span>
+              <span>COBAC · BEAC · CEMAC</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--muted)" }}><T fr="Standard" en="Standard" /></span>

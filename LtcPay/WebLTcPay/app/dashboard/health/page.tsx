@@ -33,8 +33,8 @@ const OPERATORS = [
 ];
 
 const RESOURCES = [
-  { name: "CPU api-prod-cluster", v: 42, max: "8 vCPU \u00d7 6 nodes" },
-  { name: "RAM api-prod-cluster", v: 58, max: "32 GB \u00d7 6 nodes" },
+  { name: "CPU api-prod-cluster", v: 42, max: "8 vCPU Ã 6 nodes" },
+  { name: "RAM api-prod-cluster", v: 58, max: "32 GB Ã 6 nodes" },
   { name: "DB connections", v: 64, max: "200 max" },
   { name: "Redis memory", v: 31, max: "4 GB" },
   { name: "Disk write IOPS", v: 22, max: "16k" },
@@ -45,15 +45,15 @@ const RESOURCES = [
 export default function HealthPage() {
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Op\u00e9rations" en="Operations" />, <T key="c2" fr="Sant\u00e9" en="Health" />]}
-      title={<T fr="Sant\u00e9 syst\u00e8me" en="System health" />}
-      sub={<T fr="Infrastructure, d\u00e9pendances, latences. Mise \u00e0 jour toutes les 30 secondes." en="Infrastructure, dependencies, latencies. Refreshed every 30 seconds." />}
+      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Santé" en="Health" />]}
+      title={<T fr="Santé système" en="System health" />}
+      sub={<T fr="Infrastructure, dépendances, latences. Mise Ã  jour toutes les 30 secondes." en="Infrastructure, dependencies, latencies. Refreshed every 30 seconds." />}
       actions={<Pill tone="success">all green</Pill>}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label="API p99 latency" value="42" unit="ms" delta={"\u22124 ms"} deltaDir="down" />
-        <KpiCard label={<T fr="Disponibilit\u00e9 30j" en="Uptime 30d" />} value="99,98" unit="%" />
+        <KpiCard hero label="API p99 latency" value="42" unit="ms" delta={"−4 ms"} deltaDir="down" />
+        <KpiCard label={<T fr="Disponibilité 30j" en="Uptime 30d" />} value="99,98" unit="%" />
         <KpiCard label="Requests / sec" value="1 284" delta="+8%" deltaDir="up" />
         <KpiCard label={<T fr="Containers actifs" en="Running pods" />} value="42 / 48">
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
@@ -92,7 +92,7 @@ export default function HealthPage() {
         {/* Latency by operator */}
         <div className="card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-            <T fr="Latence par op\u00e9rateur" en="Latency by operator" />
+            <T fr="Latence par opérateur" en="Latency by operator" />
           </h3>
           {OPERATORS.map((s, i) => (
             <div key={i} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>

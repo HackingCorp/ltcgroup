@@ -29,9 +29,9 @@ const REVENUE_COST_SPLIT = [
 ];
 
 const OPERATING_ACCOUNTS = [
-  { name: "Afriland First Bank \u00B7 LTC Group", bal: 142800000, status: "main", cur: "XAF" },
-  { name: "Societe Generale CI \u00B7 LTC Group", bal: 84200000, status: "secondary", cur: "XOF" },
-  { name: "BNP Paribas \u00B7 LTC Europe", bal: 412000, status: "secondary", cur: "EUR" },
+  { name: "Afriland First Bank · LTC Group", bal: 142800000, status: "main", cur: "XAF" },
+  { name: "Societe Generale CI · LTC Group", bal: 84200000, status: "secondary", cur: "XOF" },
+  { name: "BNP Paribas · LTC Europe", bal: 412000, status: "secondary", cur: "EUR" },
   { name: "Float TouchPay (en attente settle)", bal: 92420000, status: "float", cur: "XAF" },
 ];
 
@@ -54,10 +54,10 @@ export default function FinancePage() {
         <KpiCard hero label={<T fr="Revenu net 30 jours" en="Net revenue 30 days" />} value="47,4" unit="M F" delta="+24,8%">
           <div style={{ marginTop: 12 }}><Sparkline data={A_REVENUE.map(v => v * 0.017)} width={240} height={36} color="var(--accent)" /></div>
         </KpiCard>
-        <KpiCard label={<T fr="GMV / Revenu" en="GMV / Revenue" />} value="60\u00D7">
+        <KpiCard label={<T fr="GMV / Revenu" en="GMV / Revenue" />} value="60Ã">
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>2,84 Md / 47,4M</div>
         </KpiCard>
-        <KpiCard label={<T fr="Take rate moyen" en="Avg take rate" />} value="1,67" unit="%" delta={"\u22120,03 pt"} deltaDir="down" />
+        <KpiCard label={<T fr="Take rate moyen" en="Avg take rate" />} value="1,67" unit="%" delta={"−0,03 pt"} deltaDir="down" />
         <KpiCard label={<T fr="Marge brute" en="Gross margin" />} value="62" unit="%">
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>29,4M F / 47,4M F</div>
         </KpiCard>
@@ -67,7 +67,7 @@ export default function FinancePage() {
       <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Settlements bancaires" en="Bank settlements" /></h3>
-          <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 0" }}><T fr="Virements de TouchPay vers les comptes de reglement marchands" en="TouchPay \u2192 merchant payout accounts" /></p>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 0" }}><T fr="Virements de TouchPay vers les comptes de reglement marchands" en="TouchPay → merchant payout accounts" /></p>
         </div>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr" }}>
@@ -101,7 +101,7 @@ export default function FinancePage() {
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span style={{ fontSize: 13 }}><T fr={r.nameFr} en={r.nameEn} /></span>
                 <span className="display" style={{ fontWeight: 500, fontSize: 14, color: r.v < 0 ? "var(--rose)" : r.nameEn === "EBITDA" ? "var(--success)" : "var(--ink)" }}>
-                  {r.v < 0 ? "\u2212" : ""}{fmtCompact(Math.abs(r.v))} F
+                  {r.v < 0 ? "−" : ""}{fmtCompact(Math.abs(r.v))} F
                 </span>
               </div>
               <div style={{ height: 4, background: "var(--bg-2)", borderRadius: 2 }}>

@@ -90,12 +90,12 @@ export default function WebhooksPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Op\u00e9rations" en="Operations" />, <T key="c2" fr="Webhooks TouchPay" en="TouchPay Webhooks" />]}
+      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Webhooks TouchPay" en="TouchPay Webhooks" />]}
       title={<T fr="Monitoring webhooks TouchPay" en="TouchPay webhook monitoring" />}
-      sub={<T fr="Callbacks re\u00e7us de TouchPay vers LtcPay. Signature HMAC, idempotence, retry." en="Callbacks from TouchPay to LtcPay. HMAC signature, idempotency, retry." />}
+      sub={<T fr="Callbacks reçus de TouchPay vers LtcPay. Signature HMAC, idempotence, retry." en="Callbacks from TouchPay to LtcPay. HMAC signature, idempotency, retry." />}
       actions={<>
         <button className="btn btn-ghost btn-sm">
-          <Icon name="refresh" size={13} /> <T fr="Rejouer manqu\u00e9s" en="Replay missed" />
+          <Icon name="refresh" size={13} /> <T fr="Rejouer manqués" en="Replay missed" />
         </button>
         <button className="btn btn-ghost btn-sm">
           <Icon name="download" size={13} /> <T fr="Export 24h" en="Export 24h" />
@@ -105,12 +105,12 @@ export default function WebhooksPage() {
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
         <KpiCard hero label={<T fr="Callbacks 24h" en="Callbacks 24h" />} value="58 412" delta="+12%" deltaDir="up" />
-        <KpiCard label={<T fr="Taux de succ\u00e8s" en="Success rate" />} value="99,94" unit="%">
+        <KpiCard label={<T fr="Taux de succès" en="Success rate" />} value="99,94" unit="%">
           <div style={{ fontSize: 12, color: "var(--success)", marginTop: 8 }}>
             &#10003; <T fr="dans SLA 99,9%" en="within 99.9% SLA" />
           </div>
         </KpiCard>
-        <KpiCard label={<T fr="Latence p95" en="p95 latency" />} value="142" unit="ms" delta={"\u22128 ms"} deltaDir="down" />
+        <KpiCard label={<T fr="Latence p95" en="p95 latency" />} value="142" unit="ms" delta={"−8 ms"} deltaDir="down" />
         <KpiCard label={<T fr="En retry" en="In retry queue" />} value="34" after={<Pill tone="warn">live</Pill>} />
       </div>
 
@@ -122,7 +122,7 @@ export default function WebhooksPage() {
               <T fr="Volume / erreurs sur 24 heures" en="Volume / errors over 24 hours" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Callbacks re\u00e7us par minute" en="Callbacks received per minute" />
+              <T fr="Callbacks reçus par minute" en="Callbacks received per minute" />
             </p>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function WebhooksPage() {
         {/* By method */}
         <div className="card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-            <T fr="Par m\u00e9thode" en="By method" />
+            <T fr="Par méthode" en="By method" />
           </h3>
           {METHOD_BREAKDOWN.map((r, i) => (
             <div key={i} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
@@ -159,7 +159,7 @@ export default function WebhooksPage() {
         {/* Recent errors */}
         <div className="card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-            <T fr="Erreurs r\u00e9centes" en="Recent errors" />
+            <T fr="Erreurs récentes" en="Recent errors" />
           </h3>
           {RECENT_ERRORS.map((e, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
@@ -178,14 +178,14 @@ export default function WebhooksPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Callbacks r\u00e9cents" en="Recent callbacks" />
+            <T fr="Callbacks récents" en="Recent callbacks" />
           </h3>
         </div>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "1fr 1.4fr 0.7fr 0.7fr 0.7fr 0.8fr 0.6fr" }}>
             <span>ID</span>
-            <span><T fr="R\u00e9f\u00e9rence paiement" en="Payment ref" /></span>
-            <span><T fr="M\u00e9thode" en="Method" /></span>
+            <span><T fr="Référence paiement" en="Payment ref" /></span>
+            <span><T fr="Méthode" en="Method" /></span>
             <span><T fr="Code" en="Code" /></span>
             <span><T fr="Latence" en="Latency" /></span>
             <span><T fr="Heure" en="Time" /></span>

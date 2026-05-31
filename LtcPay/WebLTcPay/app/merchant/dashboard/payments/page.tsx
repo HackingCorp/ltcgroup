@@ -27,15 +27,15 @@ interface MockTx {
 }
 
 const MOCK_TX: MockTx[] = [
-  { ref: "PAY-9F4A2B7C", merchantRef: "ORDER-3041", amount: 75000, fee: 1125, method: "orange", status: "success", customer: "Jean-Pierre Mbarga", phone: "+237 670 12 34 56", email: "jpmbarga@email.cm", time: "il y a 4 min", date: "26 mai 2026 \u00b7 14:42" },
-  { ref: "PAY-8E2D71AC", merchantRef: "ORDER-3040", amount: 12500, fee: 188, method: "mtn", status: "success", customer: "Awa Diop", phone: "+221 77 234 56 78", email: "awa.diop@email.sn", time: "il y a 11 min", date: "26 mai 2026 \u00b7 14:35" },
-  { ref: "PAY-7C8B92F1", merchantRef: "ORDER-3039", amount: 350000, fee: 5250, method: "card", status: "pending", customer: "Soci\u00e9t\u00e9 KILIMO SARL", phone: "+237 233 42 11 22", email: "contact@kilimo.cm", time: "il y a 18 min", date: "26 mai 2026 \u00b7 14:28" },
-  { ref: "PAY-6A1D34B8", merchantRef: "ORDER-3038", amount: 8500, fee: 128, method: "wave", status: "success", customer: "Fatou Ndiaye", phone: "+221 77 891 23 45", email: "fatou.n@email.sn", time: "il y a 24 min", date: "26 mai 2026 \u00b7 14:22" },
-  { ref: "PAY-5B7E81C2", merchantRef: "ORDER-3037", amount: 45000, fee: 675, method: "orange", status: "failed", customer: "Henri Talla", phone: "+237 695 33 22 11", email: "htalla@email.cm", time: "il y a 38 min", date: "26 mai 2026 \u00b7 14:08" },
-  { ref: "PAY-4D9F22A6", merchantRef: "ORDER-3036", amount: 120000, fee: 1800, method: "mtn", status: "success", customer: "Marie-Claire Nkomo", phone: "+237 676 98 76 54", email: "mcnkomo@email.cm", time: "il y a 51 min", date: "26 mai 2026 \u00b7 13:55" },
-  { ref: "PAY-3E1A55C9", merchantRef: "ORDER-3035", amount: 24500, fee: 368, method: "orange", status: "success", customer: "Atangana Boutique", phone: "+237 691 23 45 67", email: "info@atangana.cm", time: "il y a 1 h", date: "26 mai 2026 \u00b7 13:42" },
-  { ref: "PAY-2F8B71D4", merchantRef: "ORDER-3034", amount: 67000, fee: 1005, method: "card", status: "success", customer: "Restaurant Le Baobab", phone: "+237 233 41 22 33", email: "resto@baobab.cm", time: "il y a 2 h", date: "26 mai 2026 \u00b7 12:38" },
-  { ref: "PAY-1A4C82E7", merchantRef: "ORDER-3033", amount: 15000, fee: 225, method: "wave", status: "refunded", customer: "Cabinet Atangana", phone: "+225 07 89 12 34", email: "cab.atangana@email.ci", time: "il y a 3 h", date: "26 mai 2026 \u00b7 11:22" },
+  { ref: "PAY-9F4A2B7C", merchantRef: "ORDER-3041", amount: 75000, fee: 1125, method: "orange", status: "success", customer: "Jean-Pierre Mbarga", phone: "+237 670 12 34 56", email: "jpmbarga@email.cm", time: "il y a 4 min", date: "26 mai 2026 · 14:42" },
+  { ref: "PAY-8E2D71AC", merchantRef: "ORDER-3040", amount: 12500, fee: 188, method: "mtn", status: "success", customer: "Awa Diop", phone: "+221 77 234 56 78", email: "awa.diop@email.sn", time: "il y a 11 min", date: "26 mai 2026 · 14:35" },
+  { ref: "PAY-7C8B92F1", merchantRef: "ORDER-3039", amount: 350000, fee: 5250, method: "card", status: "pending", customer: "Société KILIMO SARL", phone: "+237 233 42 11 22", email: "contact@kilimo.cm", time: "il y a 18 min", date: "26 mai 2026 · 14:28" },
+  { ref: "PAY-6A1D34B8", merchantRef: "ORDER-3038", amount: 8500, fee: 128, method: "wave", status: "success", customer: "Fatou Ndiaye", phone: "+221 77 891 23 45", email: "fatou.n@email.sn", time: "il y a 24 min", date: "26 mai 2026 · 14:22" },
+  { ref: "PAY-5B7E81C2", merchantRef: "ORDER-3037", amount: 45000, fee: 675, method: "orange", status: "failed", customer: "Henri Talla", phone: "+237 695 33 22 11", email: "htalla@email.cm", time: "il y a 38 min", date: "26 mai 2026 · 14:08" },
+  { ref: "PAY-4D9F22A6", merchantRef: "ORDER-3036", amount: 120000, fee: 1800, method: "mtn", status: "success", customer: "Marie-Claire Nkomo", phone: "+237 676 98 76 54", email: "mcnkomo@email.cm", time: "il y a 51 min", date: "26 mai 2026 · 13:55" },
+  { ref: "PAY-3E1A55C9", merchantRef: "ORDER-3035", amount: 24500, fee: 368, method: "orange", status: "success", customer: "Atangana Boutique", phone: "+237 691 23 45 67", email: "info@atangana.cm", time: "il y a 1 h", date: "26 mai 2026 · 13:42" },
+  { ref: "PAY-2F8B71D4", merchantRef: "ORDER-3034", amount: 67000, fee: 1005, method: "card", status: "success", customer: "Restaurant Le Baobab", phone: "+237 233 41 22 33", email: "resto@baobab.cm", time: "il y a 2 h", date: "26 mai 2026 · 12:38" },
+  { ref: "PAY-1A4C82E7", merchantRef: "ORDER-3033", amount: 15000, fee: 225, method: "wave", status: "refunded", customer: "Cabinet Atangana", phone: "+225 07 89 12 34", email: "cab.atangana@email.ci", time: "il y a 3 h", date: "26 mai 2026 · 11:22" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -44,9 +44,9 @@ const MOCK_TX: MockTx[] = [
 type FilterKey = "" | "success" | "pending" | "failed" | "refunded";
 const STATUS_FILTERS: { key: FilterKey; fr: string; en: string }[] = [
   { key: "", fr: "Tous", en: "All" },
-  { key: "success", fr: "R\u00e9ussi", en: "Paid" },
+  { key: "success", fr: "Réussi", en: "Paid" },
   { key: "pending", fr: "En attente", en: "Pending" },
-  { key: "failed", fr: "\u00c9chou\u00e9", en: "Failed" },
+  { key: "failed", fr: "Échoué", en: "Failed" },
 ];
 
 function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
@@ -79,7 +79,7 @@ function Timeline({ tx }: { tx: MockTx }) {
   const events =
     tx.status === "success"
       ? [
-          { fr: "Paiement cr\u00e9\u00e9", en: "Payment created", ts: "14:42:03" },
+          { fr: "Paiement créé", en: "Payment created", ts: "14:42:03" },
           {
             fr: tx.method === "orange" ? "Redirection Orange Money" : tx.method === "mtn" ? "Redirection MTN MoMo" : tx.method === "wave" ? "Redirection Wave" : "Redirection paiement carte",
             en: tx.method === "orange" ? "Orange Money redirect" : tx.method === "mtn" ? "MTN MoMo redirect" : tx.method === "wave" ? "Wave redirect" : "Card payment redirect",
@@ -87,25 +87,25 @@ function Timeline({ tx }: { tx: MockTx }) {
           },
           { fr: "OTP saisi par client", en: "OTP entered by customer", ts: "14:42:31" },
           { fr: "Callback TouchPay HMAC", en: "TouchPay HMAC callback", ts: "14:42:34" },
-          { fr: "Webhook merchant 200 OK", en: "Merchant webhook 200 OK", ts: "14:42:35 \u00b7 142ms" },
+          { fr: "Webhook merchant 200 OK", en: "Merchant webhook 200 OK", ts: "14:42:35 · 142ms" },
         ]
       : tx.status === "pending"
         ? [
-            { fr: "Paiement cr\u00e9\u00e9", en: "Payment created", ts: "14:28:03" },
+            { fr: "Paiement créé", en: "Payment created", ts: "14:28:03" },
             { fr: "Redirection paiement", en: "Payment redirect", ts: "14:28:08" },
-            { fr: "En attente de confirmation\u2026", en: "Awaiting confirmation\u2026", ts: "" },
+            { fr: "En attente de confirmation…", en: "Awaiting confirmation…", ts: "" },
           ]
         : tx.status === "refunded"
           ? [
-              { fr: "Paiement cr\u00e9\u00e9", en: "Payment created", ts: "11:22:03" },
-              { fr: "Paiement valid\u00e9", en: "Payment validated", ts: "11:22:31" },
-              { fr: "Remboursement initi\u00e9", en: "Refund initiated", ts: "12:01:15" },
-              { fr: "Remboursement confirm\u00e9", en: "Refund confirmed", ts: "12:01:42" },
+              { fr: "Paiement créé", en: "Payment created", ts: "11:22:03" },
+              { fr: "Paiement validé", en: "Payment validated", ts: "11:22:31" },
+              { fr: "Remboursement initié", en: "Refund initiated", ts: "12:01:15" },
+              { fr: "Remboursement confirmé", en: "Refund confirmed", ts: "12:01:42" },
             ]
           : [
-              { fr: "Paiement cr\u00e9\u00e9", en: "Payment created", ts: "14:08:03" },
+              { fr: "Paiement créé", en: "Payment created", ts: "14:08:03" },
               { fr: "Redirection Orange Money", en: "Orange Money redirect", ts: "14:08:08" },
-              { fr: "\u00c9chec \u2014 solde insuffisant", en: "Failed \u2014 insufficient balance", ts: "14:08:31" },
+              { fr: "Échec — solde insuffisant", en: "Failed — insufficient balance", ts: "14:08:31" },
             ];
 
   const dotColor =
@@ -128,7 +128,7 @@ function Timeline({ tx }: { tx: MockTx }) {
             }}
           />
           <div style={{ fontSize: 12 }}>
-            <T fr={`${ev.fr}${ev.ts ? ` \u00b7 ${ev.ts}` : ""}`} en={`${ev.en}${ev.ts ? ` \u00b7 ${ev.ts}` : ""}`} />
+            <T fr={`${ev.fr}${ev.ts ? ` · ${ev.ts}` : ""}`} en={`${ev.en}${ev.ts ? ` · ${ev.ts}` : ""}`} />
           </div>
         </div>
       ))}
@@ -174,7 +174,7 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
               letterSpacing: "0.08em",
             }}
           >
-            <T fr="D\u00e9tail" en="Detail" />
+            <T fr="Détail" en="Detail" />
           </div>
           <div className="mono" style={{ fontSize: 14, marginTop: 4 }}>
             {tx.ref}
@@ -218,13 +218,13 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
         <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
           <Pill tone={statusTone(tx.status)}>
             {tx.status === "success" ? (
-              <T fr="pay\u00e9" en="paid" />
+              <T fr="payé" en="paid" />
             ) : tx.status === "pending" ? (
               <T fr="attente" en="pending" />
             ) : tx.status === "refunded" ? (
               <T fr="remb." en="refund" />
             ) : (
-              <T fr="\u00e9chou\u00e9" en="failed" />
+              <T fr="échoué" en="failed" />
             )}
           </Pill>
           <MethodChip kind={tx.method} />
@@ -247,7 +247,7 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
           </h4>
           {[
             [<T key="n" fr="Nom" en="Name" />, tx.customer],
-            [<T key="p" fr="T\u00e9l\u00e9phone" en="Phone" />, tx.phone],
+            [<T key="p" fr="Téléphone" en="Phone" />, tx.phone],
             ["Email", tx.email],
           ].map((r, k) => (
             <div
@@ -278,13 +278,13 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
               margin: "0 0 12px",
             }}
           >
-            <T fr="D\u00e9tails" en="Details" />
+            <T fr="Détails" en="Details" />
           </h4>
           {[
-            [<T key="mr" fr="R\u00e9f\u00e9rence marchand" en="Merchant ref" />, tx.merchantRef],
+            [<T key="mr" fr="Référence marchand" en="Merchant ref" />, tx.merchantRef],
             [<T key="gb" fr="Montant brut" en="Gross amount" />, fmtXAF(tx.amount)],
-            [<T key="fe" fr="Frais LtcPay (1,5%)" en="LtcPay fee (1.5%)" />, "\u2212" + fmtXAF(tx.fee)],
-            [<T key="ne" fr="Net re\u00e7u" en="Net received" />, fmtXAF(tx.amount - tx.fee)],
+            [<T key="fe" fr="Frais LtcPay (1,5%)" en="LtcPay fee (1.5%)" />, "−" + fmtXAF(tx.fee)],
+            [<T key="ne" fr="Net reçu" en="Net received" />, fmtXAF(tx.amount - tx.fee)],
           ].map((r, k) => (
             <div
               key={k}
@@ -397,8 +397,8 @@ export default function MerchantPaymentsPage() {
       title={<T fr="Transactions" en="Transactions" />}
       sub={
         <T
-          fr={`${totalResults.toLocaleString("fr-FR")} r\u00e9sultats \u00b7 7 derniers jours`}
-          en={`${totalResults.toLocaleString("en-US")} results \u00b7 last 7 days`}
+          fr={`${totalResults.toLocaleString("fr-FR")} résultats · 7 derniers jours`}
+          en={`${totalResults.toLocaleString("en-US")} results · last 7 days`}
         />
       }
       actions={
@@ -443,13 +443,13 @@ export default function MerchantPaymentsPage() {
             style={{ border: 0, padding: 0, background: "transparent" }}
             placeholder={
               lang === "en"
-                ? "reference, email, phone, amount\u2026"
-                : "r\u00e9f\u00e9rence, email, t\u00e9l\u00e9phone, montant\u2026"
+                ? "reference, email, phone, amount…"
+                : "référence, email, téléphone, montant…"
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <span className="kbd-pill">\u2318K</span>
+          <span className="kbd-pill">⌘K</span>
         </div>
         {STATUS_FILTERS.map((sf) => (
           <button
@@ -484,13 +484,13 @@ export default function MerchantPaymentsPage() {
               }}
             >
               <span>
-                <T fr="R\u00e9f\u00e9rence" en="Reference" />
+                <T fr="Référence" en="Reference" />
               </span>
               <span>
                 <T fr="Client" en="Customer" />
               </span>
               <span>
-                <T fr="M\u00e9thode" en="Method" />
+                <T fr="Méthode" en="Method" />
               </span>
               <span>
                 <T fr="Statut" en="Status" />
@@ -550,13 +550,13 @@ export default function MerchantPaymentsPage() {
                     tone={statusTone(tx.status)}
                   >
                     {tx.status === "success" ? (
-                      <T fr="pay\u00e9" en="paid" />
+                      <T fr="payé" en="paid" />
                     ) : tx.status === "pending" ? (
                       <T fr="attente" en="pending" />
                     ) : tx.status === "refunded" ? (
                       <T fr="remb." en="refund" />
                     ) : (
-                      <T fr="\u00e9chou\u00e9" en="failed" />
+                      <T fr="échoué" en="failed" />
                     )}
                   </Pill>
                 </div>
@@ -570,7 +570,7 @@ export default function MerchantPaymentsPage() {
                     className="mono"
                     style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
                   >
-                    \u2212{fmtXAF(tx.fee)}
+                    −{fmtXAF(tx.fee)}
                   </div>
                 </div>
 
@@ -602,8 +602,8 @@ export default function MerchantPaymentsPage() {
           >
             <span>
               <T
-                fr={`Page ${currentPage} sur ${totalPages} \u00b7 ${totalResults.toLocaleString("fr-FR")} transactions`}
-                en={`Page ${currentPage} of ${totalPages} \u00b7 ${totalResults.toLocaleString("en-US")} transactions`}
+                fr={`Page ${currentPage} sur ${totalPages} · ${totalResults.toLocaleString("fr-FR")} transactions`}
+                en={`Page ${currentPage} of ${totalPages} · ${totalResults.toLocaleString("en-US")} transactions`}
               />
             </span>
             <div style={{ display: "flex", gap: 4 }}>
@@ -624,7 +624,7 @@ export default function MerchantPaymentsPage() {
                   cursor: currentPage <= 1 ? "default" : "pointer",
                 }}
               >
-                {"\u2039"}
+                {"‹"}
               </button>
 
               {/* Page numbers */}
@@ -642,7 +642,7 @@ export default function MerchantPaymentsPage() {
                       color: "var(--muted)",
                     }}
                   >
-                    {"\u2026"}
+                    {"…"}
                   </span>
                 ) : (
                   <button
@@ -683,7 +683,7 @@ export default function MerchantPaymentsPage() {
                   cursor: currentPage >= totalPages ? "default" : "pointer",
                 }}
               >
-                {"\u203a"}
+                {"›"}
               </button>
             </div>
           </div>

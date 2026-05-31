@@ -22,10 +22,10 @@ const ADMIN_MERCHANTS_MOCK = [
   { id: "MER-002", name: "Restaurant Le Baobab", country: "CM", volume30: 2180000, txCount: 432, status: "live", plan: "Starter", fee: "2,5%", since: "08 avr 2026", risk: "low" },
   { id: "MER-003", name: "KILIMO SARL", country: "CI", volume30: 18500000, txCount: 3287, status: "live", plan: "Growth", fee: "1,5%", since: "22 fev 2026", risk: "medium" },
   { id: "MER-004", name: "Ecole Nkapla Pro", country: "SN", volume30: 920000, txCount: 184, status: "live", plan: "Starter", fee: "2,5%", since: "01 mai 2026", risk: "low" },
-  { id: "MER-005", name: "TaxiYde Mobile", country: "CM", volume30: 412000, txCount: 1054, status: "kyc_pending", plan: "\u2014", fee: "\u2014", since: "24 mai 2026", risk: "\u2014" },
+  { id: "MER-005", name: "TaxiYde Mobile", country: "CM", volume30: 412000, txCount: 1054, status: "kyc_pending", plan: "—", fee: "—", since: "24 mai 2026", risk: "—" },
   { id: "MER-006", name: "Beaute Africaine SAS", country: "CI", volume30: 8420000, txCount: 1820, status: "live", plan: "Growth", fee: "1,5%", since: "14 jan 2026", risk: "low" },
   { id: "MER-007", name: "Cabinet Atangana & Co", country: "CM", volume30: 1240000, txCount: 87, status: "live", plan: "Starter", fee: "2,5%", since: "03 fev 2026", risk: "low" },
-  { id: "MER-008", name: "Mobile Plus Center", country: "SN", volume30: 0, txCount: 0, status: "suspended", plan: "Starter", fee: "\u2014", since: "18 jan 2026", risk: "high" },
+  { id: "MER-008", name: "Mobile Plus Center", country: "SN", volume30: 0, txCount: 0, status: "suspended", plan: "Starter", fee: "—", since: "18 jan 2026", risk: "high" },
   { id: "MER-009", name: "Agro Export Cameroun", country: "CM", volume30: 124500000, txCount: 412, status: "live", plan: "Scale", fee: "0,9%", since: "10 sept 2025", risk: "low" },
   { id: "MER-010", name: "Wave Senegal Reseller", country: "SN", volume30: 6240000, txCount: 2148, status: "live", plan: "Growth", fee: "1,2%", since: "28 nov 2025", risk: "low" },
 ];
@@ -88,7 +88,7 @@ export default function MerchantsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
       title={<T fr="Marchands" en="Merchants" />}
-      sub={<T fr={`${hasMerchants ? activeCount : 2482} actifs \u00B7 7 en attente KYC \u00B7 ${hasMerchants ? suspendedCount : 12} suspendus`} en={`${hasMerchants ? activeCount : "2,482"} active \u00B7 7 pending KYC \u00B7 ${hasMerchants ? suspendedCount : 12} suspended`} />}
+      sub={<T fr={`${hasMerchants ? activeCount : 2482} actifs · 7 en attente KYC · ${hasMerchants ? suspendedCount : 12} suspendus`} en={`${hasMerchants ? activeCount : "2,482"} active · 7 pending KYC · ${hasMerchants ? suspendedCount : 12} suspended`} />}
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="filter" size={13} /> <T fr="Filtres" en="Filters" /></button>
         <button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> CSV</button>
@@ -170,10 +170,10 @@ export default function MerchantsPage() {
                           </div>
                         </div>
                         <div className="mono" style={{ fontSize: 11 }}>CM</div>
-                        <div><Pill tone="neutral" plain>{"\u2014"}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee_rate ?? 1.75}%</span></div>
-                        <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{bal ? fmtCompact(bal.total_earned) + " F" : "\u2014"}</div>
+                        <div><Pill tone="neutral" plain>{"—"}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee_rate ?? 1.75}%</span></div>
+                        <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{bal ? fmtCompact(bal.total_earned) + " F" : "—"}</div>
                         <div><Pill tone="success">low</Pill></div>
-                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>\u2014</div>
+                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>—</div>
                         <div>
                           <Pill tone={m.is_active ? "success" : "fail"}>{m.is_active ? "live" : "suspended"}</Pill>
                         </div>
@@ -197,8 +197,8 @@ export default function MerchantsPage() {
                     <div><Pill tone={m.plan === "Scale" ? "info" : "neutral"} plain>{m.plan}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee}</span></div>
                     <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtCompact(m.volume30)} F</div>
                     <div>
-                      {m.risk !== "\u2014" && <Pill tone={m.risk === "low" ? "success" : m.risk === "medium" ? "warn" : "fail"}>{m.risk}</Pill>}
-                      {m.risk === "\u2014" && <span style={{ color: "var(--muted-2)" }}>{"\u2014"}</span>}
+                      {m.risk !== "—" && <Pill tone={m.risk === "low" ? "success" : m.risk === "medium" ? "warn" : "fail"}>{m.risk}</Pill>}
+                      {m.risk === "—" && <span style={{ color: "var(--muted-2)" }}>{"—"}</span>}
                     </div>
                     <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.since}</div>
                     <div>
@@ -260,7 +260,7 @@ function CredentialsCard({
             <T fr={`Marchand cree : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
           </h3>
           <p style={{ color: "var(--warn)", fontSize: 13, fontWeight: 500, margin: "4px 0 0" }}>
-            <T fr="Sauvegardez le secret API maintenant \u2014 il ne sera plus affiche." en="Save the API Secret now \u2014 it will not be shown again." />
+            <T fr="Sauvegardez le secret API maintenant — il ne sera plus affiche." en="Save the API Secret now — it will not be shown again." />
           </p>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -415,7 +415,7 @@ function CreateMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% \u2014 par defaut supporte par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
+              <T fr="Minimum 1.75% — par defaut supporte par le marchand" en="Minimum 1.75% — borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
@@ -585,7 +585,7 @@ function EditMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% \u2014 par defaut supporte par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
+              <T fr="Minimum 1.75% — par defaut supporte par le marchand" en="Minimum 1.75% — borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, border: "1px solid var(--line)" }}>

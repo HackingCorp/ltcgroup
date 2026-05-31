@@ -135,7 +135,7 @@ export default function MerchantDetailPage() {
       title={merchant.name}
       sub={<>
         <Pill tone={merchant.is_active ? "success" : "fail"}>{merchant.is_active ? "live" : "suspended"}</Pill>
-        <span style={{ marginLeft: 8 }}>{merchant.id} \u00B7 CM \u00B7 {feeStr}</span>
+        <span style={{ marginLeft: 8 }}>{merchant.id} · CM · {feeStr}</span>
       </>}
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="external" size={13} /> <T fr="Voir comme marchand" en="View as merchant" /></button>
@@ -183,7 +183,7 @@ export default function MerchantDetailPage() {
           <div className="nk-card" style={{ marginBottom: 12 }}>
             <div className="card-head">
               <h3><T fr="Activite recente" en="Recent activity" /></h3>
-              <button className="btn btn-link"><T fr="Voir tout" en="View all" /> {"\u2192"}</button>
+              <button className="btn btn-link"><T fr="Voir tout" en="View all" /> {"→"}</button>
             </div>
             <div className="tbl">
               {MOCK_RECENT_TX.map((tx) => (
@@ -206,7 +206,7 @@ export default function MerchantDetailPage() {
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Score de risque" en="Risk score" /></h3>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
               <span className="display" style={{ fontWeight: 500, fontSize: 48, letterSpacing: "-0.025em", lineHeight: 1, color: "var(--success)" }}>92</span>
-              <span style={{ color: "var(--muted)", fontSize: 13 }}>/ 100 \u00B7 <T fr="Faible" en="Low" /></span>
+              <span style={{ color: "var(--muted)", fontSize: 13 }}>/ 100 · <T fr="Faible" en="Low" /></span>
             </div>
             <div style={{ height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
               <div style={{ width: "92%", height: "100%", background: "linear-gradient(to right, var(--rose), var(--warn), var(--success))" }} />
@@ -214,7 +214,7 @@ export default function MerchantDetailPage() {
             {[
               { name: <T fr="Chargebacks" en="Chargebacks" />, v: "0,02%", tone: "success" },
               { name: <T fr="Taux echec" en="Failure rate" />, v: "5,2%", tone: "success" },
-              { name: <T fr="Volume coherent" en="Volume coherence" />, v: "\u2713", tone: "success" },
+              { name: <T fr="Volume coherent" en="Volume coherence" />, v: "✓", tone: "success" },
               { name: <T fr="Pattern IP" en="IP pattern" />, v: <T fr="Normal" en="Normal" />, tone: "success" },
             ].map((s, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
@@ -354,14 +354,14 @@ function PaymentsTable({
                   {p.customer_phone && <div>{p.customer_phone}</div>}
                 </div>
                 <div style={{ textAlign: "right", fontWeight: 500, color: "var(--success)" }}>+{formatCurrency(p.amount, p.currency)}</div>
-                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "\u2014"}</div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "—"}</div>
                 <div>
                   <Pill tone={
                     p.operator === "MTN" ? "warn" :
                     p.operator === "ORANGE" ? "info" :
                     "neutral"
                   }>
-                    {p.operator || p.payment_method || "\u2014"}
+                    {p.operator || p.payment_method || "—"}
                   </Pill>
                 </div>
                 <div><Pill tone={paymentStatusTone(p.status)}>{p.status}</Pill></div>

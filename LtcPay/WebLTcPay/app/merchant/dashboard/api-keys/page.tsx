@@ -19,7 +19,7 @@ const WEBHOOK_DELIVERIES = [
 ];
 
 const WEBHOOK_ENDPOINTS = [
-  { url: "https://api.mamishop.cm/webhooks/nkap", events: "payment.completed \u00b7 payment.failed \u00b7 payment.refunded", active: true, uptime: "99.2%" },
+  { url: "https://api.mamishop.cm/webhooks/nkap", events: "payment.completed · payment.failed · payment.refunded", active: true, uptime: "99.2%" },
   { url: "https://staging.mamishop.cm/webhooks/nkap", events: "payment.completed", active: true, uptime: "100%" },
 ];
 
@@ -35,7 +35,7 @@ export default function ApiKeysPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const webhookVerifyExample = `// Node.js \u2014 verify webhook signature
+  const webhookVerifyExample = `// Node.js — verify webhook signature
 import crypto from 'crypto';
 
 function verifyWebhook(payload, signature, secret) {
@@ -63,9 +63,9 @@ app.post('/webhooks/nkap', (req, res) => {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="D\u00e9veloppeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
+      crumb={[<T key="c1" fr="Développeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
       title="API & Webhooks"
-      sub={<T fr="Cl\u00e9s d'API, endpoints webhook, livraisons" en="API keys, webhook endpoints, deliveries" />}
+      sub={<T fr="Clés d'API, endpoints webhook, livraisons" en="API keys, webhook endpoints, deliveries" />}
       actions={
         <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-2)", borderRadius: 8 }}>
           <button
@@ -91,7 +91,7 @@ app.post('/webhooks/nkap', (req, res) => {
           <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
             <div>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-                <T fr="Cl\u00e9s d'API" en="API keys" />
+                <T fr="Clés d'API" en="API keys" />
               </h3>
               <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
                 <T fr="Ne partagez jamais votre secret." en="Never share your secret." />
@@ -128,7 +128,7 @@ app.post('/webhooks/nkap', (req, res) => {
             </button>
             <span style={{ flex: 1 }} />
             <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-              <T fr="Cr\u00e9\u00e9e le 12 mars 2026" en="Created Mar 12, 2026" />
+              <T fr="Créée le 12 mars 2026" en="Created Mar 12, 2026" />
             </span>
           </div>
         </div>
@@ -139,7 +139,7 @@ app.post('/webhooks/nkap', (req, res) => {
             <div>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>Webhooks</h3>
               <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-                <T fr="Notifications sign\u00e9es HMAC-SHA256" en="HMAC-SHA256 signed notifications" />
+                <T fr="Notifications signées HMAC-SHA256" en="HMAC-SHA256 signed notifications" />
               </p>
             </div>
           </div>
@@ -170,10 +170,10 @@ app.post('/webhooks/nkap', (req, res) => {
         <div className="card-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
           <div>
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-              <T fr="Livraisons r\u00e9centes" en="Recent deliveries" />
+              <T fr="Livraisons récentes" en="Recent deliveries" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="12 derni\u00e8res heures \u00b7 100% succ\u00e8s" en="Last 12h \u00b7 100% success" />
+              <T fr="12 dernières heures · 100% succès" en="Last 12h · 100% success" />
             </p>
           </div>
           <button className="btn btn-link" style={{ fontSize: 13, padding: 0, background: "none", border: "none", color: "var(--ink)", cursor: "pointer", textDecoration: "underline" }}>
@@ -200,7 +200,7 @@ app.post('/webhooks/nkap', (req, res) => {
       <div className="card">
         <div className="card-head" style={{ marginBottom: 14 }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Exemple d'int\u00e9gration" en="Integration example" />
+            <T fr="Exemple d'intégration" en="Integration example" />
           </h3>
         </div>
         <CodeBlock lang="javascript">{webhookVerifyExample}</CodeBlock>

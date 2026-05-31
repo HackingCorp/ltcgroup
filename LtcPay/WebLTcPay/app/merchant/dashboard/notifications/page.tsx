@@ -23,25 +23,25 @@ const GROUPS: NotificationGroup[] = [
   {
     day: <T fr="Aujourd'hui" en="Today" />,
     items: [
-      { t: <T fr="Paiement de 75 000 F re\u00e7u" en="75,000 F payment received" />, d: <T fr="Jean-Pierre Mbarga \u00b7 Orange Money \u00b7 r\u00e9f. ORDER-3041" en="Jean-Pierre Mbarga \u00b7 Orange Money \u00b7 ref. ORDER-3041" />, tone: "success", time: "14:42", unread: true },
-      { t: <T fr="Paiement de 12 500 F re\u00e7u" en="12,500 F payment received" />, d: "Awa Diop \u00b7 MTN MoMo \u00b7 r\u00e9f. ORDER-3040", tone: "success", time: "14:35", unread: true },
+      { t: <T fr="Paiement de 75 000 F reçu" en="75,000 F payment received" />, d: <T fr="Jean-Pierre Mbarga · Orange Money · réf. ORDER-3041" en="Jean-Pierre Mbarga · Orange Money · ref. ORDER-3041" />, tone: "success", time: "14:42", unread: true },
+      { t: <T fr="Paiement de 12 500 F reçu" en="12,500 F payment received" />, d: "Awa Diop · MTN MoMo · réf. ORDER-3040", tone: "success", time: "14:35", unread: true },
       { t: <T fr="3 paiements en attente d'OTP" en="3 payments awaiting OTP" />, d: "PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7", tone: "warn", time: "14:30", unread: true },
-      { t: <T fr="Nouvelle cl\u00e9 API utilis\u00e9e" en="New API key in use" />, d: "41.202.x.x (Douala)", tone: "info", time: "12:14" },
+      { t: <T fr="Nouvelle clé API utilisée" en="New API key in use" />, d: "41.202.x.x (Douala)", tone: "info", time: "12:14" },
     ],
   },
   {
     day: <T fr="Hier" en="Yesterday" />,
     items: [
-      { t: <T fr="R\u00e8glement de 1 892 450 F envoy\u00e9" en="1,892,450 F payout sent" />, d: <T fr="Vers Afriland First Bank \u2022\u2022\u2022\u20224912" en="To Afriland First Bank \u2022\u2022\u2022\u20224912" />, tone: "neutral", time: "25 mai \u00b7 23:00" },
-      { t: <T fr="Nouvelle connexion d\u00e9tect\u00e9e" en="New login detected" />, d: "iPhone 15 Pro \u00b7 Douala \u00b7 IP 41.202.x.x", tone: "info", time: "25 mai \u00b7 18:42" },
-      { t: <T fr="Webhook \u00e9chou\u00e9 (500)" en="Webhook failed (500)" />, d: "https://api.mamishop.cm/webhooks/nkap", tone: "fail", time: "25 mai \u00b7 13:55" },
+      { t: <T fr="Règlement de 1 892 450 F envoyé" en="1,892,450 F payout sent" />, d: <T fr="Vers Afriland First Bank â¢â¢â¢â¢4912" en="To Afriland First Bank â¢â¢â¢â¢4912" />, tone: "neutral", time: "25 mai · 23:00" },
+      { t: <T fr="Nouvelle connexion détectée" en="New login detected" />, d: "iPhone 15 Pro · Douala · IP 41.202.x.x", tone: "info", time: "25 mai · 18:42" },
+      { t: <T fr="Webhook échoué (500)" en="Webhook failed (500)" />, d: "https://api.mamishop.cm/webhooks/nkap", tone: "fail", time: "25 mai · 13:55" },
     ],
   },
   {
     day: <T fr="Cette semaine" en="This week" />,
     items: [
-      { t: <T fr="Plan Growth activ\u00e9" en="Growth plan activated" />, d: <T fr="Tarif descendu \u00e0 1,5%. \u00c9conomie ce mois : 52 200 F" en="Rate down to 1.5%. Savings this month: 52,200 F" />, tone: "success", time: "23 mai" },
-      { t: <T fr="Nouveau membre invit\u00e9" en="New member invited" />, d: "olive@mamishop.cm \u00b7 r\u00f4le Support", tone: "info", time: "22 mai" },
+      { t: <T fr="Plan Growth activé" en="Growth plan activated" />, d: <T fr="Tarif descendu Ã  1,5%. Ãconomie ce mois : 52 200 F" en="Rate down to 1.5%. Savings this month: 52,200 F" />, tone: "success", time: "23 mai" },
+      { t: <T fr="Nouveau membre invité" en="New member invited" />, d: "olive@mamishop.cm · rôle Support", tone: "info", time: "22 mai" },
     ],
   },
 ];
@@ -56,17 +56,17 @@ const toneMap: Record<string, { bg: string; c: string; ic: string }> = {
 
 const CHANNELS = [
   { key: "dashboard", name: "Dashboard", defaultOn: true },
-  { key: "email", name: "Email \u00b7 marie@mamishop.cm", defaultOn: true },
-  { key: "sms", name: "SMS \u00b7 +237 670 12 34 56", defaultOn: true },
-  { key: "slack", name: "Slack \u00b7 #payments", defaultOn: false },
+  { key: "email", name: "Email · marie@mamishop.cm", defaultOn: true },
+  { key: "sms", name: "SMS · +237 670 12 34 56", defaultOn: true },
+  { key: "slack", name: "Slack · #payments", defaultOn: false },
   { key: "webhook", name: "Webhook custom", defaultOn: false },
 ];
 
 const ALERT_TYPES = [
-  { key: "large_payments", fr: "Paiements r\u00e9ussis > 100k F", en: "Successful payments > 100k F", defaultOn: true },
-  { key: "failed", fr: "Paiements \u00e9chou\u00e9s", en: "Failed payments", defaultOn: true },
+  { key: "large_payments", fr: "Paiements réussis > 100k F", en: "Successful payments > 100k F", defaultOn: true },
+  { key: "failed", fr: "Paiements échoués", en: "Failed payments", defaultOn: true },
   { key: "webhook_errors", fr: "Webhooks en erreur", en: "Webhook errors", defaultOn: true },
-  { key: "payouts", fr: "R\u00e8glements bancaires", en: "Bank payouts", defaultOn: true },
+  { key: "payouts", fr: "Règlements bancaires", en: "Bank payouts", defaultOn: true },
   { key: "signins", fr: "Nouvelles connexions", en: "New sign-ins", defaultOn: true },
   { key: "newsletter", fr: "Newsletter produit", en: "Product newsletter", defaultOn: false },
 ];
@@ -83,14 +83,14 @@ export default function MerchantNotificationsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Notifications" en="Notifications" />]}
       title={<T fr="Notifications" en="Notifications" />}
-      sub={<T fr="12 non lues \u00b7 Tout marquer comme lu" en="12 unread \u00b7 Mark all as read" />}
+      sub={<T fr="12 non lues · Tout marquer comme lu" en="12 unread · Mark all as read" />}
       actions={
         <>
           <button className="btn btn-ghost btn-sm">
             <T fr="Tout marquer lu" en="Mark all read" />
           </button>
           <button className="btn btn-ghost btn-sm">
-            <Icon name="settings" size={13} /> <T fr="Pr\u00e9f\u00e9rences" en="Preferences" />
+            <Icon name="settings" size={13} /> <T fr="Préférences" en="Preferences" />
           </button>
         </>
       }

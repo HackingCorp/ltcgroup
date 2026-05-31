@@ -131,9 +131,9 @@ export default function DashboardPage() {
         <T key="c2" fr="Vue d'ensemble" en="Overview" />,
       ]}
       title={<T fr="Plateforme Nkap Pay" en="Nkap Pay platform" />}
-      sub={<T fr="Metriques globales \u00B7 production \u00B7 CEMAC + UEMOA" en="Global metrics \u00B7 production \u00B7 CEMAC + WAEMU" />}
+      sub={<T fr="Metriques globales · production · CEMAC + UEMOA" en="Global metrics · production · CEMAC + WAEMU" />}
       actions={<>
-        <div className="kbd-pill">24h \u00B7 7j \u00B7 30j \u00B7 90j</div>
+        <div className="kbd-pill">24h · 7j · 30j · 90j</div>
         <button className="btn btn-ghost btn-sm">
           <Icon name="download" size={13} /> <T fr="Export exec" en="Exec export" />
         </button>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
         className="kpi-grid"
         style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", marginBottom: 12 }}
       >
-        <KpiCard hero label="GMV \u00B7 30 jours" value="2,84" unit="Md F" delta="+24,8%">
+        <KpiCard hero label="GMV · 30 jours" value="2,84" unit="Md F" delta="+24,8%">
           <div style={{ marginTop: 12 }}>
             <Sparkline data={A_REVENUE} width={240} height={36} color="var(--accent)" />
           </div>
@@ -153,10 +153,10 @@ export default function DashboardPage() {
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>+ 7 <T fr="en attente KYC" en="pending KYC" /></div>
         </KpiCard>
         <KpiCard label={<T fr="Transactions / 24h" en="Transactions / 24h" />} value="58 412" delta="+18%">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Pic a" en="Peak at" /> 12 482 /h \u00B7 14:00</div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Pic a" en="Peak at" /> 12 482 /h · 14:00</div>
         </KpiCard>
         <KpiCard label={<T fr="Take rate moyen" en="Avg take rate" />} value="1,67" unit="%">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Revenu LTC ce mois" en="LTC revenue this month" /> \u00B7 47,4M F</div>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Revenu LTC ce mois" en="LTC revenue this month" /> · 47,4M F</div>
         </KpiCard>
       </div>
 
@@ -200,7 +200,7 @@ export default function DashboardPage() {
               <Avatar name={m.name} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.country} \u00B7 {m.plan}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.country} · {m.plan}</div>
               </div>
               <div className="mono" style={{ fontSize: 11 }}>{fmtCompact(m.volume30)} F</div>
             </div>

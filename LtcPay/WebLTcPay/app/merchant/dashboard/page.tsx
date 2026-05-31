@@ -117,8 +117,8 @@ export default function MerchantDashboardPage() {
       }
       sub={
         <T
-          fr="Solde temps reel \u00b7 reglement programme demain"
-          en="Live balance \u00b7 settlement scheduled tomorrow"
+          fr="Solde temps reel · reglement programme demain"
+          en="Live balance · settlement scheduled tomorrow"
         />
       }
       actions={
@@ -152,7 +152,7 @@ export default function MerchantDashboardPage() {
           hero
           label={
             <>
-              <T fr="Solde disponible" en="Available balance" /> {"\u00b7"} XAF
+              <T fr="Solde disponible" en="Available balance" /> {"·"} XAF
             </>
           }
           after={<Icon name="eye" size={13} color="rgba(255,255,255,0.4)" />}
@@ -209,7 +209,7 @@ export default function MerchantDashboardPage() {
           label={<T fr="Taux de reussite" en="Success rate" />}
           value="94,8"
           unit="%"
-          delta={"\u22120,3 pt"}
+          delta={"−0,3 pt"}
           deltaDir="down"
         >
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
@@ -360,7 +360,7 @@ export default function MerchantDashboardPage() {
             className="btn btn-link"
             style={{ textDecoration: "none" }}
           >
-            <T fr="Voir tout" en="View all" /> {"\u2192"}
+            <T fr="Voir tout" en="View all" /> {"→"}
           </Link>
         </div>
 

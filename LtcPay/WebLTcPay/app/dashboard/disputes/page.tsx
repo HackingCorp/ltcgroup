@@ -25,7 +25,7 @@ export default function DisputesPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Litiges" en="Disputes" />]}
       title={<T fr="Litiges & remboursements" en="Disputes & refunds" />}
-      sub={<T fr="7 actifs \u00B7 1 prioritaire \u00B7 2 delais < 24h" en="7 active \u00B7 1 priority \u00B7 2 deadlines < 24h" />}
+      sub={<T fr="7 actifs · 1 prioritaire · 2 delais < 24h" en="7 active · 1 priority · 2 deadlines < 24h" />}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
