@@ -1,11 +1,10 @@
 """
 Admin user management endpoints.
 """
-import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from pydantic import BaseModel
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +15,8 @@ from app.api.v1.auth import get_current_admin
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 
-pwd_context = CryptContext(schemes=["bcrypt"])
+def _hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 # ─── Request bodies ────────────────────────────────────────────
@@ -133,7 +133,7 @@ async def create_admin_user(
         email=body.email,
         full_name=body.full_name,
         role=body.role,
-        password_hash=pwd_context.hash(body.password),
+        password_hash=_hash_password(body.password),
     )
     if hasattr(user, "team") and body.team is not None:
         user.team = body.team
