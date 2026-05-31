@@ -35,6 +35,30 @@ function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
   return "neutral";
 }
 
+function statusLabel(s: string): { fr: string; en: string } {
+  const lower = s.toLowerCase();
+  if (lower === "completed") return { fr: "payé", en: "paid" };
+  if (lower === "pending") return { fr: "attente", en: "pending" };
+  if (lower === "processing") return { fr: "en cours", en: "processing" };
+  if (lower === "expired") return { fr: "expiré", en: "expired" };
+  if (lower === "cancelled") return { fr: "annulé", en: "cancelled" };
+  return { fr: "échoué", en: "failed" };
+}
+
+function customerDisplay(p: Payment): { primary: string; secondary?: string } {
+  const name = (p as any).customer_name;
+  if (name) {
+    return { primary: name, secondary: p.customer_email || p.customer_phone };
+  }
+  if (p.customer_email) {
+    return { primary: p.customer_email, secondary: p.customer_phone };
+  }
+  if (p.customer_phone) {
+    return { primary: p.customer_phone };
+  }
+  return { primary: "—" };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Status filter config                                               */
 /* ------------------------------------------------------------------ */
@@ -66,8 +90,9 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
 /* ------------------------------------------------------------------ */
 function Timeline({ payment }: { payment: Payment }) {
   const kind = methodKind(payment.payment_method, (payment as any).operator);
+  const st = payment.status.toLowerCase();
   const events =
-    payment.status === "completed"
+    st === "completed"
       ? [
           { fr: "Paiement créé", en: "Payment created", ts: fmtTime(payment.created_at) },
           {
@@ -79,7 +104,7 @@ function Timeline({ payment }: { payment: Payment }) {
           { fr: "Callback TouchPay HMAC", en: "TouchPay HMAC callback", ts: "" },
           { fr: "Webhook merchant 200 OK", en: "Merchant webhook 200 OK", ts: "" },
         ]
-      : payment.status === "pending"
+      : st === "pending"
         ? [
             { fr: "Paiement créé", en: "Payment created", ts: fmtTime(payment.created_at) },
             { fr: "Redirection paiement", en: "Payment redirect", ts: "" },
@@ -96,7 +121,7 @@ function Timeline({ payment }: { payment: Payment }) {
           ];
 
   const dotColor =
-    payment.status === "completed" ? "var(--success)" : payment.status === "pending" ? "var(--warning)" : "var(--danger)";
+    st === "completed" ? "var(--success)" : st === "pending" ? "var(--warning)" : "var(--danger)";
 
   return (
     <div style={{ paddingLeft: 20, position: "relative" }}>
@@ -127,7 +152,7 @@ function Timeline({ payment }: { payment: Payment }) {
 /*  Detail side panel                                                  */
 /* ------------------------------------------------------------------ */
 function DetailPanel({ payment, onClose }: { payment: Payment; onClose: () => void }) {
-  const customer = payment.customer_email || payment.customer_phone || "—";
+  const customer = customerDisplay(payment).primary;
   const kind = methodKind(payment.payment_method, (payment as any).operator);
 
   return (
@@ -207,17 +232,7 @@ function DetailPanel({ payment, onClose }: { payment: Payment; onClose: () => vo
         {/* Status + Method row */}
         <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
           <Pill tone={statusTone(payment.status)}>
-            {payment.status === "completed" ? (
-              <T fr="payé" en="paid" />
-            ) : payment.status === "pending" ? (
-              <T fr="attente" en="pending" />
-            ) : payment.status === "expired" ? (
-              <T fr="expiré" en="expired" />
-            ) : payment.status === "cancelled" ? (
-              <T fr="annulé" en="cancelled" />
-            ) : (
-              <T fr="échoué" en="failed" />
-            )}
+            <T fr={statusLabel(payment.status).fr} en={statusLabel(payment.status).en} />
           </Pill>
           <MethodChip kind={kind} />
         </div>
@@ -609,14 +624,14 @@ export default function MerchantPaymentsPage() {
                   {/* Customer */}
                   <div>
                     <div style={{ fontSize: 13 }}>
-                      {p.customer_email || p.customer_phone || "—"}
+                      {customerDisplay(p).primary}
                     </div>
-                    {p.customer_email && p.customer_phone && (
+                    {customerDisplay(p).secondary && (
                       <div
                         className="mono"
                         style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
                       >
-                        {p.customer_phone}
+                        {customerDisplay(p).secondary}
                       </div>
                     )}
                   </div>
@@ -629,17 +644,7 @@ export default function MerchantPaymentsPage() {
                   {/* Status */}
                   <div>
                     <Pill tone={statusTone(p.status)}>
-                      {p.status === "completed" ? (
-                        <T fr="payé" en="paid" />
-                      ) : p.status === "pending" ? (
-                        <T fr="attente" en="pending" />
-                      ) : p.status === "expired" ? (
-                        <T fr="expiré" en="expired" />
-                      ) : p.status === "cancelled" ? (
-                        <T fr="annulé" en="cancelled" />
-                      ) : (
-                        <T fr="échoué" en="failed" />
-                      )}
+                      <T fr={statusLabel(p.status).fr} en={statusLabel(p.status).en} />
                     </Pill>
                   </div>
 
