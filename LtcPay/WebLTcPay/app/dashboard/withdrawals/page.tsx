@@ -26,11 +26,11 @@ const STATUSES = ["PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", 
 const STATUS_FILTERS: { key: string; fr: string; en: string }[] = [
   { key: "",           fr: "Tous",        en: "All" },
   { key: "PENDING",    fr: "En attente",  en: "Pending" },
-  { key: "APPROVED",   fr: "Approuv\u00e9",   en: "Approved" },
-  { key: "REJECTED",   fr: "Rejet\u00e9",     en: "Rejected" },
+  { key: "APPROVED",   fr: "Approuvé",   en: "Approved" },
+  { key: "REJECTED",   fr: "Rejeté",     en: "Rejected" },
   { key: "PROCESSING", fr: "En cours",    en: "Processing" },
-  { key: "COMPLETED",  fr: "Termin\u00e9",    en: "Completed" },
-  { key: "FAILED",     fr: "\u00c9chou\u00e9",     en: "Failed" },
+  { key: "COMPLETED",  fr: "Terminé",    en: "Completed" },
+  { key: "FAILED",     fr: "Échoué",     en: "Failed" },
 ];
 
 /* ── page ──────────────────────────────────────────────────── */
@@ -117,9 +117,9 @@ export default function AdminWithdrawalsPage() {
         ) : data && data.withdrawals.length > 0 ? (
           <>
             <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.2fr 0.7fr 0.8fr 1fr" }}>
-              <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+              <div><T fr="Référence" en="Reference" /></div>
               <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-              <div><T fr="M\u00e9thode" en="Method" /></div>
+              <div><T fr="Méthode" en="Method" /></div>
               <div><T fr="Destination" en="Destination" /></div>
               <div><T fr="Statut" en="Status" /></div>
               <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
@@ -177,11 +177,11 @@ export default function AdminWithdrawalsPage() {
                         disabled={actionLoading === w.id}
                       >
                         <Icon name="check" size={12} />
-                        <T fr="Compl\u00e9ter" en="Complete" />
+                        <T fr="Compléter" en="Complete" />
                       </button>
                     )}
                     {!["PENDING", "APPROVED"].includes(w.status) && (
-                      <span style={{ color: "var(--muted)", fontSize: 12 }}>{"\u2014"}</span>
+                      <span style={{ color: "var(--muted)", fontSize: 12 }}>{"—"}</span>
                     )}
                   </div>
                 </div>
@@ -192,7 +192,7 @@ export default function AdminWithdrawalsPage() {
             <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
               <span style={{ fontSize: 13, color: "var(--muted)" }}>
                 <T
-                  fr={`Page ${page} sur ${totalPages} (${totalCount} r\u00e9sultats)`}
+                  fr={`Page ${page} sur ${totalPages} (${totalCount} résultats)`}
                   en={`Page ${page} of ${totalPages} (${totalCount} results)`}
                 />
               </span>
@@ -202,7 +202,7 @@ export default function AdminWithdrawalsPage() {
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                 >
-                  <Icon name="chevL" size={13} /> <T fr="Pr\u00e9c\u00e9dent" en="Previous" />
+                  <Icon name="chevL" size={13} /> <T fr="Précédent" en="Previous" />
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
@@ -217,7 +217,7 @@ export default function AdminWithdrawalsPage() {
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="wallet" size={32} color="var(--muted)" />
-            <p style={{ marginTop: 12 }}><T fr="Aucune demande de retrait trouv\u00e9e." en="No withdrawal requests found." /></p>
+            <p style={{ marginTop: 12 }}><T fr="Aucune demande de retrait trouvée." en="No withdrawal requests found." /></p>
           </div>
         )}
       </div>

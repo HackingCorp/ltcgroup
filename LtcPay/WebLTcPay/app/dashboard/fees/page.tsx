@@ -22,7 +22,7 @@ const STANDARD_RATES = [
 
 const CUSTOM_OVERRIDES = [
   { merchant: "ShopEase", rate: "1.2%", reason: "Volume > 50M/mois", since: "Jan 2026" },
-  { merchant: "PayGate CM", rate: "1.0%", reason: "Partenaire strat\u00e9gique", since: "Mar 2026" },
+  { merchant: "PayGate CM", rate: "1.0%", reason: "Partenaire stratégique", since: "Mar 2026" },
 ];
 
 /* ── page ──────────────────────────────────────────────────── */
@@ -32,7 +32,7 @@ export default function FeesPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Pricing & frais" en="Pricing & fees" />]}
       title={<T fr="Configuration des frais" en="Fee Configuration" />}
-      sub={<T fr="Taux standard, plans et surcharges personnalis\u00e9es" en="Standard rates, plans and custom overrides" />}
+      sub={<T fr="Taux standard, plans et surcharges personnalisées" en="Standard rates, plans and custom overrides" />}
       actions={
         <button className="btn btn-primary btn-sm">
           <Icon name="plus" size={13} color="white" /> <T fr="Nouveau plan" en="New plan" />
@@ -43,8 +43,8 @@ export default function FeesPage() {
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
         <KpiCard hero label={<T fr="Taux standard" en="Standard rate" />} value="1,5" unit="%" />
         <KpiCard label={<T fr="Plans actifs" en="Active plans" />} value="3" />
-        <KpiCard label={<T fr="Taux personnalis\u00e9s" en="Custom rates" />} value="2" after={<Pill tone="info"><T fr="marchands" en="merchants" /></Pill>} />
-        <KpiCard label={<T fr="Frais moy. collect\u00e9" en="Avg fee collected" />} value="412" unit="F" delta="+5% vs M-1" deltaDir="up" />
+        <KpiCard label={<T fr="Taux personnalisés" en="Custom rates" />} value="2" after={<Pill tone="info"><T fr="marchands" en="merchants" /></Pill>} />
+        <KpiCard label={<T fr="Frais moy. collecté" en="Avg fee collected" />} value="412" unit="F" delta="+5% vs M-1" deltaDir="up" />
       </div>
 
       {/* Standard rates table */}
@@ -54,15 +54,15 @@ export default function FeesPage() {
             <T fr="Grille tarifaire standard" en="Standard rate schedule" />
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-            <T fr="Appliqu\u00e9e par d\u00e9faut \u00e0 tous les marchands" en="Applied by default to all merchants" />
+            <T fr="Appliquée par défaut à tous les marchands" en="Applied by default to all merchants" />
           </p>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1.4fr 0.6fr 0.7fr 0.7fr 0.8fr" }}>
-          <div><T fr="M\u00e9thode" en="Method" /></div>
+          <div><T fr="Méthode" en="Method" /></div>
           <div><T fr="Pays" en="Country" /></div>
           <div style={{ textAlign: "right" }}><T fr="Taux" en="Rate" /></div>
           <div style={{ textAlign: "right" }}><T fr="Min frais" en="Min fee" /></div>
-          <div style={{ textAlign: "right" }}><T fr="R\u00e8glement" en="Settlement" /></div>
+          <div style={{ textAlign: "right" }}><T fr="Règlement" en="Settlement" /></div>
         </div>
         <div className="tbl">
           {STANDARD_RATES.map((r, i) => (
@@ -85,10 +85,10 @@ export default function FeesPage() {
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-              <T fr="Surcharges personnalis\u00e9es" en="Custom merchant overrides" />
+              <T fr="Surcharges personnalisées" en="Custom merchant overrides" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Marchands avec tarification n\u00e9goci\u00e9e" en="Merchants with negotiated pricing" />
+              <T fr="Marchands avec tarification négociée" en="Merchants with negotiated pricing" />
             </p>
           </div>
           <button className="btn btn-ghost btn-sm">

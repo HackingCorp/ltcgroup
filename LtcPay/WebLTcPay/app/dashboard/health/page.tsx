@@ -41,8 +41,8 @@ function statusTone(s: ServiceStatus): "success" | "warn" | "fail" {
 }
 
 function statusLabel(s: ServiceStatus, lang: "fr" | "en"): string {
-  if (s === "operational") return lang === "fr" ? "Op\u00e9rationnel" : "Operational";
-  if (s === "degraded") return lang === "fr" ? "D\u00e9grad\u00e9" : "Degraded";
+  if (s === "operational") return lang === "fr" ? "Opérationnel" : "Operational";
+  if (s === "degraded") return lang === "fr" ? "Dégradé" : "Degraded";
   return lang === "fr" ? "Hors service" : "Down";
 }
 
@@ -59,9 +59,9 @@ export default function HealthPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Op\u00e9rations" en="Operations" />, <T key="c2" fr="Sant\u00e9 syst\u00e8me" en="System Health" />]}
-      title={<T fr="Sant\u00e9 syst\u00e8me" en="System Health" />}
-      sub={<T fr="Surveillance en temps r\u00e9el de tous les services" en="Real-time monitoring of all services" />}
+      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Santé système" en="System Health" />]}
+      title={<T fr="Santé système" en="System Health" />}
+      sub={<T fr="Surveillance en temps réel de tous les services" en="Real-time monitoring of all services" />}
       actions={
         <button className="btn btn-ghost btn-sm">
           <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
@@ -70,9 +70,9 @@ export default function HealthPage() {
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Disponibilit\u00e9 globale" en="Overall uptime" />} value="99,98" unit="%" delta="+0.01%" deltaDir="up" />
+        <KpiCard hero label={<T fr="Disponibilité globale" en="Overall uptime" />} value="99,98" unit="%" delta="+0.01%" deltaDir="up" />
         <KpiCard label={<T fr="Services actifs" en="Active services" />} value={`${operationalCount}/${SERVICES.length}`} />
-        <KpiCard label={<T fr="Temps de r\u00e9ponse moy." en="Avg response time" />} value="89" unit="ms" delta="-5ms" deltaDir="down" />
+        <KpiCard label={<T fr="Temps de réponse moy." en="Avg response time" />} value="89" unit="ms" delta="-5ms" deltaDir="down" />
         <KpiCard label={<T fr="Incidents 30j" en="Incidents 30d" />} value="1" after={<Pill tone="warn"><T fr="mineur" en="minor" /></Pill>} />
       </div>
 
@@ -82,12 +82,12 @@ export default function HealthPage() {
         <div style={{ flex: 1 }}>
           <span style={{ fontWeight: 600, fontSize: 15 }}>
             {operationalCount === SERVICES.length
-              ? <T fr="Tous les syst\u00e8mes sont op\u00e9rationnels" en="All systems operational" />
-              : <T fr="Certains services sont d\u00e9grad\u00e9s" en="Some services are degraded" />
+              ? <T fr="Tous les systèmes sont opérationnels" en="All systems operational" />
+              : <T fr="Certains services sont dégradés" en="Some services are degraded" />
             }
           </span>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "2px 0 0" }}>
-            <T fr="Derniere v\u00e9rification : il y a 30 secondes" en="Last checked: 30 seconds ago" />
+            <T fr="Derniere vérification : il y a 30 secondes" en="Last checked: 30 seconds ago" />
           </p>
         </div>
         <Pill tone={operationalCount === SERVICES.length ? "success" : "warn"}>

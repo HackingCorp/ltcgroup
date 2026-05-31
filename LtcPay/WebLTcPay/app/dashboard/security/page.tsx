@@ -50,16 +50,16 @@ function severityTone(s: string): "fail" | "warn" | "info" | "neutral" {
 
 function actionLabel(a: string): string {
   const map: Record<string, string> = {
-    login_success: "Connexion r\u00e9ussie",
-    login_failed: "Tentative de connexion \u00e9chou\u00e9e",
-    merchant_deactivated: "Marchand d\u00e9sactiv\u00e9",
-    api_key_rotated: "Cl\u00e9 API r\u00e9g\u00e9n\u00e9r\u00e9e",
-    dispute_resolved: "Litige r\u00e9solu",
-    fee_rate_updated: "Taux de frais modifi\u00e9",
-    withdrawal_approved: "Retrait approuv\u00e9",
-    user_created: "Utilisateur cr\u00e9\u00e9",
-    webhook_secret_rotated: "Secret webhook r\u00e9g\u00e9n\u00e9r\u00e9",
-    merchant_verified: "Marchand v\u00e9rifi\u00e9",
+    login_success: "Connexion réussie",
+    login_failed: "Tentative de connexion échouée",
+    merchant_deactivated: "Marchand désactivé",
+    api_key_rotated: "Clé API régénérée",
+    dispute_resolved: "Litige résolu",
+    fee_rate_updated: "Taux de frais modifié",
+    withdrawal_approved: "Retrait approuvé",
+    user_created: "Utilisateur créé",
+    webhook_secret_rotated: "Secret webhook régénéré",
+    merchant_verified: "Marchand vérifié",
   };
   return map[a] || a;
 }
@@ -73,15 +73,15 @@ export default function SecurityPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="S\u00e9curit\u00e9 & audit" en="Security & Audit" />]}
-      title={<T fr="S\u00e9curit\u00e9 & journal d\u2019audit" en="Security & Audit Log" />}
-      sub={<T fr="\u00c9v\u00e9nements de s\u00e9curit\u00e9 et tra\u00e7abilit\u00e9 des actions" en="Security events and action traceability" />}
+      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Sécurité & audit" en="Security & Audit" />]}
+      title={<T fr="Sécurité & journal d'audit" en="Security & Audit Log" />}
+      sub={<T fr="Événements de sécurité et traçabilité des actions" en="Security events and action traceability" />}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="\u00c9v\u00e9nements 24h" en="Events 24h" />} value="342" delta="+12% vs hier" deltaDir="up" />
-        <KpiCard label={<T fr="Connexions \u00e9chou\u00e9es" en="Failed logins" />} value="3" after={<Pill tone="fail"><T fr="bloqu\u00e9es" en="blocked" /></Pill>} />
-        <KpiCard label={<T fr="Rotations cl\u00e9s API" en="API key rotations" />} value="1" />
+        <KpiCard hero label={<T fr="Événements 24h" en="Events 24h" />} value="342" delta="+12% vs hier" deltaDir="up" />
+        <KpiCard label={<T fr="Connexions échouées" en="Failed logins" />} value="3" after={<Pill tone="fail"><T fr="bloquées" en="blocked" /></Pill>} />
+        <KpiCard label={<T fr="Rotations clés API" en="API key rotations" />} value="1" />
         <KpiCard label={<T fr="Sessions actives" en="Active sessions" />} value="12" />
       </div>
 
@@ -107,7 +107,7 @@ export default function SecurityPage() {
           <div><T fr="Action" en="Action" /></div>
           <div><T fr="Cible" en="Target" /></div>
           <div><T fr="Adresse IP" en="IP Address" /></div>
-          <div><T fr="S\u00e9v\u00e9rit\u00e9" en="Severity" /></div>
+          <div><T fr="Sévérité" en="Severity" /></div>
         </div>
         <div className="tbl">
           {filtered.map((e, i) => (
@@ -126,7 +126,7 @@ export default function SecurityPage() {
         {filtered.length === 0 && (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="shield" size={28} color="var(--success)" />
-            <p style={{ marginTop: 8 }}><T fr="Aucun \u00e9v\u00e9nement trouv\u00e9" en="No events found" /></p>
+            <p style={{ marginTop: 8 }}><T fr="Aucun événement trouvé" en="No events found" /></p>
           </div>
         )}
       </div>

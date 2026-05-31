@@ -17,9 +17,9 @@ const MEMBERS = [
 const ROLES = [
   {
     key: "owner",
-    fr: "Propri\u00e9taire",
+    fr: "Propriétaire",
     en: "Owner",
-    descFr: "Acc\u00e8s total, gestion de l\u0027\u00e9quipe et facturation",
+    descFr: "Accès total, gestion de l'équipe et facturation",
     descEn: "Full access, team management and billing",
     perms: { dashboard: true, payments: true, apiKeys: true, team: true, billing: true, settings: true },
   },
@@ -27,15 +27,15 @@ const ROLES = [
     key: "admin",
     fr: "Administrateur",
     en: "Admin",
-    descFr: "Tout sauf suppression du compte et gestion propri\u00e9taire",
+    descFr: "Tout sauf suppression du compte et gestion propriétaire",
     descEn: "Everything except account deletion and owner management",
     perms: { dashboard: true, payments: true, apiKeys: true, team: true, billing: true, settings: false },
   },
   {
     key: "developer",
-    fr: "D\u00e9veloppeur",
+    fr: "Développeur",
     en: "Developer",
-    descFr: "Cl\u00e9s API, webhooks, documentation, logs",
+    descFr: "Clés API, webhooks, documentation, logs",
     descEn: "API keys, webhooks, documentation, logs",
     perms: { dashboard: true, payments: true, apiKeys: true, team: false, billing: false, settings: false },
   },
@@ -52,10 +52,10 @@ const ROLES = [
 const PERM_LABELS: { key: keyof typeof ROLES[0]["perms"]; fr: string; en: string }[] = [
   { key: "dashboard", fr: "Tableau de bord", en: "Dashboard" },
   { key: "payments", fr: "Transactions", en: "Transactions" },
-  { key: "apiKeys", fr: "Cl\u00e9s API", en: "API keys" },
-  { key: "team", fr: "Gestion \u00e9quipe", en: "Team management" },
+  { key: "apiKeys", fr: "Clés API", en: "API keys" },
+  { key: "team", fr: "Gestion équipe", en: "Team management" },
   { key: "billing", fr: "Facturation", en: "Billing" },
-  { key: "settings", fr: "Param\u00e8tres", en: "Settings" },
+  { key: "settings", fr: "Paramètres", en: "Settings" },
 ];
 
 const roleTone = {
@@ -66,7 +66,7 @@ const roleTone = {
 };
 
 const roleLabel = {
-  owner: { fr: "Propri\u00e9taire", en: "Owner" },
+  owner: { fr: "Propriétaire", en: "Owner" },
   admin: { fr: "Admin", en: "Admin" },
   developer: { fr: "Dev", en: "Dev" },
   viewer: { fr: "Lecteur", en: "Viewer" },
@@ -75,9 +75,9 @@ const roleLabel = {
 export default function MerchantTeamPage() {
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="\u00c9quipe" en="Team" />]}
-      title={<T fr="Gestion de l\u0027\u00e9quipe" en="Team management" />}
-      sub={<T fr="G\u00e9rez les membres et les r\u00f4les de votre organisation" en="Manage members and roles for your organization" />}
+      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Équipe" en="Team" />]}
+      title={<T fr="Gestion de l'équipe" en="Team management" />}
+      sub={<T fr="Gérez les membres et les rôles de votre organisation" en="Manage members and roles for your organization" />}
       actions={
         <button className="btn btn-primary btn-sm">
           <Icon name="plus" size={13} /> <T fr="Inviter un membre" en="Invite member" />
@@ -92,7 +92,7 @@ export default function MerchantTeamPage() {
               <T fr="Membres" en="Members" />
             </h3>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-              {MEMBERS.length} <T fr="membres" en="members" /> {"\u00b7"} {MEMBERS.filter(m => m.status === "invited").length} <T fr="en attente" en="pending" />
+              {MEMBERS.length} <T fr="membres" en="members" /> {"·"} {MEMBERS.filter(m => m.status === "invited").length} <T fr="en attente" en="pending" />
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -104,8 +104,8 @@ export default function MerchantTeamPage() {
           <div className="row head" style={{ gridTemplateColumns: "2fr 2fr 1fr 1fr 1fr 60px" }}>
             <span><T fr="Membre" en="Member" /></span>
             <span>Email</span>
-            <span><T fr="R\u00f4le" en="Role" /></span>
-            <span><T fr="Derni\u00e8re activit\u00e9" en="Last seen" /></span>
+            <span><T fr="Rôle" en="Role" /></span>
+            <span><T fr="Dernière activité" en="Last seen" /></span>
             <span><T fr="Statut" en="Status" /></span>
             <span />
           </div>
@@ -124,7 +124,7 @@ export default function MerchantTeamPage() {
               <div style={{ fontSize: 12, color: "var(--muted)" }}>{m.lastSeen}</div>
               <div>
                 <Pill tone={m.status === "active" ? "success" : "warn"}>
-                  {m.status === "active" ? <T fr="actif" en="active" /> : <T fr="invit\u00e9" en="invited" />}
+                  {m.status === "active" ? <T fr="actif" en="active" /> : <T fr="invité" en="invited" />}
                 </Pill>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -139,7 +139,7 @@ export default function MerchantTeamPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="R\u00f4les et permissions" en="Roles & permissions" />
+            <T fr="Rôles et permissions" en="Roles & permissions" />
           </h3>
         </div>
         <div style={{ overflowX: "auto" }}>

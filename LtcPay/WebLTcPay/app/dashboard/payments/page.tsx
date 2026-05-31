@@ -135,7 +135,7 @@ export default function PaymentsPage() {
                   <Pill tone={statusTone(p.status)}>{p.status}</Pill>
                 </div>
                 <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
-                  {p.payment_method || "\u2014"}
+                  {p.payment_method || "—"}
                 </div>
                 <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>
                   {fmtDate(p.created_at)}

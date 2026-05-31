@@ -48,18 +48,18 @@ export default function MerchantDashboardPage() {
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Encaissement" en="Collect" />, <T key="c2" fr="Vue d'ensemble" en="Overview" />]}
-      title={<T fr={`Aujourd\u2019hui, vous avez encaiss\u00e9 ${fmtXAF(stats?.total_revenue ?? 0)}`} en={`Today, you collected ${fmtXAF(stats?.total_revenue ?? 0)}`} />}
-      sub={<T fr="Solde temps r\u00e9el" en="Live balance" />}
+      title={<T fr={`Aujourd'hui, vous avez encaissé ${fmtXAF(stats?.total_revenue ?? 0)}`} en={`Today, you collected ${fmtXAF(stats?.total_revenue ?? 0)}`} />}
+      sub={<T fr="Solde temps réel" en="Live balance" />}
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> <T fr="Export" en="Export" /></button>
         <Link href="/merchant/dashboard/payments" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}><Icon name="plus" size={13} color="white" /> <T fr="Voir les paiements" en="View payments" /></Link>
       </>}
     >
       <div className="kpi-grid" style={{ gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)", marginBottom: 12 }}>
-        <KpiCard hero label={<><T fr="Solde disponible" en="Available balance" /> {"\u00b7"} XAF</>} value={fmtXAF(balance?.available_balance ?? 0)} />
+        <KpiCard hero label={<><T fr="Solde disponible" en="Available balance" /> {"·"} XAF</>} value={fmtXAF(balance?.available_balance ?? 0)} />
         <KpiCard label={<T fr="Revenu total" en="Total revenue" />} value={fmtXAF(stats?.total_revenue ?? 0)} />
         <KpiCard label={<T fr="Transactions" en="Transactions" />} value={String(stats?.total_payments ?? 0)} />
-        <KpiCard label={<T fr="Taux de r\u00e9ussite" en="Success rate" />} value={`${stats?.success_rate ?? 0}`} unit="%" />
+        <KpiCard label={<T fr="Taux de réussite" en="Success rate" />} value={`${stats?.success_rate ?? 0}`} unit="%" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 12, marginBottom: 12 }}>
@@ -80,10 +80,10 @@ export default function MerchantDashboardPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: 18, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--line)" }}>
           <div>
-            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Transactions r\u00e9centes" en="Recent transactions" /></h3>
-            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}><T fr="Mise \u00e0 jour en temps r\u00e9el" en="Live updates" /></p>
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}><T fr="Transactions récentes" en="Recent transactions" /></h3>
+            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}><T fr="Mise à jour en temps réel" en="Live updates" /></p>
           </div>
-          <Link href="/merchant/dashboard/payments" className="btn btn-link" style={{ textDecoration: "none" }}><T fr="Voir tout" en="View all" /> {"\u2192"}</Link>
+          <Link href="/merchant/dashboard/payments" className="btn btn-link" style={{ textDecoration: "none" }}><T fr="Voir tout" en="View all" /> {"→"}</Link>
         </div>
         {stats?.recent_payments && stats.recent_payments.length > 0 ? (
           <div className="tbl">
@@ -104,7 +104,7 @@ export default function MerchantDashboardPage() {
           </div>
         ) : (
           <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-            <T fr="Aucun paiement. Int\u00e9grez l'API pour commencer." en="No payments yet. Integrate the API to start accepting payments." />
+            <T fr="Aucun paiement. Intégrez l'API pour commencer." en="No payments yet. Integrate the API to start accepting payments." />
           </div>
         )}
       </div>

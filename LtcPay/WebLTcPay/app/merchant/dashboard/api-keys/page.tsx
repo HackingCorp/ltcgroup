@@ -56,9 +56,9 @@ export default function ApiKeysPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="D\u00e9veloppeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
+      crumb={[<T key="c1" fr="Développeur" en="Developer" />, <T key="c2" fr="API & Webhooks" en="API & Webhooks" />]}
       title={<T fr="API & Webhooks" en="API & Webhooks" />}
-      sub={<T fr="Cl\u00e9s d\u0027authentification, endpoints webhook et int\u00e9gration" en="Authentication keys, webhook endpoints and integration" />}
+      sub={<T fr="Clés d'authentification, endpoints webhook et intégration" en="Authentication keys, webhook endpoints and integration" />}
       actions={
         <a href="/merchant/dashboard/docs" className="btn btn-ghost btn-sm">
           <Icon name="book" size={13} /> <T fr="Documentation" en="Documentation" />
@@ -95,13 +95,13 @@ export default function ApiKeysPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="bolt" size={14} />
               <span style={{ fontSize: 14, fontWeight: 600 }}>
-                <T fr="Cl\u00e9 API" en="API Key" />
+                <T fr="Clé API" en="API Key" />
               </span>
             </div>
             <Pill tone={env === "live" ? "live" : "test"}>{env === "live" ? "Live" : "Test"}</Pill>
           </div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-            <T fr="Identifie votre compte dans chaque requ\u00eate" en="Identifies your account in each request" />
+            <T fr="Identifie votre compte dans chaque requête" en="Identifies your account in each request" />
           </div>
           <div style={{
             display: "flex",
@@ -138,7 +138,7 @@ export default function ApiKeysPage() {
             <Pill tone="neutral">HMAC-SHA256</Pill>
           </div>
           <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-            <T fr="V\u00e9rifie l\u0027authenticit\u00e9 des callbacks webhook" en="Verifies webhook callback authenticity" />
+            <T fr="Vérifie l'authenticité des callbacks webhook" en="Verifies webhook callback authenticity" />
           </div>
           <div style={{
             display: "flex",
@@ -149,7 +149,7 @@ export default function ApiKeysPage() {
             borderRadius: 6,
           }}>
             <code className="mono" style={{ flex: 1, fontSize: 12, wordBreak: "break-all" }}>
-              {showWebhookSecret ? webhookSecret : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}
+              {showWebhookSecret ? webhookSecret : "••••••••••••••••••••••••"}
             </code>
             <button
               className="btn btn-ghost btn-sm"
@@ -178,7 +178,7 @@ export default function ApiKeysPage() {
               <T fr="Endpoints Webhook" en="Webhook endpoints" />
             </h3>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-              <T fr="URLs qui re\u00e7oivent les notifications de paiement" en="URLs that receive payment notifications" />
+              <T fr="URLs qui reçoivent les notifications de paiement" en="URLs that receive payment notifications" />
             </div>
           </div>
           <button className="btn btn-primary btn-sm">
@@ -221,7 +221,7 @@ export default function ApiKeysPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Livraisons r\u00e9centes" en="Recent deliveries" />
+            <T fr="Livraisons récentes" en="Recent deliveries" />
           </h3>
           <button className="btn btn-ghost btn-sm">
             <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
@@ -229,11 +229,11 @@ export default function ApiKeysPage() {
         </div>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "1fr 1.5fr 1.5fr 80px 80px 100px" }}>
-            <span><T fr="\u00c9v\u00e9nement" en="Event" /></span>
+            <span><T fr="Événement" en="Event" /></span>
             <span>URL</span>
             <span><T fr="Statut" en="Status" /></span>
             <span>Code</span>
-            <span><T fr="Dur\u00e9e" en="Duration" /></span>
+            <span><T fr="Durée" en="Duration" /></span>
             <span style={{ textAlign: "right" }}><T fr="Quand" en="When" /></span>
           </div>
           {WEBHOOK_DELIVERIES.map(d => (
@@ -242,7 +242,7 @@ export default function ApiKeysPage() {
               <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{d.url}</div>
               <div>
                 <Pill tone={d.status === "delivered" ? "success" : "fail"}>
-                  {d.status === "delivered" ? <T fr="livr\u00e9" en="delivered" /> : <T fr="\u00e9chou\u00e9" en="failed" />}
+                  {d.status === "delivered" ? <T fr="livré" en="delivered" /> : <T fr="échoué" en="failed" />}
                 </Pill>
               </div>
               <div className="mono" style={{ fontSize: 11, color: d.code === 200 ? "var(--accent-success)" : "oklch(0.55 0.2 25)" }}>{d.code}</div>
@@ -258,19 +258,19 @@ export default function ApiKeysPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <Icon name="code" size={14} />
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Exemple d\u0027int\u00e9gration" en="Integration example" />
+            <T fr="Exemple d'intégration" en="Integration example" />
           </h3>
         </div>
         <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>
           <T
-            fr="Cr\u00e9ez un paiement en envoyant une requ\u00eate POST avec vos cl\u00e9s API dans les headers."
+            fr="Créez un paiement en envoyant une requête POST avec vos clés API dans les headers."
             en="Create a payment by sending a POST request with your API keys in the headers."
           />
         </div>
         <CodeBlock lang="bash">{curlExample}</CodeBlock>
         <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 12 }}>
           <T
-            fr="Configurez votre Callback URL dans les param\u00e8tres pour recevoir les notifications de paiement."
+            fr="Configurez votre Callback URL dans les paramètres pour recevoir les notifications de paiement."
             en="Set up your Callback URL in settings to receive payment notifications."
           />
         </div>

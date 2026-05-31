@@ -9,15 +9,15 @@ import { T } from "@/lib/i18n";
 const STEPS = [
   { key: "company", fr: "Entreprise", en: "Company", status: "completed" as const },
   { key: "documents", fr: "Documents", en: "Documents", status: "current" as const },
-  { key: "beneficiary", fr: "B\u00e9n\u00e9ficiaire effectif", en: "Beneficial owner", status: "pending" as const },
+  { key: "beneficiary", fr: "Bénéficiaire effectif", en: "Beneficial owner", status: "pending" as const },
   { key: "validation", fr: "Validation", en: "Validation", status: "pending" as const },
 ];
 
 const DOCUMENTS = [
   { name: "RCCM", fr: "Registre du Commerce", en: "Business Registration", status: "uploaded" as const, file: "rccm_ltcgroup.pdf", date: "12 mars 2026" },
-  { name: "Tax ID", fr: "Num\u00e9ro d\u0027Identifiant Unique", en: "Tax Identification Number", status: "uploaded" as const, file: "niu_ltcgroup.pdf", date: "12 mars 2026" },
-  { name: "Statuts", fr: "Statuts de la soci\u00e9t\u00e9", en: "Company bylaws", status: "todo" as const, file: null, date: null },
-  { name: "ID", fr: "Pi\u00e8ce d\u0027identit\u00e9 du dirigeant", en: "Manager ID document", status: "todo" as const, file: null, date: null },
+  { name: "Tax ID", fr: "Numéro d'Identifiant Unique", en: "Tax Identification Number", status: "uploaded" as const, file: "niu_ltcgroup.pdf", date: "12 mars 2026" },
+  { name: "Statuts", fr: "Statuts de la société", en: "Company bylaws", status: "todo" as const, file: null, date: null },
+  { name: "ID", fr: "Pièce d'identité du dirigeant", en: "Manager ID document", status: "todo" as const, file: null, date: null },
   { name: "Address", fr: "Justificatif de domicile", en: "Proof of address", status: "todo" as const, file: null, date: null },
 ];
 
@@ -33,8 +33,8 @@ export default function MerchantKycPage() {
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="KYC" en="KYC" />]}
-      title={<T fr="V\u00e9rification KYC" en="KYC verification" />}
-      sub={<T fr="Compl\u00e9tez la v\u00e9rification pour activer le mode production" en="Complete verification to enable live mode" />}
+      title={<T fr="Vérification KYC" en="KYC verification" />}
+      sub={<T fr="Complétez la vérification pour activer le mode production" en="Complete verification to enable live mode" />}
     >
       {/* Progress stepper */}
       <div className="card" style={{ padding: "24px 20px", marginBottom: 16 }}>
@@ -136,9 +136,9 @@ export default function MerchantKycPage() {
                   ) : (
                     <div>
                       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
-                        <T fr="Formats accept\u00e9s: PDF, JPG, PNG (max 5 Mo)" en="Accepted formats: PDF, JPG, PNG (max 5 MB)" />
+                        <T fr="Formats acceptés: PDF, JPG, PNG (max 5 Mo)" en="Accepted formats: PDF, JPG, PNG (max 5 MB)" />
                       </div>
-                      <button className="btn btn-primary btn-sm"><Icon name="upload" size={12} /> <T fr="T\u00e9l\u00e9verser" en="Upload" /></button>
+                      <button className="btn btn-primary btn-sm"><Icon name="upload" size={12} /> <T fr="Téléverser" en="Upload" /></button>
                     </div>
                   )}
                 </div>
@@ -154,11 +154,11 @@ export default function MerchantKycPage() {
               <Icon name="info" size={16} color="var(--ink)" />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                  <T fr="D\u00e9lai de validation" en="Validation timeline" />
+                  <T fr="Délai de validation" en="Validation timeline" />
                 </div>
                 <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
                   <T
-                    fr="Une fois tous les documents soumis, notre \u00e9quipe de conformit\u00e9 v\u00e9rifie votre dossier sous 24 heures ouvr\u00e9es. Vous recevrez un email de confirmation."
+                    fr="Une fois tous les documents soumis, notre équipe de conformité vérifie votre dossier sous 24 heures ouvrées. Vous recevrez un email de confirmation."
                     en="Once all documents are submitted, our compliance team reviews your file within 24 business hours. You will receive a confirmation email."
                   />
                 </div>
@@ -187,7 +187,7 @@ export default function MerchantKycPage() {
               }} />
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>
-              2/5 {"\u00b7"} <T fr="40% compl\u00e9t\u00e9" en="40% complete" />
+              2/5 {"·"} <T fr="40% complété" en="40% complete" />
             </div>
           </div>
 
@@ -200,7 +200,7 @@ export default function MerchantKycPage() {
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
               <T
-                fr="La v\u00e9rification KYC est requise par la r\u00e9glementation COBAC/CEMAC pour les services de paiement. Elle prot\u00e8ge vos clients et votre entreprise."
+                fr="La vérification KYC est requise par la réglementation COBAC/CEMAC pour les services de paiement. Elle protège vos clients et votre entreprise."
                 en="KYC verification is required by COBAC/CEMAC regulations for payment services. It protects your customers and your business."
               />
             </div>

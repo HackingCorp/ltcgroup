@@ -40,8 +40,8 @@ export default function FinancePage() {
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Finance" en="Finance" />]}
-      title={<T fr="Vue d\u2019ensemble financi\u00e8re" en="Finance Overview" />}
-      sub={<T fr="Revenus, frais et r\u00e8glements" en="Revenue, fees and settlements" />}
+      title={<T fr="Vue d'ensemble financière" en="Finance Overview" />}
+      sub={<T fr="Revenus, frais et règlements" en="Revenue, fees and settlements" />}
       actions={
         <button className="btn btn-ghost btn-sm">
           <Icon name="download" size={13} /> <T fr="Export" en="Export" />
@@ -52,8 +52,8 @@ export default function FinancePage() {
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
         <KpiCard hero label={<T fr="Revenu net" en="Net revenue" />} value="12,4M" unit="F" delta="+18.2% vs M-1" deltaDir="up" />
         <KpiCard label={<T fr="GMV (Volume brut)" en="GMV (Gross volume)" />} value="824M" unit="F" delta="+12%" deltaDir="up" />
-        <KpiCard label={<T fr="Frais collect\u00e9s" en="Total fees collected" />} value="12,4M" unit="F" delta="+15.5%" deltaDir="up" />
-        <KpiCard label={<T fr="R\u00e8glements en attente" en="Pending settlements" />} value="2,1M" unit="F" />
+        <KpiCard label={<T fr="Frais collectés" en="Total fees collected" />} value="12,4M" unit="F" delta="+15.5%" deltaDir="up" />
+        <KpiCard label={<T fr="Règlements en attente" en="Pending settlements" />} value="2,1M" unit="F" />
       </div>
 
       {/* Revenue breakdown */}
@@ -61,15 +61,15 @@ export default function FinancePage() {
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-              <T fr="D\u00e9composition par m\u00e9thode" en="Revenue breakdown by method" />
+              <T fr="Décomposition par méthode" en="Revenue breakdown by method" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="P\u00e9riode : 30 derniers jours" en="Period: last 30 days" />
+              <T fr="Période : 30 derniers jours" en="Period: last 30 days" />
             </p>
           </div>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1.4fr 0.6fr 0.8fr 1fr 1fr 1fr" }}>
-          <div><T fr="M\u00e9thode" en="Method" /></div>
+          <div><T fr="Méthode" en="Method" /></div>
           <div><T fr="Pays" en="Country" /></div>
           <div style={{ textAlign: "right" }}><T fr="Volume" en="Volume" /></div>
           <div style={{ textAlign: "right" }}><T fr="Montant brut" en="Gross amount" /></div>
@@ -106,10 +106,10 @@ export default function FinancePage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-            <T fr="Derniers r\u00e8glements" en="Recent settlements" />
+            <T fr="Derniers règlements" en="Recent settlements" />
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-            <T fr="5 derniers r\u00e8glements programm\u00e9s" en="Last 5 scheduled settlements" />
+            <T fr="5 derniers règlements programmés" en="Last 5 scheduled settlements" />
           </p>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1fr 1.2fr 1fr 0.8fr 0.8fr" }}>

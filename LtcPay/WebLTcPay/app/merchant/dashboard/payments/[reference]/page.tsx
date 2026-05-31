@@ -68,7 +68,7 @@ export default function PaymentDetailPage() {
         <div className="card" style={{ padding: 40, textAlign: "center" }}>
           <Icon name="alert" size={32} color="var(--muted)" />
           <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 14 }}>
-            <T fr="Ce paiement n'existe pas ou a \u00e9t\u00e9 supprim\u00e9." en="This payment does not exist or has been removed." />
+            <T fr="Ce paiement n'existe pas ou a été supprimé." en="This payment does not exist or has been removed." />
           </p>
           <Link href="/merchant/dashboard/payments" className="btn btn-ghost btn-sm" style={{ marginTop: 16, textDecoration: "none" }}>
             <Icon name="arrowL" size={13} /> <T fr="Retour aux transactions" en="Back to transactions" />
@@ -83,7 +83,7 @@ export default function PaymentDetailPage() {
 
   const timeline = [
     {
-      label: lang === "en" ? "Payment created" : "Paiement cr\u00e9\u00e9",
+      label: lang === "en" ? "Payment created" : "Paiement créé",
       time: payment.created_at,
       icon: "plus" as const,
       done: true,
@@ -96,9 +96,9 @@ export default function PaymentDetailPage() {
     },
     {
       label: payment.status === "completed"
-        ? (lang === "en" ? "Payment succeeded" : "Paiement r\u00e9ussi")
+        ? (lang === "en" ? "Payment succeeded" : "Paiement réussi")
         : payment.status === "failed"
-        ? (lang === "en" ? "Payment failed" : "Paiement \u00e9chou\u00e9")
+        ? (lang === "en" ? "Payment failed" : "Paiement échoué")
         : (lang === "en" ? "Awaiting completion" : "En attente"),
       time: payment.updated_at,
       icon: payment.status === "completed" ? "check" as const : payment.status === "failed" ? "x" as const : "clock" as const,
@@ -113,7 +113,7 @@ export default function PaymentDetailPage() {
         <T key="c2" fr="Transactions" en="Transactions" />,
         <span key="c3">{payment.reference}</span>,
       ]}
-      title={<T fr="D\u00e9tail du paiement" en="Payment detail" />}
+      title={<T fr="Détail du paiement" en="Payment detail" />}
       actions={
         <Link href="/merchant/dashboard/payments" className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>
           <Icon name="arrowL" size={13} /> <T fr="Retour" en="Back" />
@@ -127,7 +127,7 @@ export default function PaymentDetailPage() {
           {formatCurrency(payment.amount, payment.currency)}
         </div>
         <div style={{ color: "var(--muted)", fontSize: 13 }}>
-          {payment.reference} {"\u00b7"} {fmtDate(payment.created_at)} {"\u00b7"} {fmtTime(payment.created_at)}
+          {payment.reference} {"·"} {fmtDate(payment.created_at)} {"·"} {fmtTime(payment.created_at)}
         </div>
         {payment.payment_method && (
           <div style={{ marginTop: 12, display: "inline-block" }}>
@@ -150,19 +150,19 @@ export default function PaymentDetailPage() {
                 <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   <T fr="Email" en="Email" />
                 </div>
-                <div style={{ fontSize: 14 }}>{payment.customer_email || "\u2014"}</div>
+                <div style={{ fontSize: 14 }}>{payment.customer_email || "—"}</div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  <T fr="T\u00e9l\u00e9phone" en="Phone" />
+                  <T fr="Téléphone" en="Phone" />
                 </div>
-                <div style={{ fontSize: 14 }}>{payment.customer_phone || "\u2014"}</div>
+                <div style={{ fontSize: 14 }}>{payment.customer_phone || "—"}</div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   <T fr="Description" en="Description" />
                 </div>
-                <div style={{ fontSize: 14 }}>{payment.description || "\u2014"}</div>
+                <div style={{ fontSize: 14 }}>{payment.description || "—"}</div>
               </div>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function PaymentDetailPage() {
         <div className="card">
           <div className="card-head">
             <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="receipt" size={15} /> <T fr="D\u00e9tail financier" en="Financial detail" />
+              <Icon name="receipt" size={15} /> <T fr="Détail financier" en="Financial detail" />
             </h3>
           </div>
           <div style={{ padding: "12px 18px" }}>
@@ -183,7 +183,7 @@ export default function PaymentDetailPage() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted)", fontSize: 13 }}><T fr="Frais (3%)" en="Fees (3%)" /></span>
-                <span style={{ color: "var(--rose, #e74c3c)" }}>{"\u2212"} {formatCurrency(feeEstimate, payment.currency)}</span>
+                <span style={{ color: "var(--rose, #e74c3c)" }}>{"−"} {formatCurrency(feeEstimate, payment.currency)}</span>
               </div>
               <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 600 }}><T fr="Net" en="Net" /></span>
@@ -237,7 +237,7 @@ export default function PaymentDetailPage() {
                   {step.label}
                 </div>
                 <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                  {fmtDate(step.time)} {"\u00b7"} {fmtTime(step.time)}
+                  {fmtDate(step.time)} {"·"} {fmtTime(step.time)}
                 </div>
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function PaymentDetailPage() {
         <div className="card" style={{ marginTop: 12 }}>
           <div className="card-head">
             <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="code" size={15} /> <T fr="M\u00e9tadonn\u00e9es" en="Metadata" />
+              <Icon name="code" size={15} /> <T fr="Métadonnées" en="Metadata" />
             </h3>
           </div>
           <div style={{ padding: "12px 18px" }}>

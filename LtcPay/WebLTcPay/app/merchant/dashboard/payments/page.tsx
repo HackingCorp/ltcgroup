@@ -16,10 +16,10 @@ import type { Payment, PaginatedResponse } from "@/types";
 const STATUS_FILTERS: { key: string; fr: string; en: string; tone: "neutral" | "warn" | "success" | "fail" | "info" }[] = [
   { key: "", fr: "Tous", en: "All", tone: "neutral" },
   { key: "pending", fr: "En attente", en: "Pending", tone: "warn" },
-  { key: "completed", fr: "R\u00e9ussi", en: "Completed", tone: "success" },
-  { key: "failed", fr: "\u00c9chou\u00e9", en: "Failed", tone: "fail" },
-  { key: "expired", fr: "Expir\u00e9", en: "Expired", tone: "neutral" },
-  { key: "cancelled", fr: "Annul\u00e9", en: "Cancelled", tone: "neutral" },
+  { key: "completed", fr: "Réussi", en: "Completed", tone: "success" },
+  { key: "failed", fr: "Échoué", en: "Failed", tone: "fail" },
+  { key: "expired", fr: "Expiré", en: "Expired", tone: "neutral" },
+  { key: "cancelled", fr: "Annulé", en: "Cancelled", tone: "neutral" },
 ];
 
 function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
@@ -102,7 +102,7 @@ export default function MerchantPaymentsPage() {
           <Icon name="search" size={14} color="var(--muted)" />
           <input
             type="text"
-            placeholder={lang === "en" ? "Search reference, email..." : "Chercher r\u00e9f\u00e9rence, email..."}
+            placeholder={lang === "en" ? "Search reference, email..." : "Chercher référence, email..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -129,9 +129,9 @@ export default function MerchantPaymentsPage() {
           <>
             {/* Header row */}
             <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.8fr 0.7fr 0.8fr 0.8fr" }}>
-              <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+              <div><T fr="Référence" en="Reference" /></div>
               <div><T fr="Client" en="Customer" /></div>
-              <div><T fr="M\u00e9thode" en="Method" /></div>
+              <div><T fr="Méthode" en="Method" /></div>
               <div><T fr="Statut" en="Status" /></div>
               <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
               <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
@@ -148,7 +148,7 @@ export default function MerchantPaymentsPage() {
                     <span className="mono" style={{ fontSize: 12 }}>{p.reference}</span>
                   </div>
                   <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                    {p.customer_email || p.customer_phone || "\u2014"}
+                    {p.customer_email || p.customer_phone || "—"}
                   </div>
                   <div>
                     <MethodChip kind={methodKind(p.payment_method)} />
@@ -170,11 +170,11 @@ export default function MerchantPaymentsPage() {
             {data && (
               <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
                 <span style={{ fontSize: 13, color: "var(--muted)" }}>
-                  <T fr={`Page ${data.page} sur ${data.total_pages} (${data.total} r\u00e9sultats)`} en={`Page ${data.page} of ${data.total_pages} (${data.total} results)`} />
+                  <T fr={`Page ${data.page} sur ${data.total_pages} (${data.total} résultats)`} en={`Page ${data.page} of ${data.total_pages} (${data.total} results)`} />
                 </span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                    <Icon name="chevL" size={13} /> <T fr="Pr\u00e9c\u00e9dent" en="Previous" />
+                    <Icon name="chevL" size={13} /> <T fr="Précédent" en="Previous" />
                   </Button>
                   <Button variant="ghost" size="sm" disabled={page >= (data.total_pages || 1)} onClick={() => setPage(page + 1)}>
                     <T fr="Suivant" en="Next" /> <Icon name="chevR" size={13} />
@@ -186,7 +186,7 @@ export default function MerchantPaymentsPage() {
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="receipt" size={32} color="var(--muted)" />
-            <p style={{ marginTop: 12 }}><T fr="Aucune transaction trouv\u00e9e." en="No transactions found." /></p>
+            <p style={{ marginTop: 12 }}><T fr="Aucune transaction trouvée." en="No transactions found." /></p>
           </div>
         )}
       </div>

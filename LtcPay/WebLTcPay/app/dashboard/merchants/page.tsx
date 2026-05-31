@@ -61,7 +61,7 @@ export default function MerchantsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
       title={<T fr="Marchands" en="Merchants" />}
-      sub={<T fr={`${totalCount} marchand(s) enregistr\u00e9(s)`} en={`${totalCount} registered merchant(s)`} />}
+      sub={<T fr={`${totalCount} marchand(s) enregistré(s)`} en={`${totalCount} registered merchant(s)`} />}
       actions={
         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
           <Icon name="plus" size={13} color="white" /> <T fr="Ajouter" en="Add Merchant" />
@@ -122,7 +122,7 @@ export default function MerchantsPage() {
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="building" size={32} color="var(--muted)" />
-            <p style={{ marginTop: 12 }}><T fr="Aucun marchand. Cliquez sur Ajouter pour en cr\u00e9er un." en="No merchants yet. Click Add to create one." /></p>
+            <p style={{ marginTop: 12 }}><T fr="Aucun marchand. Cliquez sur Ajouter pour en créer un." en="No merchants yet. Click Add to create one." /></p>
           </div>
         )}
       </div>
@@ -268,10 +268,10 @@ function MerchantRow({
           ) : balance ? (
             <div>
               <div style={{ fontWeight: 600 }}>{fmtXAF(balance.available_balance)}</div>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmtXAF(balance.total_earned)} <T fr="gagn\u00e9" en="earned" /></div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmtXAF(balance.total_earned)} <T fr="gagné" en="earned" /></div>
             </div>
           ) : (
-            <span style={{ color: "var(--muted)" }}>{"\u2014"}</span>
+            <span style={{ color: "var(--muted)" }}>{"—"}</span>
           )}
         </div>
         <div style={{ textAlign: "right" }}>
@@ -281,7 +281,7 @@ function MerchantRow({
               <div style={{ fontSize: 11, color: "var(--muted)" }}>{balance.total_payments} total</div>
             </div>
           ) : (
-            <span style={{ color: "var(--muted)" }}>{"\u2014"}</span>
+            <span style={{ color: "var(--muted)" }}>{"—"}</span>
           )}
         </div>
         <div style={{ textAlign: "center", fontWeight: 500 }}>{m.fee_rate ?? 1.75}%</div>
@@ -292,7 +292,7 @@ function MerchantRow({
             onClick={() => setShowDetails(!showDetails)}
           >
             <Icon name={showDetails ? "eyeOff" : "eye"} size={12} />
-            {showDetails ? <T fr="Masquer" en="Hide" /> : <T fr="Cl\u00e9s" en="Keys" />}
+            {showDetails ? <T fr="Masquer" en="Hide" /> : <T fr="Clés" en="Keys" />}
           </button>
           <button
             className="btn btn-ghost btn-sm"
@@ -316,7 +316,7 @@ function MerchantRow({
             className="btn btn-primary btn-sm"
             style={{ fontSize: 11, textDecoration: "none" }}
           >
-            <T fr="D\u00e9tails" en="Details" /> <Icon name="chevR" size={11} color="white" />
+            <T fr="Détails" en="Details" /> <Icon name="chevR" size={11} color="white" />
           </Link>
         </div>
       </div>
@@ -324,11 +324,11 @@ function MerchantRow({
         <div style={{ padding: "12px 18px", background: "var(--bg-2)", borderBottom: "1px solid var(--line)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Cl\u00e9 API (Test)" en="API Key (Test)" /></div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Clé API (Test)" en="API Key (Test)" /></div>
               <ApiKeyCell value={m.api_key_test} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Cl\u00e9 API (Live)" en="API Key (Live)" /></div>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}><T fr="Clé API (Live)" en="API Key (Live)" /></div>
               <ApiKeyCell value={m.api_key_live} />
             </div>
           </div>
@@ -346,7 +346,7 @@ function MerchantRow({
               disabled={regenerating !== null || actionLoading}
             >
               <Icon name="refresh" size={12} />
-              {regenerating === "api" ? "..." : <T fr="R\u00e9g\u00e9n\u00e9rer API Secret" en="Regenerate API Secret" />}
+              {regenerating === "api" ? "..." : <T fr="Régénérer API Secret" en="Regenerate API Secret" />}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -355,7 +355,7 @@ function MerchantRow({
               disabled={regenerating !== null || actionLoading}
             >
               <Icon name="shield" size={12} />
-              {regenerating === "webhook" ? "..." : <T fr="R\u00e9g\u00e9n\u00e9rer Webhook Secret" en="Regenerate Webhook Secret" />}
+              {regenerating === "webhook" ? "..." : <T fr="Régénérer Webhook Secret" en="Regenerate Webhook Secret" />}
             </button>
             <div style={{ marginLeft: "auto" }} />
             <button
@@ -365,7 +365,7 @@ function MerchantRow({
               disabled={actionLoading || regenerating !== null}
             >
               <Icon name="bolt" size={12} />
-              {actionLoading ? "..." : m.is_active ? <T fr="D\u00e9sactiver" en="Deactivate" /> : <T fr="R\u00e9activer" en="Reactivate" />}
+              {actionLoading ? "..." : m.is_active ? <T fr="Désactiver" en="Deactivate" /> : <T fr="Réactiver" en="Reactivate" />}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -422,10 +422,10 @@ function CredentialsCard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div>
           <h3 style={{ fontWeight: 600, fontSize: 16, margin: 0 }}>
-            <T fr={`Marchand cr\u00e9\u00e9 : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
+            <T fr={`Marchand créé : ${credentials.name}`} en={`Merchant Created: ${credentials.name}`} />
           </h3>
           <p style={{ color: "var(--warn)", fontSize: 13, fontWeight: 500, margin: "4px 0 0" }}>
-            <T fr="Sauvegardez le secret API maintenant \u2014 il ne sera plus affich\u00e9." en="Save the API Secret now \u2014 it will not be shown again." />
+            <T fr="Sauvegardez le secret API maintenant — il ne sera plus affiché." en="Save the API Secret now — it will not be shown again." />
           </p>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -535,13 +535,13 @@ function CreateMerchantModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="T\u00e9l\u00e9phone" en="Phone" />
+                <T fr="Téléphone" en="Phone" />
               </label>
               <Input value={form.phone || ""} onChange={(e) => set("phone", e.target.value)} placeholder="+237..." />
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Type d\u2019activit\u00e9" en="Business Type" />
+                <T fr="Type d'activité" en="Business Type" />
               </label>
               <Input value={form.business_type || ""} onChange={(e) => set("business_type", e.target.value)} placeholder="e-commerce, SaaS..." />
             </div>
@@ -564,7 +564,7 @@ function CreateMerchantModal({
             </label>
             <Input value={form.logo_url || ""} onChange={(e) => set("logo_url", e.target.value)} placeholder="https://example.com/logo.png" />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Affich\u00e9 sur la page de paiement du client" en="Displayed on the customer payment page" />
+              <T fr="Affiché sur la page de paiement du client" en="Displayed on the customer payment page" />
             </p>
           </div>
           <div>
@@ -580,7 +580,7 @@ function CreateMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% \u2014 par d\u00e9faut support\u00e9 par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
+              <T fr="Minimum 1.75% — par défaut supporté par le marchand" en="Minimum 1.75% — borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 8 }}>
@@ -588,7 +588,7 @@ function CreateMerchantModal({
               <T fr="Annuler" en="Cancel" />
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? <T fr="Cr\u00e9ation..." en="Creating..." /> : <T fr="Cr\u00e9er le marchand" en="Create Merchant" />}
+              {submitting ? <T fr="Création..." en="Creating..." /> : <T fr="Créer le marchand" en="Create Merchant" />}
             </button>
           </div>
         </form>
@@ -674,13 +674,13 @@ function EditMerchantModal({
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Email</label>
             <Input value={merchant.email} disabled style={{ opacity: 0.5 }} />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="L\u2019email ne peut pas \u00eatre modifi\u00e9" en="Email cannot be changed" />
+              <T fr="L'email ne peut pas être modifié" en="Email cannot be changed" />
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="T\u00e9l\u00e9phone" en="Phone" />
+                <T fr="Téléphone" en="Phone" />
               </label>
               <Input
                 value={form.phone || ""}
@@ -690,7 +690,7 @@ function EditMerchantModal({
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-                <T fr="Type d\u2019activit\u00e9" en="Business Type" />
+                <T fr="Type d'activité" en="Business Type" />
               </label>
               <Input
                 value={form.business_type || ""}
@@ -750,7 +750,7 @@ function EditMerchantModal({
               onChange={(e) => setForm((prev) => ({ ...prev, fee_rate: parseFloat(e.target.value) || 1.75 }))}
             />
             <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-              <T fr="Minimum 1.75% \u2014 par d\u00e9faut support\u00e9 par le marchand" en="Minimum 1.75% \u2014 borne by merchant by default" />
+              <T fr="Minimum 1.75% — par défaut supporté par le marchand" en="Minimum 1.75% — borne by merchant by default" />
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, border: "1px solid var(--line)" }}>
@@ -764,8 +764,8 @@ function EditMerchantModal({
               <span style={{ fontSize: 13, fontWeight: 500 }}><T fr="Marchand actif" en="Active merchant" /></span>
               <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
                 {form.is_active
-                  ? <T fr="Le marchand peut utiliser l\u2019API" en="Merchant can use the API" />
-                  : <T fr="Acc\u00e8s API d\u00e9sactiv\u00e9" en="API access disabled" />
+                  ? <T fr="Le marchand peut utiliser l'API" en="Merchant can use the API" />
+                  : <T fr="Accès API désactivé" en="API access disabled" />
                 }
               </p>
             </div>

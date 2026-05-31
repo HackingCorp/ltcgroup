@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://localhost:8001"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://localhost:8001,https://nkap.cash,https://app.ltcgroup.site"
 
     # TouchPay Configuration
     # SDK reference: sendPaymentInfos(payment_token, merchant_id, secure_code,

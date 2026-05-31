@@ -33,8 +33,8 @@ export default function PayoutsPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="R\u00e8glements" en="Payouts" />]}
-      title={<T fr="R\u00e8glements" en="Payouts" />}
+      crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Règlements" en="Payouts" />]}
+      title={<T fr="Règlements" en="Payouts" />}
       sub={<T fr="Vos virements hebdomadaires automatiques" en="Your automatic weekly payouts" />}
     >
       {/* Dark hero card: next payout */}
@@ -66,8 +66,8 @@ export default function PayoutsPage() {
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <Icon name="bolt" size={16} color="var(--lime, #a3e635)" />
-            <span style={{ fontSize: 13, opacity: 0.7 }}><T fr="Prochain r\u00e8glement" en="Next payout" /></span>
-            <Pill tone="live"><T fr="Programm\u00e9" en="Scheduled" /></Pill>
+            <span style={{ fontSize: 13, opacity: 0.7 }}><T fr="Prochain règlement" en="Next payout" /></span>
+            <Pill tone="live"><T fr="Programmé" en="Scheduled" /></Pill>
           </div>
 
           <div className="display" style={{ fontSize: 42, fontWeight: 600, letterSpacing: -1, marginBottom: 6 }}>
@@ -84,8 +84,8 @@ export default function PayoutsPage() {
 
       {/* KPI row */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 12 }}>
-        <KpiCard label={<T fr="R\u00e9gl\u00e9 ce mois" en="Paid out this month" />} value={fmtXAF(TOTAL_THIS_MONTH)} />
-        <KpiCard label={<T fr="Fr\u00e9quence" en="Frequency" />} value={lang === "en" ? "Weekly" : "Hebdo"} />
+        <KpiCard label={<T fr="Réglé ce mois" en="Paid out this month" />} value={fmtXAF(TOTAL_THIS_MONTH)} />
+        <KpiCard label={<T fr="Fréquence" en="Frequency" />} value={lang === "en" ? "Weekly" : "Hebdo"} />
         <KpiCard label={<T fr="Frais par virement" en="Fee per payout" />} value={fmtXAF(2500)} />
       </div>
 
@@ -94,7 +94,7 @@ export default function PayoutsPage() {
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-              <T fr="Historique des r\u00e8glements" en="Payout history" />
+              <T fr="Historique des règlements" en="Payout history" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
               <T fr="Les 5 derniers virements" en="Last 5 payouts" />
@@ -106,9 +106,9 @@ export default function PayoutsPage() {
         </div>
 
         <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
-          <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+          <div><T fr="Référence" en="Reference" /></div>
           <div><T fr="Destination" en="Destination" /></div>
-          <div><T fr="M\u00e9thode" en="Method" /></div>
+          <div><T fr="Méthode" en="Method" /></div>
           <div><T fr="Statut" en="Status" /></div>
           <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
           <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
@@ -124,7 +124,7 @@ export default function PayoutsPage() {
               <div>
                 <Pill tone={po.status === "completed" ? "success" : po.status === "processing" ? "info" : "warn"}>
                   {po.status === "completed"
-                    ? (lang === "en" ? "Sent" : "Envoy\u00e9")
+                    ? (lang === "en" ? "Sent" : "Envoyé")
                     : po.status === "processing"
                     ? (lang === "en" ? "Processing" : "En cours")
                     : (lang === "en" ? "Pending" : "En attente")
@@ -148,7 +148,7 @@ export default function PayoutsPage() {
         <Icon name="info" size={18} color="var(--primary)" />
         <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--muted)" }}>
           <T
-            fr="Les r\u00e8glements sont effectu\u00e9s automatiquement chaque mercredi. Le montant minimum est de 10 000 F CFA. Pour modifier votre compte de r\u00e9ception, rendez-vous dans Param\u00e8tres."
+            fr="Les règlements sont effectués automatiquement chaque mercredi. Le montant minimum est de 10 000 F CFA. Pour modifier votre compte de réception, rendez-vous dans Paramètres."
             en="Payouts are processed automatically every Wednesday. The minimum amount is 10,000 XAF. To change your payout account, go to Settings."
           />
         </div>

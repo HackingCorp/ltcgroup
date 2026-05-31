@@ -54,7 +54,7 @@ export default function DashboardPage() {
       >
         <KpiCard
           hero
-          label={<><T fr="Volume total (GMV)" en="Total volume (GMV)" /> {"\u00b7"} XAF</>}
+          label={<><T fr="Volume total (GMV)" en="Total volume (GMV)" /> {"·"} XAF</>}
           value={fmtXAF(stats?.total_revenue ?? 0)}
         />
         <KpiCard

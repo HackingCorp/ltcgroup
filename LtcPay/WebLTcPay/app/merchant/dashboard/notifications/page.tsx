@@ -20,16 +20,16 @@ interface Notification {
 
 const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] }[] = [
   {
-    group: { fr: "Aujourd\u0027hui", en: "Today" },
+    group: { fr: "Aujourd'hui", en: "Today" },
     items: [
       {
         id: "n1",
         icon: "bolt",
         iconColor: "oklch(0.65 0.18 145)",
-        titleFr: "Paiement re\u00e7u",
+        titleFr: "Paiement reçu",
         titleEn: "Payment received",
-        descFr: "PAY-2026-05-30-001 \u2014 45 000 F via Orange Money",
-        descEn: "PAY-2026-05-30-001 \u2014 45,000 F via Orange Money",
+        descFr: "PAY-2026-05-30-001 — 45 000 F via Orange Money",
+        descEn: "PAY-2026-05-30-001 — 45,000 F via Orange Money",
         time: "Il y a 12 min",
         unread: true,
       },
@@ -37,9 +37,9 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n2",
         icon: "alert",
         iconColor: "oklch(0.65 0.18 30)",
-        titleFr: "Webhook \u00e9chou\u00e9",
+        titleFr: "Webhook échoué",
         titleEn: "Webhook failed",
-        descFr: "3 tentatives \u00e9chou\u00e9es vers https://api.myshop.cm/hook",
+        descFr: "3 tentatives échouées vers https://api.myshop.cm/hook",
         descEn: "3 failed attempts to https://api.myshop.cm/hook",
         time: "Il y a 45 min",
         unread: true,
@@ -50,8 +50,8 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         iconColor: "oklch(0.55 0.15 260)",
         titleFr: "Connexion depuis un nouvel appareil",
         titleEn: "Login from new device",
-        descFr: "Chrome 126 sur Windows \u2014 IP 102.16.xx.xx (Douala)",
-        descEn: "Chrome 126 on Windows \u2014 IP 102.16.xx.xx (Douala)",
+        descFr: "Chrome 126 sur Windows — IP 102.16.xx.xx (Douala)",
+        descEn: "Chrome 126 on Windows — IP 102.16.xx.xx (Douala)",
         time: "Il y a 2h",
         unread: false,
       },
@@ -64,10 +64,10 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n4",
         icon: "bolt",
         iconColor: "oklch(0.65 0.18 145)",
-        titleFr: "Paiement re\u00e7u",
+        titleFr: "Paiement reçu",
         titleEn: "Payment received",
-        descFr: "PAY-2026-05-29-014 \u2014 120 000 F via MTN Money",
-        descEn: "PAY-2026-05-29-014 \u2014 120,000 F via MTN Money",
+        descFr: "PAY-2026-05-29-014 — 120 000 F via MTN Money",
+        descEn: "PAY-2026-05-29-014 — 120,000 F via MTN Money",
         time: "Hier, 18:32",
         unread: false,
       },
@@ -75,9 +75,9 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n5",
         icon: "users",
         iconColor: "oklch(0.55 0.13 220)",
-        titleFr: "Nouveau membre ajout\u00e9",
+        titleFr: "Nouveau membre ajouté",
         titleEn: "New team member added",
-        descFr: "Samuel Ndongo (s.ndongo@ltcgroup.cm) a \u00e9t\u00e9 invit\u00e9 comme D\u00e9veloppeur",
+        descFr: "Samuel Ndongo (s.ndongo@ltcgroup.cm) a été invité comme Développeur",
         descEn: "Samuel Ndongo (s.ndongo@ltcgroup.cm) was invited as Developer",
         time: "Hier, 14:10",
         unread: false,
@@ -91,9 +91,9 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n6",
         icon: "chart",
         iconColor: "oklch(0.55 0.13 280)",
-        titleFr: "Rapport hebdomadaire pr\u00eat",
+        titleFr: "Rapport hebdomadaire prêt",
         titleEn: "Weekly report ready",
-        descFr: "Le rapport d\u0027encaissements du 19-25 mai est disponible",
+        descFr: "Le rapport d'encaissements du 19-25 mai est disponible",
         descEn: "The collections report for May 19-25 is available",
         time: "26 mai, 08:00",
         unread: false,
@@ -102,9 +102,9 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n7",
         icon: "check",
         iconColor: "oklch(0.65 0.18 145)",
-        titleFr: "KYC : Document valid\u00e9",
+        titleFr: "KYC : Document validé",
         titleEn: "KYC: Document verified",
-        descFr: "Votre RCCM a \u00e9t\u00e9 v\u00e9rifi\u00e9 et approuv\u00e9",
+        descFr: "Votre RCCM a été vérifié et approuvé",
         descEn: "Your RCCM has been verified and approved",
         time: "25 mai, 11:20",
         unread: false,
@@ -113,9 +113,9 @@ const NOTIFICATIONS: { group: { fr: string; en: string }; items: Notification[] 
         id: "n8",
         icon: "wallet",
         iconColor: "oklch(0.55 0.18 50)",
-        titleFr: "R\u00e8glement effectu\u00e9",
+        titleFr: "Règlement effectué",
         titleEn: "Payout completed",
-        descFr: "412 000 F transf\u00e9r\u00e9s vers Afriland First Bank ****7823",
+        descFr: "412 000 F transférés vers Afriland First Bank ****7823",
         descEn: "412,000 F transferred to Afriland First Bank ****7823",
         time: "24 mai, 09:15",
         unread: false,
@@ -132,12 +132,12 @@ const CHANNELS = [
 ];
 
 const ALERT_TYPES = [
-  { key: "payments", fr: "Paiements re\u00e7us", en: "Payments received", defaultOn: true },
-  { key: "failures", fr: "\u00c9checs & erreurs", en: "Failures & errors", defaultOn: true },
-  { key: "security", fr: "S\u00e9curit\u00e9", en: "Security", defaultOn: true },
-  { key: "team", fr: "Activit\u00e9 \u00e9quipe", en: "Team activity", defaultOn: false },
+  { key: "payments", fr: "Paiements reçus", en: "Payments received", defaultOn: true },
+  { key: "failures", fr: "Échecs & erreurs", en: "Failures & errors", defaultOn: true },
+  { key: "security", fr: "Sécurité", en: "Security", defaultOn: true },
+  { key: "team", fr: "Activité équipe", en: "Team activity", defaultOn: false },
   { key: "reports", fr: "Rapports", en: "Reports", defaultOn: true },
-  { key: "kyc", fr: "Mises \u00e0 jour KYC", en: "KYC updates", defaultOn: true },
+  { key: "kyc", fr: "Mises à jour KYC", en: "KYC updates", defaultOn: true },
 ];
 
 export default function MerchantNotificationsPage() {
@@ -154,7 +154,7 @@ export default function MerchantNotificationsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Notifications" en="Notifications" />]}
       title={<T fr="Notifications" en="Notifications" />}
-      sub={<T fr="Centre de notifications et pr\u00e9f\u00e9rences d\u0027alertes" en="Notification center and alert preferences" />}
+      sub={<T fr="Centre de notifications et préférences d'alertes" en="Notification center and alert preferences" />}
       actions={
         <button className="btn btn-ghost btn-sm">
           <Icon name="check" size={13} /> <T fr="Tout marquer lu" en="Mark all read" />
@@ -245,7 +245,7 @@ export default function MerchantNotificationsPage() {
 
           <div className="card" style={{ padding: 20 }}>
             <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 15, margin: "0 0 14px" }}>
-              <T fr="Types d\u0027alertes" en="Alert types" />
+              <T fr="Types d'alertes" en="Alert types" />
             </h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {ALERT_TYPES.map(at => (

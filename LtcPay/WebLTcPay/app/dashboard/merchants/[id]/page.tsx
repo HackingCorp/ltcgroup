@@ -136,13 +136,13 @@ export default function MerchantDetailPage() {
       {balance && (
         <>
           <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 12 }}>
-            <KpiCard hero label={<><T fr="Solde marchand" en="Merchant balance" /> {"\u00b7"} XAF</>} value={fmtXAF(balance.available_balance)} after={<Pill tone="success">{balance.completed_payments}/{balance.total_payments} <T fr="paiements" en="payments" /></Pill>} />
-            <KpiCard label={<T fr="Total gagn\u00e9" en="Total earned" />} value={fmtXAF(balance.total_earned)} delta={`- ${fmtXAF(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`} />
+            <KpiCard hero label={<><T fr="Solde marchand" en="Merchant balance" /> {"·"} XAF</>} value={fmtXAF(balance.available_balance)} after={<Pill tone="success">{balance.completed_payments}/{balance.total_payments} <T fr="paiements" en="payments" /></Pill>} />
+            <KpiCard label={<T fr="Total gagné" en="Total earned" />} value={fmtXAF(balance.total_earned)} delta={`- ${fmtXAF(balance.total_fees)} frais (${merchant.fee_rate ?? 1.75}%)`} />
             <KpiCard label={<T fr="Marge Nkap Pay" en="Nkap Pay margin" />} value={fmtXAF(balance.ltcpay_margin)} delta={`${((merchant.fee_rate ?? 1.75) - 1.5).toFixed(2)}% net`} deltaDir="up" />
             <KpiCard label={<T fr="Frais TouchPay" en="TouchPay fees" />} value={fmtXAF(balance.touchpay_fees)} delta="1.5% par tx" />
           </div>
           <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 16 }}>
-            <KpiCard label={<T fr="Total retir\u00e9" en="Total withdrawn" />} value={fmtXAF(balance.total_withdrawn)} />
+            <KpiCard label={<T fr="Total retiré" en="Total withdrawn" />} value={fmtXAF(balance.total_withdrawn)} />
             <KpiCard label={<T fr="Retraits en attente" en="Pending withdrawals" />} value={fmtXAF(balance.pending_withdrawals)} />
             <KpiCard label={<T fr="Configuration" en="Configuration" />} value={`${merchant.fee_rate ?? 1.75}%`} after={<Pill tone="info">{merchant.fee_bearer === "CLIENT" ? "Client" : <T fr="Marchand" en="Merchant" />}</Pill>} />
           </div>
@@ -157,7 +157,7 @@ export default function MerchantDetailPage() {
           style={{ flex: 1 }}
         >
           <Icon name="arrowDown" size={13} color={tab === "payments" ? "white" : "var(--success)"} />
-          <T fr="Paiements (Entr\u00e9es)" en="Payments (Inflows)" />
+          <T fr="Paiements (Entrées)" en="Payments (Inflows)" />
           {payments && <Pill tone="neutral">{payments.total}</Pill>}
         </button>
         <button
@@ -245,11 +245,11 @@ function PaymentsTable({
       {data.items.length > 0 ? (
         <>
           <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+            <div><T fr="Référence" en="Reference" /></div>
             <div><T fr="Client" en="Customer" /></div>
             <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
             <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
-            <div><T fr="Op\u00e9rateur" en="Operator" /></div>
+            <div><T fr="Opérateur" en="Operator" /></div>
             <div><T fr="Statut" en="Status" /></div>
             <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
           </div>
@@ -265,14 +265,14 @@ function PaymentsTable({
                   {p.customer_phone && <div>{p.customer_phone}</div>}
                 </div>
                 <div style={{ textAlign: "right", fontWeight: 500, color: "var(--success)" }}>+{formatCurrency(p.amount, p.currency)}</div>
-                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "\u2014"}</div>
+                <div style={{ textAlign: "right", fontSize: 12, color: "var(--muted)" }}>{p.fee > 0 ? formatCurrency(p.fee, p.currency) : "—"}</div>
                 <div>
                   <Pill tone={
                     p.operator === "MTN" ? "warn" :
                     p.operator === "ORANGE" ? "info" :
                     "neutral"
                   }>
-                    {p.operator || p.payment_method || "\u2014"}
+                    {p.operator || p.payment_method || "—"}
                   </Pill>
                 </div>
                 <div><Pill tone={paymentStatusTone(p.status)}>{p.status}</Pill></div>
@@ -327,8 +327,8 @@ function WithdrawalsTable({
       {data.items.length > 0 ? (
         <>
           <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
-            <div><T fr="M\u00e9thode" en="Method" /></div>
+            <div><T fr="Référence" en="Reference" /></div>
+            <div><T fr="Méthode" en="Method" /></div>
             <div><T fr="Destination" en="Destination" /></div>
             <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
             <div><T fr="Statut" en="Status" /></div>
@@ -383,7 +383,7 @@ function Pagination({
   return (
     <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--line)" }}>
       <span style={{ fontSize: 13, color: "var(--muted)" }}>
-        <T fr={`${total} r\u00e9sultat(s)`} en={`${total} result(s)`} />
+        <T fr={`${total} résultat(s)`} en={`${total} result(s)`} />
       </span>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button

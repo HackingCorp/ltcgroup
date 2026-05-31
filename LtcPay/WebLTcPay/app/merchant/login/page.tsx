@@ -71,7 +71,7 @@ function MerchantLoginContent() {
         </Link>
 
         <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 40, lineHeight: 1.1, letterSpacing: "-0.02em", margin: "auto 0 16px" }}>
-          <T fr={<>Reprenez o\u00f9 vous <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>vous \u00e9tiez</span>.</>}
+          <T fr={<>Reprenez où vous <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>vous étiez</span>.</>}
              en={<>Pick up <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>where you left off</span>.</>} />
         </h2>
         <p style={{ color: "rgba(250,250,247,0.6)", fontSize: 14, maxWidth: 360, lineHeight: 1.5, marginBottom: 32 }}>
@@ -81,8 +81,8 @@ function MerchantLoginContent() {
 
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 20, backdropFilter: "blur(8px)" }}>
           <div style={{ fontFamily: "var(--display)", fontSize: 16, lineHeight: 1.45 }}>
-            <T fr={"\u00ab Int\u00e9gr\u00e9 en une apr\u00e8s-midi. Notre chiffre d'affaires en ligne a doubl\u00e9 en 6 semaines. \u00bb"}
-               en={"\u201cIntegrated in one afternoon. Our online revenue doubled in 6 weeks.\u201d"} />
+            <T fr={"« Intégré en une après-midi. Notre chiffre d'affaires en ligne a doublé en 6 semaines. »"}
+               en={'“Integrated in one afternoon. Our online revenue doubled in 6 weeks.”'} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, fontSize: 12, color: "rgba(250,250,247,0.6)" }}>
             <Avatar name="Marie K" size={28} color="var(--accent)" />
@@ -97,7 +97,7 @@ function MerchantLoginContent() {
             <T fr="Bon retour." en="Welcome back." />
           </h1>
           <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 28px", lineHeight: 1.45 }}>
-            <T fr="Connectez-vous \u00e0 votre dashboard Nkap Pay." en="Sign in to your Nkap Pay dashboard." />
+            <T fr="Connectez-vous à votre dashboard Nkap Pay." en="Sign in to your Nkap Pay dashboard." />
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -113,7 +113,7 @@ function MerchantLoginContent() {
               id="password"
               label={lang === "en" ? "Password" : "Mot de passe"}
               type="password"
-              placeholder={"\u2022".repeat(12)}
+              placeholder={"•".repeat(12)}
               error={errors.password?.message}
               {...register("password")}
             />
@@ -124,7 +124,7 @@ function MerchantLoginContent() {
                 <T fr="Se souvenir de moi" en="Remember me" />
               </label>
               <Link href="/merchant/forgot-password" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                <T fr="Mot de passe oubli\u00e9 ?" en="Forgot password?" />
+                <T fr="Mot de passe oublié ?" en="Forgot password?" />
               </Link>
             </div>
 
@@ -140,19 +140,19 @@ function MerchantLoginContent() {
           </div>
 
           <Button variant="ghost" style={{ width: "100%", justifyContent: "center" }}>
-            <Icon name="lock" size={14} /> <T fr="Code de r\u00e9cup\u00e9ration" en="Recovery code" />
+            <Icon name="lock" size={14} /> <T fr="Code de récupération" en="Recovery code" />
           </Button>
 
           <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 20 }}>
             <T fr="Pas encore de compte ? " en="Don't have an account? " />
             <Link href="/merchant/register" style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}>
-              <T fr="Cr\u00e9er un compte" en="Sign up" />
+              <T fr="Créer un compte" en="Sign up" />
             </Link>
           </div>
 
           <div style={{ textAlign: "center", marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
             <Link href="/auth/login" style={{ color: "var(--muted)", fontSize: 12, textDecoration: "none" }}>
-              <T fr="Acc\u00e8s admin" en="Admin login" />
+              <T fr="Accès admin" en="Admin login" />
             </Link>
           </div>
         </div>

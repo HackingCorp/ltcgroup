@@ -42,9 +42,9 @@ function methodColor(m: string): string {
 export default function WebhooksPage() {
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Op\u00e9rations" en="Operations" />, <T key="c2" fr="Webhooks TouchPay" en="TouchPay Webhooks" />]}
+      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Webhooks TouchPay" en="TouchPay Webhooks" />]}
       title={<T fr="Monitoring des webhooks TouchPay" en="TouchPay Webhook Monitoring" />}
-      sub={<T fr="Callbacks re\u00e7us et performance en temps r\u00e9el" en="Received callbacks and real-time performance" />}
+      sub={<T fr="Callbacks reçus et performance en temps réel" en="Received callbacks and real-time performance" />}
       actions={
         <button className="btn btn-ghost btn-sm">
           <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
@@ -54,7 +54,7 @@ export default function WebhooksPage() {
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
         <KpiCard hero label={<T fr="Callbacks 24h" en="Callbacks 24h" />} value={fmt(1247)} delta="+8% vs hier" deltaDir="up" />
-        <KpiCard label={<T fr="Taux de succ\u00e8s" en="Success rate" />} value="99,8" unit="%" delta="+0.1%" deltaDir="up" />
+        <KpiCard label={<T fr="Taux de succès" en="Success rate" />} value="99,8" unit="%" delta="+0.1%" deltaDir="up" />
         <KpiCard label={<T fr="Latence moyenne" en="Avg latency" />} value="142" unit="ms" delta="-12ms" deltaDir="down" />
         <KpiCard label={<T fr="Erreurs 24h" en="Errors 24h" />} value="3" after={<Pill tone="fail"><T fr="alerte" en="alert" /></Pill>} />
       </div>
@@ -63,14 +63,14 @@ export default function WebhooksPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-            <T fr="Par m\u00e9thode de paiement" en="By payment method" />
+            <T fr="Par méthode de paiement" en="By payment method" />
           </h3>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1.4fr 0.8fr 0.6fr 0.8fr 0.8fr" }}>
-          <div><T fr="M\u00e9thode" en="Method" /></div>
+          <div><T fr="Méthode" en="Method" /></div>
           <div style={{ textAlign: "right" }}><T fr="Volume" en="Volume" /></div>
           <div style={{ textAlign: "right" }}><T fr="Erreurs" en="Errors" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Taux succ\u00e8s" en="Success rate" /></div>
+          <div style={{ textAlign: "right" }}><T fr="Taux succès" en="Success rate" /></div>
           <div style={{ textAlign: "right" }}><T fr="Latence moy." en="Avg latency" /></div>
         </div>
         <div className="tbl">
@@ -99,18 +99,18 @@ export default function WebhooksPage() {
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontWeight: 500, fontSize: 16, margin: 0 }}>
-              <T fr="Callbacks r\u00e9cents" en="Recent callbacks" />
+              <T fr="Callbacks récents" en="Recent callbacks" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Derniers callbacks re\u00e7us de TouchPay" en="Latest callbacks received from TouchPay" />
+              <T fr="Derniers callbacks reçus de TouchPay" en="Latest callbacks received from TouchPay" />
             </p>
           </div>
-          <Pill tone="live"><T fr="Temps r\u00e9el" en="Live" /></Pill>
+          <Pill tone="live"><T fr="Temps réel" en="Live" /></Pill>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "0.7fr 1fr 1.4fr 0.6fr 0.7fr 0.6fr" }}>
           <div><T fr="Heure" en="Time" /></div>
-          <div><T fr="M\u00e9thode" en="Method" /></div>
-          <div><T fr="R\u00e9f\u00e9rence" en="Reference" /></div>
+          <div><T fr="Méthode" en="Method" /></div>
+          <div><T fr="Référence" en="Reference" /></div>
           <div style={{ textAlign: "right" }}><T fr="Code" en="Status code" /></div>
           <div style={{ textAlign: "right" }}><T fr="Latence" en="Latency" /></div>
           <div><T fr="Statut" en="Status" /></div>

@@ -34,15 +34,15 @@ const USERS: InternalUser[] = [
 
 const PERMISSIONS: { perm: string; fr: string; en: string; super_admin: boolean; admin: boolean; support: boolean; viewer: boolean }[] = [
   { perm: "dashboard_view",      fr: "Voir le dashboard",          en: "View dashboard",          super_admin: true,  admin: true,  support: true,  viewer: true },
-  { perm: "merchants_manage",    fr: "G\u00e9rer les marchands",        en: "Manage merchants",        super_admin: true,  admin: true,  support: false, viewer: false },
+  { perm: "merchants_manage",    fr: "Gérer les marchands",        en: "Manage merchants",        super_admin: true,  admin: true,  support: false, viewer: false },
   { perm: "payments_view",       fr: "Voir les paiements",         en: "View payments",           super_admin: true,  admin: true,  support: true,  viewer: true },
   { perm: "withdrawals_approve", fr: "Approuver les retraits",     en: "Approve withdrawals",     super_admin: true,  admin: true,  support: false, viewer: false },
-  { perm: "disputes_manage",     fr: "G\u00e9rer les litiges",         en: "Manage disputes",         super_admin: true,  admin: true,  support: true,  viewer: false },
+  { perm: "disputes_manage",     fr: "Gérer les litiges",         en: "Manage disputes",         super_admin: true,  admin: true,  support: true,  viewer: false },
   { perm: "fees_configure",      fr: "Configurer les frais",       en: "Configure fees",          super_admin: true,  admin: false, support: false, viewer: false },
-  { perm: "users_manage",        fr: "G\u00e9rer les utilisateurs",    en: "Manage users",            super_admin: true,  admin: false, support: false, viewer: false },
-  { perm: "audit_view",          fr: "Voir le journal d\u2019audit",   en: "View audit log",          super_admin: true,  admin: true,  support: false, viewer: false },
-  { perm: "system_health",       fr: "Sant\u00e9 syst\u00e8me",             en: "System health",           super_admin: true,  admin: true,  support: true,  viewer: false },
-  { perm: "api_keys_rotate",     fr: "Rotation des cl\u00e9s API",     en: "Rotate API keys",         super_admin: true,  admin: true,  support: false, viewer: false },
+  { perm: "users_manage",        fr: "Gérer les utilisateurs",    en: "Manage users",            super_admin: true,  admin: false, support: false, viewer: false },
+  { perm: "audit_view",          fr: "Voir le journal d'audit",   en: "View audit log",          super_admin: true,  admin: true,  support: false, viewer: false },
+  { perm: "system_health",       fr: "Santé système",             en: "System health",           super_admin: true,  admin: true,  support: true,  viewer: false },
+  { perm: "api_keys_rotate",     fr: "Rotation des clés API",     en: "Rotate API keys",         super_admin: true,  admin: true,  support: false, viewer: false },
 ];
 
 function roleTone(r: Role): "fail" | "warn" | "info" | "neutral" {
@@ -69,7 +69,7 @@ export default function UsersPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Utilisateurs internes" en="Internal Users" />]}
       title={<T fr="Utilisateurs internes (RBAC)" en="Internal Users (RBAC)" />}
-      sub={<T fr="Gestion des acc\u00e8s et des r\u00f4les" en="Access and role management" />}
+      sub={<T fr="Gestion des accès et des rôles" en="Access and role management" />}
       actions={
         <button className="btn btn-primary btn-sm">
           <Icon name="plus" size={13} color="white" /> <T fr="Inviter" en="Invite" />
@@ -83,15 +83,15 @@ export default function UsersPage() {
             <T fr="Utilisateurs" en="Users" />
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-            <T fr={`${USERS.length} utilisateurs enregistr\u00e9s`} en={`${USERS.length} registered users`} />
+            <T fr={`${USERS.length} utilisateurs enregistrés`} en={`${USERS.length} registered users`} />
           </p>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1.6fr 1.2fr 0.8fr 0.7fr 1fr 0.6fr" }}>
           <div><T fr="Utilisateur" en="User" /></div>
           <div><T fr="Email" en="Email" /></div>
-          <div><T fr="R\u00f4le" en="Role" /></div>
+          <div><T fr="Rôle" en="Role" /></div>
           <div><T fr="Statut" en="Status" /></div>
-          <div><T fr="Derni\u00e8re connexion" en="Last login" /></div>
+          <div><T fr="Dernière connexion" en="Last login" /></div>
           <div style={{ textAlign: "center" }}>2FA</div>
         </div>
         <div className="tbl">
@@ -127,7 +127,7 @@ export default function UsersPage() {
             <T fr="Matrice des permissions" en="Permissions matrix" />
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-            <T fr="Permissions par r\u00f4le" en="Permissions by role" />
+            <T fr="Permissions par rôle" en="Permissions by role" />
           </p>
         </div>
         <div className="row head" style={{ gridTemplateColumns: "1.8fr 0.7fr 0.7fr 0.7fr 0.7fr" }}>

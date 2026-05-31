@@ -72,7 +72,7 @@ export default function LoginPage() {
              en={<>Platform <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>administration</span>.</>} />
         </h2>
         <p style={{ color: "rgba(250,250,247,0.6)", fontSize: 14, maxWidth: 360, lineHeight: 1.5, marginBottom: 32 }}>
-          <T fr="Acc\u00e9dez au dashboard admin pour g\u00e9rer les marchands, les transactions et la plateforme."
+          <T fr="Accédez au dashboard admin pour gérer les marchands, les transactions et la plateforme."
              en="Access the admin dashboard to manage merchants, transactions and the platform." />
         </p>
       </aside>
@@ -110,7 +110,7 @@ export default function LoginPage() {
                 <T fr="Se souvenir de moi" en="Remember me" />
               </label>
               <Link href="/auth/forgot-password" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                <T fr="Mot de passe oubli\u00e9 ?" en="Forgot password?" />
+                <T fr="Mot de passe oublié ?" en="Forgot password?" />
               </Link>
             </div>
 
@@ -120,7 +120,7 @@ export default function LoginPage() {
           </form>
 
           <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 24 }}>
-            <T fr="Acc\u00e8s marchand ? " en="Merchant access? " />
+            <T fr="Accès marchand ? " en="Merchant access? " />
             <Link href="/merchant/login" style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}>
               <T fr="Portail marchand" en="Merchant portal" />
             </Link>

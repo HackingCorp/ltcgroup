@@ -8,9 +8,9 @@ import { T } from "@/lib/i18n";
 const REPORT_TYPES = [
   {
     icon: "receipt",
-    titleFr: "Encaissements d\u00e9taill\u00e9s",
+    titleFr: "Encaissements détaillés",
     titleEn: "Detailed collections",
-    descFr: "Toutes les transactions avec d\u00e9tails client, m\u00e9thode et frais",
+    descFr: "Toutes les transactions avec détails client, méthode et frais",
     descEn: "All transactions with customer details, method and fees",
     formatFr: "CSV, Excel, PDF",
     formatEn: "CSV, Excel, PDF",
@@ -19,16 +19,16 @@ const REPORT_TYPES = [
     icon: "bank",
     titleFr: "Rapprochement comptable",
     titleEn: "Accounting reconciliation",
-    descFr: "Soldes, r\u00e8glements et \u00e9carts par p\u00e9riode",
+    descFr: "Soldes, règlements et écarts par période",
     descEn: "Balances, payouts and discrepancies by period",
     formatFr: "Excel, PDF",
     formatEn: "Excel, PDF",
   },
   {
     icon: "briefcase",
-    titleFr: "Re\u00e7us fiscaux",
+    titleFr: "Reçus fiscaux",
     titleEn: "Tax receipts",
-    descFr: "Documents fiscaux pour la d\u00e9claration TVA/IS",
+    descFr: "Documents fiscaux pour la déclaration TVA/IS",
     descEn: "Tax documents for VAT/CIT declaration",
     formatFr: "PDF",
     formatEn: "PDF",
@@ -44,9 +44,9 @@ const REPORT_TYPES = [
   },
   {
     icon: "chart",
-    titleFr: "Performance par m\u00e9thode",
+    titleFr: "Performance par méthode",
     titleEn: "Performance by method",
-    descFr: "Taux de succ\u00e8s, montants moyens par canal de paiement",
+    descFr: "Taux de succès, montants moyens par canal de paiement",
     descEn: "Success rates, average amounts by payment channel",
     formatFr: "PDF",
     formatEn: "PDF",
@@ -55,7 +55,7 @@ const REPORT_TYPES = [
     icon: "users",
     titleFr: "Top clients",
     titleEn: "Top customers",
-    descFr: "Classement des clients par volume et fr\u00e9quence",
+    descFr: "Classement des clients par volume et fréquence",
     descEn: "Customer ranking by volume and frequency",
     formatFr: "CSV, Excel",
     formatEn: "CSV, Excel",
@@ -63,11 +63,11 @@ const REPORT_TYPES = [
 ];
 
 const RECENT_REPORTS = [
-  { name: "encaissements_mai_2026.csv", type: "Encaissements d\u00e9taill\u00e9s", typeEn: "Detailed collections", date: "29 mai 2026", size: "1,2 Mo", status: "ready" as const },
+  { name: "encaissements_mai_2026.csv", type: "Encaissements détaillés", typeEn: "Detailed collections", date: "29 mai 2026", size: "1,2 Mo", status: "ready" as const },
   { name: "rapprochement_avril_2026.xlsx", type: "Rapprochement comptable", typeEn: "Accounting reconciliation", date: "01 mai 2026", size: "845 Ko", status: "ready" as const },
-  { name: "fiscal_q1_2026.pdf", type: "Re\u00e7us fiscaux", typeEn: "Tax receipts", date: "05 avr 2026", size: "320 Ko", status: "ready" as const },
-  { name: "performance_mars_2026.pdf", type: "Performance par m\u00e9thode", typeEn: "Performance by method", date: "01 avr 2026", size: "520 Ko", status: "ready" as const },
-  { name: "encaissements_juin_2026.csv", type: "Encaissements d\u00e9taill\u00e9s", typeEn: "Detailed collections", date: "En cours...", size: "\u2014", status: "generating" as const },
+  { name: "fiscal_q1_2026.pdf", type: "Reçus fiscaux", typeEn: "Tax receipts", date: "05 avr 2026", size: "320 Ko", status: "ready" as const },
+  { name: "performance_mars_2026.pdf", type: "Performance par méthode", typeEn: "Performance by method", date: "01 avr 2026", size: "520 Ko", status: "ready" as const },
+  { name: "encaissements_juin_2026.csv", type: "Encaissements détaillés", typeEn: "Detailed collections", date: "En cours...", size: "—", status: "generating" as const },
 ];
 
 export default function MerchantReportsPage() {
@@ -75,7 +75,7 @@ export default function MerchantReportsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Rapports" en="Reports" />]}
       title={<T fr="Rapports" en="Reports" />}
-      sub={<T fr="G\u00e9n\u00e9rez et t\u00e9l\u00e9chargez des rapports d\u00e9taill\u00e9s pour votre activit\u00e9" en="Generate and download detailed reports for your activity" />}
+      sub={<T fr="Générez et téléchargez des rapports détaillés pour votre activité" en="Generate and download detailed reports for your activity" />}
     >
       {/* Report types grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -107,7 +107,7 @@ export default function MerchantReportsPage() {
                 <T fr={rt.formatFr} en={rt.formatEn} />
               </div>
               <button className="btn btn-primary btn-sm">
-                <T fr="G\u00e9n\u00e9rer" en="Generate" />
+                <T fr="Générer" en="Generate" />
               </button>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function MerchantReportsPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-            <T fr="Rapports r\u00e9cents" en="Recent reports" />
+            <T fr="Rapports récents" en="Recent reports" />
           </h3>
           <button className="btn btn-ghost btn-sm">
             <Icon name="refresh" size={13} /> <T fr="Actualiser" en="Refresh" />
@@ -146,7 +146,7 @@ export default function MerchantReportsPage() {
               <div style={{ fontSize: 12, color: "var(--muted)" }}>{r.size}</div>
               <div>
                 <Pill tone={r.status === "ready" ? "success" : "info"}>
-                  {r.status === "ready" ? <T fr="pr\u00eat" en="ready" /> : <T fr="en cours" en="generating" />}
+                  {r.status === "ready" ? <T fr="prêt" en="ready" /> : <T fr="en cours" en="generating" />}
                 </Pill>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>

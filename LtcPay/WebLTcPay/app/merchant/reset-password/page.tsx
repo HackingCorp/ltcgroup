@@ -14,7 +14,7 @@ import { T, useLang, LangProvider } from "@/lib/i18n";
 
 const schema = z
   .object({
-    password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caract\u00e8res"),
+    password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -41,16 +41,16 @@ function ResetPasswordContent() {
 
   const onSubmit = async (data: ResetPasswordForm) => {
     if (!token) {
-      toast.error("Token de r\u00e9initialisation manquant");
+      toast.error("Token de réinitialisation manquant");
       return;
     }
     setIsLoading(true);
     try {
       await merchantAuthService.resetPassword(token, data.password);
-      toast.success(lang === "en" ? "Password reset successfully" : "Mot de passe r\u00e9initialis\u00e9 avec succ\u00e8s");
+      toast.success(lang === "en" ? "Password reset successfully" : "Mot de passe réinitialisé avec succès");
       router.push("/merchant/login");
     } catch {
-      toast.error(lang === "en" ? "Invalid or expired token" : "Token invalide ou expir\u00e9");
+      toast.error(lang === "en" ? "Invalid or expired token" : "Token invalide ou expiré");
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +84,7 @@ function ResetPasswordContent() {
                 <T fr="Lien invalide" en="Invalid link" />
               </h1>
               <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 28px", lineHeight: 1.45 }}>
-                <T fr="Le lien de r\u00e9initialisation est invalide ou a expir\u00e9." en="The reset link is invalid or has expired." />
+                <T fr="Le lien de réinitialisation est invalide ou a expiré." en="The reset link is invalid or has expired." />
               </p>
               <Link href="/merchant/forgot-password">
                 <Button variant="primary" size="lg" style={{ width: "100%", justifyContent: "center" }}>
@@ -105,7 +105,7 @@ function ResetPasswordContent() {
                   id="password"
                   label={lang === "en" ? "New password" : "Nouveau mot de passe"}
                   type="password"
-                  placeholder={lang === "en" ? "Min. 8 characters" : "Min. 8 caract\u00e8res"}
+                  placeholder={lang === "en" ? "Min. 8 characters" : "Min. 8 caractères"}
                   error={errors.password?.message}
                   {...register("password")}
                 />
@@ -113,17 +113,17 @@ function ResetPasswordContent() {
                   id="confirmPassword"
                   label={lang === "en" ? "Confirm password" : "Confirmer le mot de passe"}
                   type="password"
-                  placeholder={lang === "en" ? "Repeat the password" : "R\u00e9p\u00e9tez le mot de passe"}
+                  placeholder={lang === "en" ? "Repeat the password" : "Répétez le mot de passe"}
                   error={errors.confirmPassword?.message}
                   {...register("confirmPassword")}
                 />
                 <Button type="submit" variant="primary" size="lg" isLoading={isLoading} style={{ marginTop: 8, justifyContent: "center", width: "100%" }}>
-                  <T fr="R\u00e9initialiser" en="Reset password" /> <Icon name="lock" size={14} color="white" />
+                  <T fr="Réinitialiser" en="Reset password" /> <Icon name="lock" size={14} color="white" />
                 </Button>
               </form>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 16 }}>
                 <Link href="/merchant/login" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                  {"\u2190"} <T fr="Retour \u00e0 la connexion" en="Back to sign in" />
+                  {"←"} <T fr="Retour à la connexion" en="Back to sign in" />
                 </Link>
               </div>
             </>

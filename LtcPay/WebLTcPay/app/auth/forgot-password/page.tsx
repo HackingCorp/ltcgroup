@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
           <span style={{ fontFamily: "var(--display)", fontWeight: 600, fontSize: 17 }}>Nkap Pay</span>
         </Link>
         <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 40, lineHeight: 1.1, letterSpacing: "-0.02em", margin: "auto 0 16px" }}>
-          <T fr={<>Pas de panique. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>{"\u00c7"}a arrive.</span></>}
+          <T fr={<>Pas de panique. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>{"Ç"}a arrive.</span></>}
              en={<>No worries. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>It happens.</span></>} />
         </h2>
       </aside>
@@ -72,10 +72,10 @@ export default function ForgotPasswordPage() {
           {!sent ? (
             <>
               <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 36, letterSpacing: "-0.025em", lineHeight: 1.05, margin: "0 0 8px" }}>
-                <T fr="R\u00e9initialiser le mot de passe" en="Reset your password" />
+                <T fr="Réinitialiser le mot de passe" en="Reset your password" />
               </h1>
               <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 28px", lineHeight: 1.45 }}>
-                <T fr="Saisissez votre email et nous vous enverrons un lien s\u00e9curis\u00e9." en="Enter your email and we'll send you a secure link." />
+                <T fr="Saisissez votre email et nous vous enverrons un lien sécurisé." en="Enter your email and we'll send you a secure link." />
               </p>
               <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <Input
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
               </form>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 16 }}>
                 <Link href="/auth/login" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                  {"\u2190"} <T fr="Retour \u00e0 la connexion" en="Back to sign in" />
+                  {"←"} <T fr="Retour à la connexion" en="Back to sign in" />
                 </Link>
               </div>
             </>
@@ -103,9 +103,9 @@ export default function ForgotPasswordPage() {
                   <Icon name="check" size={16} color="white" />
                 </div>
                 <div>
-                  <strong style={{ display: "block", marginBottom: 4 }}><T fr="Email envoy\u00e9 !" en="Email sent!" /></strong>
+                  <strong style={{ display: "block", marginBottom: 4 }}><T fr="Email envoyé !" en="Email sent!" /></strong>
                   <p style={{ margin: 0, fontSize: 13, color: "var(--ink-3)", lineHeight: 1.5 }}>
-                    <T fr="V\u00e9rifiez votre bo\u00eete de r\u00e9ception. Le lien expire dans 30 minutes." en="Check your inbox. The link expires in 30 minutes." />
+                    <T fr="Vérifiez votre boîte de réception. Le lien expire dans 30 minutes." en="Check your inbox. The link expires in 30 minutes." />
                   </p>
                 </div>
               </div>
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
               </Button>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 16 }}>
                 <Link href="/auth/login" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                  {"\u2190"} <T fr="Retour \u00e0 la connexion" en="Back to sign in" />
+                  {"←"} <T fr="Retour à la connexion" en="Back to sign in" />
                 </Link>
               </div>
             </>

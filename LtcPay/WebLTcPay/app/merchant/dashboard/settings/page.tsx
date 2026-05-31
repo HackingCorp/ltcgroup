@@ -11,26 +11,26 @@ type Tab = "account" | "payouts" | "security" | "branding" | "danger";
 
 const TABS: { key: Tab; fr: string; en: string; icon: string }[] = [
   { key: "account", fr: "Compte", en: "Account", icon: "building" },
-  { key: "payouts", fr: "R\u00e8glements", en: "Payouts", icon: "bank" },
-  { key: "security", fr: "S\u00e9curit\u00e9", en: "Security", icon: "shield" },
+  { key: "payouts", fr: "Règlements", en: "Payouts", icon: "bank" },
+  { key: "security", fr: "Sécurité", en: "Security", icon: "shield" },
   { key: "branding", fr: "Marque", en: "Branding", icon: "star" },
   { key: "danger", fr: "Zone danger", en: "Danger zone", icon: "alert" },
 ];
 
 const BUSINESS_INFO = [
   { labelFr: "Raison sociale", labelEn: "Business name", value: "LTC Group SARL", verified: true },
-  { labelFr: "Num\u00e9ro RCCM", labelEn: "RCCM number", value: "RC/DLA/2024/B/1847", verified: true },
+  { labelFr: "Numéro RCCM", labelEn: "RCCM number", value: "RC/DLA/2024/B/1847", verified: true },
   { labelFr: "NIU", labelEn: "Tax ID", value: "M012400028471R", verified: true },
   { labelFr: "Adresse", labelEn: "Address", value: "Rue 1.033, Bonanjo, Douala", verified: false },
-  { labelFr: "Secteur d\u0027activit\u00e9", labelEn: "Industry", value: "Fintech / Paiements", verified: false },
+  { labelFr: "Secteur d'activité", labelEn: "Industry", value: "Fintech / Paiements", verified: false },
   { labelFr: "Site web", labelEn: "Website", value: "https://nkap.pay", verified: true },
   { labelFr: "Email de contact", labelEn: "Contact email", value: "contact@ltcgroup.cm", verified: true },
-  { labelFr: "T\u00e9l\u00e9phone", labelEn: "Phone", value: "+237 6 99 12 34 56", verified: false },
+  { labelFr: "Téléphone", labelEn: "Phone", value: "+237 6 99 12 34 56", verified: false },
 ];
 
 const BANK_ACCOUNTS = [
   { bank: "Afriland First Bank", account: "****7823", type: "Compte courant", typeEn: "Current account", primary: true },
-  { bank: "Ecobank Cameroun", account: "****4501", type: "\u00c9pargne", typeEn: "Savings", primary: false },
+  { bank: "Ecobank Cameroun", account: "****4501", type: "Épargne", typeEn: "Savings", primary: false },
 ];
 
 const IP_WHITELIST = [
@@ -48,9 +48,9 @@ export default function MerchantSettingsPage() {
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Param\u00e8tres" en="Settings" />]}
-      title={<T fr="Param\u00e8tres" en="Settings" />}
-      sub={<T fr="Configuration g\u00e9n\u00e9rale de votre compte marchand Nkap Pay" en="General configuration for your Nkap Pay merchant account" />}
+      crumb={[<T key="c1" fr="Compte" en="Account" />, <T key="c2" fr="Paramètres" en="Settings" />]}
+      title={<T fr="Paramètres" en="Settings" />}
+      sub={<T fr="Configuration générale de votre compte marchand Nkap Pay" en="General configuration for your Nkap Pay merchant account" />}
     >
       <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16 }}>
         {/* Tab navigation */}
@@ -90,10 +90,10 @@ export default function MerchantSettingsPage() {
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-                    <T fr="Informations de l\u0027entreprise" en="Business information" />
+                    <T fr="Informations de l'entreprise" en="Business information" />
                   </h3>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
-                    <T fr="Donn\u00e9es v\u00e9rifi\u00e9es lors du KYC" en="Data verified during KYC" />
+                    <T fr="Données vérifiées lors du KYC" en="Data verified during KYC" />
                   </div>
                 </div>
                 <button className="btn btn-ghost btn-sm">
@@ -117,9 +117,9 @@ export default function MerchantSettingsPage() {
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{info.value}</div>
                   <div>
                     {info.verified ? (
-                      <Pill tone="success"><Icon name="check" size={10} /> <T fr="v\u00e9rifi\u00e9" en="verified" /></Pill>
+                      <Pill tone="success"><Icon name="check" size={10} /> <T fr="vérifié" en="verified" /></Pill>
                     ) : (
-                      <Pill tone="neutral"><T fr="non v\u00e9rifi\u00e9" en="unverified" /></Pill>
+                      <Pill tone="neutral"><T fr="non vérifié" en="unverified" /></Pill>
                     )}
                   </div>
                 </div>
@@ -164,7 +164,7 @@ export default function MerchantSettingsPage() {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500 }}>{ba.bank}</div>
                         <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
-                          {ba.account} {"\u00b7"} <T fr={ba.type} en={ba.typeEn} />
+                          {ba.account} {"·"} <T fr={ba.type} en={ba.typeEn} />
                         </div>
                       </div>
                     </div>
@@ -178,12 +178,12 @@ export default function MerchantSettingsPage() {
 
               <div className="card" style={{ padding: 20 }}>
                 <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-                  <T fr="Calendrier de r\u00e8glement" en="Payout schedule" />
+                  <T fr="Calendrier de règlement" en="Payout schedule" />
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                   {[
-                    { fr: "Fr\u00e9quence", en: "Frequency", value: "Hebdomadaire", valueEn: "Weekly" },
-                    { fr: "Jour de r\u00e8glement", en: "Payout day", value: "Vendredi", valueEn: "Friday" },
+                    { fr: "Fréquence", en: "Frequency", value: "Hebdomadaire", valueEn: "Weekly" },
+                    { fr: "Jour de règlement", en: "Payout day", value: "Vendredi", valueEn: "Friday" },
                     { fr: "Seuil minimum", en: "Minimum threshold", value: "50 000 F", valueEn: "50,000 F" },
                   ].map(item => (
                     <div key={item.fr} style={{ padding: 14, background: "var(--bg-2)", borderRadius: 8 }}>
@@ -215,10 +215,10 @@ export default function MerchantSettingsPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500 }}>
-                          <T fr="Authentification \u00e0 deux facteurs (2FA)" en="Two-factor authentication (2FA)" />
+                          <T fr="Authentification à deux facteurs (2FA)" en="Two-factor authentication (2FA)" />
                         </div>
                         <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          <T fr="Code TOTP requis \u00e0 chaque connexion" en="TOTP code required on each login" />
+                          <T fr="Code TOTP requis à chaque connexion" en="TOTP code required on each login" />
                         </div>
                       </div>
                     </div>
@@ -255,7 +255,7 @@ export default function MerchantSettingsPage() {
                           <T fr="Alertes de connexion" en="Login alerts" />
                         </div>
                         <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                          <T fr="Email lors d\u0027une connexion depuis un nouvel appareil" en="Email on login from a new device" />
+                          <T fr="Email lors d'une connexion depuis un nouvel appareil" en="Email on login from a new device" />
                         </div>
                       </div>
                     </div>
@@ -299,7 +299,7 @@ export default function MerchantSettingsPage() {
                 <T fr="Personnalisation du checkout" en="Checkout customization" />
               </h3>
               <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 20 }}>
-                <T fr="Adaptez l\u0027apparence de la page de paiement \u00e0 votre marque" en="Adapt the payment page appearance to your brand" />
+                <T fr="Adaptez l'apparence de la page de paiement à votre marque" en="Adapt the payment page appearance to your brand" />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -310,7 +310,7 @@ export default function MerchantSettingsPage() {
                       <Icon name="upload" size={20} color="var(--muted)" />
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}><T fr="Logo de l\u0027entreprise" en="Company logo" /></div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}><T fr="Logo de l'entreprise" en="Company logo" /></div>
                       <div style={{ fontSize: 12, color: "var(--muted)" }}><T fr="PNG ou SVG, 512x512 max" en="PNG or SVG, 512x512 max" /></div>
                     </div>
                   </div>
@@ -333,7 +333,7 @@ export default function MerchantSettingsPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: 8 }}>
                       <div style={{ width: 28, height: 28, borderRadius: 6, background: "#e8b931", border: "2px solid var(--line)" }} />
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 500 }}><T fr="Couleur d\u0027accent" en="Accent color" /></div>
+                        <div style={{ fontSize: 12, fontWeight: 500 }}><T fr="Couleur d'accent" en="Accent color" /></div>
                         <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>#e8b931</div>
                       </div>
                     </div>
@@ -393,17 +393,17 @@ export default function MerchantSettingsPage() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "oklch(0.5 0.15 30)" }}>
-                      <T fr="D\u00e9sactiver le mode production" en="Disable live mode" />
+                      <T fr="Désactiver le mode production" en="Disable live mode" />
                     </div>
                     <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                       <T
-                        fr="Basculer en mode test. Les paiements en production seront refus\u00e9s."
+                        fr="Basculer en mode test. Les paiements en production seront refusés."
                         en="Switch to test mode. Live payments will be rejected."
                       />
                     </div>
                   </div>
                   <button className="btn btn-danger btn-sm">
-                    <T fr="D\u00e9sactiver" en="Disable" />
+                    <T fr="Désactiver" en="Disable" />
                   </button>
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function MerchantSettingsPage() {
                     </div>
                     <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                       <T
-                        fr="Cette action est irr\u00e9versible. Toutes les donn\u00e9es seront supprim\u00e9es d\u00e9finitivement."
+                        fr="Cette action est irréversible. Toutes les données seront supprimées définitivement."
                         en="This action is irreversible. All data will be permanently deleted."
                       />
                     </div>
@@ -432,7 +432,7 @@ export default function MerchantSettingsPage() {
                   <Icon name="info" size={16} color="var(--ink)" />
                   <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
                     <T
-                      fr="Avant de supprimer votre compte, assurez-vous que tous les r\u00e8glements en attente ont \u00e9t\u00e9 trait\u00e9s et que vous avez t\u00e9l\u00e9charg\u00e9 tous vos rapports fiscaux."
+                      fr="Avant de supprimer votre compte, assurez-vous que tous les règlements en attente ont été traités et que vous avez téléchargé tous vos rapports fiscaux."
                       en="Before deleting your account, make sure all pending payouts have been processed and you have downloaded all your tax reports."
                     />
                   </div>

@@ -35,9 +35,9 @@ function MerchantForgotPasswordContent() {
     try {
       await merchantAuthService.forgotPassword(data.email);
       setSent(true);
-      toast.success(lang === "en" ? "Request sent" : "Demande envoy\u00e9e");
+      toast.success(lang === "en" ? "Request sent" : "Demande envoyée");
     } catch {
-      toast.error(lang === "en" ? "Failed to send" : "\u00c9chec de l\u2019envoi");
+      toast.error(lang === "en" ? "Failed to send" : "Échec de l'envoi");
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +58,7 @@ function MerchantForgotPasswordContent() {
           <span style={{ fontFamily: "var(--display)", fontWeight: 600, fontSize: 17 }}>Nkap Pay</span>
         </Link>
         <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 40, lineHeight: 1.1, letterSpacing: "-0.02em", margin: "auto 0 16px" }}>
-          <T fr={<>Pas de panique. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>{"\u00c7"}a arrive.</span></>}
+          <T fr={<>Pas de panique. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>{"Ç"}a arrive.</span></>}
              en={<>No worries. <br /><span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>It happens.</span></>} />
         </h2>
       </aside>
@@ -68,10 +68,10 @@ function MerchantForgotPasswordContent() {
           {!sent ? (
             <>
               <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 36, letterSpacing: "-0.025em", lineHeight: 1.05, margin: "0 0 8px" }}>
-                <T fr="Mot de passe oubli\u00e9 ?" en="Forgot your password?" />
+                <T fr="Mot de passe oublié ?" en="Forgot your password?" />
               </h1>
               <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 28px", lineHeight: 1.45 }}>
-                <T fr="Saisissez votre email et nous vous enverrons un lien s\u00e9curis\u00e9 pour cr\u00e9er un nouveau mot de passe."
+                <T fr="Saisissez votre email et nous vous enverrons un lien sécurisé pour créer un nouveau mot de passe."
                    en="Enter your email and we'll send you a secure link to set a new password." />
               </p>
               <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -89,7 +89,7 @@ function MerchantForgotPasswordContent() {
               </form>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 16 }}>
                 <Link href="/merchant/login" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                  {"\u2190"} <T fr="Retour \u00e0 la connexion" en="Back to sign in" />
+                  {"←"} <T fr="Retour à la connexion" en="Back to sign in" />
                 </Link>
               </div>
             </>
@@ -100,9 +100,9 @@ function MerchantForgotPasswordContent() {
                   <Icon name="check" size={16} color="white" />
                 </div>
                 <div>
-                  <strong style={{ display: "block", marginBottom: 4 }}><T fr="Email envoy\u00e9 !" en="Email sent!" /></strong>
+                  <strong style={{ display: "block", marginBottom: 4 }}><T fr="Email envoyé !" en="Email sent!" /></strong>
                   <p style={{ margin: 0, fontSize: 13, color: "var(--ink-3)", lineHeight: 1.5 }}>
-                    <T fr="Si un compte existe avec cette adresse, un lien de r\u00e9initialisation a \u00e9t\u00e9 envoy\u00e9. Le lien expire dans 30 minutes."
+                    <T fr="Si un compte existe avec cette adresse, un lien de réinitialisation a été envoyé. Le lien expire dans 30 minutes."
                        en="If an account exists with this email, a reset link has been sent. The link expires in 30 minutes." />
                   </p>
                 </div>
@@ -112,7 +112,7 @@ function MerchantForgotPasswordContent() {
               </Button>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 16 }}>
                 <Link href="/merchant/login" style={{ color: "var(--primary)", textDecoration: "none" }}>
-                  {"\u2190"} <T fr="Retour \u00e0 la connexion" en="Back to sign in" />
+                  {"←"} <T fr="Retour à la connexion" en="Back to sign in" />
                 </Link>
               </div>
             </>

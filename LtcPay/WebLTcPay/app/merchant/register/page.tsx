@@ -96,14 +96,14 @@ function MerchantRegisterContent() {
                   <Icon name="check" size={18} color="var(--ink)" />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 500 }}><T fr="Mode test activ\u00e9" en="Test mode active" /></div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}><T fr="Paiements test illimit\u00e9s" en="Unlimited test payments" /></div>
+                  <div style={{ fontWeight: 500 }}><T fr="Mode test activé" en="Test mode active" /></div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}><T fr="Paiements test illimités" en="Unlimited test payments" /></div>
                 </div>
               </div>
             </div>
 
             <p style={{ fontSize: 13, color: "var(--rose)", fontWeight: 500, margin: "0 0 16px" }}>
-              <T fr="Sauvegardez ces identifiants maintenant. Le secret API ne peut pas \u00eatre r\u00e9cup\u00e9r\u00e9." en="Save these credentials now. The API secret cannot be retrieved again." />
+              <T fr="Sauvegardez ces identifiants maintenant. Le secret API ne peut pas être récupéré." en="Save these credentials now. The API secret cannot be retrieved again." />
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -159,21 +159,21 @@ function MerchantRegisterContent() {
         </Link>
 
         <h2 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 40, lineHeight: 1.1, letterSpacing: "-0.02em", margin: "auto 0 16px" }}>
-          <T fr={<>Commencez <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>gratuitement</span>. Aucune pi\u00e8ce requise.</>}
+          <T fr={<>Commencez <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>gratuitement</span>. Aucune pièce requise.</>}
              en={<>Start <span style={{ background: "var(--accent)", color: "var(--ink)", padding: "0 6px", borderRadius: 6 }}>for free</span>. No documents needed.</>} />
         </h2>
         <p style={{ color: "rgba(250,250,247,0.6)", fontSize: 14, maxWidth: 360, lineHeight: 1.5, marginBottom: 32 }}>
-          <T fr="Testez l'API et le checkout en mode sandbox imm\u00e9diatement. KYC seulement pour passer en production."
+          <T fr="Testez l'API et le checkout en mode sandbox immédiatement. KYC seulement pour passer en production."
              en="Test the API and checkout in sandbox right away. KYC only required to go live." />
         </p>
 
         <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 20, backdropFilter: "blur(8px)" }}>
           <div style={{ fontFamily: "var(--display)", fontSize: 16, lineHeight: 1.45 }}>
-            <T fr={"\u00ab On a couvert 8 pays en 2 semaines. Avant Nkap, il fallait 6 mois par pays. \u00bb"}
-               en={"\u201cWe covered 8 countries in 2 weeks. Before Nkap, each country took 6 months.\u201d"} />
+            <T fr={"« On a couvert 8 pays en 2 semaines. Avant Nkap, il fallait 6 mois par pays. »"}
+               en={'“We covered 8 countries in 2 weeks. Before Nkap, each country took 6 months.”'} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, fontSize: 12, color: "rgba(250,250,247,0.6)" }}>
-            <span>S\u00e9bastien K. — CTO, KILIMO SARL</span>
+            <span>Sébastien K. — CTO, KILIMO SARL</span>
           </div>
         </div>
       </aside>
@@ -181,7 +181,7 @@ function MerchantRegisterContent() {
       <section style={{ display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto" }}>
         <div className="auth-form-wrap">
           <h1 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 36, letterSpacing: "-0.025em", lineHeight: 1.05, margin: "0 0 8px" }}>
-            <T fr="Cr\u00e9er votre compte" en="Create your account" />
+            <T fr="Créer votre compte" en="Create your account" />
           </h1>
           <p style={{ color: "var(--muted)", fontSize: 14, margin: "0 0 28px", lineHeight: 1.45 }}>
             <T fr="Quelques infos rapides pour configurer votre compte marchand." en="A few quick details to set up your merchant account." />
@@ -207,13 +207,13 @@ function MerchantRegisterContent() {
               id="password"
               label={lang === "en" ? "Password" : "Mot de passe"}
               type="password"
-              placeholder={lang === "en" ? "Min. 8 characters" : "Min. 8 caract\u00e8res"}
+              placeholder={lang === "en" ? "Min. 8 characters" : "Min. 8 caractères"}
               error={errors.password?.message}
               {...register("password")}
             />
             <Input
               id="phone"
-              label={lang === "en" ? "Phone (optional)" : "T\u00e9l\u00e9phone (optionnel)"}
+              label={lang === "en" ? "Phone (optional)" : "Téléphone (optionnel)"}
               placeholder="+237 670 12 34 56"
               {...register("phone")}
             />
@@ -225,12 +225,12 @@ function MerchantRegisterContent() {
             />
 
             <Button type="submit" variant="primary" size="lg" isLoading={isLoading} style={{ marginTop: 8, justifyContent: "center", width: "100%" }}>
-              <T fr="Cr\u00e9er le compte" en="Create account" /> <Icon name="arrow" size={14} color="white" />
+              <T fr="Créer le compte" en="Create account" /> <Icon name="arrow" size={14} color="white" />
             </Button>
           </form>
 
           <div style={{ textAlign: "center", fontSize: 13, color: "var(--muted)", marginTop: 20 }}>
-            <T fr="D\u00e9j\u00e0 un compte ? " en="Already have an account? " />
+            <T fr="Déjà un compte ? " en="Already have an account? " />
             <Link href="/merchant/login" style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}>
               <T fr="Se connecter" en="Sign in" />
             </Link>
