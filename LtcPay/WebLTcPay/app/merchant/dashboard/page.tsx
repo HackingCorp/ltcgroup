@@ -15,19 +15,24 @@ import type { MerchantDashboardStats, BalanceInfo } from "@/types";
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
-function methodKind(m?: string): string {
-  if (!m) return "card";
-  const lower = m.toLowerCase();
-  if (lower.includes("orange") || lower.includes("om")) return "orange";
-  if (lower.includes("mtn") || lower.includes("momo")) return "mtn";
-  if (lower.includes("wave")) return "wave";
+function methodKind(method?: string, operator?: string): string {
+  const op = (operator || "").toLowerCase();
+  if (op.includes("orange") || op === "om") return "orange";
+  if (op.includes("mtn")) return "mtn";
+  if (op.includes("wave")) return "wave";
+  const m = (method || "").toLowerCase();
+  if (m.includes("orange") || m.includes("om")) return "orange";
+  if (m.includes("mtn") || m.includes("momo")) return "mtn";
+  if (m.includes("wave")) return "wave";
+  if (m === "sdk" || m === "direct_api" || m === "mobile_money") return "orange";
   return "card";
 }
 
 function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
-  if (s === "completed") return "success";
-  if (s === "pending") return "warn";
-  if (s === "failed" || s === "expired" || s === "cancelled") return "fail";
+  const lower = s.toLowerCase();
+  if (lower === "completed") return "success";
+  if (lower === "pending" || lower === "processing") return "warn";
+  if (lower === "failed" || lower === "expired" || lower === "cancelled") return "fail";
   return "neutral";
 }
 
@@ -493,7 +498,7 @@ export default function MerchantDashboardPage() {
 
                 {/* Method */}
                 <div>
-                  <MethodChip kind={methodKind(p.payment_method)} />
+                  <MethodChip kind={methodKind(p.payment_method, (p as any).operator)} />
                 </div>
 
                 {/* Status */}

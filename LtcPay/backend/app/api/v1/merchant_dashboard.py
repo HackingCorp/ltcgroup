@@ -105,6 +105,8 @@ async def get_merchant_stats(
                 "description": p.description,
                 "customer_email": p.customer_email,
                 "customer_phone": p.customer_phone,
+                "payment_method": p.payment_mode.value if p.payment_mode and hasattr(p.payment_mode, "value") else p.payment_mode,
+                "operator": p.operator.value if p.operator and hasattr(p.operator, "value") else p.operator,
                 "created_at": p.created_at.isoformat(),
                 "updated_at": p.updated_at.isoformat(),
             }
@@ -163,6 +165,7 @@ async def list_merchant_payments(
                 "customer_email": p.customer_email,
                 "customer_phone": p.customer_phone,
                 "payment_method": p.payment_mode.value if p.payment_mode and hasattr(p.payment_mode, "value") else p.payment_mode,
+                "operator": p.operator.value if p.operator and hasattr(p.operator, "value") else p.operator,
                 "created_at": p.created_at.isoformat(),
                 "updated_at": p.updated_at.isoformat(),
             }
@@ -201,6 +204,7 @@ async def get_merchant_payment(
         "customer_email": payment.customer_email,
         "customer_phone": payment.customer_phone,
         "payment_method": payment.payment_mode.value if payment.payment_mode and hasattr(payment.payment_mode, "value") else payment.payment_mode,
+        "operator": payment.operator.value if payment.operator and hasattr(payment.operator, "value") else payment.operator,
         "callback_url": payment.callback_url,
         "metadata": payment.payment_metadata,
         "created_at": payment.created_at.isoformat(),
