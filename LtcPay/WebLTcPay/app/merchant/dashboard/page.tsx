@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
@@ -9,22 +9,33 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { MethodChip } from "@/components/ui/method-chip";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
-import { fmtXAF } from "@/lib/format";
+import { fmtXAF, fmtDate, fmtTime } from "@/lib/format";
+import { merchantDashboardService } from "@/services/merchant-dashboard.service";
+import type { MerchantDashboardStats, BalanceInfo } from "@/types";
 
-/* ── Mock data ──────────────────────────────────────────────── */
+/* ── Helpers ───────────────────────────────────────────────── */
+
+function methodKind(m?: string): string {
+  if (!m) return "card";
+  const lower = m.toLowerCase();
+  if (lower.includes("orange") || lower.includes("om")) return "orange";
+  if (lower.includes("mtn") || lower.includes("momo")) return "mtn";
+  if (lower.includes("wave")) return "wave";
+  return "card";
+}
+
+function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
+  if (s === "completed") return "success";
+  if (s === "pending") return "warn";
+  if (s === "failed" || s === "expired" || s === "cancelled") return "fail";
+  return "neutral";
+}
+
+/* ── Mock data (charts & alerts only) ──────────────────────── */
 
 const REV_30 = [
   42, 48, 51, 47, 55, 62, 58, 71, 68, 75, 82, 79, 88, 95, 92, 105, 112, 108,
   122, 135, 128, 142, 158, 165, 172, 180, 195, 208, 215, 232,
-];
-
-const MOCK_TX = [
-  { ref: "PAY-9F4A2B7C", merchantRef: "ORDER-3041", amount: 75000, fee: 1125, method: "orange", status: "success", customer: "Jean-Pierre Mbarga", phone: "+237 670 12 34 56", date: "2026-05-26T14:42:00" },
-  { ref: "PAY-8E2D71AC", merchantRef: "ORDER-3040", amount: 12500, fee: 188, method: "mtn", status: "success", customer: "Awa Diop", phone: "+221 77 234 56 78", date: "2026-05-26T14:35:00" },
-  { ref: "PAY-7C8B92F1", merchantRef: "ORDER-3039", amount: 350000, fee: 5250, method: "card", status: "pending", customer: "Societe KILIMO SARL", phone: "+237 233 42 11 22", date: "2026-05-26T14:28:00" },
-  { ref: "PAY-6A1D34B8", merchantRef: "ORDER-3038", amount: 8500, fee: 128, method: "wave", status: "success", customer: "Fatou Ndiaye", phone: "+221 77 891 23 45", date: "2026-05-26T14:22:00" },
-  { ref: "PAY-5B7E81C2", merchantRef: "ORDER-3037", amount: 45000, fee: 675, method: "orange", status: "failed", customer: "Henri Talla", phone: "+237 695 33 22 11", date: "2026-05-26T14:08:00" },
-  { ref: "PAY-4D9F22A6", merchantRef: "ORDER-3036", amount: 120000, fee: 1800, method: "mtn", status: "success", customer: "Marie-Claire Nkomo", phone: "+237 676 98 76 54", date: "2026-05-26T13:55:00" },
 ];
 
 const METHOD_MIX = [
@@ -102,6 +113,64 @@ function MethodDonutSVG() {
 
 export default function MerchantDashboardPage() {
   const [withdraw, setWithdraw] = useState(false);
+  const [stats, setStats] = useState<MerchantDashboardStats | null>(null);
+  const [balance, setBalance] = useState<BalanceInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [statsData, balanceData] = await Promise.all([
+          merchantDashboardService.getStats(),
+          merchantDashboardService.getBalance(),
+        ]);
+        setStats(statsData);
+        setBalance(balanceData);
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  /* ── Loading state ──────────────────────────────────────── */
+  if (loading) {
+    return (
+      <PageWrapper
+        crumb={[
+          <T key="c1" fr="Encaissement" en="Collect" />,
+          <T key="c2" fr="Vue d'ensemble" en="Overview" />,
+        ]}
+        title={<T fr="Chargement…" en="Loading…" />}
+        sub={<T fr="Récupération des données" en="Fetching data" />}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: 320,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              border: "3px solid var(--line)",
+              borderTopColor: "var(--primary)",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  const recentPayments = stats?.recent_payments ?? [];
 
   return (
     <PageWrapper
@@ -111,13 +180,13 @@ export default function MerchantDashboardPage() {
       ]}
       title={
         <T
-          fr="Aujourd'hui, vous avez encaisse 847 250 F"
-          en="Today, you collected 847,250 F"
+          fr={`Aujourd'hui, vous avez encaissé ${fmtXAF(stats?.total_revenue ?? 0)}`}
+          en={`Today, you collected ${fmtXAF(stats?.total_revenue ?? 0)}`}
         />
       }
       sub={
         <T
-          fr="Solde temps reel · reglement programme demain"
+          fr="Solde temps réel · règlement programmé demain"
           en="Live balance · settlement scheduled tomorrow"
         />
       }
@@ -134,7 +203,7 @@ export default function MerchantDashboardPage() {
             style={{ textDecoration: "none" }}
           >
             <Icon name="plus" size={13} color="white" />{" "}
-            <T fr="Creer un paiement" en="Create payment" />
+            <T fr="Créer un paiement" en="Create payment" />
           </Link>
         </>
       }
@@ -147,17 +216,16 @@ export default function MerchantDashboardPage() {
           marginBottom: 12,
         }}
       >
-        {/* Hero — Balance a regler */}
+        {/* Hero — Solde disponible */}
         <KpiCard
           hero
           label={
             <>
-              <T fr="Solde disponible" en="Available balance" /> {"·"} XAF
+              <T fr="Solde disponible" en="Available balance" /> {"·"} {balance?.currency ?? "XAF"}
             </>
           }
           after={<Icon name="eye" size={13} color="rgba(255,255,255,0.4)" />}
-          value="12 482 615"
-          unit="F"
+          value={fmtXAF(balance?.available_balance ?? 0)}
         >
           <div
             style={{
@@ -170,7 +238,7 @@ export default function MerchantDashboardPage() {
             }}
           >
             <span>
-              <T fr="Prochain reglement : demain" en="Next payout: tomorrow" />
+              <T fr="Prochain règlement : demain" en="Next payout: tomorrow" />
             </span>
             <button
               className="btn btn-accent btn-sm"
@@ -184,9 +252,7 @@ export default function MerchantDashboardPage() {
         {/* Volume 7j */}
         <KpiCard
           label={<T fr="Volume 7j" en="7d volume" />}
-          value="5,2"
-          unit="M F"
-          delta="+18,4%"
+          value={fmtXAF(stats?.total_revenue ?? 0)}
         >
           <div style={{ marginTop: 8, marginBottom: -4 }}>
             <Sparkline data={REV_30.slice(-14)} width={220} height={36} />
@@ -196,24 +262,27 @@ export default function MerchantDashboardPage() {
         {/* Transactions */}
         <KpiCard
           label={<T fr="Transactions" en="Transactions" />}
-          value="1 247"
-          delta="+12%"
+          value={String(stats?.total_payments ?? 0)}
         >
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-            <T fr="Panier moyen 4 175 F" en="Avg basket 4,175 F" />
+            <T
+              fr={`Total transactions : ${stats?.total_transactions ?? 0}`}
+              en={`Total transactions: ${stats?.total_transactions ?? 0}`}
+            />
           </div>
         </KpiCard>
 
-        {/* Taux de reussite */}
+        {/* Taux de réussite */}
         <KpiCard
-          label={<T fr="Taux de reussite" en="Success rate" />}
-          value="94,8"
+          label={<T fr="Taux de réussite" en="Success rate" />}
+          value={String(stats?.success_rate ?? 0)}
           unit="%"
-          delta={"−0,3 pt"}
-          deltaDir="down"
         >
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-            <T fr="Echecs : 65 (5,2%)" en="Failed: 65 (5.2%)" />
+            <T
+              fr={`Sur ${stats?.total_payments ?? 0} paiements`}
+              en={`Out of ${stats?.total_payments ?? 0} payments`}
+            />
           </div>
         </KpiCard>
       </div>
@@ -239,7 +308,7 @@ export default function MerchantDashboardPage() {
                 style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}
               >
                 <T
-                  fr="F CFA encaisses par jour, frais deduits."
+                  fr="F CFA encaissés par jour, frais déduits."
                   en="XAF per day, fees deducted."
                 />
               </p>
@@ -256,7 +325,7 @@ export default function MerchantDashboardPage() {
                     marginRight: 6,
                   }}
                 />
-                <T fr="Encaisse" en="Collected" />
+                <T fr="Encaissé" en="Collected" />
               </span>
               <span>
                 <span
@@ -269,7 +338,7 @@ export default function MerchantDashboardPage() {
                     marginRight: 6,
                   }}
                 />
-                <T fr="Periode precedente" en="Previous period" />
+                <T fr="Période précédente" en="Previous period" />
               </span>
             </div>
           </div>
@@ -286,7 +355,7 @@ export default function MerchantDashboardPage() {
               margin: "0 0 6px",
             }}
           >
-            <T fr="Mix par methode" en="Method mix" />
+            <T fr="Mix par méthode" en="Method mix" />
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 18px" }}>
             <T fr="Les 7 derniers jours" en="Last 7 days" />
@@ -349,10 +418,10 @@ export default function MerchantDashboardPage() {
                 margin: 0,
               }}
             >
-              <T fr="Transactions recentes" en="Recent transactions" />
+              <T fr="Transactions récentes" en="Recent transactions" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Mise a jour en temps reel" en="Live updates" />
+              <T fr="Mise à jour en temps réel" en="Live updates" />
             </p>
           </div>
           <Link
@@ -364,94 +433,112 @@ export default function MerchantDashboardPage() {
           </Link>
         </div>
 
-        <div className="tbl">
-          {MOCK_TX.map((tx) => (
-            <div
-              className="row clickable"
-              key={tx.ref}
-              style={{
-                gridTemplateColumns: "1.2fr 1.4fr 0.9fr 0.8fr 1fr 24px",
-              }}
-            >
-              {/* Reference */}
-              <div>
-                <div className="mono" style={{ fontSize: 12 }}>
-                  {tx.ref}
+        {recentPayments.length === 0 ? (
+          <div
+            style={{
+              padding: "48px 24px",
+              textAlign: "center",
+              color: "var(--muted)",
+            }}
+          >
+            <Icon name="inbox" size={32} color="var(--line-2)" />
+            <p style={{ marginTop: 12, fontSize: 14 }}>
+              <T
+                fr="Aucune transaction pour le moment"
+                en="No transactions yet"
+              />
+            </p>
+            <p style={{ fontSize: 12, marginTop: 4 }}>
+              <T
+                fr="Les paiements apparaîtront ici dès qu'ils seront effectués."
+                en="Payments will appear here as soon as they are made."
+              />
+            </p>
+          </div>
+        ) : (
+          <div className="tbl">
+            {recentPayments.map((p) => (
+              <div
+                className="row clickable"
+                key={p.id}
+                style={{
+                  gridTemplateColumns: "1.2fr 1.4fr 0.9fr 0.8fr 1fr 24px",
+                }}
+              >
+                {/* Reference */}
+                <div>
+                  <div className="mono" style={{ fontSize: 12 }}>
+                    {p.reference}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
+                  >
+                    {fmtDate(p.created_at)}
+                  </div>
                 </div>
-                <div
-                  className="mono"
-                  style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                >
-                  {tx.merchantRef}
+
+                {/* Customer */}
+                <div>
+                  <div style={{ fontSize: 13 }}>
+                    {p.customer_email || p.customer_phone || "—"}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
+                  >
+                    {p.customer_phone || ""}
+                  </div>
                 </div>
-              </div>
 
-              {/* Customer */}
-              <div>
-                <div style={{ fontSize: 13 }}>{tx.customer}</div>
-                <div
-                  className="mono"
-                  style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                >
-                  {tx.phone}
+                {/* Method */}
+                <div>
+                  <MethodChip kind={methodKind(p.payment_method)} />
                 </div>
-              </div>
 
-              {/* Method */}
-              <div>
-                <MethodChip kind={tx.method} />
-              </div>
-
-              {/* Status */}
-              <div>
-                <Pill
-                  tone={
-                    tx.status === "success"
-                      ? "success"
-                      : tx.status === "pending"
-                      ? "warn"
-                      : tx.status === "refunded"
-                      ? "neutral"
-                      : "fail"
-                  }
-                >
-                  {tx.status === "success" ? (
-                    <T fr="paye" en="paid" />
-                  ) : tx.status === "pending" ? (
-                    <T fr="attente" en="pending" />
-                  ) : tx.status === "refunded" ? (
-                    <T fr="remb." en="refund" />
-                  ) : (
-                    <T fr="echoue" en="failed" />
-                  )}
-                </Pill>
-              </div>
-
-              {/* Amount */}
-              <div style={{ textAlign: "right" }}>
-                <div
-                  className="display"
-                  style={{
-                    fontWeight: 500,
-                    fontSize: 16,
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {fmtXAF(tx.amount)}
+                {/* Status */}
+                <div>
+                  <Pill tone={statusTone(p.status)}>
+                    {p.status === "completed" ? (
+                      <T fr="payé" en="paid" />
+                    ) : p.status === "pending" ? (
+                      <T fr="attente" en="pending" />
+                    ) : p.status === "expired" ? (
+                      <T fr="expiré" en="expired" />
+                    ) : p.status === "cancelled" ? (
+                      <T fr="annulé" en="cancelled" />
+                    ) : (
+                      <T fr="échoué" en="failed" />
+                    )}
+                  </Pill>
                 </div>
-                <div
-                  className="mono"
-                  style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                >
-                  <T fr="frais" en="fees" /> {fmtXAF(tx.fee)}
-                </div>
-              </div>
 
-              {/* Chevron */}
-              <Icon name="chevR" size={14} color="var(--muted)" />
-            </div>
-          ))}
-        </div>
+                {/* Amount */}
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    className="display"
+                    style={{
+                      fontWeight: 500,
+                      fontSize: 16,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {fmtXAF(p.amount)}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
+                  >
+                    {p.currency ?? "XAF"} · {fmtTime(p.created_at)}
+                  </div>
+                </div>
+
+                {/* Chevron */}
+                <Icon name="chevR" size={14} color="var(--muted)" />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Alert cards ───────────────────────────────────────── */}
@@ -495,7 +582,7 @@ export default function MerchantDashboardPage() {
                 }}
               >
                 <T
-                  fr="PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7. OTP non confirme."
+                  fr="PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7. OTP non confirmé."
                   en="PAY-7C8B92F1, PAY-3B12C9D4, PAY-5E91A2B7. OTP not confirmed."
                 />
               </p>
@@ -526,7 +613,7 @@ export default function MerchantDashboardPage() {
             <div style={{ flex: 1 }}>
               <strong style={{ fontWeight: 500 }}>
                 <T
-                  fr="2 nouvelles IPs sur votre cle API"
+                  fr="2 nouvelles IPs sur votre clé API"
                   en="2 new IPs on your API key"
                 />
               </strong>
@@ -537,7 +624,7 @@ export default function MerchantDashboardPage() {
                   fontSize: 12,
                 }}
               >
-                41.202.x.x (Douala), 154.0.x.x (Yaounde).{" "}
+                41.202.x.x (Douala), 154.0.x.x (Yaoundé).{" "}
                 <T
                   fr="Faites tourner si ce n'est pas vous."
                   en="Rotate if it isn't you."
@@ -545,7 +632,7 @@ export default function MerchantDashboardPage() {
               </p>
             </div>
             <button className="btn btn-ghost btn-sm">
-              <T fr="Details" en="Details" />
+              <T fr="Détails" en="Details" />
             </button>
           </div>
         </div>

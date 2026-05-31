@@ -1,60 +1,44 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { MethodChip } from "@/components/ui/method-chip";
 import { PageWrapper } from "@/components/ui/page-wrapper";
-import { Avatar } from "@/components/ui/avatar";
 import { T, useLang } from "@/lib/i18n";
-import { fmtXAF } from "@/lib/format";
+import { fmtDate, fmtTime } from "@/lib/format";
+import { formatCurrency } from "@/lib/utils";
+import { merchantDashboardService } from "@/services/merchant-dashboard.service";
+import type { Payment, PaginatedResponse } from "@/types";
 
 /* ------------------------------------------------------------------ */
-/*  Mock data (matches design reference)                               */
+/*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-interface MockTx {
-  ref: string;
-  merchantRef: string;
-  amount: number;
-  fee: number;
-  method: string;
-  status: "success" | "pending" | "failed" | "refunded";
-  customer: string;
-  phone: string;
-  email: string;
-  time: string;
-  date: string;
+function methodKind(m?: string): string {
+  if (!m) return "card";
+  const lower = m.toLowerCase();
+  if (lower.includes("orange") || lower.includes("om")) return "orange";
+  if (lower.includes("mtn") || lower.includes("momo")) return "mtn";
+  if (lower.includes("wave")) return "wave";
+  return "card";
 }
 
-const MOCK_TX: MockTx[] = [
-  { ref: "PAY-9F4A2B7C", merchantRef: "ORDER-3041", amount: 75000, fee: 1125, method: "orange", status: "success", customer: "Jean-Pierre Mbarga", phone: "+237 670 12 34 56", email: "jpmbarga@email.cm", time: "il y a 4 min", date: "26 mai 2026 · 14:42" },
-  { ref: "PAY-8E2D71AC", merchantRef: "ORDER-3040", amount: 12500, fee: 188, method: "mtn", status: "success", customer: "Awa Diop", phone: "+221 77 234 56 78", email: "awa.diop@email.sn", time: "il y a 11 min", date: "26 mai 2026 · 14:35" },
-  { ref: "PAY-7C8B92F1", merchantRef: "ORDER-3039", amount: 350000, fee: 5250, method: "card", status: "pending", customer: "Société KILIMO SARL", phone: "+237 233 42 11 22", email: "contact@kilimo.cm", time: "il y a 18 min", date: "26 mai 2026 · 14:28" },
-  { ref: "PAY-6A1D34B8", merchantRef: "ORDER-3038", amount: 8500, fee: 128, method: "wave", status: "success", customer: "Fatou Ndiaye", phone: "+221 77 891 23 45", email: "fatou.n@email.sn", time: "il y a 24 min", date: "26 mai 2026 · 14:22" },
-  { ref: "PAY-5B7E81C2", merchantRef: "ORDER-3037", amount: 45000, fee: 675, method: "orange", status: "failed", customer: "Henri Talla", phone: "+237 695 33 22 11", email: "htalla@email.cm", time: "il y a 38 min", date: "26 mai 2026 · 14:08" },
-  { ref: "PAY-4D9F22A6", merchantRef: "ORDER-3036", amount: 120000, fee: 1800, method: "mtn", status: "success", customer: "Marie-Claire Nkomo", phone: "+237 676 98 76 54", email: "mcnkomo@email.cm", time: "il y a 51 min", date: "26 mai 2026 · 13:55" },
-  { ref: "PAY-3E1A55C9", merchantRef: "ORDER-3035", amount: 24500, fee: 368, method: "orange", status: "success", customer: "Atangana Boutique", phone: "+237 691 23 45 67", email: "info@atangana.cm", time: "il y a 1 h", date: "26 mai 2026 · 13:42" },
-  { ref: "PAY-2F8B71D4", merchantRef: "ORDER-3034", amount: 67000, fee: 1005, method: "card", status: "success", customer: "Restaurant Le Baobab", phone: "+237 233 41 22 33", email: "resto@baobab.cm", time: "il y a 2 h", date: "26 mai 2026 · 12:38" },
-  { ref: "PAY-1A4C82E7", merchantRef: "ORDER-3033", amount: 15000, fee: 225, method: "wave", status: "refunded", customer: "Cabinet Atangana", phone: "+225 07 89 12 34", email: "cab.atangana@email.ci", time: "il y a 3 h", date: "26 mai 2026 · 11:22" },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Status filter config                                               */
-/* ------------------------------------------------------------------ */
-type FilterKey = "" | "success" | "pending" | "failed" | "refunded";
-const STATUS_FILTERS: { key: FilterKey; fr: string; en: string }[] = [
-  { key: "", fr: "Tous", en: "All" },
-  { key: "success", fr: "Réussi", en: "Paid" },
-  { key: "pending", fr: "En attente", en: "Pending" },
-  { key: "failed", fr: "Échoué", en: "Failed" },
-];
-
 function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
-  if (s === "success") return "success";
+  if (s === "completed") return "success";
   if (s === "pending") return "warn";
   if (s === "failed") return "fail";
   return "neutral";
 }
+
+/* ------------------------------------------------------------------ */
+/*  Status filter config                                               */
+/* ------------------------------------------------------------------ */
+const STATUS_FILTERS: { key: string; fr: string; en: string; tone: string }[] = [
+  { key: "", fr: "Tous", en: "All", tone: "info" },
+  { key: "completed", fr: "Réussi", en: "Paid", tone: "success" },
+  { key: "pending", fr: "En attente", en: "Pending", tone: "warn" },
+  { key: "failed", fr: "Échoué", en: "Failed", tone: "fail" },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Pagination helpers                                                 */
@@ -73,43 +57,41 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Timeline component for the detail panel                            */
+/*  Timeline component for the detail panel (static/mock)              */
 /* ------------------------------------------------------------------ */
-function Timeline({ tx }: { tx: MockTx }) {
+function Timeline({ payment }: { payment: Payment }) {
+  const kind = methodKind(payment.payment_method);
   const events =
-    tx.status === "success"
+    payment.status === "completed"
       ? [
-          { fr: "Paiement créé", en: "Payment created", ts: "14:42:03" },
+          { fr: "Paiement créé", en: "Payment created", ts: fmtTime(payment.created_at) },
           {
-            fr: tx.method === "orange" ? "Redirection Orange Money" : tx.method === "mtn" ? "Redirection MTN MoMo" : tx.method === "wave" ? "Redirection Wave" : "Redirection paiement carte",
-            en: tx.method === "orange" ? "Orange Money redirect" : tx.method === "mtn" ? "MTN MoMo redirect" : tx.method === "wave" ? "Wave redirect" : "Card payment redirect",
-            ts: "14:42:08",
+            fr: kind === "orange" ? "Redirection Orange Money" : kind === "mtn" ? "Redirection MTN MoMo" : kind === "wave" ? "Redirection Wave" : "Redirection paiement carte",
+            en: kind === "orange" ? "Orange Money redirect" : kind === "mtn" ? "MTN MoMo redirect" : kind === "wave" ? "Wave redirect" : "Card payment redirect",
+            ts: "",
           },
-          { fr: "OTP saisi par client", en: "OTP entered by customer", ts: "14:42:31" },
-          { fr: "Callback TouchPay HMAC", en: "TouchPay HMAC callback", ts: "14:42:34" },
-          { fr: "Webhook merchant 200 OK", en: "Merchant webhook 200 OK", ts: "14:42:35 · 142ms" },
+          { fr: "OTP saisi par client", en: "OTP entered by customer", ts: "" },
+          { fr: "Callback TouchPay HMAC", en: "TouchPay HMAC callback", ts: "" },
+          { fr: "Webhook merchant 200 OK", en: "Merchant webhook 200 OK", ts: "" },
         ]
-      : tx.status === "pending"
+      : payment.status === "pending"
         ? [
-            { fr: "Paiement créé", en: "Payment created", ts: "14:28:03" },
-            { fr: "Redirection paiement", en: "Payment redirect", ts: "14:28:08" },
+            { fr: "Paiement créé", en: "Payment created", ts: fmtTime(payment.created_at) },
+            { fr: "Redirection paiement", en: "Payment redirect", ts: "" },
             { fr: "En attente de confirmation…", en: "Awaiting confirmation…", ts: "" },
           ]
-        : tx.status === "refunded"
-          ? [
-              { fr: "Paiement créé", en: "Payment created", ts: "11:22:03" },
-              { fr: "Paiement validé", en: "Payment validated", ts: "11:22:31" },
-              { fr: "Remboursement initié", en: "Refund initiated", ts: "12:01:15" },
-              { fr: "Remboursement confirmé", en: "Refund confirmed", ts: "12:01:42" },
-            ]
-          : [
-              { fr: "Paiement créé", en: "Payment created", ts: "14:08:03" },
-              { fr: "Redirection Orange Money", en: "Orange Money redirect", ts: "14:08:08" },
-              { fr: "Échec — solde insuffisant", en: "Failed — insufficient balance", ts: "14:08:31" },
-            ];
+        : [
+            { fr: "Paiement créé", en: "Payment created", ts: fmtTime(payment.created_at) },
+            {
+              fr: kind === "orange" ? "Redirection Orange Money" : kind === "mtn" ? "Redirection MTN MoMo" : "Redirection paiement",
+              en: kind === "orange" ? "Orange Money redirect" : kind === "mtn" ? "MTN MoMo redirect" : "Payment redirect",
+              ts: "",
+            },
+            { fr: "Échec — solde insuffisant", en: "Failed — insufficient balance", ts: "" },
+          ];
 
   const dotColor =
-    tx.status === "success" ? "var(--success)" : tx.status === "pending" ? "var(--warning)" : tx.status === "refunded" ? "var(--muted)" : "var(--danger)";
+    payment.status === "completed" ? "var(--success)" : payment.status === "pending" ? "var(--warning)" : "var(--danger)";
 
   return (
     <div style={{ paddingLeft: 20, position: "relative" }}>
@@ -139,7 +121,10 @@ function Timeline({ tx }: { tx: MockTx }) {
 /* ------------------------------------------------------------------ */
 /*  Detail side panel                                                  */
 /* ------------------------------------------------------------------ */
-function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
+function DetailPanel({ payment, onClose }: { payment: Payment; onClose: () => void }) {
+  const customer = payment.customer_email || payment.customer_phone || "—";
+  const kind = methodKind(payment.payment_method);
+
   return (
     <div
       style={{
@@ -177,7 +162,7 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
             <T fr="Détail" en="Detail" />
           </div>
           <div className="mono" style={{ fontSize: 14, marginTop: 4 }}>
-            {tx.ref}
+            {payment.reference}
           </div>
         </div>
         <button
@@ -211,23 +196,25 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
             marginBottom: 12,
           }}
         >
-          {fmtXAF(tx.amount)}
+          {formatCurrency(payment.amount, payment.currency)}
         </div>
 
         {/* Status + Method row */}
         <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
-          <Pill tone={statusTone(tx.status)}>
-            {tx.status === "success" ? (
+          <Pill tone={statusTone(payment.status)}>
+            {payment.status === "completed" ? (
               <T fr="payé" en="paid" />
-            ) : tx.status === "pending" ? (
+            ) : payment.status === "pending" ? (
               <T fr="attente" en="pending" />
-            ) : tx.status === "refunded" ? (
-              <T fr="remb." en="refund" />
+            ) : payment.status === "expired" ? (
+              <T fr="expiré" en="expired" />
+            ) : payment.status === "cancelled" ? (
+              <T fr="annulé" en="cancelled" />
             ) : (
               <T fr="échoué" en="failed" />
             )}
           </Pill>
-          <MethodChip kind={tx.method} />
+          <MethodChip kind={kind} />
         </div>
 
         {/* Customer section */}
@@ -246,9 +233,8 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
             <T fr="Client" en="Customer" />
           </h4>
           {[
-            [<T key="n" fr="Nom" en="Name" />, tx.customer],
-            [<T key="p" fr="Téléphone" en="Phone" />, tx.phone],
-            ["Email", tx.email],
+            [<T key="p" fr="Téléphone" en="Phone" />, payment.customer_phone || "—"],
+            ["Email", payment.customer_email || "—"],
           ].map((r, k) => (
             <div
               key={k}
@@ -281,10 +267,12 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
             <T fr="Détails" en="Details" />
           </h4>
           {[
-            [<T key="mr" fr="Référence marchand" en="Merchant ref" />, tx.merchantRef],
-            [<T key="gb" fr="Montant brut" en="Gross amount" />, fmtXAF(tx.amount)],
-            [<T key="fe" fr="Frais LtcPay (1,5%)" en="LtcPay fee (1.5%)" />, "−" + fmtXAF(tx.fee)],
-            [<T key="ne" fr="Net reçu" en="Net received" />, fmtXAF(tx.amount - tx.fee)],
+            [<T key="ref" fr="Référence" en="Reference" />, payment.reference],
+            [<T key="gb" fr="Montant" en="Amount" />, formatCurrency(payment.amount, payment.currency)],
+            [<T key="cur" fr="Devise" en="Currency" />, payment.currency],
+            ...(payment.description ? [[<T key="desc" fr="Description" en="Description" />, payment.description]] : []),
+            [<T key="cr" fr="Créé le" en="Created" />, fmtDate(payment.created_at)],
+            [<T key="up" fr="Mis à jour" en="Updated" />, fmtDate(payment.updated_at)],
           ].map((r, k) => (
             <div
               key={k}
@@ -316,7 +304,7 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
           >
             <T fr="Chronologie" en="Timeline" />
           </h4>
-          <Timeline tx={tx} />
+          <Timeline payment={payment} />
         </div>
       </div>
 
@@ -348,10 +336,41 @@ function DetailPanel({ tx, onClose }: { tx: MockTx; onClose: () => void }) {
 /* ------------------------------------------------------------------ */
 export default function MerchantPaymentsPage() {
   const { lang } = useLang();
-  const [selected, setSelected] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<FilterKey>("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [data, setData] = useState<PaginatedResponse<Payment> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* Fetch payments from API */
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    merchantDashboardService
+      .getPayments({
+        page: currentPage,
+        page_size: 20,
+        status: statusFilter || undefined,
+      })
+      .then((res) => {
+        if (!cancelled) {
+          setData(res);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setData(null);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, statusFilter]);
 
   /* Keyboard shortcut: Cmd+K focuses search */
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -367,26 +386,26 @@ export default function MerchantPaymentsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  /* Filter transactions */
-  const filtered = MOCK_TX.filter((tx) => {
-    if (statusFilter && tx.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        tx.ref.toLowerCase().includes(q) ||
-        tx.merchantRef.toLowerCase().includes(q) ||
-        tx.customer.toLowerCase().includes(q) ||
-        tx.phone.includes(q) ||
-        tx.email.toLowerCase().includes(q) ||
-        String(tx.amount).includes(q)
-      );
-    }
-    return true;
-  });
+  /* Client-side search filter on loaded items */
+  const filtered = useMemo(() => {
+    if (!data?.items) return [];
+    if (!search) return data.items;
+    const q = search.toLowerCase();
+    return data.items.filter((p) =>
+      p.reference.toLowerCase().includes(q) ||
+      (p.customer_email && p.customer_email.toLowerCase().includes(q)) ||
+      (p.customer_phone && p.customer_phone.includes(q)) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      String(p.amount).includes(q)
+    );
+  }, [data, search]);
 
-  const totalPages = 139; // mock
-  const totalResults = 1247; // mock
+  const totalPages = data?.total_pages ?? 1;
+  const totalResults = data?.total ?? 0;
   const pageNumbers = buildPageNumbers(currentPage, totalPages);
+
+  /* Find selected payment object */
+  const selectedPayment = selected ? filtered.find((p) => p.reference === selected) ?? null : null;
 
   return (
     <PageWrapper
@@ -397,8 +416,8 @@ export default function MerchantPaymentsPage() {
       title={<T fr="Transactions" en="Transactions" />}
       sub={
         <T
-          fr={`${totalResults.toLocaleString("fr-FR")} résultats · 7 derniers jours`}
-          en={`${totalResults.toLocaleString("en-US")} results · last 7 days`}
+          fr={`${totalResults.toLocaleString("fr-FR")} résultats`}
+          en={`${totalResults.toLocaleString("en-US")} results`}
         />
       }
       actions={
@@ -471,228 +490,281 @@ export default function MerchantPaymentsPage() {
         ))}
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div
+          className="card"
+          style={{
+            padding: "64px 24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              border: "3px solid var(--line)",
+              borderTopColor: "var(--accent)",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
+            <T fr="Chargement des transactions…" en="Loading transactions…" />
+          </span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && filtered.length === 0 && (
+        <div
+          className="card"
+          style={{
+            padding: "64px 24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Icon name="inbox" size={40} color="var(--muted)" />
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            <T fr="Aucune transaction" en="No transactions" />
+          </span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            {search ? (
+              <T fr="Aucun résultat pour cette recherche" en="No results match your search" />
+            ) : statusFilter ? (
+              <T fr="Aucune transaction avec ce statut" en="No transactions with this status" />
+            ) : (
+              <T fr="Les transactions apparaîtront ici" en="Transactions will appear here" />
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Two-panel layout: table + detail panel */}
-      <div style={{ display: "flex", gap: 0 }}>
-        {/* Left: transaction table */}
-        <div className="card" style={{ padding: 0, overflow: "hidden", flex: "1 1 0%", minWidth: 0 }}>
-          <div className="tbl">
-            {/* Header row */}
+      {!loading && filtered.length > 0 && (
+        <div style={{ display: "flex", gap: 0 }}>
+          {/* Left: transaction table */}
+          <div className="card" style={{ padding: 0, overflow: "hidden", flex: "1 1 0%", minWidth: 0 }}>
+            <div className="tbl">
+              {/* Header row */}
+              <div
+                className="row head"
+                style={{
+                  gridTemplateColumns: "1.1fr 1.3fr 0.9fr 0.8fr 1fr 0.7fr 24px",
+                }}
+              >
+                <span>
+                  <T fr="Référence" en="Reference" />
+                </span>
+                <span>
+                  <T fr="Client" en="Customer" />
+                </span>
+                <span>
+                  <T fr="Méthode" en="Method" />
+                </span>
+                <span>
+                  <T fr="Statut" en="Status" />
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  <T fr="Montant" en="Amount" />
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  <T fr="Date" en="Date" />
+                </span>
+                <span />
+              </div>
+
+              {/* Data rows */}
+              {filtered.map((p) => (
+                <div
+                  key={p.reference}
+                  className={`row clickable${selected === p.reference ? " selected" : ""}`}
+                  style={{
+                    gridTemplateColumns: "1.1fr 1.3fr 0.9fr 0.8fr 1fr 0.7fr 24px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setSelected(selected === p.reference ? null : p.reference)}
+                >
+                  {/* Reference */}
+                  <div>
+                    <div className="mono" style={{ fontSize: 12 }}>
+                      {p.reference}
+                    </div>
+                  </div>
+
+                  {/* Customer */}
+                  <div>
+                    <div style={{ fontSize: 13 }}>
+                      {p.customer_email || p.customer_phone || "—"}
+                    </div>
+                    {p.customer_email && p.customer_phone && (
+                      <div
+                        className="mono"
+                        style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
+                      >
+                        {p.customer_phone}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Method */}
+                  <div>
+                    <MethodChip kind={methodKind(p.payment_method)} />
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <Pill tone={statusTone(p.status)}>
+                      {p.status === "completed" ? (
+                        <T fr="payé" en="paid" />
+                      ) : p.status === "pending" ? (
+                        <T fr="attente" en="pending" />
+                      ) : p.status === "expired" ? (
+                        <T fr="expiré" en="expired" />
+                      ) : p.status === "cancelled" ? (
+                        <T fr="annulé" en="cancelled" />
+                      ) : (
+                        <T fr="échoué" en="failed" />
+                      )}
+                    </Pill>
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{ textAlign: "right" }}>
+                    <div className="display" style={{ fontWeight: 500, fontSize: 15 }}>
+                      {formatCurrency(p.amount, p.currency)}
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}
+                  >
+                    {fmtDate(p.created_at)}
+                  </div>
+
+                  {/* Chevron */}
+                  <Icon name="chevR" size={14} color="var(--muted)" />
+                </div>
+              ))}
+            </div>
+
+            {/* Numbered pagination */}
             <div
-              className="row head"
               style={{
-                gridTemplateColumns: "1.1fr 1.3fr 0.9fr 0.8fr 1fr 0.7fr 24px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 18px",
+                borderTop: "1px solid var(--line)",
+                fontSize: 12,
+                color: "var(--muted)",
               }}
             >
               <span>
-                <T fr="Référence" en="Reference" />
+                <T
+                  fr={`Page ${currentPage} sur ${totalPages} · ${totalResults.toLocaleString("fr-FR")} transactions`}
+                  en={`Page ${currentPage} of ${totalPages} · ${totalResults.toLocaleString("en-US")} transactions`}
+                />
               </span>
-              <span>
-                <T fr="Client" en="Customer" />
-              </span>
-              <span>
-                <T fr="Méthode" en="Method" />
-              </span>
-              <span>
-                <T fr="Statut" en="Status" />
-              </span>
-              <span style={{ textAlign: "right" }}>
-                <T fr="Montant" en="Amount" />
-              </span>
-              <span style={{ textAlign: "right" }}>
-                <T fr="Date" en="Date" />
-              </span>
-              <span />
-            </div>
-
-            {/* Data rows */}
-            {filtered.map((tx, i) => (
-              <div
-                key={tx.ref}
-                className={`row clickable${selected === i ? " selected" : ""}`}
-                style={{
-                  gridTemplateColumns: "1.1fr 1.3fr 0.9fr 0.8fr 1fr 0.7fr 24px",
-                  cursor: "pointer",
-                }}
-                onClick={() => setSelected(selected === i ? null : i)}
-              >
-                {/* Reference */}
-                <div>
-                  <div className="mono" style={{ fontSize: 12 }}>
-                    {tx.ref}
-                  </div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                  >
-                    {tx.merchantRef}
-                  </div>
-                </div>
-
-                {/* Customer */}
-                <div>
-                  <div style={{ fontSize: 13 }}>{tx.customer}</div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                  >
-                    {tx.phone}
-                  </div>
-                </div>
-
-                {/* Method */}
-                <div>
-                  <MethodChip kind={tx.method} />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <Pill
-                    tone={statusTone(tx.status)}
-                  >
-                    {tx.status === "success" ? (
-                      <T fr="payé" en="paid" />
-                    ) : tx.status === "pending" ? (
-                      <T fr="attente" en="pending" />
-                    ) : tx.status === "refunded" ? (
-                      <T fr="remb." en="refund" />
-                    ) : (
-                      <T fr="échoué" en="failed" />
-                    )}
-                  </Pill>
-                </div>
-
-                {/* Amount */}
-                <div style={{ textAlign: "right" }}>
-                  <div className="display" style={{ fontWeight: 500, fontSize: 15 }}>
-                    {fmtXAF(tx.amount)}
-                  </div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                  >
-                    −{fmtXAF(tx.fee)}
-                  </div>
-                </div>
-
-                {/* Date */}
-                <div
-                  className="mono"
-                  style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}
+              <div style={{ display: "flex", gap: 4 }}>
+                {/* Previous */}
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                  style={{
+                    appearance: "none",
+                    border: "1px solid var(--line)",
+                    background: "var(--surface)",
+                    color: currentPage <= 1 ? "var(--muted)" : "var(--ink)",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 4,
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    cursor: currentPage <= 1 ? "default" : "pointer",
+                  }}
                 >
-                  {tx.time}
-                </div>
+                  {"‹"}
+                </button>
 
-                {/* Chevron */}
-                <Icon name="chevR" size={14} color="var(--muted)" />
+                {/* Page numbers */}
+                {pageNumbers.map((p, i) =>
+                  p === "..." ? (
+                    <span
+                      key={`ellipsis-${i}`}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        display: "grid",
+                        placeItems: "center",
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      {"…"}
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p as number)}
+                      style={{
+                        appearance: "none",
+                        border: "1px solid var(--line)",
+                        background: p === currentPage ? "var(--ink)" : "var(--surface)",
+                        color: p === currentPage ? "white" : "var(--ink)",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 4,
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+                {/* Next */}
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage >= totalPages}
+                  style={{
+                    appearance: "none",
+                    border: "1px solid var(--line)",
+                    background: "var(--surface)",
+                    color: currentPage >= totalPages ? "var(--muted)" : "var(--ink)",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 4,
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    cursor: currentPage >= totalPages ? "default" : "pointer",
+                  }}
+                >
+                  {"›"}
+                </button>
               </div>
-            ))}
-          </div>
-
-          {/* Numbered pagination */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "12px 18px",
-              borderTop: "1px solid var(--line)",
-              fontSize: 12,
-              color: "var(--muted)",
-            }}
-          >
-            <span>
-              <T
-                fr={`Page ${currentPage} sur ${totalPages} · ${totalResults.toLocaleString("fr-FR")} transactions`}
-                en={`Page ${currentPage} of ${totalPages} · ${totalResults.toLocaleString("en-US")} transactions`}
-              />
-            </span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {/* Previous */}
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                style={{
-                  appearance: "none",
-                  border: "1px solid var(--line)",
-                  background: "var(--surface)",
-                  color: currentPage <= 1 ? "var(--muted)" : "var(--ink)",
-                  width: 28,
-                  height: 28,
-                  borderRadius: 4,
-                  fontFamily: "var(--mono)",
-                  fontSize: 11,
-                  cursor: currentPage <= 1 ? "default" : "pointer",
-                }}
-              >
-                {"‹"}
-              </button>
-
-              {/* Page numbers */}
-              {pageNumbers.map((p, i) =>
-                p === "..." ? (
-                  <span
-                    key={`ellipsis-${i}`}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      display: "grid",
-                      placeItems: "center",
-                      fontFamily: "var(--mono)",
-                      fontSize: 11,
-                      color: "var(--muted)",
-                    }}
-                  >
-                    {"…"}
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p as number)}
-                    style={{
-                      appearance: "none",
-                      border: "1px solid var(--line)",
-                      background: p === currentPage ? "var(--ink)" : "var(--surface)",
-                      color: p === currentPage ? "white" : "var(--ink)",
-                      width: 28,
-                      height: 28,
-                      borderRadius: 4,
-                      fontFamily: "var(--mono)",
-                      fontSize: 11,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-
-              {/* Next */}
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage >= totalPages}
-                style={{
-                  appearance: "none",
-                  border: "1px solid var(--line)",
-                  background: "var(--surface)",
-                  color: currentPage >= totalPages ? "var(--muted)" : "var(--ink)",
-                  width: 28,
-                  height: 28,
-                  borderRadius: 4,
-                  fontFamily: "var(--mono)",
-                  fontSize: 11,
-                  cursor: currentPage >= totalPages ? "default" : "pointer",
-                }}
-              >
-                {"›"}
-              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Right: detail side panel (fixed overlay) */}
-      {selected !== null && filtered[selected] && (
-        <DetailPanel tx={filtered[selected]} onClose={() => setSelected(null)} />
+      {selectedPayment && (
+        <DetailPanel payment={selectedPayment} onClose={() => setSelected(null)} />
       )}
     </PageWrapper>
   );
