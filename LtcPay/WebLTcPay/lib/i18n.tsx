@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 
 type Lang = "fr" | "en";
 
@@ -92,17 +93,16 @@ const LangContext = createContext<LangContextType>({
   t: (key) => key,
 });
 
-function getInitialLang(): Lang {
-  if (typeof window === "undefined") return "fr";
-  try {
-    const saved = localStorage.getItem("nkap_lang");
-    if (saved === "fr" || saved === "en") return saved;
-  } catch {}
-  return "fr";
-}
-
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(getInitialLang);
+  /* Always start with "fr" to match SSR. Read localStorage after mount. */
+  const [lang, setLangState] = useState<Lang>("fr");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("nkap_lang");
+      if (saved === "fr" || saved === "en") setLangState(saved);
+    } catch {}
+  }, []);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
@@ -131,10 +131,10 @@ export function useLang() {
   return useContext(LangContext);
 }
 
-/** Inline bilingual text component — suppressHydrationWarning avoids SSR/client mismatch */
+/** Inline bilingual text component */
 export function T({ fr, en }: { fr: ReactNode; en?: ReactNode }) {
   const { lang } = useLang();
-  return <span suppressHydrationWarning>{lang === "en" ? (en ?? fr) : (fr ?? en ?? "")}</span>;
+  return <>{lang === "en" ? (en ?? fr) : (fr ?? en ?? "")}</>;
 }
 
 export { TRANSLATIONS };
