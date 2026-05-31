@@ -26,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body>
+    <html lang="fr" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {children}
         <Toaster
           position="top-right"
