@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
+import { paymentsService } from "@/services/payments.service";
 
 export default function CreatePaymentPage() {
   const router = useRouter();
@@ -28,12 +29,16 @@ export default function CreatePaymentPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Call POST /api/v1/payments
-      // Simulated API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const mockPaymentUrl = `http://localhost:8001/pay/PAY-${Date.now()}`;
-      setPaymentUrl(mockPaymentUrl);
+      const payment = await paymentsService.create({
+        amount: Number(formData.amount),
+        currency: "XAF",
+        description: formData.description || undefined,
+        customer_email: formData.customer_email || undefined,
+        customer_phone: formData.customer_phone || undefined,
+        callback_url: formData.callback_url || undefined,
+      });
+      const payUrl = `${window.location.origin}/pay/${payment.reference}`;
+      setPaymentUrl(payUrl);
       toast.success("Payment created successfully!");
     } catch (error) {
       toast.error("Failed to create payment");

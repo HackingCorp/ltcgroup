@@ -90,6 +90,28 @@ async def get_merchant_stats(
         for r in status_dist_q.all()
     ]
 
+    # Method breakdown (operator distribution)
+    method_q = await db.execute(
+        select(
+            Payment.operator,
+            func.count(Payment.id).label("count"),
+            func.coalesce(func.sum(Payment.amount), 0).label("amount"),
+        )
+        .where(and_(merchant_filter, Payment.status == PaymentStatus.COMPLETED))
+        .group_by(Payment.operator)
+    )
+    method_rows = method_q.all()
+    method_total = sum(r.count for r in method_rows) or 1
+    method_breakdown = []
+    for r in method_rows:
+        op = r.operator.value if r.operator and hasattr(r.operator, "value") else (r.operator or "CARD")
+        method_breakdown.append({
+            "method": op,
+            "count": r.count,
+            "amount": float(r.amount),
+            "pct": round(r.count / method_total * 100, 1),
+        })
+
     return {
         "total_payments": total_payments,
         "total_revenue": total_revenue,
@@ -114,6 +136,7 @@ async def get_merchant_stats(
         ],
         "revenue_chart": revenue_chart,
         "status_distribution": status_distribution,
+        "method_breakdown": method_breakdown,
     }
 
 

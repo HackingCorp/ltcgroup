@@ -1,36 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
+import { adminDashboardService } from "@/services/admin-dashboard.service";
 
-/* ── mock data ─────────────────────────────────────────────── */
+/* ── types & helpers ──────────────────────────────────────── */
 
 type SeverityKey = "high" | "medium" | "info" | "low";
-
-interface AuditEvent {
-  sev: SeverityKey;
-  action: string;
-  who: string;
-  target: string;
-  ip: string;
-  time: string;
-  reason: string;
-}
-
-const AUDIT_LOG: AuditEvent[] = [
-  { sev: "high", action: "merchant.suspended", who: "system", target: "MER-008 · Mobile Plus Center", ip: "—", time: "il y a 2 h", reason: "auto-fraud-detection: 18 chargebacks/24h" },
-  { sev: "info", action: "admin.login", who: "Sarah Mendomo", target: "—", ip: "41.202.143.22", time: "il y a 3 h", reason: "MFA TOTP" },
-  { sev: "medium", action: "fees.modified", who: "Jean Kameni", target: "MER-009 · Agro Export", ip: "41.202.143.18", time: "il y a 1 h", reason: "Custom rate 0,9% → 0,8%" },
-  { sev: "info", action: "kyc.approved", who: "Nadège Tchana", target: "MER-247 · Studio Foto Pro", ip: "41.202.143.31", time: "il y a 12 min", reason: "manual review" },
-  { sev: "high", action: "api_key.rotated", who: "system", target: "MER-003 · KILIMO SARL", ip: "—", time: "il y a 4 h", reason: "rotation auto 90j" },
-  { sev: "low", action: "report.generated", who: "Aïcha Bello", target: "Encaissements_2026-05.csv", ip: "154.0.42.18", time: "il y a 6 h", reason: "—" },
-  { sev: "medium", action: "user.invited", who: "Sarah Mendomo", target: "patrick@ltc.cm · role analyst", ip: "41.202.143.22", time: "il y a 8 h", reason: "—" },
-  { sev: "high", action: "secret.accessed", who: "Sarah Mendomo", target: "TOUCHPAY_SECRET", ip: "41.202.143.22", time: "il y a 9 h", reason: "rotation préparation" },
-];
 
 const SEV_TONE: Record<SeverityKey, "fail" | "warn" | "info" | "neutral"> = {
   high: "fail",
@@ -47,16 +27,69 @@ const SEVERITY_FILTERS: { key: "all" | SeverityKey; label: string }[] = [
   { key: "low", label: "low" },
 ];
 
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "il y a 1 min";
+  if (diffMin < 60) return `il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH} h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `il y a ${diffD} j`;
+  const diffW = Math.floor(diffD / 7);
+  return `il y a ${diffW} sem`;
+}
+
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function SecurityPage() {
   const [filter, setFilter] = useState<"all" | SeverityKey>("all");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = filter === "all" ? AUDIT_LOG : AUDIT_LOG.filter((e) => e.sev === filter);
+  useEffect(() => {
+    async function load() {
+      try {
+        const [logsRes, statsRes] = await Promise.all([
+          adminDashboardService.getAuditLogs({ page: 1, page_size: 20 }),
+          adminDashboardService.getSecurityStats(),
+        ]);
+        setAuditLogs(logsRes.items || []);
+        setStats(statsRes);
+      } catch (err) {
+        console.error("Failed to load security data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <PageWrapper
+        crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Securite & audit" en="Security & audit" />]}
+        title={<T fr="Journal d'audit" en="Audit log" />}
+        sub=""
+      >
+        <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Chargement...</div>
+      </PageWrapper>
+    );
+  }
+
+  const filtered = filter === "all" ? auditLogs : auditLogs.filter((e) => e.severity === filter);
+
+  const events24h = stats?.events_24h ?? 0;
+  const highSev = stats?.high_severity_24h ?? 0;
+  const mediumSev = stats?.medium_severity_24h ?? 0;
+  const totalEvents = stats?.total_events ?? 0;
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Sécurité & audit" en="Security & audit" />]}
+      crumb={[<T key="c1" fr="Gouvernance" en="Governance" />, <T key="c2" fr="Securite & audit" en="Security & audit" />]}
       title={<T fr="Journal d'audit" en="Audit log" />}
       sub={<T fr="Toutes les actions sensibles sur la plateforme. Conservation 7 ans, immutable." en="All sensitive actions on the platform. 7-year retention, immutable." />}
       actions={<>
@@ -70,10 +103,10 @@ export default function SecurityPage() {
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label={<T fr="Ãvénements 24h" en="Events 24h" />} value="1 842" />
-        <KpiCard label={<T fr="Sévérité haute" en="High severity" />} value="12" after={<Pill tone="fail">!</Pill>} />
-        <KpiCard label={<T fr="Ãchecs MFA" en="MFA failures" />} value="3" delta="+2" deltaDir="up" />
-        <KpiCard label={<T fr="Nouveaux secrets" en="New secrets" />} value="2" />
+        <KpiCard hero label={<T fr="Evenements 24h" en="Events 24h" />} value={events24h.toLocaleString("fr-FR")} />
+        <KpiCard label={<T fr="Severite haute" en="High severity" />} value={String(highSev)} after={highSev > 0 ? <Pill tone="fail">!</Pill> : undefined} />
+        <KpiCard label={<T fr="Severite moyenne" en="Medium severity" />} value={String(mediumSev)} />
+        <KpiCard label={<T fr="Total evenements" en="Total events" />} value={totalEvents.toLocaleString("fr-FR")} />
       </div>
 
       {/* Severity filter pills + date context */}
@@ -98,7 +131,7 @@ export default function SecurityPage() {
           borderRadius: 4,
           border: "1px solid var(--line)",
         }}>
-          26 mai 2026 &middot; 24h
+          {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} &middot; 24h
         </span>
       </div>
 
@@ -106,31 +139,31 @@ export default function SecurityPage() {
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
-            <span><T fr="Sév." en="Sev." /></span>
+            <span><T fr="Sev." en="Sev." /></span>
             <span><T fr="Action" en="Action" /></span>
             <span><T fr="Acteur" en="Actor" /></span>
             <span><T fr="Cible" en="Target" /></span>
             <span><T fr="Raison" en="Reason" /></span>
             <span><T fr="Quand" en="When" /></span>
           </div>
-          {filtered.map((e, i) => (
-            <div key={i} className="row" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
-              <Pill tone={SEV_TONE[e.sev]}>{e.sev}</Pill>
+          {filtered.map((e: any, i: number) => (
+            <div key={e.id || i} className="row" style={{ gridTemplateColumns: "0.5fr 1.2fr 1fr 1.4fr 1fr 0.8fr" }}>
+              <Pill tone={SEV_TONE[e.severity as SeverityKey] || "neutral"}>{e.severity}</Pill>
               <div className="mono" style={{ fontSize: 12 }}>{e.action}</div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{e.who}</div>
-                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{e.ip}</div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>{e.actor_name || e.actor_id || "system"}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{e.ip_address || "---"}</div>
               </div>
-              <div style={{ fontSize: 12 }}>{e.target}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>{e.reason}</div>
-              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{e.time}</div>
+              <div style={{ fontSize: 12 }}>{e.target || "---"}</div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{e.reason || "---"}</div>
+              <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{e.created_at ? timeAgo(e.created_at) : "---"}</div>
             </div>
           ))}
         </div>
         {filtered.length === 0 && (
           <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
             <Icon name="shield" size={28} color="var(--success)" />
-            <p style={{ marginTop: 8 }}><T fr="Aucun événement trouvé" en="No events found" /></p>
+            <p style={{ marginTop: 8 }}><T fr="Aucun evenement trouve" en="No events found" /></p>
           </div>
         )}
       </div>

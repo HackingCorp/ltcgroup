@@ -36,54 +36,52 @@ function statusTone(s: string): "success" | "warn" | "fail" | "neutral" {
   return "neutral";
 }
 
-/* ── Mock data (charts & alerts only) ──────────────────────── */
+/* ── helpers: method colors/labels ─────────────────────────── */
 
-const REV_30 = [
-  42, 48, 51, 47, 55, 62, 58, 71, 68, 75, 82, 79, 88, 95, 92, 105, 112, 108,
-  122, 135, 128, 142, 158, 165, 172, 180, 195, 208, 215, 232,
-];
+function methodColorVar(m: string): string {
+  const lower = (m || "").toLowerCase();
+  if (lower.includes("orange") || lower === "om") return "var(--orange-money)";
+  if (lower.includes("mtn")) return "var(--mtn)";
+  if (lower.includes("wave")) return "var(--wave)";
+  return "var(--ink)";
+}
 
-const METHOD_MIX = [
-  { name: "Orange Money", color: "var(--orange-money)", pct: 48 },
-  { name: "MTN MoMo", color: "var(--mtn)", pct: 31 },
-  { nameFr: "Cartes", nameEn: "Cards", color: "var(--ink)", pct: 14 },
-  { name: "Wave", color: "var(--wave)", pct: 7 },
-];
+function methodDisplayName(m: string): { name?: string; nameFr?: string; nameEn?: string } {
+  const lower = (m || "").toLowerCase();
+  if (lower.includes("orange") || lower === "om") return { name: "Orange Money" };
+  if (lower.includes("mtn")) return { name: "MTN MoMo" };
+  if (lower.includes("wave")) return { name: "Wave" };
+  return { nameFr: "Cartes", nameEn: "Cards" };
+}
 
 /* ── SVG charts ─────────────────────────────────────────────── */
 
-function RevenueChartSVG() {
+function RevenueChartSVG({ data }: { data: number[] }) {
   const w = 700, h = 220, pad = 24;
-  const max = Math.max(...REV_30) * 1.1;
-  const step = (w - pad * 2) / (REV_30.length - 1);
-  const pts = REV_30.map((v, i) => [pad + i * step, h - pad - (v / max) * (h - pad * 2)]);
+  if (!data || data.length < 2) return <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 13 }}><T fr="Pas assez de donnees" en="Not enough data" /></div>;
+  const max = Math.max(...data) * 1.1 || 1;
+  const step = (w - pad * 2) / (data.length - 1);
+  const pts = data.map((v, i) => [pad + i * step, h - pad - (v / max) * (h - pad * 2)]);
   const path = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
   const area = `${path} L${pts[pts.length - 1][0]},${h - pad} L${pts[0][0]},${h - pad} Z`;
-
-  // Previous period (offset down + shifted)
-  const prev = REV_30.map((v) => v * 0.75 + Math.random() * 10);
-  const maxP = Math.max(...prev) * 1.1;
-  const ptsP = prev.map((v, i) => [pad + i * step, h - pad - (v / maxP) * (h - pad * 2)]);
-  const pathP = ptsP.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
 
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: "block" }}>
       <path d={area} fill="var(--primary)" opacity="0.08" />
-      <path d={pathP} fill="none" stroke="var(--line-2)" strokeWidth="1.5" strokeDasharray="4 3" strokeLinecap="round" />
       <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function MethodDonutSVG() {
+function MethodDonutSVG({ breakdown }: { breakdown: { method: string; pct: number }[] }) {
   const size = 120;
   const cx = size / 2, cy = size / 2, r = 44, sw = 16;
-  const data = [48, 31, 14, 7];
-  const colors = ["var(--orange-money)", "var(--mtn)", "var(--ink)", "var(--wave)"];
+  const pcts = breakdown.map(b => b.pct);
+  const colors = breakdown.map(b => methodColorVar(b.method));
   const circ = 2 * Math.PI * r;
 
   let offset = 0;
-  const arcs = data.map((pct, i) => {
+  const arcs = pcts.map((pct, i) => {
     const dash = (pct / 100) * circ;
     const gap = circ - dash;
     const o = offset;
@@ -108,7 +106,7 @@ function MethodDonutSVG() {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {arcs}
-      <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, fill: "var(--ink)" }}>4</text>
+      <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, fill: "var(--ink)" }}>{breakdown.length}</text>
       <text x={cx} y={cy + 12} textAnchor="middle" style={{ fontFamily: "var(--mono)", fontSize: 9, fill: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>methods</text>
     </svg>
   );
@@ -176,6 +174,8 @@ export default function MerchantDashboardPage() {
   }
 
   const recentPayments = stats?.recent_payments ?? [];
+  const revenueChartData: number[] = stats?.revenue_chart?.map((d) => d.amount) ?? [];
+  const methodBreakdown = stats?.method_breakdown ?? [];
 
   return (
     <PageWrapper
@@ -259,9 +259,11 @@ export default function MerchantDashboardPage() {
           label={<T fr="Volume 7j" en="7d volume" />}
           value={fmtXAF(stats?.total_revenue ?? 0)}
         >
-          <div style={{ marginTop: 8, marginBottom: -4 }}>
-            <Sparkline data={REV_30.slice(-14)} width={220} height={36} />
-          </div>
+          {revenueChartData.length > 0 && (
+            <div style={{ marginTop: 8, marginBottom: -4 }}>
+              <Sparkline data={revenueChartData.slice(-14)} width={220} height={36} />
+            </div>
+          )}
         </KpiCard>
 
         {/* Transactions */}
@@ -347,7 +349,7 @@ export default function MerchantDashboardPage() {
               </span>
             </div>
           </div>
-          <RevenueChartSVG />
+          <RevenueChartSVG data={revenueChartData} />
         </div>
 
         {/* Method mix donut */}
@@ -365,41 +367,50 @@ export default function MerchantDashboardPage() {
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 18px" }}>
             <T fr="Les 7 derniers jours" en="Last 7 days" />
           </p>
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <MethodDonutSVG />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-              {METHOD_MIX.map((m, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 3,
-                      background: m.color,
-                    }}
-                  />
-                  <span style={{ flex: 1 }}>
-                    {m.nameFr ? (
-                      <T fr={m.nameFr} en={m.nameEn} />
-                    ) : (
-                      m.name
-                    )}
-                  </span>
-                  <span className="mono" style={{ color: "var(--muted)" }}>
-                    {m.pct}%
-                  </span>
-                </div>
-              ))}
+          {methodBreakdown.length > 0 ? (
+            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+              <MethodDonutSVG breakdown={methodBreakdown} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                {methodBreakdown.map((m, i) => {
+                  const display = methodDisplayName(m.method);
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 12,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 3,
+                          background: methodColorVar(m.method),
+                        }}
+                      />
+                      <span style={{ flex: 1 }}>
+                        {display.nameFr ? (
+                          <T fr={display.nameFr} en={display.nameEn} />
+                        ) : (
+                          display.name
+                        )}
+                      </span>
+                      <span className="mono" style={{ color: "var(--muted)" }}>
+                        {m.pct}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Aucune donnee de methode" en="No method data" />
+            </div>
+          )}
         </div>
       </div>
 

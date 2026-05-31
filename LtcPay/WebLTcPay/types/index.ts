@@ -183,6 +183,7 @@ export interface MerchantDashboardStats {
   recent_payments: Payment[];
   revenue_chart: { date: string; amount: number }[];
   status_distribution: StatusDistributionItem[];
+  method_breakdown: { method: string; count: number; amount: number; pct: number }[];
 }
 
 export interface BalanceInfo {

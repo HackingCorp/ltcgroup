@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -8,33 +8,43 @@ import { MethodChip } from "@/components/ui/method-chip";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T, useLang } from "@/lib/i18n";
 import { fmtXAF, fmtDate } from "@/lib/format";
-
-/* ── Mock data ─────────────────────────────────── */
-const MOCK_PAYOUTS = [
-  { id: "po_1", reference: "PO-20260528-001", amount: 450000, fee: 2500, currency: "XAF", status: "completed", method: "orange", destination: "+237 6 99 00 11 22", created: "2026-05-28T06:00:00Z", arrivedAt: "2026-05-28T06:05:00Z" },
-  { id: "po_2", reference: "PO-20260521-003", amount: 320000, fee: 2500, currency: "XAF", status: "completed", method: "mtn", destination: "+237 6 77 88 99 00", created: "2026-05-21T06:00:00Z", arrivedAt: "2026-05-21T06:04:00Z" },
-  { id: "po_3", reference: "PO-20260514-002", amount: 180000, fee: 2500, currency: "XAF", status: "completed", method: "orange", destination: "+237 6 99 00 11 22", created: "2026-05-14T06:00:00Z", arrivedAt: "2026-05-14T06:03:00Z" },
-  { id: "po_4", reference: "PO-20260507-001", amount: 560000, fee: 2500, currency: "XAF", status: "completed", method: "mtn", destination: "+237 6 77 88 99 00", created: "2026-05-07T06:00:00Z", arrivedAt: "2026-05-07T06:06:00Z" },
-  { id: "po_5", reference: "PO-20260430-004", amount: 275000, fee: 2500, currency: "XAF", status: "completed", method: "orange", destination: "+237 6 99 00 11 22", created: "2026-04-30T06:00:00Z", arrivedAt: "2026-04-30T06:02:00Z" },
-];
-
-const NEXT_PAYOUT = {
-  amount: 387500,
-  currency: "XAF",
-  scheduledDate: "2026-06-04",
-  destination: "+237 6 99 00 11 22",
-  method: "orange",
-};
-
-const TOTAL_THIS_MONTH = MOCK_PAYOUTS.filter((p) => p.created.startsWith("2026-05")).reduce((a, p) => a + p.amount, 0);
+import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 
 export default function PayoutsPage() {
   const { lang } = useLang();
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [balance, setBalance] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [withdrawalsRes, balanceRes] = await Promise.all([
+          merchantDashboardService.getWithdrawals({ page: 1, page_size: 5 }),
+          merchantDashboardService.getBalance(),
+        ]);
+        setPayouts(withdrawalsRes.items || []);
+        setBalance(balanceRes);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) return <PageWrapper crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Reglements" en="Payouts" />]} title={<T fr="Reglements" en="Payouts" />} sub={<T fr="Vos virements hebdomadaires automatiques" en="Your automatic weekly payouts" />}><div style={{padding:40,textAlign:"center",color:"var(--muted)"}}>Chargement...</div></PageWrapper>;
+
+  const nextPayoutAmount = balance?.next_payout_amount ?? 0;
+  const nextPayoutDate = balance?.next_payout_date ?? "";
+  const totalThisMonth = payouts.reduce((a, p) => a + (p.amount ?? 0), 0);
+  const avgFee = payouts.length > 0 ? payouts.reduce((a, p) => a + (p.fee ?? 0), 0) / payouts.length : 0;
 
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Règlements" en="Payouts" />]}
-      title={<T fr="Règlements" en="Payouts" />}
+      crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Reglements" en="Payouts" />]}
+      title={<T fr="Reglements" en="Payouts" />}
       sub={<T fr="Vos virements hebdomadaires automatiques" en="Your automatic weekly payouts" />}
     >
       {/* Dark hero card: next payout */}
@@ -66,27 +76,31 @@ export default function PayoutsPage() {
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <Icon name="bolt" size={16} color="var(--lime, #a3e635)" />
-            <span style={{ fontSize: 13, opacity: 0.7 }}><T fr="Prochain règlement" en="Next payout" /></span>
-            <Pill tone="live"><T fr="Programmé" en="Scheduled" /></Pill>
+            <span style={{ fontSize: 13, opacity: 0.7 }}><T fr="Prochain reglement" en="Next payout" /></span>
+            <Pill tone="live"><T fr="Programme" en="Scheduled" /></Pill>
           </div>
 
           <div className="display" style={{ fontSize: 42, fontWeight: 600, letterSpacing: -1, marginBottom: 6 }}>
-            {fmtXAF(NEXT_PAYOUT.amount)}
+            {fmtXAF(nextPayoutAmount)}
           </div>
 
           <div style={{ display: "flex", gap: 20, fontSize: 13, opacity: 0.6, flexWrap: "wrap" }}>
-            <span><Icon name="clock" size={12} color="currentColor" /> {NEXT_PAYOUT.scheduledDate}</span>
-            <span><Icon name="phone" size={12} color="currentColor" /> {NEXT_PAYOUT.destination}</span>
-            <span><MethodChip kind={NEXT_PAYOUT.method} /></span>
+            <span><Icon name="clock" size={12} color="currentColor" /> {nextPayoutDate}</span>
+            {payouts.length > 0 && payouts[0].destination && (
+              <span><Icon name="phone" size={12} color="currentColor" /> {payouts[0].destination}</span>
+            )}
+            {payouts.length > 0 && payouts[0].payment_mode && (
+              <span><MethodChip kind={payouts[0].payment_mode} /></span>
+            )}
           </div>
         </div>
       </div>
 
       {/* KPI row */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 12 }}>
-        <KpiCard label={<T fr="Réglé ce mois" en="Paid out this month" />} value={fmtXAF(TOTAL_THIS_MONTH)} />
-        <KpiCard label={<T fr="Fréquence" en="Frequency" />} value={lang === "en" ? "Weekly" : "Hebdo"} />
-        <KpiCard label={<T fr="Frais par virement" en="Fee per payout" />} value={fmtXAF(2500)} />
+        <KpiCard label={<T fr="Regle ce mois" en="Paid out this month" />} value={fmtXAF(totalThisMonth)} />
+        <KpiCard label={<T fr="Frequence" en="Frequency" />} value={lang === "en" ? "Weekly" : "Hebdo"} />
+        <KpiCard label={<T fr="Frais par virement" en="Fee per payout" />} value={fmtXAF(Math.round(avgFee))} />
       </div>
 
       {/* Payout history */}
@@ -94,10 +108,10 @@ export default function PayoutsPage() {
         <div style={{ padding: 18, borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: 0 }}>
-              <T fr="Historique des règlements" en="Payout history" />
+              <T fr="Historique des reglements" en="Payout history" />
             </h3>
             <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
-              <T fr="Les 5 derniers virements" en="Last 5 payouts" />
+              <T fr={`Les ${payouts.length} derniers virements`} en={`Last ${payouts.length} payouts`} />
             </p>
           </div>
           <button className="btn btn-ghost btn-sm">
@@ -106,26 +120,26 @@ export default function PayoutsPage() {
         </div>
 
         <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
-          <div><T fr="Référence" en="Reference" /></div>
+          <div><T fr="Reference" en="Reference" /></div>
           <div><T fr="Destination" en="Destination" /></div>
-          <div><T fr="Méthode" en="Method" /></div>
+          <div><T fr="Methode" en="Method" /></div>
           <div><T fr="Statut" en="Status" /></div>
           <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
           <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
         </div>
         <div className="tbl">
-          {MOCK_PAYOUTS.map((po) => (
+          {payouts.map((po) => (
             <div key={po.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
               <div>
                 <div className="mono" style={{ fontSize: 12 }}>{po.reference}</div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>{po.destination}</div>
-              <div><MethodChip kind={po.method} /></div>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>{po.destination || ""}</div>
+              <div><MethodChip kind={po.payment_mode || ""} /></div>
               <div>
-                <Pill tone={po.status === "completed" ? "success" : po.status === "processing" ? "info" : "warn"}>
-                  {po.status === "completed"
-                    ? (lang === "en" ? "Sent" : "Envoyé")
-                    : po.status === "processing"
+                <Pill tone={po.status?.toLowerCase() === "completed" ? "success" : po.status?.toLowerCase() === "processing" ? "info" : "warn"}>
+                  {po.status?.toLowerCase() === "completed"
+                    ? (lang === "en" ? "Sent" : "Envoye")
+                    : po.status?.toLowerCase() === "processing"
                     ? (lang === "en" ? "Processing" : "En cours")
                     : (lang === "en" ? "Pending" : "En attente")
                   }
@@ -133,14 +147,19 @@ export default function PayoutsPage() {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div className="display" style={{ fontWeight: 500, fontSize: 14 }}>{fmtXAF(po.amount)}</div>
-                <div style={{ fontSize: 10, color: "var(--muted)" }}>{lang === "en" ? "Fee" : "Frais"}: {fmtXAF(po.fee)}</div>
+                <div style={{ fontSize: 10, color: "var(--muted)" }}>{lang === "en" ? "Fee" : "Frais"}: {fmtXAF(po.fee ?? 0)}</div>
               </div>
               <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>
-                {fmtDate(po.created)}
+                {fmtDate(po.created_at)}
               </div>
             </div>
           ))}
         </div>
+        {payouts.length === 0 && (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+            <T fr="Aucun reglement." en="No payouts." />
+          </div>
+        )}
       </div>
 
       {/* Info note */}
@@ -148,7 +167,7 @@ export default function PayoutsPage() {
         <Icon name="info" size={18} color="var(--primary)" />
         <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--muted)" }}>
           <T
-            fr="Les règlements sont effectués automatiquement chaque mercredi. Le montant minimum est de 10 000 F CFA. Pour modifier votre compte de réception, rendez-vous dans Paramètres."
+            fr="Les reglements sont effectues automatiquement chaque mercredi. Le montant minimum est de 10 000 F CFA. Pour modifier votre compte de reception, rendez-vous dans Parametres."
             en="Payouts are processed automatically every Wednesday. The minimum amount is 10,000 XAF. To change your payout account, go to Settings."
           />
         </div>

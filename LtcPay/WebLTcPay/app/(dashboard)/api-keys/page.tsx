@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui";
 import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
 
 interface ApiKeys {
   api_key_live: string;
@@ -19,16 +20,23 @@ export default function ApiKeysPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch from API GET /api/v1/merchants/me
-    // Simulated data for now
-    setTimeout(() => {
-      setKeys({
-        api_key_live: "ltcpay_live_" + "x".repeat(32),
-        api_key_test: "ltcpay_test_" + "y".repeat(32),
-        webhook_secret: "whsec_" + "z".repeat(40),
-      });
-      setIsLoading(false);
-    }, 500);
+    async function load() {
+      try {
+        const res = await api.get("/merchant-auth/me");
+        const m = res.data;
+        setKeys({
+          api_key_live: m.api_key || "",
+          api_key_test: m.api_key_test || m.api_key || "",
+          api_secret: m.api_secret,
+          webhook_secret: m.webhook_secret,
+        });
+      } catch (err) {
+        console.error("Failed to load API keys:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
   }, []);
 
   const copyToClipboard = (text: string, label: string) => {

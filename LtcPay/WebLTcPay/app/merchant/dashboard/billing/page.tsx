@@ -1,37 +1,60 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
 import { fmtXAF } from "@/lib/format";
-
-const INVOICES = [
-  { id: "NKAP-2026-05", period: "Mai 2026", amount: 78420, status: "current", paid: null },
-  { id: "NKAP-2026-04", period: "Avril 2026", amount: 71250, status: "paid", paid: "01 mai 2026" },
-  { id: "NKAP-2026-03", period: "Mars 2026", amount: 64800, status: "paid", paid: "01 avr 2026" },
-  { id: "NKAP-2026-02", period: "Février 2026", amount: 58200, status: "paid", paid: "01 mars 2026" },
-  { id: "NKAP-2026-01", period: "Janvier 2026", amount: 52100, status: "paid", paid: "01 fév 2026" },
-];
+import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 
 export default function MerchantBillingPage() {
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [current, setCurrent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [invoicesRes, currentRes] = await Promise.all([
+          merchantDashboardService.getBillingInvoices({ page: 1 }),
+          merchantDashboardService.getBillingCurrent(),
+        ]);
+        setInvoices(invoicesRes.items || []);
+        setCurrent(currentRes);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) return <PageWrapper crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Facturation Nkap" en="Nkap billing" />]} title={<T fr="Facturation Nkap" en="Nkap billing" />} sub={<T fr="Factures emises par LTC Group SARL pour les frais de service Nkap Pay" en="Invoices issued by LTC Group SARL for Nkap Pay service fees" />}><div style={{padding:40,textAlign:"center",color:"var(--muted)"}}>Chargement...</div></PageWrapper>;
+
+  const currentFees = current?.amount ?? 0;
+  const currentVolume = current?.volume_processed ?? 0;
+  const currentRate = current?.fee_rate_applied ?? 0;
+  const ratePercent = (currentRate * 100).toFixed(2);
+
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Finance" en="Finance" />, <T key="c2" fr="Facturation Nkap" en="Nkap billing" />]}
       title={<T fr="Facturation Nkap" en="Nkap billing" />}
-      sub={<T fr="Factures émises par LTC Group SARL pour les frais de service Nkap Pay" en="Invoices issued by LTC Group SARL for Nkap Pay service fees" />}
-      actions={<button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> <T fr="Tout télécharger" en="Download all" /></button>}
+      sub={<T fr="Factures emises par LTC Group SARL pour les frais de service Nkap Pay" en="Invoices issued by LTC Group SARL for Nkap Pay service fees" />}
+      actions={<button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> <T fr="Tout telecharger" en="Download all" /></button>}
     >
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: 16 }}>
-        <KpiCard label={<T fr="Plan actuel" en="Current plan" />} value="Growth">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>1,5% {"·"} <T fr="Renouvellement automatique le 1er" en="Auto-renew on the 1st" /></div>
+        <KpiCard label={<T fr="Plan actuel" en="Current plan" />} value={current?.status === "current" ? "Growth" : "Starter"}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>{ratePercent}% {"\u00b7"} <T fr="Renouvellement automatique le 1er" en="Auto-renew on the 1st" /></div>
         </KpiCard>
-        <KpiCard label={<T fr="Frais ce mois" en="Fees this month" />} value="78 420" unit="F">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Sur 5,2M F encaissés (1,51%)" en="On 5.2M F collected (1.51%)" /></div>
+        <KpiCard label={<T fr="Frais ce mois" en="Fees this month" />} value={fmtXAF(currentFees)} unit="">
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr={`Sur ${fmtXAF(currentVolume)} encaisses (${ratePercent}%)`} en={`On ${fmtXAF(currentVolume)} collected (${ratePercent}%)`} /></div>
         </KpiCard>
-        <KpiCard label={<T fr="Économisé vs Starter" en="Saved vs Starter" />} value="52 200" unit="F" delta="+8,4%">
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Depuis le 1er janvier 2026" en="Since Jan 1, 2026" /></div>
+        <KpiCard label={<T fr="Periode" en="Period" />} value={current?.period_label || ""}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Periode en cours" en="Current period" /></div>
         </KpiCard>
       </div>
 
@@ -42,19 +65,19 @@ export default function MerchantBillingPage() {
         <div className="tbl">
           <div className="row head" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
             <span>ID</span>
-            <span><T fr="Période" en="Period" /></span>
+            <span><T fr="Periode" en="Period" /></span>
             <span style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></span>
             <span><T fr="Statut" en="Status" /></span>
             <span style={{ textAlign: "right" }}>Actions</span>
           </div>
-          {INVOICES.map(inv => (
-            <div className="row" key={inv.id} style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
-              <div className="mono" style={{ fontSize: 12 }}>{inv.id}</div>
-              <div>{inv.period}</div>
+          {invoices.map(inv => (
+            <div className="row" key={inv.id || inv.reference} style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr" }}>
+              <div className="mono" style={{ fontSize: 12 }}>{inv.reference || inv.id}</div>
+              <div>{inv.period_label || ""}</div>
               <div className="display" style={{ fontWeight: 500, fontSize: 16, textAlign: "right" }}>{fmtXAF(inv.amount)}</div>
               <div>
-                <Pill tone={inv.status === "paid" ? "success" : "warn"}>
-                  {inv.status === "paid" ? <><T fr="payée" en="paid" /> {"·"} {inv.paid}</> : <T fr="en cours" en="current" />}
+                <Pill tone={inv.status?.toLowerCase() === "paid" ? "success" : "warn"}>
+                  {inv.status?.toLowerCase() === "paid" ? <><T fr="payee" en="paid" /> {"\u00b7"} {inv.paid_at || ""}</> : <T fr="en cours" en="current" />}
                 </Pill>
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -64,6 +87,11 @@ export default function MerchantBillingPage() {
             </div>
           ))}
         </div>
+        {invoices.length === 0 && (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+            <T fr="Aucune facture." en="No invoices." />
+          </div>
+        )}
       </div>
     </PageWrapper>
   );

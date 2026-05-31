@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Save, TestTube } from "lucide-react";
 import toast from "react-hot-toast";
+import api from "@/lib/api";
 
 interface ProfileData {
   business_name: string;
@@ -32,18 +33,22 @@ export default function ProfilePage() {
   }, []);
 
   const loadProfile = async () => {
-    // TODO: Fetch from GET /api/v1/merchants/me
-    setTimeout(() => {
+    try {
+      const res = await api.get("/merchant-auth/me");
+      const m = res.data;
       setFormData({
-        business_name: "My Business",
-        email: "merchant@example.com",
-        phone: "+237690000000",
-        website: "https://mybusiness.com",
-        callback_url: "https://mybusiness.com/webhooks/ltcpay",
-        webhook_secret: "whsec_" + "x".repeat(40),
+        business_name: m.name || m.business_name || "",
+        email: m.email || "",
+        phone: m.phone || "",
+        website: m.website || "",
+        callback_url: m.callback_url || m.webhook_url || "",
+        webhook_secret: m.webhook_secret || "",
       });
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,8 +56,13 @@ export default function ProfilePage() {
     setIsSaving(true);
 
     try {
-      // TODO: Call PUT /api/v1/merchants/me
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await api.patch("/merchant-auth/profile", {
+        name: formData.business_name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        website: formData.website || undefined,
+        webhook_url: formData.callback_url || undefined,
+      });
       toast.success("Profile updated successfully!");
     } catch (error) {
       toast.error("Failed to update profile");
@@ -63,8 +73,7 @@ export default function ProfilePage() {
 
   const testWebhook = async () => {
     try {
-      // TODO: Call POST /api/v1/webhooks/test
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await api.post("/webhooks/test");
       toast.success("Test webhook sent successfully!");
     } catch (error) {
       toast.error("Failed to send test webhook");

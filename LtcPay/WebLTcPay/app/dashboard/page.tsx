@@ -10,56 +10,38 @@ import { Avatar } from "@/components/ui/avatar";
 import { T } from "@/lib/i18n";
 import { fmtCompact } from "@/lib/format";
 import { dashboardService } from "@/services/dashboard.service";
+import { adminDashboardService } from "@/services/admin-dashboard.service";
 import type { DashboardStats } from "@/types";
 
-/* ── mock data for design elements ─────────────────────────── */
+/* ── helpers ─────────────────────────────────────────────────── */
 
-const A_REVENUE = [380, 412, 458, 502, 547, 612, 680, 725, 802, 884, 921, 1024, 1118, 1247, 1382, 1450, 1521, 1684, 1820, 1924, 2118, 2287, 2421, 2620, 2812, 3045, 3284, 3520, 3812, 4140];
-
-const ADMIN_MERCHANTS = [
-  { id: "MER-001", name: "Boutique Mami SARL", country: "CM", volume30: 5240000, txCount: 1247, status: "live", plan: "Growth", fee: "1,5%" },
-  { id: "MER-002", name: "Restaurant Le Baobab", country: "CM", volume30: 2180000, txCount: 432, status: "live", plan: "Starter", fee: "2,5%" },
-  { id: "MER-003", name: "KILIMO SARL", country: "CI", volume30: 18500000, txCount: 3287, status: "live", plan: "Growth", fee: "1,5%" },
-  { id: "MER-006", name: "Beaute Africaine SAS", country: "CI", volume30: 8420000, txCount: 1820, status: "live", plan: "Growth", fee: "1,5%" },
-  { id: "MER-009", name: "Agro Export Cameroun", country: "CM", volume30: 124500000, txCount: 412, status: "live", plan: "Scale", fee: "0,9%" },
-  { id: "MER-010", name: "Wave Senegal Reseller", country: "SN", volume30: 6240000, txCount: 2148, status: "live", plan: "Growth", fee: "1,2%" },
-];
-
-const COUNTRIES = [
-  { flag: "\u{1F1E8}\u{1F1F2}", name: "Cameroun", count: 1482, pct: 60 },
-  { flag: "\u{1F1E8}\u{1F1EE}", name: "Cote d'Ivoire", count: 624, pct: 25 },
-  { flag: "\u{1F1F8}\u{1F1F3}", name: "Senegal", count: 248, pct: 10 },
-  { flag: "\u{1F1E7}\u{1F1EB}", name: "Burkina Faso", count: 87, pct: 4 },
-  { flag: "\u{1F1F2}\u{1F1F1}", name: "Mali", count: 41, pct: 1 },
-];
-
-const SYSTEM_HEALTH = [
-  { name: "API Gateway", v: "99.99%", c: "var(--success)" },
-  { name: "TouchPay", v: "99.94%", c: "var(--success)" },
-  { name: "Webhook delivery", v: "99.42%", c: "var(--warn)" },
-  { name: "DB primary", v: "12ms p99", c: "var(--success)" },
-  { name: "Redis cache", v: "1.2ms p99", c: "var(--success)" },
-];
-
-const ADMIN_ACTIVITY = [
-  { who: "Sarah M.", whatFr: "a approuve KYC MER-247", whatEn: "approved KYC MER-247", time: "il y a 12 min" },
-  { who: "Jean K.", whatFr: "a ajuste les fees de MER-009", whatEn: "adjusted MER-009 fees", time: "il y a 1 h" },
-  { who: "System", whatFr: "a suspendu MER-008 pour fraude", whatEn: "suspended MER-008 for fraud", time: "il y a 2 h" },
-  { who: "Nadege T.", whatFr: "a rembourse 4 transactions", whatEn: "refunded 4 transactions", time: "il y a 3 h" },
-  { who: "Sarah M.", whatFr: "a invite un nouvel admin", whatEn: "invited a new admin", time: "il y a 5 h" },
-];
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const d = new Date(dateStr);
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "il y a 1 min";
+  if (diffMin < 60) return `il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH} h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `il y a ${diffD} j`;
+  const diffW = Math.floor(diffD / 7);
+  return `il y a ${diffW} sem`;
+}
 
 /* ── platform chart ────────────────────────────────────────── */
 
-function PlatformChart() {
+function PlatformChart({ data }: { data: number[] }) {
   const w = 700, h = 220, pad = 24;
+  if (!data || data.length < 2) return null;
   const series = [
-    { name: "Orange Money", c: "var(--orange-money)", data: A_REVENUE.map(v => v * 0.48) },
-    { name: "MTN MoMo", c: "var(--mtn)", data: A_REVENUE.map(v => v * 0.31) },
-    { name: "Card", c: "var(--ink)", data: A_REVENUE.map(v => v * 0.14) },
-    { name: "Wave", c: "var(--wave)", data: A_REVENUE.map(v => v * 0.07) },
+    { name: "Orange Money", c: "var(--orange-money)", data: data.map(v => v * 0.48) },
+    { name: "MTN MoMo", c: "var(--mtn)", data: data.map(v => v * 0.31) },
+    { name: "Card", c: "var(--ink)", data: data.map(v => v * 0.14) },
+    { name: "Wave", c: "var(--wave)", data: data.map(v => v * 0.07) },
   ];
-  const totals = A_REVENUE.map(v => v);
+  const totals = data.map(v => v);
   const max = Math.max(...totals) * 1.1;
   const step = (w - pad * 2) / (totals.length - 1);
 
@@ -104,14 +86,40 @@ function PlatformChart() {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [merchants, setMerchants] = useState<any[]>([]);
+  const [healthServices, setHealthServices] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [financeStats, setFinanceStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    dashboardService
-      .getStats()
-      .then(setStats)
-      .catch(() => {})
+    Promise.all([
+      dashboardService.getStats().catch(() => null),
+      adminDashboardService.getHealth().catch(() => null),
+      adminDashboardService.getAuditLogs({ page: 1, page_size: 5 }).catch(() => ({ items: [] })),
+      adminDashboardService.getFinanceStats().catch(() => null),
+    ])
+      .then(([s, health, logs, finance]) => {
+        if (s) setStats(s);
+        if (health) {
+          const services = [
+            { name: "API Gateway", v: health.status === "healthy" ? "99.99%" : "degraded", c: health.status === "healthy" ? "var(--success)" : "var(--warn)" },
+            { name: "Database", v: health.db_ok ? `${health.db_latency_ms}ms p99` : "down", c: health.db_ok ? "var(--success)" : "var(--rose)" },
+            { name: "Redis", v: health.redis_ok ? `${health.redis_latency_ms}ms p99` : "down", c: health.redis_ok ? "var(--success)" : "var(--rose)" },
+          ];
+          setHealthServices(services);
+        }
+        setAuditLogs(logs?.items || []);
+        if (finance) setFinanceStats(finance);
+      })
       .finally(() => setIsLoading(false));
+
+    // Fetch merchants separately (uses different endpoint pattern)
+    import("@/services/merchants.service").then(({ merchantsService }) => {
+      merchantsService.list(1, 10).then((res: any) => {
+        setMerchants(res.items || []);
+      }).catch(() => {});
+    });
   }, []);
 
   if (isLoading) {
@@ -122,7 +130,8 @@ export default function DashboardPage() {
     );
   }
 
-  const topMerchants = [...ADMIN_MERCHANTS].sort((a, b) => b.volume30 - a.volume30).slice(0, 5);
+  const sparklineData = financeStats?.revenue_sparkline || [];
+  const topMerchants = [...merchants].sort((a: any, b: any) => (b.total_revenue || 0) - (a.total_revenue || 0)).slice(0, 5);
 
   return (
     <PageWrapper
@@ -145,9 +154,11 @@ export default function DashboardPage() {
         style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))", marginBottom: 12 }}
       >
         <KpiCard hero label={<T fr="Revenu total" en="Total revenue" />} value={stats ? fmtCompact(stats.total_revenue) : "—"} unit="F">
-          <div style={{ marginTop: 12 }}>
-            <Sparkline data={A_REVENUE} width={240} height={36} color="var(--accent)" />
-          </div>
+          {sparklineData.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Sparkline data={sparklineData} width={240} height={36} color="var(--accent)" />
+            </div>
+          )}
         </KpiCard>
         <KpiCard label={<T fr="Total paiements" en="Total payments" />} value={stats ? String(stats.total_payments) : "—"}>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}><T fr="Tous les paiements" en="All payments" /></div>
@@ -170,22 +181,34 @@ export default function DashboardPage() {
             </div>
             <Pill tone="live">Realtime</Pill>
           </div>
-          <PlatformChart />
+          {sparklineData.length > 0 ? (
+            <PlatformChart data={sparklineData} />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Donnees graphiques non disponibles" en="Chart data unavailable" />
+            </div>
+          )}
         </div>
 
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 6px" }}><T fr="Pays" en="Countries" /></h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 18px" }}><T fr="Repartition des marchands actifs" en="Active merchant split" /></p>
-          {COUNTRIES.map((c, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
-              <span style={{ fontSize: 18 }}>{c.flag}</span>
-              <span style={{ flex: 1, fontSize: 13 }}>{c.name}</span>
-              <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{c.count}</span>
-              <div style={{ width: 60, height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${c.pct}%`, height: "100%", background: "var(--primary)" }} />
+          {(stats as any)?.countries && ((stats as any).countries as any[]).length > 0 ? (
+            ((stats as any).countries as any[]).map((c: any, i: number) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+                <span style={{ fontSize: 18 }}>{c.flag || "\u{1F30D}"}</span>
+                <span style={{ flex: 1, fontSize: 13 }}>{c.name}</span>
+                <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{c.count}</span>
+                <div style={{ width: 60, height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${c.pct}%`, height: "100%", background: "var(--primary)" }} />
+                </div>
               </div>
+            ))
+          ) : (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Donnees pays non disponibles" en="Country data unavailable" />
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -194,23 +217,27 @@ export default function DashboardPage() {
         {/* Top 5 merchants */}
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Top 5 marchands" en="Top 5 merchants" /></h3>
-          {topMerchants.map((m, i) => (
+          {topMerchants.length > 0 ? topMerchants.map((m: any, i: number) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
               <span className="mono" style={{ fontSize: 10, color: "var(--muted-2)", width: 16 }}>{i + 1}.</span>
               <Avatar name={m.name} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.country} · {m.plan}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.country || "CM"} · {m.plan || "Starter"}</div>
               </div>
-              <div className="mono" style={{ fontSize: 11 }}>{fmtCompact(m.volume30)} F</div>
+              <div className="mono" style={{ fontSize: 11 }}>{fmtCompact(m.total_revenue || 0)} F</div>
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Aucun marchand" en="No merchants" />
+            </div>
+          )}
         </div>
 
         {/* System health */}
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Sante systeme" en="System health" /></h3>
-          {SYSTEM_HEALTH.map((s, i) => (
+          {healthServices.length > 0 ? healthServices.map((s: any, i: number) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.c }} />
@@ -218,19 +245,27 @@ export default function DashboardPage() {
               </span>
               <span className="mono" style={{ color: "var(--muted)" }}>{s.v}</span>
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Donnees sante non disponibles" en="Health data unavailable" />
+            </div>
+          )}
         </div>
 
         {/* Admin activity */}
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Activite admin" en="Admin activity" /></h3>
-          {ADMIN_ACTIVITY.map((a, i) => (
-            <div key={i} style={{ padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
-              <span style={{ fontWeight: 500 }}>{a.who}</span>{" "}
-              <span style={{ color: "var(--muted)" }}><T fr={a.whatFr} en={a.whatEn} /></span>
-              <div className="mono" style={{ fontSize: 10, color: "var(--muted-2)", marginTop: 2 }}>{a.time}</div>
+          {auditLogs.length > 0 ? auditLogs.map((a: any, i: number) => (
+            <div key={a.id || i} style={{ padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
+              <span style={{ fontWeight: 500 }}>{a.actor_name || "System"}</span>{" "}
+              <span style={{ color: "var(--muted)" }}>{a.action}{a.target ? ` · ${a.target}` : ""}</span>
+              <div className="mono" style={{ fontSize: 10, color: "var(--muted-2)", marginTop: 2 }}>{a.created_at ? timeAgo(a.created_at) : "—"}</div>
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Aucune activite recente" en="No recent activity" />
+            </div>
+          )}
         </div>
       </div>
     </PageWrapper>

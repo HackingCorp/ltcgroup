@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
-import type { Payment, PaginatedResponse } from "@/types";
+import { paymentsService } from "@/services/payments.service";
+import type { Payment } from "@/types";
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -22,59 +23,27 @@ export default function PaymentsPage() {
 
   const loadPayments = async () => {
     setIsLoading(true);
-    // TODO: Fetch from API GET /api/v1/payments
-    // Simulated data
-    setTimeout(() => {
-      const mockPayments: Payment[] = [
-        {
-          id: "1",
-          reference: "PAY-001",
-          amount: 50000,
-          currency: "XAF",
-          status: "completed",
-          customer_email: "customer1@example.com",
-          customer_phone: "+237690000001",
-          description: "Payment for Order #1234",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          reference: "PAY-002",
-          amount: 25000,
-          currency: "XAF",
-          status: "pending",
-          customer_email: "customer2@example.com",
-          customer_phone: "+237690000002",
-          description: "Payment for Order #1235",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "3",
-          reference: "PAY-003",
-          amount: 75000,
-          currency: "XAF",
-          status: "failed",
-          customer_email: "customer3@example.com",
-          customer_phone: "+237690000003",
-          description: "Payment for Order #1236",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setPayments(mockPayments);
-      setTotalPages(1);
+    try {
+      const res = await paymentsService.list({
+        page,
+        per_page: 20,
+        status: statusFilter === "all" ? undefined : statusFilter,
+      });
+      setPayments(res.items || []);
+      setTotalPages(res.total_pages || 1);
+    } catch (err) {
+      console.error("Failed to load payments:", err);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const filteredPayments = payments.filter((payment) => {
-    const matchesSearch =
+    if (!search) return true;
+    return (
       payment.reference.toLowerCase().includes(search.toLowerCase()) ||
-      payment.customer_email?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || payment.status === statusFilter;
-    return matchesSearch && matchesStatus;
+      payment.customer_email?.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
   const exportToCSV = () => {

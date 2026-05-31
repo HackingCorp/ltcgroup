@@ -1,30 +1,75 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { MethodChip } from "@/components/ui/method-chip";
 import { T } from "@/lib/i18n";
-
-/* ── mock data ─────────────────────────────────────────────── */
-
-const STANDARD_RULES = [
-  { method: "orange", name: "Orange Money", s: "2,5%", g: "1,5%", sc: "0,9%", t: "T+1" },
-  { method: "mtn", name: "MTN MoMo", s: "2,5%", g: "1,5%", sc: "0,9%", t: "T+1" },
-  { method: "wave", name: "Wave", s: "1,5%", g: "1,0%", sc: "0,7%", t: "T+1" },
-  { method: "card", name: "Carte bancaire", s: "2,9% + 100 F", g: "2,5% + 100 F", sc: "2,2% + 50 F", t: "T+3" },
-];
-
-const CUSTOM_RATES = [
-  { merch: "Agro Export Cameroun (MER-009)", method: "orange", std: "1,5%", custom: "0,8%", exp: "31 dec 2026" },
-  { merch: "Agro Export Cameroun (MER-009)", method: "card", std: "2,5%", custom: "2,1%", exp: "31 dec 2026" },
-  { merch: "Wave Senegal Reseller (MER-010)", method: "wave", std: "1,5%", custom: "1,2%", exp: "30 juin 2026" },
-];
+import { adminDashboardService } from "@/services/admin-dashboard.service";
 
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function FeesPage() {
+  const [rules, setRules] = useState<any[]>([]);
+  const [overrides, setOverrides] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [rulesRes, overridesRes, statsRes] = await Promise.all([
+          adminDashboardService.getFeeRules(),
+          adminDashboardService.getFeeOverrides(),
+          adminDashboardService.getFeeStats(),
+        ]);
+        setRules(rulesRes.items || []);
+        setOverrides(overridesRes.items || []);
+        setStats(statsRes);
+      } catch (err) {
+        console.error("Failed to load fees data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <PageWrapper
+        crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Pricing & frais" en="Pricing & fees" />]}
+        title={<T fr="Modulation tarifaire" en="Fee modulation" />}
+        sub=""
+      >
+        <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Chargement...</div>
+      </PageWrapper>
+    );
+  }
+
+  // Group rules by payment method to show rates per plan
+  const methodMap: Record<string, any> = {};
+  for (const rule of rules) {
+    const key = rule.payment_method || "unknown";
+    if (!methodMap[key]) {
+      methodMap[key] = { method: key, name: key, s: "---", g: "---", sc: "---", t: rule.settle_delay || "T+1" };
+    }
+    const rateStr = rule.rate != null ? `${rule.rate}%` : "---";
+    const plan = (rule.plan || "").toLowerCase();
+    if (plan === "starter") methodMap[key].s = rateStr;
+    else if (plan === "growth") methodMap[key].g = rateStr;
+    else if (plan === "scale") methodMap[key].sc = rateStr;
+    if (rule.settle_delay) methodMap[key].t = rule.settle_delay;
+  }
+  const standardRules = Object.values(methodMap);
+
+  const starterCount = stats?.starter_count ?? 0;
+  const growthCount = stats?.growth_count ?? 0;
+  const scaleCount = stats?.scale_count ?? 0;
+  const customCount = stats?.custom_count ?? 0;
+
   return (
     <PageWrapper
       crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Pricing & frais" en="Pricing & fees" />]}
@@ -38,10 +83,10 @@ export default function FeesPage() {
     >
       {/* KPIs per plan tier */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard label="Starter" value="2,5" unit="%" after={<Pill tone="neutral" plain>2 184</Pill>} />
-        <KpiCard label="Growth" value="1,5" unit="%" after={<Pill tone="info" plain>271</Pill>} />
-        <KpiCard label="Scale" value="0,9" unit="%" after={<Pill tone="success" plain>24</Pill>} />
-        <KpiCard label={<T fr="Tarifs custom" en="Custom rates" />} value="3" after={<Pill tone="warn" plain>actif</Pill>} />
+        <KpiCard label="Starter" value="2,5" unit="%" after={<Pill tone="neutral" plain>{starterCount}</Pill>} />
+        <KpiCard label="Growth" value="1,5" unit="%" after={<Pill tone="info" plain>{growthCount}</Pill>} />
+        <KpiCard label="Scale" value="0,9" unit="%" after={<Pill tone="success" plain>{scaleCount}</Pill>} />
+        <KpiCard label={<T fr="Tarifs custom" en="Custom rates" />} value={String(customCount)} after={<Pill tone="warn" plain>actif</Pill>} />
       </div>
 
       {/* Standard rules per plan */}
@@ -58,7 +103,12 @@ export default function FeesPage() {
             <span><T fr="Delai reglement" en="Settle delay" /></span>
             <span style={{ textAlign: "right" }}><T fr="Action" en="Action" /></span>
           </div>
-          {STANDARD_RULES.map((r, i) => (
+          {standardRules.length === 0 && (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+              <T fr="Aucune regle configuree" en="No rules configured" />
+            </div>
+          )}
+          {standardRules.map((r: any, i: number) => (
             <div key={i} className="row" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr" }}>
               <div><MethodChip kind={r.method} label={r.name} /></div>
               <div className="mono" style={{ fontSize: 12, textAlign: "right" }}>{r.s}</div>
@@ -85,13 +135,18 @@ export default function FeesPage() {
             <span><T fr="Valide jusqu'au" en="Expires" /></span>
             <span style={{ textAlign: "right" }}><T fr="Action" en="Action" /></span>
           </div>
-          {CUSTOM_RATES.map((r, i) => (
+          {overrides.length === 0 && (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+              <T fr="Aucun tarif negocie" en="No custom rates" />
+            </div>
+          )}
+          {overrides.map((r: any, i: number) => (
             <div key={i} className="row" style={{ gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 0.8fr" }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{r.merch}</div>
-              <div><MethodChip kind={r.method} /></div>
-              <div className="mono" style={{ fontSize: 12, color: "var(--muted)", textAlign: "right" }}>{r.std}</div>
-              <div className="mono" style={{ fontSize: 12, textAlign: "right", color: "var(--success)", fontWeight: 600 }}>{r.custom}</div>
-              <div className="mono" style={{ fontSize: 11 }}>{r.exp}</div>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{r.merchant_id}</div>
+              <div><MethodChip kind={r.payment_method} /></div>
+              <div className="mono" style={{ fontSize: 12, color: "var(--muted)", textAlign: "right" }}>{r.standard_rate != null ? `${r.standard_rate}%` : "---"}</div>
+              <div className="mono" style={{ fontSize: 12, textAlign: "right", color: "var(--success)", fontWeight: 600 }}>{r.custom_rate != null ? `${r.custom_rate}%` : "---"}</div>
+              <div className="mono" style={{ fontSize: 11 }}>{r.expires_at ? new Date(r.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "---"}</div>
               <div style={{ textAlign: "right" }}><button className="btn btn-ghost btn-sm"><T fr="Modifier" en="Edit" /></button></div>
             </div>
           ))}

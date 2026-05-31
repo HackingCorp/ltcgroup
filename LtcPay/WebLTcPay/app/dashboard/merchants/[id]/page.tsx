@@ -44,16 +44,6 @@ function withdrawalStatusTone(s: string): "success" | "warn" | "fail" | "info" |
 const PAYMENT_STATUSES = ["", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED"];
 const WITHDRAWAL_STATUSES = ["", "PENDING", "APPROVED", "REJECTED", "PROCESSING", "COMPLETED", "FAILED"];
 
-/* ── mock recent transactions for design ───────────────────── */
-
-const MOCK_RECENT_TX = [
-  { ref: "PAY-1A4C82E7", customer: "Cabinet Atangana", method: "orange", status: "success", amount: 15000 },
-  { ref: "PAY-7A9F1B2C", customer: "Olivier Mbu", method: "mtn", status: "success", amount: 8500 },
-  { ref: "PAY-4F2D9E8B", customer: "Cooperative Bafia", method: "orange", status: "pending", amount: 245000 },
-  { ref: "PAY-3B7C82A1", customer: "Wholesale Lagos", method: "card", status: "failed", amount: 1850000 },
-  { ref: "PAY-9E1D7F3C", customer: "Adele Toure", method: "wave", status: "success", amount: 32000 },
-];
-
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function MerchantDetailPage() {
@@ -186,16 +176,21 @@ export default function MerchantDetailPage() {
               <button className="btn btn-link"><T fr="Voir tout" en="View all" /> {"→"}</button>
             </div>
             <div className="tbl">
-              {MOCK_RECENT_TX.map((tx) => (
-                <div className="row" key={tx.ref} style={{ gridTemplateColumns: "1fr 1.4fr 0.7fr 0.8fr 1fr 24px", paddingTop: 10, paddingBottom: 10 }}>
-                  <div className="mono" style={{ fontSize: 12 }}>{tx.ref}</div>
-                  <div style={{ fontSize: 13 }}>{tx.customer}</div>
-                  <div><MethodChip kind={tx.method} /></div>
-                  <Pill tone={tx.status === "success" ? "success" : tx.status === "pending" ? "warn" : "fail"}>{tx.status === "success" ? "paid" : tx.status}</Pill>
+              {(payments?.items ?? []).slice(0, 5).map((tx) => (
+                <div className="row" key={tx.reference} style={{ gridTemplateColumns: "1fr 1.4fr 0.7fr 0.8fr 1fr 24px", paddingTop: 10, paddingBottom: 10 }}>
+                  <div className="mono" style={{ fontSize: 12 }}>{tx.reference}</div>
+                  <div style={{ fontSize: 13 }}>{tx.customer_name || tx.customer_phone || "—"}</div>
+                  <div><MethodChip kind={(tx.operator || tx.payment_method || "").toLowerCase()} /></div>
+                  <Pill tone={paymentStatusTone(tx.status)}>{tx.status === "COMPLETED" ? "paid" : tx.status.toLowerCase()}</Pill>
                   <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtXAF(tx.amount)}</div>
                   <Icon name="chevR" size={13} color="var(--muted)" />
                 </div>
               ))}
+              {(!payments || payments.items.length === 0) && (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+                  <T fr="Aucune activite recente" en="No recent activity" />
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,27 +1,13 @@
 "use client";
 
-import { Icon } from "@/components/ui/icon";
+import { useState, useEffect } from "react";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
+import { adminDashboardService } from "@/services/admin-dashboard.service";
 
-/* ── mock data ─────────────────────────────────────────────── */
-
-const SERVICES = [
-  { name: "API Gateway", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "42ms" },
-  { name: "Checkout pages", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "180ms" },
-  { name: "Webhook engine", region: "eu-west-3", status: "ok" as const, uptime: "99.94%", p99: "142ms" },
-  { name: "Dashboard frontend", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "240ms" },
-  { name: "TouchPay client", region: "eu-west-3", status: "degraded" as const, uptime: "98.42%", p99: "1.2s" },
-  { name: "S3P / Smobilpay", region: "africa-cm", status: "ok" as const, uptime: "99.92%", p99: "320ms" },
-  { name: "E-nkap connector", region: "africa-cm", status: "ok" as const, uptime: "99.91%", p99: "412ms" },
-  { name: "PostgreSQL primary", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "12ms" },
-  { name: "PostgreSQL replica", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "14ms" },
-  { name: "Redis cache", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "1.2ms" },
-  { name: "Object storage (S3)", region: "eu-west-3", status: "ok" as const, uptime: "100%", p99: "82ms" },
-  { name: "Email delivery (SES)", region: "eu-west-3", status: "ok" as const, uptime: "99.98%", p99: "1.8s" },
-];
+/* ── static data (from monitoring infrastructure, not payment API) ── */
 
 const OPERATORS = [
   { name: "Orange Money CM", p50: 980, p99: 2400, degraded: false },
@@ -33,8 +19,8 @@ const OPERATORS = [
 ];
 
 const RESOURCES = [
-  { name: "CPU api-prod-cluster", v: 42, max: "8 vCPU Ã 6 nodes" },
-  { name: "RAM api-prod-cluster", v: 58, max: "32 GB Ã 6 nodes" },
+  { name: "CPU api-prod-cluster", v: 42, max: "8 vCPU x 6 nodes" },
+  { name: "RAM api-prod-cluster", v: 58, max: "32 GB x 6 nodes" },
   { name: "DB connections", v: 64, max: "200 max" },
   { name: "Redis memory", v: 31, max: "4 GB" },
   { name: "Disk write IOPS", v: 22, max: "16k" },
@@ -43,26 +29,69 @@ const RESOURCES = [
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function HealthPage() {
+  const [health, setHealth] = useState<any>(null);
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [healthRes, servicesRes] = await Promise.all([
+          adminDashboardService.getHealth(),
+          adminDashboardService.getHealthServices(),
+        ]);
+        setHealth(healthRes);
+        setServices(servicesRes.services || []);
+      } catch (err) {
+        console.error("Failed to load health data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <PageWrapper
+        crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Sante" en="Health" />]}
+        title={<T fr="Sante systeme" en="System health" />}
+        sub=""
+      >
+        <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Chargement...</div>
+      </PageWrapper>
+    );
+  }
+
+  const overallStatus = health?.status || "unknown";
+  const dbOk = health?.db_ok ?? false;
+  const redisOk = health?.redis_ok ?? false;
+  const dbLatency = health?.db_latency_ms ?? 0;
+  const redisLatency = health?.redis_latency_ms ?? 0;
+  const uptimeSeconds = health?.uptime_seconds ?? 0;
+  const uptimeHours = Math.floor(uptimeSeconds / 3600);
+  const allOk = overallStatus === "ok" || overallStatus === "healthy";
+
   return (
     <PageWrapper
-      crumb={[<T key="c1" fr="Opérations" en="Operations" />, <T key="c2" fr="Santé" en="Health" />]}
-      title={<T fr="Santé système" en="System health" />}
-      sub={<T fr="Infrastructure, dépendances, latences. Mise Ã  jour toutes les 30 secondes." en="Infrastructure, dependencies, latencies. Refreshed every 30 seconds." />}
-      actions={<Pill tone="success">all green</Pill>}
+      crumb={[<T key="c1" fr="Operations" en="Operations" />, <T key="c2" fr="Sante" en="Health" />]}
+      title={<T fr="Sante systeme" en="System health" />}
+      sub={<T fr="Infrastructure, dependances, latences. Mise a jour toutes les 30 secondes." en="Infrastructure, dependencies, latencies. Refreshed every 30 seconds." />}
+      actions={<Pill tone={allOk ? "success" : "warn"}>{allOk ? "all green" : overallStatus}</Pill>}
     >
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 16 }}>
-        <KpiCard hero label="API p99 latency" value="42" unit="ms" delta={"−4 ms"} deltaDir="down" />
-        <KpiCard label={<T fr="Disponibilité 30j" en="Uptime 30d" />} value="99,98" unit="%" />
-        <KpiCard label="Requests / sec" value="1 284" delta="+8%" deltaDir="up" />
-        <KpiCard label={<T fr="Containers actifs" en="Running pods" />} value="42 / 48">
+        <KpiCard hero label="DB latency" value={String(Math.round(dbLatency))} unit="ms" after={<Pill tone={dbOk ? "success" : "fail"}>{dbOk ? "ok" : "down"}</Pill>} />
+        <KpiCard label="Redis latency" value={String(Math.round(redisLatency))} unit="ms" after={<Pill tone={redisOk ? "success" : "fail"}>{redisOk ? "ok" : "down"}</Pill>} />
+        <KpiCard label={<T fr="Uptime" en="Uptime" />} value={uptimeHours > 24 ? `${Math.floor(uptimeHours / 24)}j ${uptimeHours % 24}h` : `${uptimeHours}h`} />
+        <KpiCard label={<T fr="Statut global" en="Overall status" />} value={allOk ? "OK" : overallStatus}>
           <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-            <T fr="Auto-scaling actif" en="Auto-scaling on" />
+            DB: {dbOk ? "ok" : "down"} / Redis: {redisOk ? "ok" : "down"}
           </div>
         </KpiCard>
       </div>
 
-      {/* Services — flat table with sparklines */}
+      {/* Services -- flat table */}
       <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
@@ -70,7 +99,12 @@ export default function HealthPage() {
           </h3>
         </div>
         <div className="tbl">
-          {SERVICES.map((s, i) => (
+          {services.length === 0 && (
+            <div style={{ padding: 32, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+              <T fr="Aucun service detecte" en="No services detected" />
+            </div>
+          )}
+          {services.map((s: any, i: number) => (
             <div key={i} className="row" style={{ gridTemplateColumns: "auto 1.4fr 0.7fr 1fr 0.6fr 0.6fr" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.status === "ok" ? "var(--success)" : "var(--warn)" }} />
               <div style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</div>
@@ -87,12 +121,12 @@ export default function HealthPage() {
         </div>
       </div>
 
-      {/* Latency by operator + Resources */}
+      {/* Latency by operator + Resources (static -- from monitoring infrastructure) */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Latency by operator */}
+        {/* Latency by operator (static placeholder) */}
         <div className="card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
-            <T fr="Latence par opérateur" en="Latency by operator" />
+            <T fr="Latence par operateur" en="Latency by operator" />
           </h3>
           {OPERATORS.map((s, i) => (
             <div key={i} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12 }}>
@@ -108,7 +142,7 @@ export default function HealthPage() {
           ))}
         </div>
 
-        {/* Resources */}
+        {/* Resources (static placeholder) */}
         <div className="card">
           <h3 style={{ fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}>
             <T fr="Ressources" en="Resources" />
