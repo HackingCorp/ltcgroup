@@ -27,6 +27,7 @@ from app.api.v1 import admin_health
 from app.api.v1 import admin_security
 from app.api.v1 import admin_users
 from app.api.v1.endpoints import callbacks
+from app.api.v1.endpoints import stripe_callbacks
 from app.api.v1.endpoints import payments as direct_payments
 from app.api.v1.endpoints import transactions
 
@@ -118,6 +119,13 @@ api_router.include_router(
 # TouchPay callbacks (webhooks)
 api_router.include_router(
     callbacks.router,
+    prefix="/callbacks",
+    tags=["Callbacks"],
+)
+
+# Stripe callbacks (webhooks)
+api_router.include_router(
+    stripe_callbacks.router,
     prefix="/callbacks",
     tags=["Callbacks"],
 )

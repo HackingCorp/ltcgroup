@@ -7,6 +7,7 @@ export interface CreatePaymentData {
   description?: string;
   customer_email?: string;
   customer_phone?: string;
+  payment_method?: "MOBILE_MONEY" | "BANK_CARD";
   callback_url?: string;
   redirect_url?: string;
   metadata?: Record<string, unknown>;

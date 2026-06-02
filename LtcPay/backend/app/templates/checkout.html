@@ -156,7 +156,7 @@
             padding: 6px;
         }
 
-        #pay-button, #direct-submit-btn, #submit-btn {
+        #pay-button, #direct-submit-btn, #submit-btn, #stripe-submit-btn {
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #c8a84e 0%, #dbb85c 100%);
@@ -171,12 +171,12 @@
             letter-spacing: 1px;
         }
 
-        #pay-button:hover, #direct-submit-btn:hover, #submit-btn:hover {
+        #pay-button:hover, #direct-submit-btn:hover, #submit-btn:hover, #stripe-submit-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(200, 168, 78, 0.4);
         }
 
-        #pay-button:disabled, #direct-submit-btn:disabled, #submit-btn:disabled {
+        #pay-button:disabled, #direct-submit-btn:disabled, #submit-btn:disabled, #stripe-submit-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
@@ -215,6 +215,10 @@
         #pay-button.loading .spinner { display: inline-block; }
         #direct-submit-btn.loading .btn-text { display: none; }
         #direct-submit-btn.loading .spinner { display: inline-block; }
+        #submit-btn.loading .btn-text { display: none; }
+        #submit-btn.loading .spinner { display: inline-block; }
+        #stripe-submit-btn.loading .btn-text { display: none; }
+        #stripe-submit-btn.loading .spinner { display: inline-block; }
 
         /* Status messages */
         .status-message {
@@ -242,6 +246,59 @@
             background: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.3);
             color: #60a5fa;
+        }
+
+        /* Payment tabs */
+        .payment-tabs {
+            display: flex;
+            gap: 0;
+            margin: 0 24px 16px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:not(:last-child) {
+            border-right: 1px solid #334155;
+        }
+
+        .tab-btn.active {
+            background: rgba(200, 168, 78, 0.15);
+            color: #c8a84e;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .tab-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         /* Direct API form styles */
@@ -298,6 +355,31 @@
             color: #64748b;
         }
 
+        /* Stripe Elements container */
+        #stripe-card-element {
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            background: #0f172a;
+            margin-bottom: 16px;
+            min-height: 48px;
+        }
+
+        #stripe-card-element.StripeElement--focus {
+            border-color: #c8a84e;
+        }
+
+        #stripe-card-element.StripeElement--invalid {
+            border-color: #f87171;
+        }
+
+        #stripe-card-errors {
+            color: #f87171;
+            font-size: 13px;
+            margin-bottom: 12px;
+            min-height: 20px;
+        }
+
         /* Polling / waiting UI */
         .polling-section {
             display: none;
@@ -336,7 +418,6 @@
             }
         }
     </style>
-    {# TouchPay SDK removed - all payments now use Direct API with native form #}
 </head>
 <body>
     <div class="payment-container">
@@ -380,8 +461,33 @@
 
             <div id="status-message" class="status-message"></div>
 
-            {# ==================== UNIFIED PAYMENT FORM (Both SDK and Direct API) ==================== #}
-            <div class="payment-methods" id="payment-form">
+            {# ==================== PAYMENT TABS ==================== #}
+            {% set show_momo = (payment_method != "BANK_CARD") %}
+            {% set show_card = (stripe_enabled and payment_method != "MOBILE_MONEY") %}
+            {% set show_tabs = (show_momo and show_card) %}
+
+            {% if show_tabs %}
+            <div class="payment-tabs">
+                <button type="button" class="tab-btn active" onclick="switchTab('momo')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    </svg>
+                    Mobile Money
+                </button>
+                <button type="button" class="tab-btn" onclick="switchTab('card')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    Carte Bancaire
+                </button>
+            </div>
+            {% endif %}
+
+            {# ==================== MOBILE MONEY TAB ==================== #}
+            {% if show_momo %}
+            <div class="payment-methods tab-content {% if not show_card %}active{% elif show_tabs %}active{% endif %}" id="momo-tab">
                 <h3>Choisissez votre operateur</h3>
                 <div class="operator-selector">
                     <button type="button" class="operator-btn" data-operator="MTN" onclick="selectOperator(this)">
@@ -403,14 +509,28 @@
                     <div class="spinner"></div>
                 </button>
             </div>
+            {% endif %}
+
+            {# ==================== CARD PAYMENT TAB ==================== #}
+            {% if show_card %}
+            <div class="payment-methods tab-content {% if not show_momo %}active{% endif %}" id="card-tab">
+                <h3>Paiement par carte bancaire</h3>
+                <div id="stripe-card-element"></div>
+                <div id="stripe-card-errors" role="alert"></div>
+                <button id="stripe-submit-btn" onclick="submitCardPayment()" disabled>
+                    <span class="btn-text">Payer {{ "{:,.0f}".format(payment.amount) }} {{ payment.currency }}</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+            {% endif %}
 
             {# Polling / Waiting UI (shown after submission) #}
             <div id="polling-section" class="polling-section">
                 <div class="polling-spinner"></div>
                 <div class="polling-text">
-                    <strong>Confirmez sur votre telephone</strong>
-                    Un message de confirmation a ete envoye sur votre telephone.
-                    Veuillez valider le paiement.
+                    <strong id="polling-title">Confirmez sur votre telephone</strong>
+                    <span id="polling-message">Un message de confirmation a ete envoye sur votre telephone.
+                    Veuillez valider le paiement.</span>
                 </div>
             </div>
 
@@ -419,39 +539,50 @@
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
-                Paiement securise par TouchPay
+                Paiement securise par LtcPay
             </div>
         </div>
     </div>
 
+    {# Load Stripe.js only if card payments are enabled #}
+    {% if show_card %}
+    <script src="https://js.stripe.com/v3/"></script>
+    {% endif %}
+
     <script type="text/javascript">
-        // ==================== UNIFIED PAYMENT FLOW ====================
+        // ==================== SHARED VARIABLES ====================
         var paymentRef = "{{ payment.reference }}";
         var returnUrl = "{{ payment.return_url or '' }}";
-        var selectedOperator = "";
         var pollingInterval = null;
 
-        function selectOperator(btn) {
-            // Deselect all
-            document.querySelectorAll('.operator-btn').forEach(function(b) {
-                b.classList.remove('selected');
+        // ==================== TAB SWITCHING ====================
+        var activeTab = "{% if not show_momo %}card{% else %}momo{% endif %}";
+        var stripeInitialized = false;
+
+        function switchTab(tab) {
+            activeTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(function(btn, i) {
+                btn.classList.toggle('active', (i === 0 && tab === 'momo') || (i === 1 && tab === 'card'));
             });
-            // Select clicked
-            btn.classList.add('selected');
-            selectedOperator = btn.getAttribute('data-operator');
-            // Enable submit if phone is also filled
-            validateForm();
+
+            // Update tab content
+            var momoTab = document.getElementById('momo-tab');
+            var cardTab = document.getElementById('card-tab');
+            if (momoTab) momoTab.classList.toggle('active', tab === 'momo');
+            if (cardTab) cardTab.classList.toggle('active', tab === 'card');
+
+            // Initialize Stripe on first switch to card tab
+            if (tab === 'card' && !stripeInitialized) {
+                initStripeElements();
+            }
+
+            // Hide any status messages when switching
+            document.getElementById('status-message').style.display = 'none';
         }
 
-        function validateForm() {
-            var phone = document.getElementById('phone-input').value.trim();
-            var btn = document.getElementById('submit-btn');
-            btn.disabled = !(selectedOperator && phone.length >= 9);
-        }
-
-        // Validate on phone input
-        document.getElementById('phone-input').addEventListener('input', validateForm);
-
+        // ==================== STATUS MESSAGES ====================
         function showStatus(msg, type) {
             var el = document.getElementById('status-message');
             el.textContent = msg;
@@ -459,8 +590,36 @@
             el.style.display = 'block';
         }
 
+        // ==================== MOBILE MONEY FLOW ====================
+        var selectedOperator = "";
+
+        function selectOperator(btn) {
+            document.querySelectorAll('.operator-btn').forEach(function(b) {
+                b.classList.remove('selected');
+            });
+            btn.classList.add('selected');
+            selectedOperator = btn.getAttribute('data-operator');
+            validateForm();
+        }
+
+        function validateForm() {
+            var phoneEl = document.getElementById('phone-input');
+            if (!phoneEl) return;
+            var phone = phoneEl.value.trim();
+            var btn = document.getElementById('submit-btn');
+            if (btn) btn.disabled = !(selectedOperator && phone.length >= 9);
+        }
+
+        // Validate on phone input
+        var phoneInput = document.getElementById('phone-input');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', validateForm);
+        }
+
         function submitPayment() {
-            var phone = document.getElementById('phone-input').value.trim();
+            var phoneEl = document.getElementById('phone-input');
+            if (!phoneEl) return;
+            var phone = phoneEl.value.trim();
             if (!selectedOperator || !phone) return;
 
             var btn = document.getElementById('submit-btn');
@@ -484,10 +643,12 @@
                 return resp.json();
             })
             .then(function(data) {
-                // Hide form, show polling UI
-                document.getElementById('payment-form').style.display = 'none';
+                // Hide all tabs, show polling UI
+                hideTabs();
+                document.getElementById('polling-title').textContent = 'Confirmez sur votre telephone';
+                document.getElementById('polling-message').textContent =
+                    'Un message de confirmation a ete envoye sur votre telephone. Veuillez valider le paiement.';
                 document.getElementById('polling-section').style.display = 'block';
-                // Start polling
                 startPolling();
             })
             .catch(function(err) {
@@ -497,6 +658,22 @@
             });
         }
 
+        function hideTabs() {
+            var tabs = document.querySelector('.payment-tabs');
+            if (tabs) tabs.style.display = 'none';
+            var momoTab = document.getElementById('momo-tab');
+            if (momoTab) momoTab.style.display = 'none';
+            var cardTab = document.getElementById('card-tab');
+            if (cardTab) cardTab.style.display = 'none';
+        }
+
+        function showTabs() {
+            var tabs = document.querySelector('.payment-tabs');
+            if (tabs) tabs.style.display = 'flex';
+            switchTab(activeTab);
+        }
+
+        // ==================== POLLING ====================
         function startPolling() {
             pollingInterval = setInterval(function() {
                 fetch('/pay/' + paymentRef + '/poll')
@@ -506,7 +683,6 @@
                         clearInterval(pollingInterval);
                         showStatus('Paiement effectue avec succes !', 'success');
                         document.getElementById('polling-section').style.display = 'none';
-                        // Redirect after short delay
                         setTimeout(function() {
                             if (returnUrl) {
                                 var sep = returnUrl.indexOf('?') >= 0 ? '&' : '?';
@@ -517,13 +693,13 @@
                         clearInterval(pollingInterval);
                         document.getElementById('polling-section').style.display = 'none';
                         showStatus('Le paiement a echoue. Veuillez reessayer.', 'error');
-                        // Show form again
-                        document.getElementById('payment-form').style.display = 'block';
+                        showTabs();
                         var btn = document.getElementById('submit-btn');
-                        btn.classList.remove('loading');
-                        btn.disabled = false;
+                        if (btn) {
+                            btn.classList.remove('loading');
+                            btn.disabled = false;
+                        }
                     }
-                    // PENDING or PROCESSING = keep polling
                 })
                 .catch(function() {
                     // Network error - keep polling
@@ -531,13 +707,173 @@
             }, 3000);
         }
 
+        // ==================== STRIPE CARD FLOW ====================
+        var stripeInstance = null;
+        var stripeElements = null;
+        var paymentElement = null;
+        var stripeClientSecret = "{{ stripe_client_secret }}";
+
+        function initStripeElements() {
+            if (stripeInitialized) return;
+
+            var publishableKey = "{{ stripe_publishable_key }}";
+            if (!publishableKey) return;
+
+            // If we don't have a client secret yet, fetch one
+            if (!stripeClientSecret) {
+                fetchStripeIntent();
+                return;
+            }
+
+            mountStripeElements(publishableKey);
+        }
+
+        function fetchStripeIntent() {
+            var cardBtn = document.getElementById('stripe-submit-btn');
+            if (cardBtn) {
+                cardBtn.classList.add('loading');
+                cardBtn.disabled = true;
+            }
+
+            fetch('/pay/' + paymentRef + '/create-intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(function(resp) {
+                if (!resp.ok) {
+                    return resp.json().then(function(data) {
+                        throw new Error(data.detail || 'Erreur de configuration du paiement');
+                    });
+                }
+                return resp.json();
+            })
+            .then(function(data) {
+                stripeClientSecret = data.client_secret;
+                mountStripeElements(data.publishable_key);
+            })
+            .catch(function(err) {
+                if (cardBtn) {
+                    cardBtn.classList.remove('loading');
+                }
+                showStatus(err.message, 'error');
+            });
+        }
+
+        function mountStripeElements(publishableKey) {
+            stripeInstance = Stripe(publishableKey);
+
+            var appearance = {
+                theme: 'night',
+                variables: {
+                    colorPrimary: '#c8a84e',
+                    colorBackground: '#0f172a',
+                    colorText: '#f8fafc',
+                    colorDanger: '#f87171',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    borderRadius: '8px',
+                }
+            };
+
+            stripeElements = stripeInstance.elements({
+                clientSecret: stripeClientSecret,
+                appearance: appearance,
+            });
+
+            paymentElement = stripeElements.create('payment');
+            paymentElement.mount('#stripe-card-element');
+
+            paymentElement.on('change', function(event) {
+                var errEl = document.getElementById('stripe-card-errors');
+                var btn = document.getElementById('stripe-submit-btn');
+                if (event.error) {
+                    errEl.textContent = event.error.message;
+                    btn.disabled = true;
+                } else {
+                    errEl.textContent = '';
+                    btn.disabled = !event.complete;
+                }
+            });
+
+            paymentElement.on('ready', function() {
+                var btn = document.getElementById('stripe-submit-btn');
+                btn.classList.remove('loading');
+            });
+
+            stripeInitialized = true;
+        }
+
+        function submitCardPayment() {
+            if (!stripeInstance || !stripeElements) return;
+
+            var btn = document.getElementById('stripe-submit-btn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            var confirmReturnUrl = window.location.origin + '/pay/' + paymentRef + '/poll';
+
+            stripeInstance.confirmPayment({
+                elements: stripeElements,
+                redirect: 'if_required',
+                confirmParams: {
+                    return_url: confirmReturnUrl,
+                },
+            }).then(function(result) {
+                if (result.error) {
+                    // Show error
+                    var errEl = document.getElementById('stripe-card-errors');
+                    errEl.textContent = result.error.message;
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                    showStatus(result.error.message, 'error');
+                } else if (result.paymentIntent) {
+                    var piStatus = result.paymentIntent.status;
+                    if (piStatus === 'succeeded') {
+                        // Payment succeeded
+                        showStatus('Paiement effectue avec succes !', 'success');
+                        hideTabs();
+                        setTimeout(function() {
+                            if (returnUrl) {
+                                var sep = returnUrl.indexOf('?') >= 0 ? '&' : '?';
+                                window.location.href = returnUrl + sep + 'reference=' + paymentRef + '&status=COMPLETED';
+                            }
+                        }, 2000);
+                    } else if (piStatus === 'requires_action') {
+                        // 3D Secure or other action needed — show polling
+                        hideTabs();
+                        document.getElementById('polling-title').textContent = 'Verification en cours...';
+                        document.getElementById('polling-message').textContent =
+                            'Votre paiement est en cours de verification. Veuillez patienter.';
+                        document.getElementById('polling-section').style.display = 'block';
+                        startPolling();
+                    } else {
+                        // Processing or other state
+                        hideTabs();
+                        document.getElementById('polling-title').textContent = 'Traitement en cours...';
+                        document.getElementById('polling-message').textContent =
+                            'Votre paiement est en cours de traitement. Veuillez patienter.';
+                        document.getElementById('polling-section').style.display = 'block';
+                        startPolling();
+                    }
+                }
+            });
+        }
+
+        // ==================== AUTO-INIT ====================
+
         // If payment is already PROCESSING (Direct API pre-initiated or page reload),
         // start polling immediately
         {% if payment.status.value == "PROCESSING" %}
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('payment-form').style.display = 'none';
+            hideTabs();
             document.getElementById('polling-section').style.display = 'block';
             startPolling();
+        });
+        {% endif %}
+
+        // If only card tab is shown and stripe is enabled, auto-init
+        {% if show_card and not show_momo %}
+        document.addEventListener('DOMContentLoaded', function() {
+            initStripeElements();
         });
         {% endif %}
     </script>

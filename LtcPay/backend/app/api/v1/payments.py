@@ -23,7 +23,7 @@ from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.security import get_current_merchant, generate_payment_token
 from app.models.merchant import Merchant, FeeBearer
-from app.models.payment import Payment, PaymentStatus, PaymentMode
+from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
     PaymentInitiate,
     PaymentInitiateResponse,
@@ -31,6 +31,7 @@ from app.schemas.payment import (
     PaymentListResponse,
 )
 from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+from app.services.stripe_service import stripe_service, StripeServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +105,14 @@ async def create_payment(
 
     Rate limit: 60 requests per minute per IP.
     """
-    # Determine payment mode automatically based on provided fields:
-    # - If operator + customer_phone provided → DIRECT_API (immediate initiation)
-    # - Otherwise → SDK (customer enters on payment page)
-    # Merchant can still override by explicitly setting payment_mode
-    if payload.payment_mode:
+    # Determine provider and payment mode:
+    # - payment_method == BANK_CARD → Stripe provider
+    # - Otherwise → TouchPay provider (SDK or DIRECT_API)
+    provider = PaymentProvider.TOUCHPAY
+    if payload.payment_method == PaymentMethod.BANK_CARD and stripe_service.is_configured:
+        provider = PaymentProvider.STRIPE
+        payment_mode = PaymentMode.STRIPE
+    elif payload.payment_mode:
         payment_mode = payload.payment_mode
     elif payload.operator and payload.customer_phone:
         payment_mode = PaymentMode.DIRECT_API
@@ -150,6 +154,8 @@ async def create_payment(
         currency=payload.currency or settings.default_currency,
         status=PaymentStatus.PENDING,
         payment_mode=payment_mode,
+        provider=provider,
+        method=payload.payment_method,
         operator=payload.operator,
         description=payload.description,
         customer_info=customer_info,
@@ -163,6 +169,32 @@ async def create_payment(
     db.add(payment)
     await db.commit()
     await db.refresh(payment)
+
+    # For Stripe provider, create a PaymentIntent
+    if provider == PaymentProvider.STRIPE:
+        try:
+            customer_email = (customer_info or {}).get("email")
+            intent_result = await stripe_service.create_payment_intent(
+                amount=int(customer_amount),
+                currency=payload.currency or settings.default_currency,
+                payment_reference=reference,
+                customer_email=customer_email,
+                description=payload.description,
+            )
+            payment.stripe_payment_intent_id = intent_result["id"]
+            payment.stripe_client_secret = intent_result["client_secret"]
+            payment.stripe_data = intent_result
+            await db.commit()
+            await db.refresh(payment)
+        except StripeServiceError as exc:
+            logger.error("Stripe PaymentIntent creation failed for %s: %s", reference, exc)
+            payment.status = PaymentStatus.FAILED
+            payment.stripe_data = {"error": str(exc)}
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Stripe payment creation failed: {exc}",
+            )
 
     # For Direct API mode, initiate payment with TouchPay immediately
     # ONLY if operator and phone are provided (otherwise customer chooses on checkout page)
@@ -203,7 +235,8 @@ async def create_payment(
         currency=payment.currency,
         status=payment.status,
         payment_mode=payment.payment_mode,
-        payment_url=payment.payment_url,  # Always return URL for both SDK and DIRECT_API
+        payment_url=payment.payment_url,
+        stripe_client_secret=payment.stripe_client_secret,
         created_at=payment.created_at,
     )
 

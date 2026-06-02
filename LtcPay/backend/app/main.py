@@ -151,6 +151,12 @@ async def payment_page(reference: str, request: Request):
             },
         )
 
+    from app.services.stripe_service import stripe_service
+
+    # Determine which payment tabs to show
+    payment_method = payment.method.value if payment.method else None
+    stripe_enabled = stripe_service.is_configured
+
     return templates.TemplateResponse(
         "checkout.html",
         {
@@ -158,8 +164,83 @@ async def payment_page(reference: str, request: Request):
             "payment": payment,
             "merchant": payment.merchant,
             "payment_mode": payment.payment_mode.value,
+            "payment_method": payment_method,
+            "stripe_enabled": stripe_enabled,
+            "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY if stripe_enabled else "",
+            "stripe_client_secret": payment.stripe_client_secret or "",
         },
     )
+
+
+@app.post("/pay/{reference}/create-intent")
+async def create_stripe_intent(reference: str, request: Request):
+    """Create a Stripe PaymentIntent for the checkout page (lazy creation).
+
+    Called by the JS when the customer switches to the card payment tab,
+    if no PaymentIntent exists yet. Creates the intent, updates the payment
+    record, and returns the client_secret + publishable_key.
+    """
+    from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentProvider
+    from app.services.stripe_service import stripe_service, StripeServiceError
+    from sqlalchemy import update as sa_update
+
+    if not stripe_service.is_configured:
+        raise HTTPException(status_code=400, detail="Stripe is not configured")
+
+    async with async_session() as db:
+        result = await db.execute(
+            select(Payment).where(Payment.reference == reference)
+        )
+        payment = result.scalar_one_or_none()
+
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+
+        if payment.status not in (PaymentStatus.PENDING,):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payment is {payment.status.value}, cannot create intent",
+            )
+
+        # If PaymentIntent already exists, return it
+        if payment.stripe_client_secret:
+            return {
+                "client_secret": payment.stripe_client_secret,
+                "publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+            }
+
+        # Create a new PaymentIntent
+        try:
+            customer_email = (payment.customer_info or {}).get("email")
+            intent_result = await stripe_service.create_payment_intent(
+                amount=int(payment.amount),
+                currency=payment.currency,
+                payment_reference=reference,
+                customer_email=customer_email,
+                description=payment.description,
+            )
+        except StripeServiceError as exc:
+            logger.error("Stripe intent creation failed for %s: %s", reference, exc)
+            raise HTTPException(status_code=502, detail=f"Stripe error: {exc}")
+
+        # Update payment with Stripe data
+        await db.execute(
+            sa_update(Payment)
+            .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
+            .values(
+                provider=PaymentProvider.STRIPE,
+                payment_mode=PaymentMode.STRIPE,
+                stripe_payment_intent_id=intent_result["id"],
+                stripe_client_secret=intent_result["client_secret"],
+                stripe_data=intent_result,
+            )
+        )
+        await db.commit()
+
+    return {
+        "client_secret": intent_result["client_secret"],
+        "publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+    }
 
 
 @app.post("/pay/{reference}/submit")

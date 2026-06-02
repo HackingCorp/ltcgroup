@@ -25,6 +25,12 @@ class PaymentStatus(str, enum.Enum):
 class PaymentMode(str, enum.Enum):
     SDK = "SDK"
     DIRECT_API = "DIRECT_API"
+    STRIPE = "STRIPE"
+
+
+class PaymentProvider(str, enum.Enum):
+    TOUCHPAY = "TOUCHPAY"
+    STRIPE = "STRIPE"
 
 
 class MobileMoneyOperator(str, enum.Enum):
@@ -112,8 +118,23 @@ class Payment(Base):
     callback_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     return_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # Payment provider (TOUCHPAY or STRIPE)
+    provider: Mapped[PaymentProvider] = mapped_column(
+        SQLEnum(PaymentProvider), default=PaymentProvider.TOUCHPAY,
+        server_default="TOUCHPAY", nullable=False,
+    )
+
     # TouchPay data (JSON: provider response data, transaction IDs, etc.)
     touchpay_data: Mapped[dict | None] = mapped_column("touchpay_data", JSON, nullable=True)
+
+    # Stripe-specific fields
+    stripe_payment_intent_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True,
+    )
+    stripe_client_secret: Mapped[str | None] = mapped_column(
+        String(500), nullable=True,
+    )
+    stripe_data: Mapped[dict | None] = mapped_column("stripe_data", JSON, nullable=True)
 
     # Provider tracking
     provider_transaction_id: Mapped[str | None] = mapped_column(

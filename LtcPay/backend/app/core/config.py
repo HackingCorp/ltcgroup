@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     TOUCHPAY_SERVICE_CODE_MTN: str = "PAIEMENTMARCHAND_MTN_CM"
     TOUCHPAY_SERVICE_CODE_ORANGE: str = "CM_PAIEMENTMARCHAND_OM_TP"
 
+    # Stripe Configuration (card payments)
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+
     # Legacy aliases (used by some modules)
     touchpay_api_url: str = "https://touchpay.gutouch.net/touchpayv2/api"
     touchpay_api_key: str = ""

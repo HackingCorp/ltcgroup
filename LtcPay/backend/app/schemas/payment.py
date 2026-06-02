@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field, UUID4, field_validator, model_validator
 
-from app.models.payment import PaymentStatus, PaymentMethod, PaymentMode, MobileMoneyOperator
+from app.models.payment import PaymentStatus, PaymentMethod, PaymentMode, PaymentProvider, MobileMoneyOperator
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +64,7 @@ class PaymentInitiateResponse(BaseModel):
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
     payment_url: Optional[str] = None
+    stripe_client_secret: Optional[str] = None
     created_at: datetime
 
 
@@ -81,8 +82,10 @@ class PaymentResponse(BaseModel):
     method: Optional[PaymentMethod] = None
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
+    provider: Optional[PaymentProvider] = None
     operator: Optional[MobileMoneyOperator] = None
     operator_transaction_id: Optional[str] = None
+    stripe_payment_intent_id: Optional[str] = None
     customer_info: Optional[dict] = None
     description: Optional[str] = None
     touchpay_data: Optional[dict] = None

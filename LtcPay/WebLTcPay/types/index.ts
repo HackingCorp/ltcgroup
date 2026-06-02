@@ -36,6 +36,8 @@ export interface Payment {
   customer_email?: string;
   customer_phone?: string;
   payment_method?: string;
+  provider?: "TOUCHPAY" | "STRIPE";
+  stripe_payment_intent_id?: string;
   operator?: string;
   callback_url?: string;
   redirect_url?: string;
