@@ -478,62 +478,46 @@ export default function MerchantDashboardPage() {
                 className="row clickable"
                 key={p.id}
                 style={{
-                  gridTemplateColumns: "1.6fr 1.2fr 0.9fr 0.8fr 1fr 24px",
+                  gridTemplateColumns: "1.1fr 1.2fr 0.8fr 0.7fr 1fr",
                 }}
               >
-                {/* Reference + description */}
-                <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                    <span className="mono" style={{ fontSize: 12 }}>
-                      {p.reference}
-                    </span>
-                    {p.description && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "var(--muted)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        — {p.description}
-                      </span>
-                    )}
+                {/* Col 1: Reference (top) + Description (bottom) */}
+                <div style={{ minWidth: 0 }}>
+                  <div className="mono" style={{ fontSize: 12 }}>
+                    {p.reference}
                   </div>
                   <div
-                    style={{ fontSize: 11, color: "var(--ink)", marginTop: 2 }}
+                    style={{ fontSize: 11, color: "var(--muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                   >
-                    {p.customer_email || p.customer_phone || "—"}
-                  </div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}
-                  >
-                    {fmtDate(p.created_at)}
+                    {p.description || "—"}
                   </div>
                 </div>
 
-                {/* Phone */}
-                <div>
-                  <div className="mono" style={{ fontSize: 13 }}>
+                {/* Col 2: Phone (top) + Name/Email (bottom) */}
+                <div style={{ minWidth: 0 }}>
+                  <div className="mono" style={{ fontSize: 12 }}>
                     {p.customer_phone || "—"}
                   </div>
+                  <div
+                    style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {p.customer_email || "—"}
+                  </div>
                 </div>
 
-                {/* Method */}
+                {/* Col 3: Method */}
                 <div>
                   <MethodChip kind={methodKind(p.payment_method, (p as any).operator)} />
                 </div>
 
-                {/* Status */}
+                {/* Col 4: Status */}
                 <div>
                   <Pill tone={statusTone(p.status)}>
                     {p.status.toLowerCase()}
                   </Pill>
                 </div>
 
-                {/* Amount */}
+                {/* Col 5: Amount + currency (top) + Date (bottom) */}
                 <div style={{ textAlign: "right" }}>
                   <div
                     className="display"
@@ -543,18 +527,15 @@ export default function MerchantDashboardPage() {
                       letterSpacing: "-0.01em",
                     }}
                   >
-                    {fmtXAF(p.amount)}
+                    {fmtXAF(p.amount)} <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>{p.currency ?? "XAF"}</span>
                   </div>
                   <div
                     className="mono"
                     style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
                   >
-                    {p.currency ?? "XAF"} · {fmtTime(p.created_at)}
+                    {fmtDate(p.created_at)} · {fmtTime(p.created_at)}
                   </div>
                 </div>
-
-                {/* Chevron */}
-                <Icon name="chevR" size={14} color="var(--muted)" />
               </div>
             ))}
           </div>
