@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/lib/i18n";
+import { useAuth } from "@/hooks/use-auth";
 
 interface NavItem {
   id: string;
@@ -50,7 +51,9 @@ const ADMIN_NAV: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useLang();
+  const { logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -77,6 +80,14 @@ export function Sidebar() {
         </div>
       ))}
       <div style={{ flex: 1 }} />
+      <button
+        className="nav-item"
+        onClick={() => { logout(); router.push("/auth/login"); }}
+        style={{ border: 0, background: "transparent", width: "100%", color: "var(--rose)" }}
+      >
+        <Icon name="logout" size={15} />
+        <span>{t("m.logout")}</span>
+      </button>
     </aside>
   );
 }

@@ -30,6 +30,7 @@ const TRANSLATIONS: Record<string, { fr: string; en: string }> = {
   "m.notifs": { fr: "Notifications", en: "Notifications" },
   "m.billing": { fr: "Facturation Nkap", en: "Nkap billing" },
   "m.settings": { fr: "Paramètres", en: "Settings" },
+  "m.logout": { fr: "Déconnexion", en: "Log out" },
 
   // Admin pages
   "a.overview": { fr: "Plateforme", en: "Platform" },

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { useLang } from "@/lib/i18n";
+import { useAuth } from "@/hooks/use-auth";
 
 interface NavItem {
   id: string;
@@ -56,7 +57,9 @@ const MERCHANT_NAV: NavSection[] = [
 
 export function MerchantSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { t } = useLang();
+  const { logout } = useAuth();
 
   const isActive = (href: string) => {
     if (href === "/merchant/dashboard") return pathname === "/merchant/dashboard";
@@ -83,6 +86,14 @@ export function MerchantSidebar() {
         </div>
       ))}
       <div style={{ flex: 1 }} />
+      <button
+        className="nav-item"
+        onClick={() => { logout(); router.push("/merchant/login"); }}
+        style={{ border: 0, background: "transparent", width: "100%", color: "var(--rose)" }}
+      >
+        <Icon name="logout" size={15} />
+        <span>{t("m.logout")}</span>
+      </button>
     </aside>
   );
 }
