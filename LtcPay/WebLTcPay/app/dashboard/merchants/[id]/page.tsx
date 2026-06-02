@@ -328,16 +328,16 @@ function PaymentsTable({
       </div>
       {data.items.length > 0 ? (
         <>
-          <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="Reference" en="Reference" /></div>
-            <div><T fr="Client" en="Customer" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
-            <div><T fr="Operateur" en="Operator" /></div>
-            <div><T fr="Statut" en="Status" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-          </div>
           <div className="tbl">
+            <div className="row head" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
+              <div><T fr="Reference" en="Reference" /></div>
+              <div><T fr="Client" en="Customer" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Frais" en="Fees" /></div>
+              <div><T fr="Operateur" en="Operator" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
+            </div>
             {data.items.map((p) => (
               <div key={p.id} className="row" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 0.7fr 0.8fr 0.7fr 0.8fr" }}>
                 <div>
@@ -410,15 +410,15 @@ function WithdrawalsTable({
       </div>
       {data.items.length > 0 ? (
         <>
-          <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
-            <div><T fr="Reference" en="Reference" /></div>
-            <div><T fr="Methode" en="Method" /></div>
-            <div><T fr="Destination" en="Destination" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-            <div><T fr="Statut" en="Status" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-          </div>
           <div className="tbl">
+            <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
+              <div><T fr="Reference" en="Reference" /></div>
+              <div><T fr="Methode" en="Method" /></div>
+              <div><T fr="Destination" en="Destination" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
+            </div>
             {data.items.map((w) => (
               <div key={w.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 1.2fr 0.8fr 0.7fr 0.8fr" }}>
                 <div className="mono" style={{ fontSize: 12, fontWeight: 500 }}>{w.reference}</div>

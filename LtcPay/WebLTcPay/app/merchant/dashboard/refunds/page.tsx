@@ -17,13 +17,6 @@ function refundTone(s: string): "success" | "warn" | "fail" | "info" | "neutral"
   return "neutral";
 }
 
-function refundLabel(s: string, lang: string): string {
-  if (s === "completed") return lang === "en" ? "Refunded" : "Rembourse";
-  if (s === "processing") return lang === "en" ? "Processing" : "En cours";
-  if (s === "failed") return lang === "en" ? "Failed" : "Echoue";
-  return s;
-}
-
 export default function RefundsPage() {
   const { lang } = useLang();
   const [filter, setFilter] = useState("");
@@ -97,15 +90,15 @@ export default function RefundsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 12 }}>
         {/* Refund table */}
         <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div className="row head" style={{ gridTemplateColumns: "1.2fr 1fr 0.7fr 0.6fr 0.8fr 0.7fr" }}>
-            <div><T fr="Reference" en="Reference" /></div>
-            <div><T fr="Client" en="Customer" /></div>
-            <div><T fr="Methode" en="Method" /></div>
-            <div><T fr="Statut" en="Status" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-          </div>
           <div className="tbl">
+            <div className="row head" style={{ gridTemplateColumns: "1.2fr 1fr 0.7fr 0.6fr 0.8fr 0.7fr" }}>
+              <div><T fr="Reference" en="Reference" /></div>
+              <div><T fr="Client" en="Customer" /></div>
+              <div><T fr="Methode" en="Method" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
+            </div>
             {filtered.map((r) => (
               <div key={r.id} className="row" style={{ gridTemplateColumns: "1.2fr 1fr 0.7fr 0.6fr 0.8fr 0.7fr" }}>
                 <div>
@@ -114,17 +107,17 @@ export default function RefundsPage() {
                 </div>
                 <div style={{ fontSize: 13, color: "var(--muted)" }}>{r.customer_contact || ""}</div>
                 <div><MethodChip kind={r.operator || ""} /></div>
-                <div><Pill tone={refundTone(r.status?.toLowerCase())}>{refundLabel(r.status?.toLowerCase(), lang)}</Pill></div>
+                <div><Pill tone={refundTone(r.status?.toLowerCase())}>{(r.status || "").toLowerCase()}</Pill></div>
                 <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtXAF(r.amount)}</div>
                 <div className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "right" }}>{fmtDate(r.created_at)}</div>
               </div>
             ))}
+            {filtered.length === 0 && (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+                <T fr="Aucun remboursement trouve." en="No refunds found." />
+              </div>
+            )}
           </div>
-          {filtered.length === 0 && (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-              <T fr="Aucun remboursement trouve." en="No refunds found." />
-            </div>
-          )}
         </div>
 
         {/* Refund policy info card */}

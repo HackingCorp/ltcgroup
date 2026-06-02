@@ -478,32 +478,46 @@ export default function MerchantDashboardPage() {
                 className="row clickable"
                 key={p.id}
                 style={{
-                  gridTemplateColumns: "1.2fr 1.4fr 0.9fr 0.8fr 1fr 24px",
+                  gridTemplateColumns: "1.6fr 1.2fr 0.9fr 0.8fr 1fr 24px",
                 }}
               >
-                {/* Reference */}
+                {/* Reference + description */}
                 <div>
-                  <div className="mono" style={{ fontSize: 12 }}>
-                    {p.reference}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span className="mono" style={{ fontSize: 12 }}>
+                      {p.reference}
+                    </span>
+                    {p.description && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "var(--muted)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        — {p.description}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{ fontSize: 11, color: "var(--ink)", marginTop: 2 }}
+                  >
+                    {p.customer_email || p.customer_phone || "—"}
                   </div>
                   <div
                     className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
+                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 1 }}
                   >
                     {fmtDate(p.created_at)}
                   </div>
                 </div>
 
-                {/* Customer */}
+                {/* Phone */}
                 <div>
-                  <div style={{ fontSize: 13 }}>
-                    {p.customer_email || p.customer_phone || "—"}
-                  </div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}
-                  >
-                    {p.customer_phone || ""}
+                  <div className="mono" style={{ fontSize: 13 }}>
+                    {p.customer_phone || "—"}
                   </div>
                 </div>
 

@@ -116,6 +116,7 @@ export default function AdminWithdrawalsPage() {
           </div>
         ) : data && data.withdrawals.length > 0 ? (
           <>
+            <div className="tbl">
             <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.2fr 0.7fr 0.8fr 1fr" }}>
               <div><T fr="Référence" en="Reference" /></div>
               <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
@@ -125,7 +126,6 @@ export default function AdminWithdrawalsPage() {
               <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
               <div style={{ textAlign: "right" }}><T fr="Actions" en="Actions" /></div>
             </div>
-            <div className="tbl">
               {data.withdrawals.map((w) => (
                 <div key={w.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.8fr 1.2fr 0.7fr 0.8fr 1fr" }}>
                   <div className="mono" style={{ fontSize: 12 }}>{w.reference}</div>

@@ -119,15 +119,15 @@ export default function PayoutsPage() {
           </button>
         </div>
 
-        <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
-          <div><T fr="Reference" en="Reference" /></div>
-          <div><T fr="Destination" en="Destination" /></div>
-          <div><T fr="Methode" en="Method" /></div>
-          <div><T fr="Statut" en="Status" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
-          <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
-        </div>
         <div className="tbl">
+          <div className="row head" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
+            <div><T fr="Reference" en="Reference" /></div>
+            <div><T fr="Destination" en="Destination" /></div>
+            <div><T fr="Methode" en="Method" /></div>
+            <div><T fr="Statut" en="Status" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Montant" en="Amount" /></div>
+            <div style={{ textAlign: "right" }}><T fr="Date" en="Date" /></div>
+          </div>
           {payouts.map((po) => (
             <div key={po.id} className="row" style={{ gridTemplateColumns: "1.2fr 0.8fr 0.6fr 0.6fr 0.8fr 0.8fr" }}>
               <div>
@@ -137,12 +137,7 @@ export default function PayoutsPage() {
               <div><MethodChip kind={po.payment_mode || ""} /></div>
               <div>
                 <Pill tone={po.status?.toLowerCase() === "completed" ? "success" : po.status?.toLowerCase() === "processing" ? "info" : "warn"}>
-                  {po.status?.toLowerCase() === "completed"
-                    ? (lang === "en" ? "Sent" : "Envoye")
-                    : po.status?.toLowerCase() === "processing"
-                    ? (lang === "en" ? "Processing" : "En cours")
-                    : (lang === "en" ? "Pending" : "En attente")
-                  }
+                  {(po.status || "").toLowerCase()}
                 </Pill>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -154,12 +149,12 @@ export default function PayoutsPage() {
               </div>
             </div>
           ))}
+          {payouts.length === 0 && (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+              <T fr="Aucun reglement." en="No payouts." />
+            </div>
+          )}
         </div>
-        {payouts.length === 0 && (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-            <T fr="Aucun reglement." en="No payouts." />
-          </div>
-        )}
       </div>
 
       {/* Info note */}

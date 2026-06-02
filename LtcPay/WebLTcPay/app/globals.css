@@ -74,9 +74,15 @@
 /* ─── App shell ─── */
 @layer components {
 
+  /* ─── App shell (fixed chrome) ─── */
+  .app {
+    display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+  }
+
   /* ─── Topbar ─── */
   .topbar {
-    position: sticky; top: 0; z-index: 50;
+    flex-shrink: 0; z-index: 50;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
     display: flex; align-items: center;
@@ -125,7 +131,8 @@
     display: grid;
     grid-template-columns: 232px 1fr;
     flex: 1;
-    min-height: calc(100vh - 56px);
+    min-height: 0;
+    overflow: hidden;
   }
 
   .sidebar {

@@ -67,14 +67,14 @@ export default function PaymentLinksPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 12 }}>
         {/* Links table */}
         <div className="nk-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div className="row head" style={{ gridTemplateColumns: "1.5fr 0.8fr 0.6fr 0.5fr 0.7fr" }}>
-            <div><T fr="Nom" en="Name" /></div>
-            <div><T fr="Montant" en="Amount" /></div>
-            <div><T fr="Usages" en="Uses" /></div>
-            <div><T fr="Statut" en="Status" /></div>
-            <div style={{ textAlign: "right" }}><T fr="Cree" en="Created" /></div>
-          </div>
           <div className="tbl">
+            <div className="row head" style={{ gridTemplateColumns: "1.5fr 0.8fr 0.6fr 0.5fr 0.7fr" }}>
+              <div><T fr="Nom" en="Name" /></div>
+              <div><T fr="Montant" en="Amount" /></div>
+              <div><T fr="Usages" en="Uses" /></div>
+              <div><T fr="Statut" en="Status" /></div>
+              <div style={{ textAlign: "right" }}><T fr="Cree" en="Created" /></div>
+            </div>
             {links.map((link) => (
               <div
                 key={link.id}
@@ -106,12 +106,12 @@ export default function PaymentLinksPage() {
                 </div>
               </div>
             ))}
+            {links.length === 0 && (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
+                <T fr="Aucun lien de paiement." en="No payment links." />
+              </div>
+            )}
           </div>
-          {links.length === 0 && (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-              <T fr="Aucun lien de paiement." en="No payment links." />
-            </div>
-          )}
         </div>
 
         {/* QR / preview panel */}
