@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -56,19 +57,64 @@ function methodDisplayName(m: string): { name?: string; nameFr?: string; nameEn?
 
 /* ── SVG charts ─────────────────────────────────────────────── */
 
-function RevenueChartSVG({ data }: { data: number[] }) {
-  const w = 700, h = 220, pad = 24;
+function RevenueChartSVG({ data, labels }: { data: number[]; labels?: string[] }) {
+  const w = 700, h = 220, padL = 56, padR = 12, padT = 12, padB = 32;
   if (!data || data.length < 2) return <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 13 }}><T fr="Pas assez de donnees" en="Not enough data" /></div>;
-  const max = Math.max(...data) * 1.1 || 1;
-  const step = (w - pad * 2) / (data.length - 1);
-  const pts = data.map((v, i) => [pad + i * step, h - pad - (v / max) * (h - pad * 2)]);
-  const path = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
-  const area = `${path} L${pts[pts.length - 1][0]},${h - pad} L${pts[0][0]},${h - pad} Z`;
+
+  const max = Math.max(...data) * 1.15 || 1;
+  const chartW = w - padL - padR;
+  const chartH = h - padT - padB;
+  const barGap = 3;
+  const barW = Math.max(4, (chartW - barGap * (data.length - 1)) / data.length);
+
+  // Y-axis grid lines (4 ticks)
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(max * f));
 
   return (
-    <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: "block" }}>
-      <path d={area} fill="var(--primary)" opacity="0.08" />
-      <path d={path} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: "block" }}>
+      {/* Y-axis grid + labels */}
+      {ticks.map((val, i) => {
+        const y = padT + chartH - (val / max) * chartH;
+        return (
+          <g key={i}>
+            <line x1={padL} x2={w - padR} y1={y} y2={y} stroke="var(--line)" strokeWidth="0.7" />
+            <text x={padL - 8} y={y + 3} textAnchor="end" style={{ fontFamily: "var(--mono)", fontSize: 9, fill: "var(--muted)" }}>
+              {val >= 1000 ? `${Math.round(val / 1000)}k` : val}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Bars */}
+      {data.map((v, i) => {
+        const barH = (v / max) * chartH;
+        const x = padL + i * (barW + barGap);
+        const y = padT + chartH - barH;
+        return (
+          <g key={i}>
+            <rect
+              x={x}
+              y={y}
+              width={barW}
+              height={barH}
+              rx={Math.min(barW / 2, 3)}
+              fill="var(--primary)"
+              opacity={0.85}
+            />
+            {/* X-axis label — show every ~5th label to avoid overlap */}
+            {labels && i % Math.max(1, Math.floor(data.length / 7)) === 0 && (
+              <text
+                x={x + barW / 2}
+                y={h - 6}
+                textAnchor="middle"
+                style={{ fontFamily: "var(--mono)", fontSize: 8, fill: "var(--muted)" }}
+              >
+                {labels[i]}
+              </text>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -115,7 +161,7 @@ function MethodDonutSVG({ breakdown }: { breakdown: { method: string; pct: numbe
 /* ── Page ────────────────────────────────────────────────────── */
 
 export default function MerchantDashboardPage() {
-  const [withdraw, setWithdraw] = useState(false);
+  const router = useRouter();
   const [stats, setStats] = useState<MerchantDashboardStats | null>(null);
   const [balance, setBalance] = useState<BalanceInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -174,7 +220,12 @@ export default function MerchantDashboardPage() {
   }
 
   const recentPayments = stats?.recent_payments ?? [];
-  const revenueChartData: number[] = stats?.revenue_chart?.map((d) => d.amount) ?? [];
+  const revenueChart = stats?.revenue_chart ?? [];
+  const revenueChartData: number[] = revenueChart.map((d) => d.amount);
+  const revenueChartLabels: string[] = revenueChart.map((d) => {
+    const dt = new Date(d.date);
+    return `${dt.getDate()}/${dt.getMonth() + 1}`;
+  });
   const methodBreakdown = stats?.method_breakdown ?? [];
 
   return (
@@ -247,7 +298,7 @@ export default function MerchantDashboardPage() {
             </span>
             <button
               className="btn btn-accent btn-sm"
-              onClick={() => setWithdraw(true)}
+              onClick={() => router.push("/merchant/dashboard/payouts")}
             >
               <T fr="Retirer" en="Withdraw" />
             </button>
@@ -349,7 +400,7 @@ export default function MerchantDashboardPage() {
               </span>
             </div>
           </div>
-          <RevenueChartSVG data={revenueChartData} />
+          <RevenueChartSVG data={revenueChartData} labels={revenueChartLabels} />
         </div>
 
         {/* Method mix donut */}
