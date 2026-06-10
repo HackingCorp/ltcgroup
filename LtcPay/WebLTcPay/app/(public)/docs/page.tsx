@@ -675,7 +675,7 @@ function ErrorsSection() {
 /* ═══════════════════════════════════════════════ */
 /*  Section Router                                 */
 /* ═══════════════════════════════════════════════ */
-const SECTION_MAP: Record<string, () => JSX.Element> = {
+const SECTION_MAP: Record<string, () => React.ReactElement> = {
   intro: IntroSection,
   auth: AuthSection,
   create: CreatePaymentSection,
