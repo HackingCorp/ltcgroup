@@ -111,8 +111,8 @@ function IntroSection() {
 
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
-        { name: "MOBILE_MONEY", type: "MTN, Orange", desc: "Mobile Money via TouchPay (SDK ou Direct API)" },
-        { name: "BANK_CARD", type: "Visa, Mastercard", desc: "Carte bancaire via Stripe Payment Intents" },
+        { name: "MOBILE_MONEY", type: "MTN, Orange", desc: "Mobile Money via TouchPay (SDK ou Direct API). Max 500 000 XAF par transaction (frais compris)." },
+        { name: "BANK_CARD", type: "Visa, Mastercard", desc: "Carte bancaire via Stripe Payment Intents. Pas de limite de montant." },
       ]} />
 
       <H2><T fr="Flux de paiement" en="Payment flow" /></H2>
@@ -196,7 +196,7 @@ function CreatePaymentSection() {
 
       <H2><T fr="Corps de la requête" en="Request body" /></H2>
       <FieldTable fields={[
-        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100, Max: 5 000 000.", required: true },
+        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100. Mobile Money : max 500 000 XAF (frais compris). Carte bancaire : pas de limite.", required: true },
         { name: "currency", type: "string", desc: "XAF (défaut), XOF, EUR ou USD. Max 3 caractères." },
         { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
         { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
