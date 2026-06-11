@@ -694,7 +694,7 @@ const SECTION_MAP: Record<string, () => React.ReactElement> = {
 export default function DocsPage() {
   const [section, setSection] = useState("intro");
   const [copied, setCopied] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
+  const allSectionsRef = useRef<HTMLDivElement>(null);
 
   const grouped: Record<string, typeof SECTIONS> = {};
   SECTIONS.forEach(s => {
@@ -703,9 +703,10 @@ export default function DocsPage() {
   });
 
   const ActiveSection = SECTION_MAP[section] || IntroSection;
+  const AllSections = Object.values(SECTION_MAP);
 
   const handleCopyDocs = () => {
-    const el = mainRef.current;
+    const el = allSectionsRef.current;
     if (!el) return;
     const text = el.innerText;
     navigator.clipboard.writeText(text).then(() => {
@@ -745,7 +746,7 @@ export default function DocsPage() {
       </aside>
 
       {/* Main content */}
-      <main ref={mainRef} style={{ padding: "40px 48px", maxWidth: 920, overflowY: "auto", height: "calc(100vh - 110px)", position: "relative" }}>
+      <main style={{ padding: "40px 48px", maxWidth: 920, overflowY: "auto", height: "calc(100vh - 110px)", position: "relative" }}>
         <button
           onClick={handleCopyDocs}
           style={{
@@ -763,6 +764,13 @@ export default function DocsPage() {
         </button>
         <ActiveSection />
       </main>
+
+      {/* Hidden: all sections rendered for full-doc copy */}
+      <div ref={allSectionsRef} style={{ position: "absolute", left: "-9999px", top: 0, width: 800 }} aria-hidden="true">
+        {AllSections.map((Section, i) => (
+          <div key={i} style={{ marginBottom: 40 }}><Section /></div>
+        ))}
+      </div>
     </div>
   );
 }
