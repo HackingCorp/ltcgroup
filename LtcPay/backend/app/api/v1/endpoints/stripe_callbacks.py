@@ -74,7 +74,8 @@ async def stripe_webhook(request: Request):
     # 4. Extract payment intent data
     payment_intent = event["data"]["object"]
     pi_id = payment_intent["id"]
-    ltcpay_reference = payment_intent.get("metadata", {}).get("ltcpay_reference", "")
+    metadata = getattr(payment_intent, "metadata", None) or {}
+    ltcpay_reference = metadata.get("ltcpay_reference", "") if isinstance(metadata, dict) else getattr(metadata, "ltcpay_reference", "")
 
     logger.info(
         "Stripe webhook: %s for pi=%s ref=%s",
@@ -124,8 +125,8 @@ async def stripe_webhook(request: Request):
         stripe_data = payment.stripe_data or {}
         stripe_data["webhook_event"] = {
             "type": event_type,
-            "id": event.get("id"),
-            "data": payment_intent,
+            "id": event["id"],
+            "data": dict(payment_intent),
         }
         update_values["stripe_data"] = stripe_data
 
