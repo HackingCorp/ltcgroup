@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { CodeBlock } from "@/components/ui/code-block";
 import { T } from "@/lib/i18n";
@@ -693,6 +693,8 @@ const SECTION_MAP: Record<string, () => React.ReactElement> = {
 /* ═══════════════════════════════════════════════ */
 export default function DocsPage() {
   const [section, setSection] = useState("intro");
+  const [copied, setCopied] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   const grouped: Record<string, typeof SECTIONS> = {};
   SECTIONS.forEach(s => {
@@ -701,6 +703,16 @@ export default function DocsPage() {
   });
 
   const ActiveSection = SECTION_MAP[section] || IntroSection;
+
+  const handleCopyDocs = () => {
+    const el = mainRef.current;
+    if (!el) return;
+    const text = el.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <div style={{ background: "var(--bg)", display: "grid", gridTemplateColumns: "232px 1fr", minHeight: "calc(100vh - 110px)" }}>
@@ -733,7 +745,22 @@ export default function DocsPage() {
       </aside>
 
       {/* Main content */}
-      <main style={{ padding: "40px 48px", maxWidth: 920, overflowY: "auto", height: "calc(100vh - 110px)" }}>
+      <main ref={mainRef} style={{ padding: "40px 48px", maxWidth: 920, overflowY: "auto", height: "calc(100vh - 110px)", position: "relative" }}>
+        <button
+          onClick={handleCopyDocs}
+          style={{
+            position: "sticky", top: 0, float: "right", zIndex: 10,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "6px 12px", borderRadius: 6, fontSize: 12, fontFamily: "var(--mono)",
+            background: copied ? "var(--success)" : "var(--surface)",
+            color: copied ? "white" : "var(--ink-3)",
+            border: copied ? "1px solid var(--success)" : "1px solid var(--line)",
+            cursor: "pointer", transition: "all 0.2s",
+          }}
+        >
+          <Icon name={copied ? "check" : "copy"} size={12} />
+          {copied ? "Copié !" : "Copier"}
+        </button>
         <ActiveSection />
       </main>
     </div>
