@@ -129,6 +129,13 @@ async def create_payment(
     else:
         customer_amount = base_amount
 
+    # Mobile Money limit: 500,000 XAF per transaction (fees included)
+    if provider == PaymentProvider.TOUCHPAY and customer_amount > Decimal("500000"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le montant maximum par transaction Mobile Money est de 500 000 XAF (frais compris). Utilisez payment_method: BANK_CARD pour les montants supérieurs.",
+        )
+
     payment_token = generate_payment_token(reference, customer_amount)
 
     expires_at = datetime.now(timezone.utc) + timedelta(
