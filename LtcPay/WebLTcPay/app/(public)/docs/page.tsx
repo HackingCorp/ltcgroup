@@ -146,16 +146,16 @@ function AuthSection() {
 
       <H2>Headers</H2>
       <FieldTable fields={[
-        { name: "X-API-Key", type: "string", desc: "Votre clé API publique (ltc_pk_...)", required: true },
-        { name: "X-API-Secret", type: "string", desc: "Votre clé API secrète (ltc_sk_...)", required: true },
+        { name: "X-API-Key", type: "string", desc: "Votre clé API (ltcpay_live_... en production, ltcpay_test_... en test).", required: true },
+        { name: "X-API-Secret", type: "string", desc: "Votre clé secrète API.", required: true },
         { name: "Content-Type", type: "string", desc: "application/json", required: true },
       ]} />
 
       <H2><T fr="Exemple" en="Example" /></H2>
       <CodeBlock lang="curl">{`curl -X GET ${BASE_URL}/api/v1/payments \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: ltc_pk_your_public_key" \\
-  -H "X-API-Secret: ltc_sk_your_secret_key"`}</CodeBlock>
+  -H "X-API-Key: ltcpay_live_abc123..." \\
+  -H "X-API-Secret: your_api_secret"`}</CodeBlock>
 
       <InfoBox>
         <T
@@ -196,27 +196,27 @@ function CreatePaymentSection() {
 
       <H2><T fr="Corps de la requête" en="Request body" /></H2>
       <FieldTable fields={[
-        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Minimum 100.", required: true },
-        { name: "currency", type: "string", desc: "XAF (défaut), XOF, EUR ou USD." },
-        { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks." },
-        { name: "description", type: "string", desc: "Affiché au client sur la page de checkout." },
+        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100, Max: 5 000 000.", required: true },
+        { name: "currency", type: "string", desc: "XAF (défaut), XOF, EUR ou USD. Max 3 caractères." },
+        { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
+        { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
         { name: "payment_method", type: "string", desc: "MOBILE_MONEY ou BANK_CARD. Omettez pour laisser le client choisir." },
-        { name: "payment_mode", type: "string", desc: "SDK (défaut), DIRECT_API ou STRIPE." },
+        { name: "payment_mode", type: "string", desc: "SDK (défaut), DIRECT_API ou STRIPE. Auto-détecté si operator + customer_phone fournis." },
         { name: "operator", type: "string", desc: "MTN ou ORANGE. Requis si payment_mode = DIRECT_API." },
-        { name: "customer_phone", type: "string", desc: "Numéro du client. Requis si payment_mode = DIRECT_API." },
-        { name: "customer_info.name", type: "string", desc: "Nom du client." },
-        { name: "customer_info.email", type: "string", desc: "Email du client." },
-        { name: "customer_info.phone", type: "string", desc: "Téléphone du client (format E.164)." },
-        { name: "callback_url", type: "string", desc: "URL webhook spécifique à ce paiement (remplace le défaut marchand)." },
-        { name: "return_url", type: "string", desc: "URL de redirection après paiement." },
-        { name: "metadata", type: "object", desc: "Données personnalisées (retournées dans les webhooks)." },
+        { name: "customer_phone", type: "string", desc: "Numéro du client (max 20 car). Requis si payment_mode = DIRECT_API." },
+        { name: "customer_info.name", type: "string", desc: "Nom du client. Max 255 car." },
+        { name: "customer_info.email", type: "string", desc: "Email du client. Max 255 car." },
+        { name: "customer_info.phone", type: "string", desc: "Téléphone du client (format E.164). Max 20 car." },
+        { name: "callback_url", type: "string", desc: "URL webhook spécifique à ce paiement (remplace le défaut marchand). Max 500 car." },
+        { name: "return_url", type: "string", desc: "URL de redirection après paiement. Max 500 car." },
+        { name: "metadata", type: "object", desc: "Données personnalisées JSON (retournées dans les webhooks)." },
       ]} />
 
       <H2><T fr="Exemple (mode SDK)" en="Example (SDK mode)" /></H2>
       <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: ltc_pk_..." \\
-  -H "X-API-Secret: ltc_sk_..." \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..." \\
   -d '{
     "amount": 75000,
     "currency": "XAF",
@@ -229,7 +229,21 @@ function CreatePaymentSection() {
     "return_url": "https://mamishop.cm/thanks"
   }'`}</CodeBlock>
 
-      <H2><T fr="Réponse" en="Response" /></H2>
+      <H2><T fr="Champs de la réponse" en="Response fields" /></H2>
+      <FieldTable fields={[
+        { name: "payment_id", type: "uuid", desc: "Identifiant unique du paiement." },
+        { name: "reference", type: "string", desc: "Référence unique (PAY-XXXX). Utilisez-la pour les requêtes GET." },
+        { name: "payment_token", type: "string", desc: "Token JWT pour la page de checkout." },
+        { name: "amount", type: "decimal", desc: "Montant final (peut inclure les frais si fee_bearer = CLIENT)." },
+        { name: "currency", type: "string", desc: "Devise du paiement." },
+        { name: "status", type: "string", desc: "PENDING (SDK/Stripe) ou PROCESSING (Direct API)." },
+        { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API ou STRIPE." },
+        { name: "payment_url", type: "string", desc: "URL de checkout (mode SDK/Stripe). Redirigez le client ici." },
+        { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe (mode BANK_CARD uniquement). Null sinon." },
+        { name: "created_at", type: "datetime", desc: "Date de création ISO 8601." },
+      ]} />
+
+      <H2><T fr="Exemple de réponse" en="Response example" /></H2>
       <CodeBlock lang="json">{`{
   "payment_id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
   "reference": "PAY-A1B2C3D4E5F67890",
@@ -239,6 +253,7 @@ function CreatePaymentSection() {
   "status": "PENDING",
   "payment_mode": "SDK",
   "payment_url": "${BASE_URL}/pay/PAY-A1B2C3D4E5F67890",
+  "stripe_client_secret": null,
   "created_at": "2026-06-10T14:42:00Z"
 }`}</CodeBlock>
 
@@ -249,11 +264,31 @@ function CreatePaymentSection() {
         />
       </InfoBox>
 
+      <H2><T fr="Frais de transaction" en="Transaction fees" /></H2>
+      <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
+        <T
+          fr="Une commission est calculée sur chaque paiement selon votre taux configuré (défaut : 1.75%). Le porteur des frais dépend de votre configuration :"
+          en="A fee is calculated on each payment based on your configured rate (default: 1.75%). Who bears the fee depends on your configuration:"
+        />
+      </p>
+      <FieldTable fields={[
+        { name: "MERCHANT", type: "défaut", desc: "Les frais sont déduits du montant reversé au marchand. Le client paie le montant exact demandé." },
+        { name: "CLIENT", type: "option", desc: "Les frais sont ajoutés au montant payé par le client. Le montant retourné dans la réponse inclut les frais." },
+      ]} />
+
+      <H2><T fr="Détection automatique du mode" en="Automatic mode detection" /></H2>
+      <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
+        <T
+          fr="Si vous envoyez operator et customer_phone sans spécifier payment_mode, le mode DIRECT_API est automatiquement sélectionné. Si vous envoyez payment_method: BANK_CARD, le mode STRIPE est automatiquement sélectionné."
+          en="If you send operator and customer_phone without specifying payment_mode, DIRECT_API mode is automatically selected. If you send payment_method: BANK_CARD, STRIPE mode is automatically selected."
+        />
+      </p>
+
       <H2><T fr="Exemple (Direct API — sans redirection)" en="Example (Direct API — no redirect)" /></H2>
       <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: ltc_pk_..." \\
-  -H "X-API-Secret: ltc_sk_..." \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..." \\
   -d '{
     "amount": 5000,
     "currency": "XAF",
@@ -271,8 +306,8 @@ function CreatePaymentSection() {
       <H2><T fr="Exemple (Carte bancaire)" en="Example (Bank card)" /></H2>
       <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: ltc_pk_..." \\
-  -H "X-API-Secret: ltc_sk_..." \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..." \\
   -d '{
     "amount": 15000,
     "currency": "XAF",
@@ -319,28 +354,57 @@ function GetPaymentSection() {
 
       <H2><T fr="Exemple" en="Example" /></H2>
       <CodeBlock lang="curl">{`curl ${BASE_URL}/api/v1/payments/PAY-A1B2C3D4E5F67890 \\
-  -H "X-API-Key: ltc_pk_..." \\
-  -H "X-API-Secret: ltc_sk_..."`}</CodeBlock>
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..."`}</CodeBlock>
 
-      <H2><T fr="Réponse" en="Response" /></H2>
+      <H2><T fr="Champs de la réponse" en="Response fields" /></H2>
+      <FieldTable fields={[
+        { name: "id", type: "uuid", desc: "Identifiant unique du paiement." },
+        { name: "merchant_id", type: "uuid", desc: "Identifiant du marchand." },
+        { name: "reference", type: "string", desc: "Référence unique PAY-XXXX." },
+        { name: "payment_token", type: "string", desc: "Token JWT de la session." },
+        { name: "merchant_reference", type: "string|null", desc: "Votre ID de commande interne." },
+        { name: "provider_transaction_id", type: "string|null", desc: "ID de transaction côté fournisseur." },
+        { name: "amount", type: "decimal", desc: "Montant du paiement." },
+        { name: "fee", type: "decimal", desc: "Frais de transaction calculés." },
+        { name: "currency", type: "string", desc: "Devise (XAF, XOF, EUR, USD)." },
+        { name: "method", type: "string|null", desc: "MOBILE_MONEY ou BANK_CARD." },
+        { name: "status", type: "string", desc: "Statut actuel du paiement." },
+        { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API ou STRIPE." },
+        { name: "provider", type: "string|null", desc: "TOUCHPAY ou STRIPE." },
+        { name: "operator", type: "string|null", desc: "MTN ou ORANGE (Mobile Money)." },
+        { name: "operator_transaction_id", type: "string|null", desc: "ID de transaction côté opérateur." },
+        { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
+        { name: "customer_info", type: "object|null", desc: "Infos client (name, email, phone)." },
+        { name: "description", type: "string|null", desc: "Description du paiement." },
+        { name: "completed_at", type: "datetime|null", desc: "Date de complétion (null si non terminé)." },
+        { name: "created_at", type: "datetime", desc: "Date de création." },
+        { name: "updated_at", type: "datetime", desc: "Date de dernière mise à jour." },
+      ]} />
+
+      <H2><T fr="Exemple de réponse" en="Response example" /></H2>
       <CodeBlock lang="json">{`{
   "id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
   "merchant_id": "...",
   "reference": "PAY-A1B2C3D4E5F67890",
+  "payment_token": "eyJhbGciOiJIUzI1NiIs...",
   "merchant_reference": "ORDER-3041",
+  "provider_transaction_id": "1781183068139",
   "amount": "75000.00",
-  "fee": "1500.00",
+  "fee": "1312.50",
   "currency": "XAF",
   "method": "MOBILE_MONEY",
   "status": "COMPLETED",
   "payment_mode": "SDK",
   "provider": "TOUCHPAY",
   "operator": "MTN",
-  "description": "Pagne + livraison",
+  "operator_transaction_id": "1781183068139",
+  "stripe_payment_intent_id": null,
   "customer_info": {
     "name": "Jean-Pierre Mbarga",
     "phone": "237670123456"
   },
+  "description": "Pagne + livraison",
   "completed_at": "2026-06-10T14:45:30Z",
   "created_at": "2026-06-10T14:42:00Z",
   "updated_at": "2026-06-10T14:45:30Z"
@@ -384,8 +448,8 @@ function ListPaymentsSection() {
 
       <H2><T fr="Exemple" en="Example" /></H2>
       <CodeBlock lang="curl">{`curl "${BASE_URL}/api/v1/payments?page=1&page_size=10&status=COMPLETED" \\
-  -H "X-API-Key: ltc_pk_..." \\
-  -H "X-API-Secret: ltc_sk_..."`}</CodeBlock>
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..."`}</CodeBlock>
 
       <H2><T fr="Réponse" en="Response" /></H2>
       <CodeBlock lang="json">{`{
@@ -480,10 +544,13 @@ function WebhookSection() {
         }
       />
 
-      <H2>Headers</H2>
+      <H2><T fr="Headers envoyés" en="Headers sent" /></H2>
       <FieldTable fields={[
-        { name: "X-LtcPay-Signature", type: "string", desc: "Signature HMAC-SHA256 du body JSON, signée avec votre API Secret." },
+        { name: "X-LtcPay-Signature", type: "string", desc: "Signature HMAC-SHA256 du body JSON, signée avec votre Webhook Secret (visible dans le dashboard)." },
+        { name: "X-LtcPay-Event", type: "string", desc: "Type d'événement (ex: payment.status_changed)." },
+        { name: "X-LtcPay-Delivery-Id", type: "string", desc: "Identifiant unique de la livraison (pour déduplication)." },
         { name: "Content-Type", type: "string", desc: "application/json" },
+        { name: "User-Agent", type: "string", desc: "LtcPay-Webhook/1.0" },
       ]} />
 
       <H2><T fr="Vérification de la signature" en="Signature verification" /></H2>
@@ -519,13 +586,16 @@ function verifySignature(body, signature, secret) {
     "payment_id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
     "reference": "PAY-A1B2C3D4E5F67890",
     "merchant_reference": "ORDER-3041",
+    "provider_transaction_id": "1781183068139",
     "amount": 75000.0,
-    "fee": 1500.0,
+    "fee": 1312.5,
     "currency": "XAF",
     "status": "COMPLETED",
     "method": "MOBILE_MONEY",
     "customer_name": "Jean-Pierre Mbarga",
+    "customer_email": null,
     "customer_phone": "237670123456",
+    "description": "Pagne + livraison",
     "completed_at": "2026-06-10T14:45:30Z",
     "created_at": "2026-06-10T14:42:00Z"
   },
