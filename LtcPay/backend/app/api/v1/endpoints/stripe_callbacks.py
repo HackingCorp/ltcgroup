@@ -95,13 +95,12 @@ async def stripe_webhook(request: Request):
 
         if not payment:
             logger.warning(
-                "Stripe webhook: Payment not found for pi=%s ref=%s",
+                "Stripe webhook: Payment not found for pi=%s ref=%s (acknowledging to stop retries)",
                 pi_id, ltcpay_reference,
             )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Payment not found",
-            )
+            # Return 200 to acknowledge the event and stop Stripe retries.
+            # These are PaymentIntents not created by LtcPay.
+            return {"status": "ok", "message": "Payment not found, acknowledged"}
 
         # 6. Idempotency: skip if already in a terminal state
         if payment.status in TERMINAL_STATES:
