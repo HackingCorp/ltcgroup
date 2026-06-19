@@ -337,10 +337,14 @@ export default function CountriesPage() {
                               }}
                             >
                               {op.logo_url ? (
-                                <img src={backendUrl(op.logo_url)} alt={op.operator_name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", flexShrink: 0 }} />
-                              ) : (
-                                <span style={{ width: 10, height: 10, borderRadius: "50%", background: op.color, flexShrink: 0 }} />
-                              )}
+                                <img
+                                  src={backendUrl(op.logo_url)}
+                                  alt={op.operator_name}
+                                  style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", flexShrink: 0 }}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextElementSibling && ((e.currentTarget.nextElementSibling as HTMLElement).style.display = ""); }}
+                                />
+                              ) : null}
+                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: op.color, flexShrink: 0, display: op.logo_url ? "none" : "" }} />
                               <span style={{ fontWeight: 500, minWidth: 100 }}>{op.operator_name}</span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{op.service_code}</span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fmt(op.min_amount)} – {fmt(op.max_amount)}</span>
