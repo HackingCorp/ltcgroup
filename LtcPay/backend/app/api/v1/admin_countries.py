@@ -65,12 +65,15 @@ async def list_countries(
     db: AsyncSession = Depends(get_db),
 ):
     """List all countries (active + inactive)."""
-    result = await db.execute(
-        select(SupportedCountry)
-        .options(selectinload(SupportedCountry.operators))
-        .order_by(SupportedCountry.name)
-    )
-    return [_country_to_response(c) for c in result.scalars().all()]
+    try:
+        result = await db.execute(
+            select(SupportedCountry).order_by(SupportedCountry.name)
+        )
+        countries = result.scalars().all()
+        return [_country_to_response(c) for c in countries]
+    except Exception as exc:
+        logger.exception("Failed to list countries: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("", response_model=CountryDetailResponse, status_code=status.HTTP_201_CREATED)
