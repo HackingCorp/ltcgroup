@@ -12,6 +12,7 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
 import { fmtXAF, fmtDate, fmtCompact } from "@/lib/format";
 import { merchantsService } from "@/services/merchants.service";
+import { countriesService, type Country, type MerchantCountryInfo } from "@/services/countries.service";
 import type {
   MerchantBalanceInfo,
   MerchantPaymentItem,
@@ -62,6 +63,19 @@ export default function MerchantDetailPage() {
   const [withdrawalsStatus, setWithdrawalsStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [allCountries, setAllCountries] = useState<Country[]>([]);
+  const [merchantCountries, setMerchantCountries] = useState<MerchantCountryInfo[]>([]);
+
+  const loadMerchantCountries = () => {
+    if (!merchantId) return;
+    Promise.all([
+      countriesService.list().catch(() => []),
+      countriesService.listMerchantCountries(merchantId).catch(() => []),
+    ]).then(([all, mc]) => {
+      setAllCountries(all.filter((c) => c.is_active));
+      setMerchantCountries(mc);
+    });
+  };
 
   useEffect(() => {
     if (!merchantId) return;
@@ -76,6 +90,7 @@ export default function MerchantDetailPage() {
       })
       .catch(() => setError("Failed to load merchant details"))
       .finally(() => setLoading(false));
+    loadMerchantCountries();
   }, [merchantId]);
 
   useEffect(() => {
@@ -218,6 +233,14 @@ export default function MerchantDetailPage() {
               </div>
             ))}
           </div>
+
+          {/* Allowed countries card */}
+          <MerchantCountriesCard
+            merchantId={merchantId}
+            allCountries={allCountries}
+            merchantCountries={merchantCountries}
+            onChanged={loadMerchantCountries}
+          />
 
           {/* Admin actions card */}
           <div className="nk-card">
@@ -447,6 +470,101 @@ function WithdrawalsTable({
           <p style={{ marginTop: 8 }}><T fr="Aucun retrait" en="No withdrawals" /></p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Merchant countries card ──────────────────────────────── */
+
+function MerchantCountriesCard({
+  merchantId,
+  allCountries,
+  merchantCountries,
+  onChanged,
+}: {
+  merchantId: string;
+  allCountries: Country[];
+  merchantCountries: MerchantCountryInfo[];
+  onChanged: () => void;
+}) {
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  // Build a map of restricted countries
+  const restrictionMap = new Map(merchantCountries.map((mc) => [mc.country_code, mc.is_active]));
+  const hasRestrictions = merchantCountries.length > 0;
+
+  const handleToggle = async (countryCode: string, currentlyActive: boolean) => {
+    setToggling(countryCode);
+    try {
+      if (currentlyActive && hasRestrictions) {
+        // If it's the last active restriction, remove it (= allow all)
+        const activeCount = merchantCountries.filter((mc) => mc.is_active).length;
+        if (activeCount <= 1 && restrictionMap.get(countryCode)) {
+          await countriesService.removeMerchantCountry(merchantId, countryCode);
+        } else {
+          await countriesService.setMerchantCountry(merchantId, countryCode, false);
+        }
+      } else {
+        await countriesService.setMerchantCountry(merchantId, countryCode, !currentlyActive);
+      }
+      onChanged();
+    } catch {
+      // ignore
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  return (
+    <div className="nk-card" style={{ marginBottom: 12 }}>
+      <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 6px" }}>
+        <T fr="Pays autorises" en="Allowed countries" />
+      </h3>
+      <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 12px" }}>
+        {hasRestrictions
+          ? <T fr="Seuls les pays actives ci-dessous sont autorises." en="Only the enabled countries below are allowed." />
+          : <T fr="Aucune restriction — tous les pays actifs sont autorises." en="No restrictions — all active countries allowed." />
+        }
+      </p>
+      <div style={{ display: "grid", gap: 6 }}>
+        {allCountries.map((c) => {
+          const isRestricted = restrictionMap.has(c.code);
+          const isActive = !hasRestrictions || (isRestricted && restrictionMap.get(c.code) === true);
+          const isLoading = toggling === c.code;
+
+          return (
+            <div
+              key={c.code}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 10px", borderRadius: 6,
+                background: isActive ? "var(--bg-2)" : "transparent",
+                border: "1px solid var(--line)",
+                opacity: isLoading ? 0.5 : 1,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                <span style={{ fontSize: 16 }}>{c.flag_emoji || "🏳️"}</span>
+                <span style={{ fontWeight: 500 }}>{c.name}</span>
+                <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{c.currency}</span>
+              </div>
+              <button
+                onClick={() => handleToggle(c.code, isActive)}
+                disabled={isLoading}
+                className="btn btn-ghost btn-sm"
+                style={{ padding: "2px 8px", fontSize: 11, color: isActive ? "var(--success)" : "var(--muted)" }}
+              >
+                {isActive ? "ON" : "OFF"}
+              </button>
+            </div>
+          );
+        })}
+        {allCountries.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--muted)", padding: 8 }}>
+            <T fr="Aucun pays configure" en="No countries configured" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -92,6 +92,12 @@ export interface UpdateOperatorData {
   is_active?: boolean;
 }
 
+export interface MerchantCountryInfo {
+  country_code: string;
+  country_name: string;
+  is_active: boolean;
+}
+
 /* ── Service ──────────────────────────────────────────────── */
 
 export const countriesService = {
@@ -138,5 +144,20 @@ export const countriesService = {
 
   async removeOperator(countryCode: string, opId: string): Promise<void> {
     await api.delete(`/admin/countries/${countryCode}/operators/${opId}`);
+  },
+
+  /* Merchant country restrictions */
+  async listMerchantCountries(merchantId: string): Promise<MerchantCountryInfo[]> {
+    const r = await api.get<MerchantCountryInfo[]>(`/admin/merchants/${merchantId}/countries`);
+    return r.data;
+  },
+
+  async setMerchantCountry(merchantId: string, countryCode: string, isActive: boolean): Promise<MerchantCountryInfo> {
+    const r = await api.put<MerchantCountryInfo>(`/admin/merchants/${merchantId}/countries/${countryCode}`, { is_active: isActive });
+    return r.data;
+  },
+
+  async removeMerchantCountry(merchantId: string, countryCode: string): Promise<void> {
+    await api.delete(`/admin/merchants/${merchantId}/countries/${countryCode}`);
   },
 };
