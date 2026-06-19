@@ -41,6 +41,7 @@ const TRANSLATIONS: Record<string, { fr: string; en: string }> = {
   "a.security": { fr: "Sécurité & audit", en: "Security & audit" },
   "a.disputes": { fr: "Litiges & remboursements", en: "Disputes & refunds" },
   "a.users": { fr: "Utilisateurs internes", en: "Internal users" },
+  "a.countries": { fr: "Pays & Opérateurs", en: "Countries & Operators" },
   "a.finance": { fr: "Finance", en: "Finance" },
 
   // Categories
