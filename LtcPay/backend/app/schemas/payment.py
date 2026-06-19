@@ -26,7 +26,7 @@ class CustomerInfo(BaseModel):
 class PaymentInitiate(BaseModel):
     """Schema for initiating a new payment (sent by merchant via API)."""
     amount: Decimal = Field(..., gt=0, le=5000000, decimal_places=2)
-    currency: str = Field(default="XAF", max_length=3)
+    currency: Optional[str] = Field(default=None, max_length=3)
     merchant_reference: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = Field(None, max_length=500)
     customer_info: Optional[CustomerInfo] = None
@@ -66,7 +66,9 @@ class PaymentInitiate(BaseModel):
 
     @field_validator("currency")
     @classmethod
-    def validate_currency(cls, v: str) -> str:
+    def validate_currency(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
         supported = {"XAF", "XOF", "EUR", "USD"}
         v = v.upper()
         if v not in supported:

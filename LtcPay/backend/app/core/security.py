@@ -140,3 +140,21 @@ async def get_current_merchant(
         )
 
     return merchant
+
+
+async def get_optional_merchant(
+    api_key: str = Security(api_key_header),
+    api_secret: str = Security(api_secret_header),
+    db: AsyncSession = Depends(get_db),
+) -> Merchant | None:
+    """Authenticate merchant if credentials are provided, else return None.
+
+    Unlike get_current_merchant, this does not raise on missing credentials.
+    Used for endpoints that work both with and without auth (e.g. /countries).
+    """
+    if not api_key or not api_secret:
+        return None
+    try:
+        return await get_current_merchant(api_key, api_secret, db)
+    except HTTPException:
+        return None

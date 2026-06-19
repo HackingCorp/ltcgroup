@@ -22,7 +22,7 @@ from sqlalchemy import select, func
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.rate_limit import limiter
-from app.core.security import get_current_merchant, generate_payment_token
+from app.core.security import get_current_merchant, get_optional_merchant, generate_payment_token
 from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
@@ -55,7 +55,7 @@ def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
 async def list_available_countries(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    merchant: Merchant | None = Depends(get_current_merchant),
+    merchant: Merchant | None = Depends(get_optional_merchant),
 ):
     """List countries available for payments.
 
@@ -248,9 +248,9 @@ async def create_payment(
                 detail=f"Le montant maximum par transaction {op_label} pour {country_obj.name} est de {max_amount:,} {country_obj.currency} (frais compris). Utilisez payment_method: BANK_CARD pour les montants superieurs.",
             )
 
-    # Currency: use country currency if not explicitly provided
+    # Currency: use explicit value, else country default, else global default
     currency = payload.currency
-    if country_obj and not payload.currency:
+    if not currency and country_obj:
         currency = country_obj.currency
     currency = currency or settings.default_currency
 
