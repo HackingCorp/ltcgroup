@@ -17,6 +17,42 @@ import {
   type UpdateOperatorData,
 } from "@/services/countries.service";
 
+/* ── Country presets (auto-fill metadata) ──────────────────── */
+
+interface CountryPreset {
+  code: string;
+  name: string;
+  currency: string;
+  phone_prefix: string;
+  phone_digits: number;
+  phone_pattern: string;
+  flag_emoji: string;
+  default_city: string;
+  min_amount: number;
+  max_amount: number;
+}
+
+const COUNTRY_PRESETS: CountryPreset[] = [
+  { code: "CM", name: "Cameroun", currency: "XAF", phone_prefix: "237", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1F2}", default_city: "Douala", min_amount: 100, max_amount: 500000 },
+  { code: "CI", name: "C\u00f4te d'Ivoire", currency: "XOF", phone_prefix: "225", phone_digits: 10, phone_pattern: "0X XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EE}", default_city: "Abidjan", min_amount: 100, max_amount: 500000 },
+  { code: "SN", name: "S\u00e9n\u00e9gal", currency: "XOF", phone_prefix: "221", phone_digits: 9, phone_pattern: "7X XXX XX XX", flag_emoji: "\u{1F1F8}\u{1F1F3}", default_city: "Dakar", min_amount: 100, max_amount: 500000 },
+  { code: "GA", name: "Gabon", currency: "XAF", phone_prefix: "241", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1E6}", default_city: "Libreville", min_amount: 100, max_amount: 500000 },
+  { code: "CG", name: "Congo", currency: "XAF", phone_prefix: "242", phone_digits: 9, phone_pattern: "0X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1EC}", default_city: "Brazzaville", min_amount: 100, max_amount: 500000 },
+  { code: "CD", name: "RDC", currency: "CDF", phone_prefix: "243", phone_digits: 9, phone_pattern: "9X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1E9}", default_city: "Kinshasa", min_amount: 500, max_amount: 5000000 },
+  { code: "TD", name: "Tchad", currency: "XAF", phone_prefix: "235", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1E9}", default_city: "N'Djamena", min_amount: 100, max_amount: 500000 },
+  { code: "CF", name: "R\u00e9publique Centrafricaine", currency: "XAF", phone_prefix: "236", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EB}", default_city: "Bangui", min_amount: 100, max_amount: 500000 },
+  { code: "BJ", name: "B\u00e9nin", currency: "XOF", phone_prefix: "229", phone_digits: 10, phone_pattern: "XX XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EF}", default_city: "Cotonou", min_amount: 100, max_amount: 500000 },
+  { code: "TG", name: "Togo", currency: "XOF", phone_prefix: "228", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1EC}", default_city: "Lom\u00e9", min_amount: 100, max_amount: 500000 },
+  { code: "BF", name: "Burkina Faso", currency: "XOF", phone_prefix: "226", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EB}", default_city: "Ouagadougou", min_amount: 100, max_amount: 500000 },
+  { code: "ML", name: "Mali", currency: "XOF", phone_prefix: "223", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F2}\u{1F1F1}", default_city: "Bamako", min_amount: 100, max_amount: 500000 },
+  { code: "NE", name: "Niger", currency: "XOF", phone_prefix: "227", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F3}\u{1F1EA}", default_city: "Niamey", min_amount: 100, max_amount: 500000 },
+  { code: "GN", name: "Guin\u00e9e", currency: "GNF", phone_prefix: "224", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1F3}", default_city: "Conakry", min_amount: 1000, max_amount: 5000000 },
+  { code: "GQ", name: "Guin\u00e9e \u00c9quatoriale", currency: "XAF", phone_prefix: "240", phone_digits: 9, phone_pattern: "XXX XXX XXX", flag_emoji: "\u{1F1EC}\u{1F1F6}", default_city: "Malabo", min_amount: 100, max_amount: 500000 },
+  { code: "KE", name: "Kenya", currency: "KES", phone_prefix: "254", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1F0}\u{1F1EA}", default_city: "Nairobi", min_amount: 10, max_amount: 150000 },
+  { code: "UG", name: "Uganda", currency: "UGX", phone_prefix: "256", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1FA}\u{1F1EC}", default_city: "Kampala", min_amount: 500, max_amount: 5000000 },
+  { code: "NG", name: "Nigeria", currency: "NGN", phone_prefix: "234", phone_digits: 10, phone_pattern: "8XX XXX XXXX", flag_emoji: "\u{1F1F3}\u{1F1EC}", default_city: "Lagos", min_amount: 100, max_amount: 10000000 },
+];
+
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function CountriesPage() {
@@ -420,6 +456,35 @@ function CountryModal({
         )}
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+          {/* Country preset picker (create mode only) */}
+          {!isEdit && (
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Choisir un pays" en="Select a country" />
+              </label>
+              <select
+                value={form.code}
+                onChange={(e) => {
+                  const preset = COUNTRY_PRESETS.find((p) => p.code === e.target.value);
+                  if (preset) {
+                    setForm((prev) => ({ ...prev, ...preset }));
+                  } else {
+                    set("code", "");
+                  }
+                }}
+                className="nk-input"
+                style={{ width: "100%", padding: "8px 10px", fontSize: 13, borderRadius: 6, border: "1px solid var(--line)", background: "var(--bg-2)", cursor: "pointer" }}
+              >
+                <option value="">— <T fr="Selectionner ou saisir manuellement" en="Select or enter manually" /> —</option>
+                {COUNTRY_PRESETS.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.flag_emoji} {p.name} ({p.code}) — {p.currency} +{p.phone_prefix}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Row: code + name */}
           <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 12 }}>
             <div>
