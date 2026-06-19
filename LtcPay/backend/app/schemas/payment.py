@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field, UUID4, field_validator, model_validator
 
 from app.models.payment import PaymentStatus, PaymentMethod, PaymentMode, PaymentProvider, MobileMoneyOperator
 
+# MobileMoneyOperator is kept as a Python enum for backwards compatibility
+# but the DB column is now VARCHAR(20) to support dynamic operators.
+
 
 # ---------------------------------------------------------------------------
 # Merchant Payment API schemas (used by api/v1/payments.py)
@@ -32,16 +35,33 @@ class PaymentInitiate(BaseModel):
     return_url: Optional[str] = Field(None, max_length=500)
     metadata: Optional[dict] = None
 
+    # Multi-country support
+    country: Optional[str] = Field(None, min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code")
+
     # Direct API fields (optional - can be provided on checkout page)
     payment_mode: Optional[PaymentMode] = None  # None = use merchant default
-    operator: Optional[MobileMoneyOperator] = None
+    operator: Optional[str] = Field(None, max_length=20, description="Operator code (e.g. MTN, ORANGE, WAVE)")
     customer_phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("country", mode="before")
+    @classmethod
+    def normalize_country(cls, v: str | None) -> str | None:
+        if v is not None:
+            return v.upper()
+        return v
+
+    @field_validator("operator", mode="before")
+    @classmethod
+    def normalize_operator(cls, v: str | None) -> str | None:
+        if v is not None:
+            return v.upper()
+        return v
 
     @field_validator("amount")
     @classmethod
     def validate_amount(cls, v: Decimal) -> Decimal:
         if v < Decimal("100"):
-            raise ValueError("Le montant minimum est 100 XAF")
+            raise ValueError("Le montant minimum est 100")
         return v.quantize(Decimal("0.01"))
 
     @field_validator("currency")
@@ -63,6 +83,7 @@ class PaymentInitiateResponse(BaseModel):
     currency: str
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
+    country: Optional[str] = None
     payment_url: Optional[str] = None
     stripe_client_secret: Optional[str] = None
     created_at: datetime
@@ -82,8 +103,9 @@ class PaymentResponse(BaseModel):
     method: Optional[PaymentMethod] = None
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
+    country: Optional[str] = None
     provider: Optional[PaymentProvider] = None
-    operator: Optional[MobileMoneyOperator] = None
+    operator: Optional[str] = None
     operator_transaction_id: Optional[str] = None
     stripe_payment_intent_id: Optional[str] = None
     customer_info: Optional[dict] = None

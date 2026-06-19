@@ -119,15 +119,98 @@ class TouchPayCallbackData:
 
 
 def _verify_touchpay_signature(body: bytes, signature: str) -> bool:
-    """Verify HMAC-SHA256 signature from TouchPay."""
-    if not settings.TOUCHPAY_SECRET:
+    """Verify HMAC-SHA256 signature from TouchPay.
+
+    Tries the legacy global secret first, then iterates over all active
+    country secrets to support multi-country deployments.
+    """
+    # 1. Try legacy global secret
+    if settings.TOUCHPAY_SECRET:
+        expected = hmac.new(
+            settings.TOUCHPAY_SECRET.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+        if hmac.compare_digest(signature, expected):
+            return True
+
+    # 2. Try all active country secrets from DB
+    try:
+        from app.models.country import SupportedCountry
+        from app.core.encryption import decrypt_value
+        import asyncio
+        from app.core.database import async_session as _async_session
+
+        async def _check_country_secrets():
+            async with _async_session() as db:
+                result = await db.execute(
+                    select(SupportedCountry).where(
+                        SupportedCountry.is_active == True  # noqa: E712
+                    )
+                )
+                for country in result.scalars().all():
+                    secret = decrypt_value(country.tp_secret)
+                    if not secret:
+                        continue
+                    expected = hmac.new(
+                        secret.encode("utf-8"),
+                        body,
+                        hashlib.sha256,
+                    ).hexdigest()
+                    if hmac.compare_digest(signature, expected):
+                        return True
+            return False
+
+        # Run in existing event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # We're already in an async context -- create a task
+            import concurrent.futures
+            # Use sync approach with a new session
+            return False  # Fall through -- signature will be checked at request level
+        else:
+            return loop.run_until_complete(_check_country_secrets())
+    except Exception as exc:
+        logger.warning("Multi-country signature check failed: %s", exc)
         return False
-    expected = hmac.new(
-        settings.TOUCHPAY_SECRET.encode("utf-8"),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(signature, expected)
+
+
+async def _verify_touchpay_signature_async(body: bytes, signature: str) -> bool:
+    """Async version of signature verification that checks all country secrets."""
+    # 1. Try legacy global secret
+    if settings.TOUCHPAY_SECRET:
+        expected = hmac.new(
+            settings.TOUCHPAY_SECRET.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+        if hmac.compare_digest(signature, expected):
+            return True
+
+    # 2. Try all active country secrets from DB
+    from app.models.country import SupportedCountry
+    from app.core.encryption import decrypt_value
+    from app.core.database import async_session as _async_session
+
+    async with _async_session() as db:
+        result = await db.execute(
+            select(SupportedCountry).where(
+                SupportedCountry.is_active == True  # noqa: E712
+            )
+        )
+        for country in result.scalars().all():
+            secret = decrypt_value(country.tp_secret)
+            if not secret:
+                continue
+            expected = hmac.new(
+                secret.encode("utf-8"),
+                body,
+                hashlib.sha256,
+            ).hexdigest()
+            if hmac.compare_digest(signature, expected):
+                return True
+
+    return False
 
 
 def _map_touchpay_status(raw_status: str) -> PaymentStatus:
@@ -319,27 +402,21 @@ async def touchpay_callback_post(
         or request.headers.get("X-Signature", "")
     )
 
-    if settings.TOUCHPAY_SECRET:
-        if not signature:
-            logger.warning("TouchPay callback POST: Missing signature header")
-            if settings.environment != "development":
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Missing webhook signature",
-                )
-            logger.warning("TouchPay callback POST: Skipping signature check (development mode)")
-        elif not _verify_touchpay_signature(raw_body, signature):
+    if signature:
+        if not await _verify_touchpay_signature_async(raw_body, signature):
             logger.warning("TouchPay callback POST: Invalid signature")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid webhook signature",
             )
     elif settings.environment != "development":
-        logger.error("TouchPay callback POST: TOUCHPAY_SECRET not configured in production")
+        logger.warning("TouchPay callback POST: Missing signature header")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Webhook secret not configured",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing webhook signature",
         )
+    else:
+        logger.warning("TouchPay callback POST: Skipping signature check (development mode)")
 
     # 3. Parse callback data (JSON or form)
     try:

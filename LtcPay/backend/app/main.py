@@ -152,10 +152,46 @@ async def payment_page(reference: str, request: Request):
         )
 
     from app.services.stripe_service import stripe_service
+    from app.services.country_service import country_service
 
     # Determine which payment tabs to show
     payment_method = payment.method.value if payment.method else None
     stripe_enabled = stripe_service.is_configured
+
+    # Load country context for multi-country checkout
+    country_code = payment.country or "CM"
+    country_context = {
+        "code": country_code,
+        "phone_prefix": "237",
+        "phone_pattern": "6XX XX XX XX",
+        "phone_digits": 9,
+        "flag_emoji": "\U0001F1E8\U0001F1F2",
+        "currency": payment.currency,
+        "operators": [],
+    }
+    try:
+        async with async_session() as db2:
+            country = await country_service.get_active_country(db2, country_code)
+            operators = await country_service.get_active_operators(db2, country_code)
+            country_context = {
+                "code": country.code,
+                "phone_prefix": country.phone_prefix,
+                "phone_pattern": country.phone_pattern,
+                "phone_digits": country.phone_digits,
+                "flag_emoji": country.flag_emoji,
+                "currency": country.currency,
+                "operators": [
+                    {
+                        "code": op.operator_code,
+                        "name": op.operator_name,
+                        "color": op.color,
+                        "ussd_code": op.ussd_code,
+                    }
+                    for op in operators
+                ],
+            }
+    except Exception as exc:
+        logger.warning("Failed to load country context for %s: %s", country_code, exc)
 
     return templates.TemplateResponse(
         "checkout.html",
@@ -168,6 +204,7 @@ async def payment_page(reference: str, request: Request):
             "stripe_enabled": stripe_enabled,
             "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY if stripe_enabled else "",
             "stripe_client_secret": payment.stripe_client_secret or "",
+            "country": country_context,
         },
     )
 
@@ -255,8 +292,9 @@ async def submit_payment(reference: str, request: Request):
     - SDK mode: customer provides operator + phone on checkout page
     - Direct API mode: if not already provided, customer can still submit here
     """
-    from app.models.payment import Payment, PaymentStatus, PaymentMode, MobileMoneyOperator
+    from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+    from app.services.country_service import country_service
     from sqlalchemy import update as sa_update
 
     try:
@@ -269,11 +307,6 @@ async def submit_payment(reference: str, request: Request):
 
     if not operator_str or not phone:
         raise HTTPException(status_code=400, detail="operator and phone are required")
-
-    try:
-        operator = MobileMoneyOperator(operator_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid operator: {operator_str}")
 
     async with async_session() as db:
         result = await db.execute(
@@ -290,14 +323,34 @@ async def submit_payment(reference: str, request: Request):
                 detail=f"Payment is {payment.status.value}, cannot submit",
             )
 
+        # Resolve country from payment record or phone detection
+        country_code = payment.country
+        if not country_code:
+            detected = await country_service.detect_country_by_phone(db, phone)
+            if detected:
+                country_code = detected.code
+            else:
+                country_code = "CM"  # Fallback for legacy payments
+
+        # Validate operator against country
+        operators = await country_service.get_active_operators(db, country_code)
+        valid_ops = {op.operator_code for op in operators}
+        if operator_str not in valid_ops:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Operateur '{operator_str}' non disponible pour le pays '{country_code}'. Disponibles: {', '.join(sorted(valid_ops))}",
+            )
+
         callback_url = f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
 
         try:
             direct_response = await touchpay_direct_service.initiate_payment(
+                db=db,
                 payment_reference=reference,
                 amount=int(payment.amount),
                 phone_number=phone,
-                operator=operator,
+                operator_code=operator_str,
+                country_code=country_code,
                 callback_url=callback_url,
             )
         except TouchPayDirectError as exc:
@@ -307,7 +360,7 @@ async def submit_payment(reference: str, request: Request):
                 detail=f"Payment initiation failed: {exc}",
             )
 
-        # Update payment with operator, phone, and PROCESSING status
+        # Update payment with operator, phone, country and PROCESSING status
         customer_info = payment.customer_info or {}
         customer_info["phone"] = phone
 
@@ -316,7 +369,8 @@ async def submit_payment(reference: str, request: Request):
             .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
             .values(
                 status=PaymentStatus.PROCESSING,
-                operator=operator,
+                operator=operator_str,
+                country=country_code,
                 customer_info=customer_info,
                 direct_api_data=direct_response,
             )

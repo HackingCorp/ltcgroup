@@ -26,6 +26,7 @@ from app.api.v1 import admin_webhooks
 from app.api.v1 import admin_health
 from app.api.v1 import admin_security
 from app.api.v1 import admin_users
+from app.api.v1 import admin_countries
 from app.api.v1.endpoints import callbacks
 from app.api.v1.endpoints import stripe_callbacks
 from app.api.v1.endpoints import payments as direct_payments
@@ -95,6 +96,10 @@ api_router.include_router(admin_security.router)
 
 # Admin user management
 api_router.include_router(admin_users.router)
+
+# Admin country management
+api_router.include_router(admin_countries.router)
+api_router.include_router(admin_countries.merchant_router)
 
 # Merchant payment API (authenticated via API key)
 api_router.include_router(merchant_payments.router)

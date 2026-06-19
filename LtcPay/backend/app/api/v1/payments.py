@@ -7,6 +7,7 @@ Endpoints:
   POST   /api/v1/payments          - Create a new payment
   GET    /api/v1/payments/{ref}    - Get payment details by reference
   GET    /api/v1/payments          - List merchant payments (paginated)
+  GET    /api/v1/payments/countries - List available countries for payments
 """
 
 import logging
@@ -30,8 +31,10 @@ from app.schemas.payment import (
     PaymentResponse,
     PaymentListResponse,
 )
+from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
 from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
 from app.services.stripe_service import stripe_service, StripeServiceError
+from app.services.country_service import country_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,46 @@ def _generate_reference() -> str:
 def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
     """Compute merchant fee based on their configured rate."""
     return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
+
+
+@router.get("/countries", response_model=list[PublicCountryInfo])
+async def list_available_countries(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    merchant: Merchant | None = Depends(get_current_merchant),
+):
+    """List countries available for payments.
+
+    If authenticated with merchant API keys, filters by merchant restrictions.
+    Returns active countries with their active operators.
+    """
+    merchant_id = merchant.id if merchant else None
+    countries = await country_service.get_available_countries(db, merchant_id=merchant_id)
+
+    result = []
+    for c in countries:
+        ops = [
+            PublicOperatorInfo(
+                code=op.operator_code,
+                name=op.operator_name,
+                color=op.color,
+                ussd_code=op.ussd_code,
+            )
+            for op in (c.operators or []) if op.is_active
+        ]
+        result.append(PublicCountryInfo(
+            code=c.code,
+            name=c.name,
+            currency=c.currency,
+            phone_prefix=c.phone_prefix,
+            phone_digits=c.phone_digits,
+            phone_pattern=c.phone_pattern,
+            flag_emoji=c.flag_emoji,
+            min_amount=c.min_amount,
+            max_amount=c.max_amount,
+            operators=ops,
+        ))
+    return result
 
 
 @router.post("", response_model=PaymentInitiateResponse, status_code=status.HTTP_201_CREATED)
@@ -73,7 +116,7 @@ async def create_payment(
     {
       "amount": 5000,
       "currency": "XAF",
-      "payment_mode": "SDK"  // or omit to use merchant default
+      "payment_mode": "SDK"
     }
     ```
     **Response:** Returns `payment_url` - redirect customer to this URL
@@ -92,22 +135,22 @@ async def create_payment(
     {
       "amount": 5000,
       "currency": "XAF",
+      "country": "CM",
       "payment_mode": "DIRECT_API",
-      "operator": "MTN",              // REQUIRED for Direct API
-      "customer_phone": "237670000000" // REQUIRED for Direct API
+      "operator": "MTN",
+      "customer_phone": "237670000000"
     }
     ```
     **Response:** Payment immediately in PROCESSING status
-    **Then:** Poll GET /api/v1/payments/{reference} every 3-5 seconds
-    **Customer:** Receives push notification to approve in MTN/Orange app
 
-    **Supported operators:** MTN, ORANGE
+    ## Country Detection
+    Country is resolved in order: `country` field > auto-detect from `customer_phone` prefix > error.
 
     Rate limit: 60 requests per minute per IP.
     """
     # Determine provider and payment mode:
-    # - payment_method == BANK_CARD → Stripe provider
-    # - Otherwise → TouchPay provider (SDK or DIRECT_API)
+    # - payment_method == BANK_CARD -> Stripe provider
+    # - Otherwise -> TouchPay provider (SDK or DIRECT_API)
     provider = PaymentProvider.TOUCHPAY
     if payload.payment_method == PaymentMethod.BANK_CARD and stripe_service.is_configured:
         provider = PaymentProvider.STRIPE
@@ -119,6 +162,53 @@ async def create_payment(
     else:
         payment_mode = PaymentMode.SDK
 
+    # --- Resolve country ---
+    country_code = None
+    country_obj = None
+
+    if provider == PaymentProvider.TOUCHPAY:
+        if payload.country:
+            country_code = payload.country.upper()
+        elif payload.customer_phone:
+            detected = await country_service.detect_country_by_phone(db, payload.customer_phone)
+            if detected:
+                country_code = detected.code
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Impossible de detecter le pays depuis le numero de telephone. Veuillez fournir le champ 'country'.",
+                )
+        else:
+            # SDK mode without phone -- try to get the only available country
+            available = await country_service.get_available_countries(db, merchant_id=merchant.id)
+            if len(available) == 1:
+                country_code = available[0].code
+            elif not available:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Aucun pays actif disponible pour ce marchand.",
+                )
+            # If multiple countries, country will be resolved at checkout
+
+        # Validate country availability for this merchant
+        if country_code:
+            if not await country_service.is_country_available(db, country_code, merchant.id):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Le pays '{country_code}' n'est pas disponible pour ce marchand.",
+                )
+            country_obj = await country_service.get_active_country(db, country_code)
+
+            # Validate operator if provided
+            if payload.operator:
+                if not await country_service.is_operator_available(
+                    db, country_code, payload.operator, merchant.id,
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"L'operateur '{payload.operator}' n'est pas disponible pour le pays '{country_code}'.",
+                    )
+
     reference = _generate_reference()
     base_amount = payload.amount
     fee = _compute_fee(base_amount, merchant.fee_rate)
@@ -129,12 +219,20 @@ async def create_payment(
     else:
         customer_amount = base_amount
 
-    # Mobile Money limit: 500,000 XAF per transaction (fees included)
-    if provider == PaymentProvider.TOUCHPAY and customer_amount > Decimal("500000"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le montant maximum par transaction Mobile Money est de 500 000 XAF (frais compris). Utilisez payment_method: BANK_CARD pour les montants supérieurs.",
-        )
+    # Transaction limit: use country-specific max_amount if available
+    if provider == PaymentProvider.TOUCHPAY and country_obj:
+        max_amount = country_obj.max_amount
+        if customer_amount > Decimal(str(max_amount)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Le montant maximum par transaction Mobile Money pour {country_obj.name} est de {max_amount:,} {country_obj.currency} (frais compris). Utilisez payment_method: BANK_CARD pour les montants superieurs.",
+            )
+
+    # Currency: use country currency if not explicitly provided
+    currency = payload.currency
+    if country_obj and not payload.currency:
+        currency = country_obj.currency
+    currency = currency or settings.default_currency
 
     payment_token = generate_payment_token(reference, customer_amount)
 
@@ -158,7 +256,8 @@ async def create_payment(
         merchant_reference=payload.merchant_reference,
         amount=customer_amount,
         fee=fee,
-        currency=payload.currency or settings.default_currency,
+        currency=currency,
+        country=country_code,
         status=PaymentStatus.PENDING,
         payment_mode=payment_mode,
         provider=provider,
@@ -183,7 +282,7 @@ async def create_payment(
             customer_email = (customer_info or {}).get("email")
             intent_result = await stripe_service.create_payment_intent(
                 amount=int(customer_amount),
-                currency=payload.currency or settings.default_currency,
+                currency=currency,
                 payment_reference=reference,
                 customer_email=customer_email,
                 description=payload.description,
@@ -204,17 +303,24 @@ async def create_payment(
             )
 
     # For Direct API mode, initiate payment with TouchPay immediately
-    # ONLY if operator and phone are provided (otherwise customer chooses on checkout page)
-    if payment_mode == PaymentMode.DIRECT_API and payload.operator and payload.customer_phone:
+    # ONLY if operator, phone, AND country are provided
+    if (
+        payment_mode == PaymentMode.DIRECT_API
+        and payload.operator
+        and payload.customer_phone
+        and country_code
+    ):
         callback_url = (
             f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
         )
         try:
             direct_response = await touchpay_direct_service.initiate_payment(
+                db=db,
                 payment_reference=reference,
                 amount=int(customer_amount),
                 phone_number=payload.customer_phone,
-                operator=payload.operator,
+                operator_code=payload.operator,
+                country_code=country_code,
                 callback_url=callback_url,
             )
             # Store response and update status to PROCESSING
@@ -242,6 +348,7 @@ async def create_payment(
         currency=payment.currency,
         status=payment.status,
         payment_mode=payment.payment_mode,
+        country=payment.country,
         payment_url=payment.payment_url,
         stripe_client_secret=payment.stripe_client_secret,
         created_at=payment.created_at,

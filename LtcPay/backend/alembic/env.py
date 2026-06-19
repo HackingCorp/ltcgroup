@@ -30,6 +30,7 @@ from app.models.fee_rule import FeeRule, FeeOverride  # noqa: F401
 from app.models.dispute import Dispute  # noqa: F401
 from app.models.webhook_log import WebhookLog  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
+from app.models.country import SupportedCountry, CountryOperator, MerchantCountry  # noqa: F401
 
 config = context.config
 

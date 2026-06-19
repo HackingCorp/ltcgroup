@@ -1,0 +1,447 @@
+"""
+LtcPay - Admin Country Management Endpoints
+
+CRUD for countries, operators, and merchant country restrictions.
+All endpoints require admin authentication.
+"""
+import logging
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.database import get_db
+from app.core.encryption import encrypt_value
+from app.api.v1.auth import get_current_admin
+from app.models.admin_user import AdminUser
+from app.models.country import SupportedCountry, CountryOperator, MerchantCountry
+from app.models.payment import Payment
+from app.schemas.country import (
+    CountryCreate, CountryUpdate, CountryResponse, CountryDetailResponse,
+    OperatorCreate, OperatorUpdate, OperatorResponse,
+    MerchantCountryResponse, MerchantCountryToggle,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/admin/countries", tags=["Admin Countries"])
+
+
+def _country_to_response(country: SupportedCountry) -> CountryResponse:
+    creds_ok = bool(country.tp_agency_code and country.tp_merchant_id)
+    return CountryResponse(
+        code=country.code,
+        name=country.name,
+        currency=country.currency,
+        phone_prefix=country.phone_prefix,
+        phone_digits=country.phone_digits,
+        phone_pattern=country.phone_pattern,
+        flag_emoji=country.flag_emoji,
+        default_city=country.default_city,
+        min_amount=country.min_amount,
+        max_amount=country.max_amount,
+        credentials_configured=creds_ok,
+        is_active=country.is_active,
+        created_at=country.created_at,
+        updated_at=country.updated_at,
+    )
+
+
+def _country_to_detail(country: SupportedCountry) -> CountryDetailResponse:
+    base = _country_to_response(country)
+    ops = [OperatorResponse.model_validate(op) for op in (country.operators or [])]
+    return CountryDetailResponse(**base.model_dump(), operators=ops)
+
+
+# ---------------------------------------------------------------------------
+# Countries CRUD
+# ---------------------------------------------------------------------------
+
+@router.get("", response_model=list[CountryResponse])
+async def list_countries(
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all countries (active + inactive)."""
+    result = await db.execute(
+        select(SupportedCountry)
+        .options(selectinload(SupportedCountry.operators))
+        .order_by(SupportedCountry.name)
+    )
+    return [_country_to_response(c) for c in result.scalars().all()]
+
+
+@router.post("", response_model=CountryDetailResponse, status_code=status.HTTP_201_CREATED)
+async def create_country(
+    payload: CountryCreate,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new country with optional credentials."""
+    code = payload.code.upper()
+
+    existing = await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Country '{code}' already exists")
+
+    creds = payload.credentials
+    country = SupportedCountry(
+        code=code,
+        name=payload.name,
+        currency=payload.currency.upper(),
+        phone_prefix=payload.phone_prefix,
+        phone_digits=payload.phone_digits,
+        phone_pattern=payload.phone_pattern,
+        flag_emoji=payload.flag_emoji,
+        default_city=payload.default_city,
+        min_amount=payload.min_amount,
+        max_amount=payload.max_amount,
+        is_active=payload.is_active,
+        tp_agency_code=creds.agency_code if creds else "",
+        tp_login=creds.login if creds else "",
+        tp_password=encrypt_value(creds.password) if creds and creds.password else "",
+        tp_secret=encrypt_value(creds.secret) if creds and creds.secret else "",
+        tp_merchant_id=creds.merchant_id if creds else "",
+        tp_secure_code=encrypt_value(creds.secure_code) if creds and creds.secure_code else "",
+        tp_merchant_website=creds.merchant_website if creds else "",
+        tp_sdk_url=creds.sdk_url if creds else "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
+        tp_direct_api_url=creds.direct_api_url if creds else "https://apidist.gutouch.net/apidist/sec/touchpayapi",
+    )
+    db.add(country)
+    await db.commit()
+    await db.refresh(country, attribute_names=["operators"])
+
+    logger.info("Country created: %s (%s) by admin %s", code, payload.name, admin.email)
+    return _country_to_detail(country)
+
+
+@router.get("/{code}", response_model=CountryDetailResponse)
+async def get_country(
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get country details (credentials masked)."""
+    result = await db.execute(
+        select(SupportedCountry)
+        .options(selectinload(SupportedCountry.operators))
+        .where(SupportedCountry.code == code.upper())
+    )
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+    return _country_to_detail(country)
+
+
+@router.patch("/{code}", response_model=CountryDetailResponse)
+async def update_country(
+    code: str,
+    payload: CountryUpdate,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a country's metadata, credentials, or active status."""
+    result = await db.execute(
+        select(SupportedCountry)
+        .options(selectinload(SupportedCountry.operators))
+        .where(SupportedCountry.code == code.upper())
+    )
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Update simple fields
+    for field in ("name", "currency", "phone_prefix", "phone_digits", "phone_pattern",
+                  "flag_emoji", "default_city", "min_amount", "max_amount", "is_active"):
+        val = getattr(payload, field, None)
+        if val is not None:
+            if field == "currency":
+                val = val.upper()
+            setattr(country, field, val)
+
+    # Update credentials if provided
+    if payload.credentials:
+        creds = payload.credentials
+        if creds.agency_code:
+            country.tp_agency_code = creds.agency_code
+        if creds.login:
+            country.tp_login = creds.login
+        if creds.password:
+            country.tp_password = encrypt_value(creds.password)
+        if creds.secret:
+            country.tp_secret = encrypt_value(creds.secret)
+        if creds.merchant_id:
+            country.tp_merchant_id = creds.merchant_id
+        if creds.secure_code:
+            country.tp_secure_code = encrypt_value(creds.secure_code)
+        if creds.merchant_website:
+            country.tp_merchant_website = creds.merchant_website
+        if creds.sdk_url:
+            country.tp_sdk_url = creds.sdk_url
+        if creds.direct_api_url:
+            country.tp_direct_api_url = creds.direct_api_url
+
+    await db.commit()
+    await db.refresh(country, attribute_names=["operators"])
+
+    logger.info("Country updated: %s by admin %s", code.upper(), admin.email)
+    return _country_to_detail(country)
+
+
+@router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_country(
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a country (only if no payments reference it)."""
+    code = code.upper()
+    result = await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code)
+    )
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Check for linked payments
+    pay_count = await db.execute(
+        select(Payment.id).where(Payment.country == code).limit(1)
+    )
+    if pay_count.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete country with existing payments. Deactivate instead.",
+        )
+
+    await db.delete(country)
+    await db.commit()
+    logger.info("Country deleted: %s by admin %s", code, admin.email)
+
+
+# ---------------------------------------------------------------------------
+# Operators CRUD
+# ---------------------------------------------------------------------------
+
+@router.get("/{code}/operators", response_model=list[OperatorResponse])
+async def list_operators(
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all operators for a country."""
+    result = await db.execute(
+        select(CountryOperator)
+        .where(CountryOperator.country_code == code.upper())
+        .order_by(CountryOperator.operator_code)
+    )
+    return [OperatorResponse.model_validate(op) for op in result.scalars().all()]
+
+
+@router.post("/{code}/operators", response_model=OperatorResponse, status_code=status.HTTP_201_CREATED)
+async def create_operator(
+    code: str,
+    payload: OperatorCreate,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add an operator to a country."""
+    code = code.upper()
+    # Verify country exists
+    country = await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code)
+    )
+    if not country.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Check uniqueness
+    existing = await db.execute(
+        select(CountryOperator).where(
+            CountryOperator.country_code == code,
+            CountryOperator.operator_code == payload.operator_code.upper(),
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Operator '{payload.operator_code}' already exists for {code}",
+        )
+
+    op = CountryOperator(
+        country_code=code,
+        operator_code=payload.operator_code.upper(),
+        operator_name=payload.operator_name,
+        service_code=payload.service_code,
+        color=payload.color,
+        ussd_code=payload.ussd_code,
+        is_active=payload.is_active,
+    )
+    db.add(op)
+    await db.commit()
+    await db.refresh(op)
+
+    logger.info("Operator created: %s/%s by admin %s", code, payload.operator_code, admin.email)
+    return OperatorResponse.model_validate(op)
+
+
+@router.patch("/{code}/operators/{op_id}", response_model=OperatorResponse)
+async def update_operator(
+    code: str,
+    op_id: uuid.UUID,
+    payload: OperatorUpdate,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an operator."""
+    result = await db.execute(
+        select(CountryOperator).where(
+            CountryOperator.id == op_id,
+            CountryOperator.country_code == code.upper(),
+        )
+    )
+    op = result.scalar_one_or_none()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    for field in ("operator_code", "operator_name", "service_code", "color", "ussd_code", "is_active"):
+        val = getattr(payload, field, None)
+        if val is not None:
+            if field == "operator_code":
+                val = val.upper()
+            setattr(op, field, val)
+
+    await db.commit()
+    await db.refresh(op)
+
+    logger.info("Operator updated: %s/%s by admin %s", code.upper(), op.operator_code, admin.email)
+    return OperatorResponse.model_validate(op)
+
+
+@router.delete("/{code}/operators/{op_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_operator(
+    code: str,
+    op_id: uuid.UUID,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an operator."""
+    result = await db.execute(
+        select(CountryOperator).where(
+            CountryOperator.id == op_id,
+            CountryOperator.country_code == code.upper(),
+        )
+    )
+    op = result.scalar_one_or_none()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    await db.delete(op)
+    await db.commit()
+    logger.info("Operator deleted: %s/%s by admin %s", code.upper(), op.operator_code, admin.email)
+
+
+# ---------------------------------------------------------------------------
+# Merchant country restrictions
+# ---------------------------------------------------------------------------
+
+merchant_router = APIRouter(prefix="/admin/merchants", tags=["Admin Merchant Countries"])
+
+
+@merchant_router.get("/{merchant_id}/countries", response_model=list[MerchantCountryResponse])
+async def list_merchant_countries(
+    merchant_id: uuid.UUID,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List country restrictions for a merchant."""
+    result = await db.execute(
+        select(MerchantCountry, SupportedCountry.name)
+        .join(SupportedCountry, MerchantCountry.country_code == SupportedCountry.code)
+        .where(MerchantCountry.merchant_id == merchant_id)
+        .order_by(SupportedCountry.name)
+    )
+    return [
+        MerchantCountryResponse(
+            country_code=mc.country_code,
+            country_name=name,
+            is_active=mc.is_active,
+        )
+        for mc, name in result.all()
+    ]
+
+
+@merchant_router.put("/{merchant_id}/countries/{code}", response_model=MerchantCountryResponse)
+async def set_merchant_country(
+    merchant_id: uuid.UUID,
+    code: str,
+    payload: MerchantCountryToggle,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enable or disable a country for a merchant."""
+    code = code.upper()
+
+    # Verify country exists
+    country_result = await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code)
+    )
+    country = country_result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Upsert
+    result = await db.execute(
+        select(MerchantCountry).where(
+            MerchantCountry.merchant_id == merchant_id,
+            MerchantCountry.country_code == code,
+        )
+    )
+    mc = result.scalar_one_or_none()
+    if mc:
+        mc.is_active = payload.is_active
+    else:
+        mc = MerchantCountry(
+            merchant_id=merchant_id,
+            country_code=code,
+            is_active=payload.is_active,
+        )
+        db.add(mc)
+
+    await db.commit()
+
+    logger.info(
+        "Merchant %s country %s set to %s by admin %s",
+        merchant_id, code, payload.is_active, admin.email,
+    )
+    return MerchantCountryResponse(
+        country_code=code,
+        country_name=country.name,
+        is_active=payload.is_active,
+    )
+
+
+@merchant_router.delete("/{merchant_id}/countries/{code}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_merchant_country(
+    merchant_id: uuid.UUID,
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a country restriction for a merchant (= allow by default)."""
+    code = code.upper()
+    result = await db.execute(
+        select(MerchantCountry).where(
+            MerchantCountry.merchant_id == merchant_id,
+            MerchantCountry.country_code == code,
+        )
+    )
+    mc = result.scalar_one_or_none()
+    if not mc:
+        raise HTTPException(status_code=404, detail="Restriction not found")
+
+    await db.delete(mc)
+    await db.commit()
+    logger.info("Merchant %s country restriction %s removed by admin %s", merchant_id, code, admin.email)

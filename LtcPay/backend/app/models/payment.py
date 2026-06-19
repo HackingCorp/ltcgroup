@@ -85,6 +85,9 @@ class Payment(Base):
     )
     currency: Mapped[str] = mapped_column(String(3), default="XAF", nullable=False)
 
+    # Country code (ISO 3166-1 alpha-2, resolved from phone prefix or explicit)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+
     # Payment details
     method: Mapped[PaymentMethod | None] = mapped_column(
         SQLEnum(PaymentMethod), nullable=True
@@ -98,8 +101,9 @@ class Payment(Base):
         SQLEnum(PaymentMode), default=PaymentMode.SDK, server_default="SDK", nullable=False
     )
     # Mobile money operator (for Direct API payments)
-    operator: Mapped[MobileMoneyOperator | None] = mapped_column(
-        SQLEnum(MobileMoneyOperator), nullable=True
+    # VARCHAR(20) instead of SQLEnum to allow dynamic operators from country_operators table
+    operator: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
     )
     # Operator-side transaction ID (for Direct API tracking)
     operator_transaction_id: Mapped[str | None] = mapped_column(

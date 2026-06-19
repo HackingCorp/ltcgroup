@@ -4,6 +4,8 @@ TouchPay Direct API Service (apidist.gutouch.net)
 Server-to-server payment initiation via the TouchPay Direct API.
 Uses HTTP Digest Authentication and PUT method.
 
+Credentials are loaded per-country from the DB via country_service.
+
 API endpoint:
   PUT /apidist/sec/touchpayapi/{agency_code}/transaction
       ?loginAgent={login}&passwordAgent={password}
@@ -22,17 +24,11 @@ import logging
 from typing import Any
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.models.payment import MobileMoneyOperator
+from app.services.country_service import country_service
 
 logger = logging.getLogger(__name__)
-
-# Map operator enum to TouchPay service code
-_OPERATOR_SERVICE_CODES: dict[MobileMoneyOperator, str] = {
-    MobileMoneyOperator.MTN: settings.TOUCHPAY_SERVICE_CODE_MTN,
-    MobileMoneyOperator.ORANGE: settings.TOUCHPAY_SERVICE_CODE_ORANGE,
-}
 
 
 class TouchPayDirectError(Exception):
@@ -45,65 +41,47 @@ class TouchPayDirectError(Exception):
 
 
 class TouchPayDirectService:
-    """Client for the TouchPay Direct API (server-to-server)."""
+    """Client for the TouchPay Direct API (server-to-server).
 
-    def __init__(self):
-        self.api_url = settings.TOUCHPAY_DIRECT_API_URL.rstrip("/")
-        self.agency_code = settings.TOUCHPAY_DIRECT_AGENCY_CODE
-        self.login = settings.TOUCHPAY_DIRECT_LOGIN
-        self.password = settings.TOUCHPAY_DIRECT_PASSWORD
-
-    def _build_url(self) -> str:
-        """Build the full transaction endpoint URL with query params.
-
-        PUT {api_url}/{agency_code}/transaction?loginAgent={login}&passwordAgent={password}
-        """
-        return (
-            f"{self.api_url}/{self.agency_code}/transaction"
-            f"?loginAgent={self.login}&passwordAgent={self.password}"
-        )
-
-    def get_service_code(self, operator: MobileMoneyOperator) -> str:
-        """Map a MobileMoneyOperator enum to the TouchPay service code."""
-        code = _OPERATOR_SERVICE_CODES.get(operator)
-        if not code:
-            raise TouchPayDirectError(f"Unsupported operator: {operator}")
-        return code
+    Credentials are loaded per-country from the database.
+    """
 
     @staticmethod
-    def _normalize_phone(phone: str) -> str:
-        """Normalize phone number to 9 digits (no country code).
+    def _build_url(api_url: str, agency_code: str, login: str, password: str) -> str:
+        """Build the full transaction endpoint URL with query params."""
+        return (
+            f"{api_url.rstrip('/')}/{agency_code}/transaction"
+            f"?loginAgent={login}&passwordAgent={password}"
+        )
 
-        TouchPay requires exactly 9 digits without the 237 prefix.
-        Examples:
-          237677179670 -> 677179670
-          +237677179670 -> 677179670
-          677179670 -> 677179670
-          00237682191827 -> 682191827
+    @staticmethod
+    def _normalize_phone(phone: str, phone_prefix: str, phone_digits: int) -> str:
+        """Normalize phone number to local digits (no country code).
+
+        TouchPay requires digits without the country prefix.
         """
-        digits = "".join(c for c in phone if c.isdigit())
-        if digits.startswith("00237"):
-            digits = digits[5:]
-        elif digits.startswith("237") and len(digits) > 9:
-            digits = digits[3:]
-        return digits
+        return country_service.normalize_phone(phone, phone_prefix, phone_digits)
 
     async def initiate_payment(
         self,
+        db: AsyncSession,
         payment_reference: str,
         amount: int,
         phone_number: str,
-        operator: MobileMoneyOperator,
+        operator_code: str,
+        country_code: str,
         callback_url: str,
         additional_info: dict[str, Any] | None = None,
     ) -> dict:
         """Initiate a mobile money payment via TouchPay Direct API.
 
         Args:
+            db: Database session.
             payment_reference: Our internal payment reference (idFromClient).
-            amount: Payment amount in XAF (integer).
-            phone_number: Customer phone number (e.g. 237670000000 or 670000000).
-            operator: Mobile money operator (MTN or ORANGE).
+            amount: Payment amount (integer).
+            phone_number: Customer phone number.
+            operator_code: Operator code (e.g. "MTN", "ORANGE").
+            country_code: ISO country code (e.g. "CM", "CI").
             callback_url: URL for TouchPay to POST payment status updates.
             additional_info: Optional metadata dict.
 
@@ -113,9 +91,37 @@ class TouchPayDirectService:
         Raises:
             TouchPayDirectError: On HTTP or business-level errors.
         """
-        service_code = self.get_service_code(operator)
-        url = self._build_url()
-        normalized_phone = self._normalize_phone(phone_number)
+        # Load credentials and operator from DB
+        try:
+            creds = await country_service.get_decrypted_credentials(db, country_code)
+        except ValueError as exc:
+            raise TouchPayDirectError(f"Country '{country_code}' not available: {exc}") from exc
+
+        country = await country_service.get_active_country(db, country_code)
+
+        # Find operator's service_code
+        operators = await country_service.get_active_operators(db, country_code)
+        op = next((o for o in operators if o.operator_code == operator_code.upper()), None)
+        if not op:
+            raise TouchPayDirectError(
+                f"Operator '{operator_code}' not available for country '{country_code}'"
+            )
+
+        service_code = op.service_code
+        api_url = creds["direct_api_url"]
+        agency_code = creds["agency_code"]
+        login = creds["login"]
+        password = creds["password"]
+
+        if not agency_code or not login:
+            raise TouchPayDirectError(
+                f"TouchPay Direct API credentials not configured for {country_code}"
+            )
+
+        url = self._build_url(api_url, agency_code, login, password)
+        normalized_phone = self._normalize_phone(
+            phone_number, country.phone_prefix, country.phone_digits,
+        )
 
         payload = {
             "idFromClient": payment_reference,
@@ -128,12 +134,12 @@ class TouchPayDirectService:
             payload["additionnalInfos"] = additional_info
 
         logger.info(
-            "TouchPay Direct: initiating payment ref=%s amount=%s operator=%s phone=%s (raw=%s)",
-            payment_reference, amount, operator.value, normalized_phone, phone_number,
+            "TouchPay Direct: initiating payment ref=%s amount=%s operator=%s country=%s phone=%s (raw=%s)",
+            payment_reference, amount, operator_code, country_code, normalized_phone, phone_number,
         )
 
         try:
-            auth = httpx.DigestAuth(self.login, self.password)
+            auth = httpx.DigestAuth(login, password)
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.put(
                     url,

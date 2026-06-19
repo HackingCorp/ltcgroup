@@ -956,32 +956,23 @@
                     </span>
                 </div>
 
-                <!-- Mobile Money methods -->
+                <!-- Mobile Money methods (dynamic from country operators) -->
                 {% if show_momo %}
                 <div class="pm-section-label">Mobile Money</div>
                 <div class="pm-list" id="momo-methods">
-                    <div class="pm-item" data-method="orange" onclick="selectMethod('orange')">
-                        <div class="pm-logo" style="background: var(--orange-money);">OM</div>
+                    {% for op in country.operators %}
+                    <div class="pm-item" data-method="{{ op.code|lower }}" data-operator-code="{{ op.code }}" onclick="selectMethod('{{ op.code|lower }}')">
+                        <div class="pm-logo" style="background: {{ op.color }}; {% if op.code == 'MTN' %}color: #2a2200;{% endif %}">{{ op.code[:3] }}</div>
                         <div class="pm-label">
-                            <strong>Orange Money</strong>
-                            <small>+237 6XX XX XX XX</small>
+                            <strong>{{ op.name }}</strong>
+                            <small>+{{ country.phone_prefix }} {{ country.phone_pattern }}</small>
                         </div>
                         <div class="pm-meta">
-                            <span class="pm-fee">~4 sec</span>
+                            <span class="pm-fee">~5 sec</span>
                             <span class="pm-radio"></span>
                         </div>
                     </div>
-                    <div class="pm-item" data-method="mtn" onclick="selectMethod('mtn')">
-                        <div class="pm-logo" style="background: var(--mtn); color: #2a2200;">MTN</div>
-                        <div class="pm-label">
-                            <strong>MTN Mobile Money</strong>
-                            <small>+237 6XX XX XX XX</small>
-                        </div>
-                        <div class="pm-meta">
-                            <span class="pm-fee">~6 sec</span>
-                            <span class="pm-radio"></span>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
                 {% endif %}
 
@@ -1009,12 +1000,12 @@
                     <div class="pm-section-label">Numero mobile money</div>
                     <div class="ck-input-row">
                         <span class="flag">
-                            <span class="flag-emoji"></span>
-                            <span class="mono">+237</span>
+                            <span class="flag-emoji">{{ country.flag_emoji }}</span>
+                            <span class="mono">+{{ country.phone_prefix }}</span>
                         </span>
                         <input type="tel" id="phone-input"
-                               placeholder="6XX XX XX XX"
-                               value="{{ (payment.customer_phone or '')[3:] if (payment.customer_phone or '').startswith('237') else (payment.customer_phone or '') }}"
+                               placeholder="{{ country.phone_pattern }}"
+                               value="{{ (payment.customer_phone or '')[country.phone_prefix|length:] if (payment.customer_phone or '').startswith(country.phone_prefix) else (payment.customer_phone or '') }}"
                                autocomplete="tel">
                     </div>
                     <div class="field-hint">
@@ -1071,9 +1062,9 @@
                     </div>
                     <h3>Confirmez sur votre telephone</h3>
                     <p>
-                        Une notification <strong id="otp-operator-name">Orange Money</strong>
-                        a ete envoyee au <strong class="mono" id="otp-phone" style="font-size: 13px;">+237 ---</strong>.
-                        Composez <span class="kbd-pill" id="otp-ussd">#150*4#</span> et saisissez votre PIN.
+                        Une notification <strong id="otp-operator-name">Mobile Money</strong>
+                        a ete envoyee au <strong class="mono" id="otp-phone" style="font-size: 13px;">+{{ country.phone_prefix }} ---</strong>.
+                        Composez <span class="kbd-pill" id="otp-ussd"></span> et saisissez votre PIN.
                     </p>
                     <div class="otp-cells" id="otp-cells">
                         <div class="otp-cell cursor"></div>
@@ -1195,6 +1186,17 @@
     var paymentAmount = "{{ '{:,.0f}'.format(payment.amount).replace(',', ' ') }}";
     var paymentCurrency = "{{ payment.currency }}";
     var stripeEnabled = {{ 'true' if show_card else 'false' }};
+    var countryPrefix = "{{ country.phone_prefix }}";
+    // Build operator lookup from server-rendered data
+    var operatorMap = {};
+    {% for op in country.operators %}
+    operatorMap["{{ op.code|lower }}"] = {
+        code: "{{ op.code }}",
+        name: "{{ op.name }}",
+        color: "{{ op.color }}",
+        ussd: "{{ op.ussd_code }}"
+    };
+    {% endfor %}
     var stripePublishableKey = "{{ stripe_publishable_key }}";
     var stripeClientSecret = "{{ stripe_client_secret }}";
 
@@ -1265,7 +1267,7 @@
         var cardSection = $('card-section');
 
         if (phoneSection) {
-            phoneSection.style.display = (method === 'orange' || method === 'mtn') ? 'block' : 'none';
+            phoneSection.style.display = (operatorMap[method]) ? 'block' : 'none';
         }
         if (cardSection) {
             cardSection.style.display = (method === 'card') ? 'block' : 'none';
@@ -1282,7 +1284,7 @@
         var btn = $('pay-btn');
         if (!btn) return;
 
-        if (selectedMethod === 'orange' || selectedMethod === 'mtn') {
+        if (operatorMap[selectedMethod]) {
             var phoneEl = $('phone-input');
             var phone = phoneEl ? phoneEl.value.replace(/\s/g, '').trim() : '';
             btn.disabled = phone.length < 8;
@@ -1303,7 +1305,7 @@
     window.handlePay = function() {
         if (!selectedMethod) return;
 
-        if (selectedMethod === 'orange' || selectedMethod === 'mtn') {
+        if (operatorMap[selectedMethod]) {
             submitMobileMoneyPayment();
         } else if (selectedMethod === 'card') {
             submitCardPayment();
@@ -1317,13 +1319,14 @@
         var rawPhone = phoneEl.value.replace(/\s/g, '').trim();
         if (!rawPhone) return;
 
-        // Prepend 237 if not present
+        // Prepend country prefix if not present
         var phone = rawPhone;
-        if (!phone.startsWith('237')) {
-            phone = '237' + phone;
+        if (!phone.startsWith(countryPrefix)) {
+            phone = countryPrefix + phone;
         }
 
-        var operator = selectedMethod === 'mtn' ? 'MTN' : 'ORANGE';
+        var opInfo = operatorMap[selectedMethod] || {};
+        var operator = opInfo.code || selectedMethod.toUpperCase();
 
         var btn = $('pay-btn');
         btn.classList.add('loading');
@@ -1348,17 +1351,20 @@
         .then(function(data) {
             btn.classList.remove('loading');
 
-            // Configure OTP screen
-            var isOrange = selectedMethod === 'orange';
+            // Configure OTP screen using dynamic operator data
+            var opData = operatorMap[selectedMethod] || {};
             var glyphEl = $('otp-glyph');
-            glyphEl.style.background = isOrange
-                ? 'linear-gradient(135deg, var(--orange-money), #ff8a3a)'
-                : 'linear-gradient(135deg, var(--mtn), #ffe066)';
-            glyphEl.style.color = isOrange ? 'white' : '#2a2200';
+            glyphEl.style.background = 'linear-gradient(135deg, ' + (opData.color || 'var(--primary)') + ', ' + (opData.color || '#555') + ')';
+            glyphEl.style.color = (selectedMethod === 'mtn') ? '#2a2200' : 'white';
 
-            $('otp-operator-name').textContent = isOrange ? 'Orange Money' : 'MTN MoMo';
-            $('otp-phone').textContent = '+237 ' + rawPhone;
-            $('otp-ussd').textContent = isOrange ? '#150*4#' : '*126#';
+            $('otp-operator-name').textContent = opData.name || operator;
+            $('otp-phone').textContent = '+' + countryPrefix + ' ' + rawPhone;
+            if (opData.ussd) {
+                $('otp-ussd').textContent = opData.ussd;
+                $('otp-ussd').style.display = '';
+            } else {
+                $('otp-ussd').style.display = 'none';
+            }
 
             // Reset OTP cells animation
             var cells = $('otp-cells').children;
@@ -1557,8 +1563,7 @@
 
                     // Determine method name for success screen
                     var methodName = 'Mobile Money';
-                    if (selectedMethod === 'orange') methodName = 'Orange Money';
-                    else if (selectedMethod === 'mtn') methodName = 'MTN MoMo';
+                    if (operatorMap[selectedMethod]) methodName = operatorMap[selectedMethod].name;
                     else if (selectedMethod === 'card') methodName = 'Carte bancaire';
 
                     onPaymentSuccess(selectedMethod);
@@ -1587,8 +1592,7 @@
 
         // Set method name on success screen
         var methodName = 'Mobile Money';
-        if (method === 'orange') methodName = 'Orange Money';
-        else if (method === 'mtn') methodName = 'MTN MoMo';
+        if (operatorMap[method]) methodName = operatorMap[method].name;
         else if (method === 'card') methodName = 'Carte bancaire';
         $('succ-method').textContent = methodName;
 

@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     TOUCHPAY_SERVICE_CODE_MTN: str = "PAIEMENTMARCHAND_MTN_CM"
     TOUCHPAY_SERVICE_CODE_ORANGE: str = "CM_PAIEMENTMARCHAND_OM_TP"
 
+    # Credential encryption (Fernet key for DB-stored TouchPay credentials)
+    CREDENTIAL_ENCRYPTION_KEY: str = ""
+
     # Stripe Configuration (card payments)
     STRIPE_SECRET_KEY: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
