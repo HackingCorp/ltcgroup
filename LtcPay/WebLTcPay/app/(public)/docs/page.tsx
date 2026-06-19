@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: "create", label: "Create payment", cat: "Payments" },
   { id: "get", label: "Get payment", cat: "Payments" },
   { id: "list", label: "List payments", cat: "Payments" },
+  { id: "countries", label: "Available countries", cat: "Payments" },
   { id: "modes", label: "Payment modes", cat: "Payments" },
   { id: "webhook", label: "Webhook signature", cat: "Webhooks" },
   { id: "events", label: "Event types", cat: "Webhooks" },
@@ -111,7 +112,7 @@ function IntroSection() {
 
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
-        { name: "MOBILE_MONEY", type: "MTN, Orange", desc: "Mobile Money via TouchPay (SDK ou Direct API). Max 500 000 XAF par transaction (frais compris)." },
+        { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money via TouchPay (SDK ou Direct API). Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
         { name: "BANK_CARD", type: "Visa, Mastercard", desc: "Carte bancaire via Stripe Payment Intents. Pas de limite de montant." },
       ]} />
 
@@ -196,13 +197,14 @@ function CreatePaymentSection() {
 
       <H2><T fr="Corps de la requête" en="Request body" /></H2>
       <FieldTable fields={[
-        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100. Mobile Money : max 500 000 XAF (frais compris). Carte bancaire : pas de limite.", required: true },
-        { name: "currency", type: "string", desc: "XAF (défaut), XOF, EUR ou USD. Max 3 caractères." },
+        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100. Les limites dependent du pays et de l'operateur. Carte bancaire : pas de limite.", required: true },
+        { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. XAF, XOF, EUR ou USD." },
         { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
         { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
         { name: "payment_method", type: "string", desc: "MOBILE_MONEY ou BANK_CARD. Omettez pour laisser le client choisir." },
         { name: "payment_mode", type: "string", desc: "SDK (défaut), DIRECT_API ou STRIPE. Auto-détecté si operator + customer_phone fournis." },
-        { name: "operator", type: "string", desc: "MTN ou ORANGE. Requis si payment_mode = DIRECT_API." },
+        { name: "country", type: "string", desc: "Code pays ISO 3166-1 alpha-2 (ex: CM, CI). Auto-detecte depuis customer_phone si omis." },
+        { name: "operator", type: "string", desc: "Code operateur (ex: MTN, ORANGE, WAVE). Requis si payment_mode = DIRECT_API. Consultez GET /payments/countries pour la liste." },
         { name: "customer_phone", type: "string", desc: "Numéro du client (max 20 car). Requis si payment_mode = DIRECT_API." },
         { name: "customer_info.name", type: "string", desc: "Nom du client. Max 255 car." },
         { name: "customer_info.email", type: "string", desc: "Email du client. Max 255 car." },
@@ -238,6 +240,7 @@ function CreatePaymentSection() {
         { name: "currency", type: "string", desc: "Devise du paiement." },
         { name: "status", type: "string", desc: "PENDING (SDK/Stripe) ou PROCESSING (Direct API)." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API ou STRIPE." },
+        { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 (ex: CM)." },
         { name: "payment_url", type: "string", desc: "URL de checkout (mode SDK/Stripe). Redirigez le client ici." },
         { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe (mode BANK_CARD uniquement). Null sinon." },
         { name: "created_at", type: "datetime", desc: "Date de création ISO 8601." },
@@ -252,6 +255,7 @@ function CreatePaymentSection() {
   "currency": "XAF",
   "status": "PENDING",
   "payment_mode": "SDK",
+  "country": "CM",
   "payment_url": "${BASE_URL}/pay/PAY-A1B2C3D4E5F67890",
   "stripe_client_secret": null,
   "created_at": "2026-06-10T14:42:00Z"
@@ -292,6 +296,7 @@ function CreatePaymentSection() {
   -d '{
     "amount": 5000,
     "currency": "XAF",
+    "country": "CM",
     "payment_mode": "DIRECT_API",
     "operator": "MTN",
     "customer_phone": "237670000000"
@@ -372,7 +377,7 @@ function GetPaymentSection() {
         { name: "status", type: "string", desc: "Statut actuel du paiement." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API ou STRIPE." },
         { name: "provider", type: "string|null", desc: "TOUCHPAY ou STRIPE." },
-        { name: "operator", type: "string|null", desc: "MTN ou ORANGE (Mobile Money)." },
+        { name: "operator", type: "string|null", desc: "Code operateur Mobile Money (ex: MTN, ORANGE, WAVE)." },
         { name: "operator_transaction_id", type: "string|null", desc: "ID de transaction côté opérateur." },
         { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
         { name: "customer_info", type: "object|null", desc: "Infos client (name, email, phone)." },
@@ -396,6 +401,7 @@ function GetPaymentSection() {
   "method": "MOBILE_MONEY",
   "status": "COMPLETED",
   "payment_mode": "SDK",
+  "country": "CM",
   "provider": "TOUCHPAY",
   "operator": "MTN",
   "operator_transaction_id": "1781183068139",
@@ -475,6 +481,105 @@ function ListPaymentsSection() {
 }
 
 /* ═══════════════════════════════════════════════ */
+/*  Section: Available Countries                    */
+/* ═══════════════════════════════════════════════ */
+function CountriesSection() {
+  return (
+    <>
+      <SectionTitle
+        cat="Payments"
+        title="Available countries"
+        desc={
+          <T
+            fr="Liste les pays disponibles avec leurs operateurs, devises, formats de telephone et limites de transaction."
+            en="Lists available countries with their operators, currencies, phone formats and transaction limits."
+          />
+        }
+      />
+
+      <EndpointBar method="GET" path="/api/v1/payments/countries" color="#2563eb" />
+
+      <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14, marginBottom: 16 }}>
+        <T
+          fr="Cet endpoint fonctionne avec ou sans authentification. Avec les cles API marchand, il filtre par les pays autorises pour le marchand."
+          en="This endpoint works with or without authentication. With merchant API keys, it filters by the merchant's allowed countries."
+        />
+      </p>
+
+      <H2><T fr="Exemple" en="Example" /></H2>
+      <CodeBlock lang="curl">{`curl ${BASE_URL}/api/v1/payments/countries`}</CodeBlock>
+
+      <H2><T fr="Reponse" en="Response" /></H2>
+      <CodeBlock lang="json">{`[
+  {
+    "code": "CM",
+    "name": "Cameroun",
+    "currency": "XAF",
+    "phone_prefix": "237",
+    "phone_digits": 9,
+    "phone_pattern": "6XX XX XX XX",
+    "flag_emoji": "\ud83c\udde8\ud83c\uddf2",
+    "min_amount": 100,
+    "max_amount": 500000,
+    "operators": [
+      {
+        "code": "MTN",
+        "name": "MTN MoMo",
+        "color": "#ffcc00",
+        "logo_url": "",
+        "min_amount": null,
+        "max_amount": 500000,
+        "ussd_code": "*126#"
+      },
+      {
+        "code": "ORANGE",
+        "name": "Orange Money",
+        "color": "#ff6600",
+        "logo_url": "",
+        "min_amount": null,
+        "max_amount": 500000,
+        "ussd_code": "#150*50#"
+      }
+    ]
+  }
+]`}</CodeBlock>
+
+      <H2><T fr="Champs pays" en="Country fields" /></H2>
+      <FieldTable fields={[
+        { name: "code", type: "string", desc: "Code ISO 3166-1 alpha-2 (ex: CM, CI, SN)." },
+        { name: "name", type: "string", desc: "Nom du pays." },
+        { name: "currency", type: "string", desc: "Devise par defaut (XAF, XOF, etc.)." },
+        { name: "phone_prefix", type: "string", desc: "Indicatif telephonique (ex: 237, 225)." },
+        { name: "phone_digits", type: "integer", desc: "Nombre de chiffres apres l'indicatif." },
+        { name: "phone_pattern", type: "string", desc: "Format d'affichage (ex: 6XX XX XX XX)." },
+        { name: "flag_emoji", type: "string", desc: "Emoji drapeau du pays." },
+        { name: "min_amount", type: "integer", desc: "Montant minimum par transaction." },
+        { name: "max_amount", type: "integer", desc: "Montant maximum par transaction." },
+        { name: "operators", type: "array", desc: "Liste des operateurs actifs pour ce pays." },
+      ]} />
+
+      <H2><T fr="Champs operateur" en="Operator fields" /></H2>
+      <FieldTable fields={[
+        { name: "code", type: "string", desc: "Code operateur (ex: MTN, ORANGE, WAVE)." },
+        { name: "name", type: "string", desc: "Nom complet de l'operateur." },
+        { name: "color", type: "string", desc: "Couleur CSS hex pour l'affichage." },
+        { name: "logo_url", type: "string", desc: "URL du logo (peut etre vide)." },
+        { name: "min_amount", type: "integer|null", desc: "Limite min specifique a l'operateur (null = utilise la limite pays)." },
+        { name: "max_amount", type: "integer|null", desc: "Limite max specifique a l'operateur (null = utilise la limite pays)." },
+        { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
+      ]} />
+
+      <InfoBox>
+        <T
+          fr="Utilisez cet endpoint pour construire dynamiquement l'interface de selection d'operateur dans votre application. Les operateurs et limites peuvent changer sans modification de code."
+          en="Use this endpoint to dynamically build the operator selection UI in your app. Operators and limits can change without code modifications."
+        />
+      </InfoBox>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════ */
 /*  Section: Payment Modes                         */
 /* ═══════════════════════════════════════════════ */
 function PaymentModesSection() {
@@ -507,7 +612,7 @@ function PaymentModesSection() {
         <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Recommandé pour les apps mobiles" en="Recommended for mobile apps" /></p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><T fr="Aucune redirection — purement API" en="No redirect — pure API" /></li>
-          <li><T fr="Envoyez operator (MTN/ORANGE) et customer_phone" en="Send operator (MTN/ORANGE) and customer_phone" /></li>
+          <li><T fr="Envoyez country, operator et customer_phone" en="Send country, operator and customer_phone" /></li>
           <li><T fr="Le client reçoit une notification push sur son app MoMo" en="Customer receives push notification on their MoMo app" /></li>
           <li><T fr="Pollez GET /payments/{'{reference}'} pour suivre le statut" en="Poll GET /payments/{'{reference}'} to track status" /></li>
         </ul>
@@ -733,7 +838,7 @@ function ErrorsSection() {
   "detail": [
     {
       "loc": ["body", "amount"],
-      "msg": "Le montant minimum est 100 XAF",
+      "msg": "Le montant minimum est 100",
       "type": "value_error"
     }
   ]
@@ -751,6 +856,7 @@ const SECTION_MAP: Record<string, () => React.ReactElement> = {
   create: CreatePaymentSection,
   get: GetPaymentSection,
   list: ListPaymentsSection,
+  countries: CountriesSection,
   modes: PaymentModesSection,
   webhook: WebhookSection,
   events: EventsSection,

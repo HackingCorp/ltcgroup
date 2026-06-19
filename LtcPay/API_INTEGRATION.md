@@ -38,8 +38,9 @@ Headers:
 Body:
 {
   "amount": 5000,
-  "currency": "XAF",
-  "payment_mode": "SDK",  // Optionnel si votre merchant default = SDK
+  "country": "CM",                 // Code pays (optionnel, défaut selon merchant)
+  "currency": "XAF",              // Optionnel — auto-détecté depuis le pays
+  "payment_mode": "SDK",          // Optionnel si votre merchant default = SDK
   "merchant_reference": "ORDER-123",
   "description": "Achat produit X",
   "customer_info": {
@@ -61,6 +62,7 @@ Body:
   "amount": "5000.00",
   "fee": "87.50",
   "currency": "XAF",
+  "country": "CM",
   "status": "PENDING",
   "payment_mode": "SDK",
   "payment_url": "https://pay.ltcgroup.site/pay/PAY-ABC123",
@@ -118,29 +120,60 @@ LtcPay enverra une notification POST à votre `callback_url` :
 7. App mobile : Afficher écran de succès
 ```
 
-### Étape 1 : UI native - Sélection opérateur
+### Étape 1 : UI native - Sélection pays et opérateur
+
+Les opérateurs disponibles sont récupérés dynamiquement via l'API :
+
+```bash
+GET https://api.ltcgroup.site/api/v1/payments/countries
+Headers:
+  X-API-Key: ltcpay_live_xxx       # Optionnel — filtre par pays autorisés du merchant
+  X-API-Secret: your_secret        # Optionnel
+```
 
 Créez une interface dans votre app pour que le client choisisse :
-- **Opérateur** : MTN ou Orange
+- **Pays** : Récupéré depuis `GET /api/v1/payments/countries`
+- **Opérateur** : Liste dynamique selon le pays sélectionné
 - **Numéro de téléphone** : Son numéro Mobile Money
 
 ```dart
-// Exemple Flutter
+// Exemple Flutter — chargement dynamique des pays et opérateurs
+List<Country> countries = [];
+
+Future<void> loadCountries() async {
+  final response = await apiClient.get('/api/v1/payments/countries');
+  countries = (response.data as List).map((c) => Country.fromJson(c)).toList();
+}
+
 showModalBottomSheet(
   context: context,
   builder: (context) => Column(
     children: [
-      Text('Choisissez votre opérateur'),
-      ElevatedButton(
-        onPressed: () => selectOperator('MTN'),
-        child: Text('MTN Mobile Money'),
+      // Sélection du pays
+      DropdownButton<Country>(
+        hint: Text('Choisissez votre pays'),
+        items: countries.map((c) => DropdownMenuItem(
+          value: c,
+          child: Text('${c.flagEmoji} ${c.name}'),
+        )).toList(),
+        onChanged: (country) {
+          selectedCountry = country;
+          setState(() {}); // Rafraîchir les opérateurs
+        },
       ),
-      ElevatedButton(
-        onPressed: () => selectOperator('ORANGE'),
-        child: Text('Orange Money'),
-      ),
+      // Sélection de l'opérateur (dynamique selon le pays)
+      if (selectedCountry != null)
+        ...selectedCountry!.operators.map((op) => ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Color(int.parse(op.color.replaceFirst('#', '0xFF')))),
+          onPressed: () => selectOperator(op.code),
+          child: Text(op.name),
+        )),
       TextField(
-        decoration: InputDecoration(labelText: 'Numéro de téléphone'),
+        decoration: InputDecoration(
+          labelText: 'Numéro de téléphone',
+          hintText: selectedCountry?.phonePattern ?? '',
+          prefixText: selectedCountry != null ? '+${selectedCountry!.phonePrefix} ' : '',
+        ),
         keyboardType: TextInputType.phone,
         onChanged: (value) => phoneNumber = value,
       ),
@@ -163,10 +196,11 @@ Headers:
 Body:
 {
   "amount": 5000,
-  "currency": "XAF",
+  "country": "CM",                    // Optionnel — auto-détecté depuis le préfixe téléphone si absent
+  "currency": "XAF",                  // Optionnel — auto-détecté depuis le pays
   "payment_mode": "DIRECT_API",
   "operator": "MTN",                  // OBLIGATOIRE
-  "customer_phone": "677179670",      // OBLIGATOIRE (9 chiffres, sans indicatif)
+  "customer_phone": "677179670",      // OBLIGATOIRE — format variable selon le pays, normalisé automatiquement
   "merchant_reference": "ORDER-123",
   "description": "Achat produit X",
   "customer_info": {
@@ -185,6 +219,7 @@ Body:
   "amount": "5000.00",
   "fee": "87.50",
   "currency": "XAF",
+  "country": "CM",
   "status": "PROCESSING",  // ← Immédiatement en cours
   "payment_mode": "DIRECT_API",
   "payment_url": null,     // ← Pas besoin de redirection
@@ -233,6 +268,7 @@ Headers:
   "amount": "5000.00",
   "fee": "87.50",
   "currency": "XAF",
+  "country": "CM",
   "payment_mode": "DIRECT_API",
   "operator": "MTN",
   "created_at": "2026-04-09T10:00:00Z",
@@ -308,10 +344,18 @@ void showErrorScreen(Payment payment) {
 
 ## Opérateurs supportés
 
-| Code | Nom complet | Pays |
-|------|-------------|------|
-| `MTN` | MTN Mobile Money | Cameroun |
-| `ORANGE` | Orange Money | Cameroun |
+Les opérateurs disponibles sont dynamiques et dépendent des pays activés pour votre compte marchand. Utilisez l'endpoint `GET /api/v1/payments/countries` pour obtenir la liste complète.
+
+**Exemples d'opérateurs :**
+
+| Code | Nom complet | Pays disponibles |
+|------|-------------|------------------|
+| `MTN` | MTN Mobile Money | Cameroun (CM) |
+| `ORANGE` | Orange Money | Cameroun (CM) |
+| `WAVE` | Wave | Cote d'Ivoire (CI), Senegal (SN) |
+| `MOOV` | Moov Money | Cote d'Ivoire (CI) |
+
+> **Note :** Cette liste est indicative. Les opérateurs effectivement disponibles pour votre marchand dépendent de votre configuration. Consultez toujours `GET /api/v1/payments/countries` pour la liste exacte.
 
 ---
 
@@ -330,7 +374,15 @@ void showErrorScreen(Payment payment) {
 
 ## Format du numéro de téléphone
 
-Pour le mode **Direct API**, le numéro de téléphone doit contenir **exactement 9 chiffres** sans indicatif pays.
+Pour le mode **Direct API**, le format du numéro de téléphone varie selon le pays. LtcPay normalise automatiquement le numéro en se basant sur le `phone_prefix` du pays.
+
+| Pays | Indicatif | Chiffres locaux | Exemple |
+|------|-----------|-----------------|---------|
+| Cameroun (CM) | +237 | 9 chiffres | `677179670` |
+| Cote d'Ivoire (CI) | +225 | 10 chiffres | `0707070707` |
+| Senegal (SN) | +221 | 9 chiffres | `771234567` |
+
+**Exemples de normalisation (Cameroun) :**
 
 | Format envoyé | Accepté ? | Notes |
 |---------------|-----------|-------|
@@ -339,7 +391,63 @@ Pour le mode **Direct API**, le numéro de téléphone doit contenir **exactemen
 | `+237677179670` | ✅ Oui | Le `+237` est retiré automatiquement |
 | `00237677179670` | ✅ Oui | Le `00237` est retiré automatiquement |
 
-> **Note :** LtcPay normalise automatiquement le numéro en retirant l'indicatif pays (`237`, `+237`, `00237`). Cependant, il est recommandé d'envoyer directement le format à 9 chiffres.
+> **Note :** LtcPay normalise automatiquement le numéro en retirant l'indicatif pays en se basant sur le `phone_prefix` configuré pour chaque pays. Le nombre de chiffres attendu (`phone_digits`) et le pattern (`phone_pattern`) sont disponibles via `GET /api/v1/payments/countries`.
+
+---
+
+## Pays et opérateurs disponibles
+
+L'endpoint `GET /api/v1/payments/countries` retourne la liste des pays disponibles avec leurs opérateurs, devises, formats de téléphone et limites de transaction.
+
+```bash
+GET https://api.ltcgroup.site/api/v1/payments/countries
+Headers:
+  X-API-Key: ltcpay_live_xxx       # Optionnel
+  X-API-Secret: your_secret        # Optionnel
+```
+
+> **Note :** Cet endpoint fonctionne avec ou sans authentification. Avec les clés API du marchand, il filtre par pays autorisés pour ce marchand.
+
+### Réponse
+
+```json
+[
+  {
+    "code": "CM",
+    "name": "Cameroun",
+    "currency": "XAF",
+    "phone_prefix": "237",
+    "phone_digits": 9,
+    "phone_pattern": "6XX XX XX XX",
+    "flag_emoji": "\ud83c\udde8\ud83c\uddf2",
+    "min_amount": 100,
+    "max_amount": 500000,
+    "operators": [
+      {"code": "MTN", "name": "MTN MoMo", "color": "#ffcc00", "ussd_code": "*126#"},
+      {"code": "ORANGE", "name": "Orange Money", "color": "#ff6600", "ussd_code": "#150*50#"}
+    ]
+  }
+]
+```
+
+### Champs retournés
+
+| Champ | Description |
+|-------|-------------|
+| `code` | Code ISO du pays (ex: `CM`, `CI`, `SN`) |
+| `name` | Nom du pays |
+| `currency` | Devise utilisée (ex: `XAF`, `XOF`) |
+| `phone_prefix` | Indicatif téléphonique du pays |
+| `phone_digits` | Nombre de chiffres du numéro local (sans indicatif) |
+| `phone_pattern` | Format d'affichage du numéro (pour le placeholder UI) |
+| `flag_emoji` | Emoji drapeau du pays |
+| `min_amount` | Montant minimum de transaction |
+| `max_amount` | Montant maximum de transaction |
+| `operators` | Liste des opérateurs disponibles dans ce pays |
+| `operators[].code` | Code de l'opérateur (ex: `MTN`, `ORANGE`, `WAVE`) |
+| `operators[].name` | Nom complet de l'opérateur |
+| `operators[].color` | Couleur de marque (hex) pour l'UI |
+| `operators[].ussd_code` | Code USSD pour vérifier le solde |
 
 ---
 
@@ -447,6 +555,7 @@ Body:
 
 | Date | Modification |
 |------|-------------|
+| 2026-06-19 | Support multi-pays : champ `country`, endpoint GET /payments/countries, opérateurs dynamiques, limites par opérateur/pays, devise auto-détectée depuis le pays |
 | 2026-04-30 | Ajout du système de frais (`fee_rate`, `fee_bearer`), champ `fee` dans les réponses |
 | 2026-04-30 | Normalisation automatique du numéro de téléphone (suppression indicatif `237`) |
 | 2026-04-09 | Version initiale : modes SDK et Direct API |

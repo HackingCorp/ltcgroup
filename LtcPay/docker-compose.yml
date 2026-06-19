@@ -68,6 +68,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
     volumes:
       - ./backend/app:/app/app
+      - ltcpay_operator_logos:/app/app/static/operators
     depends_on:
       db:
         condition: service_healthy
@@ -92,3 +93,4 @@ services:
 volumes:
   ltcpay_pgdata:
   ltcpay_redis:
+  ltcpay_operator_logos:

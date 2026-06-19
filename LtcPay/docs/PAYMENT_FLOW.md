@@ -45,7 +45,7 @@ Merchants create payments via API and receive webhook notifications when the pay
 **Use case**: Native mobile applications (iOS, Android, Flutter, React Native)
 
 **Flow**:
-1. App shows native UI for operator selection (MTN/Orange) + phone input
+1. App shows native UI for operator selection + phone input. Available operators are fetched from `GET /api/v1/payments/countries`
 2. **Merchant MUST provide `operator` and `customer_phone` in payment creation**
 3. LtcPay immediately initiates payment via TouchPay Direct API
 4. Customer receives push notification on their Mobile Money app
@@ -62,6 +62,28 @@ Merchants create payments via API and receive webhook notifications when the pay
 
 **Important**: For Direct API mode, merchants **MUST** provide the operator and phone number during payment creation. The payment is initiated immediately without requiring a browser.
 
+### Multi-Country Support
+
+LtcPay supports multiple countries with per-country configuration:
+- TouchPay credentials (managed by admin in dashboard)
+- Available operators per country
+- Transaction limits (min/max) per country and per operator
+- Phone number format and prefix
+- Default currency
+
+**Country detection:** When creating a payment, the country can be:
+1. Explicitly provided via the `country` field (ISO 3166-1 alpha-2, e.g. "CM", "CI")
+2. Auto-detected from the `customer_phone` prefix (e.g. +237 → CM)
+3. Resolved at checkout if only one country is available for the merchant
+
+**Fetching available countries:**
+
+```
+GET /api/v1/payments/countries
+```
+
+Returns active countries with their operators, limits, and phone formats. Works with or without authentication (with auth, filters by merchant's allowed countries).
+
 ## Complete Payment Flow (SDK Mode)
 
 ```
@@ -76,7 +98,7 @@ Merchants create payments via API and receive webhook notifications when the pay
          |    merchant_reference        2. Create Payment record
          |    customer info                (status = PENDING)
          |    callback_url                 Generate reference
-         |    return_url                   Compute fee (1.5%)
+         |    return_url                   Compute fee (merchant rate)
          |                                 Generate payment_url
          |<-- payment_id, reference ---
          |    payment_url, status
@@ -97,7 +119,7 @@ Merchants create payments via API and receive webhook notifications when the pay
                                               |
                                         5. Customer selects
                                            payment method
-                                           (Orange Money, MTN, Card)
+                                           (operators vary by country)
                                               |
                                               +--- pay request -------->
                                               |
@@ -154,7 +176,7 @@ Merchants create payments via API and receive webhook notifications when the pay
  ==========               ==========         ===================    ================
 
  1. User selects operator
-    (MTN or Orange)
+    (available operator for their country)
     + enters phone number
          |
  2. Create Payment
@@ -162,7 +184,8 @@ Merchants create payments via API and receive webhook notifications when the pay
     {
       "payment_mode": "DIRECT_API",
       "operator": "MTN",           ← REQUIRED
-      "customer_phone": "237xxx"   ← REQUIRED
+      "customer_phone": "237xxx",  ← REQUIRED
+      "country": "CM"              ← Optional (auto-detected from phone prefix if omitted)
     }
          +--- amount, operator --->
          |    customer_phone         3. Create Payment record
@@ -238,6 +261,7 @@ curl -X POST http://localhost:8001/api/v1/payments \
   -d '{
     "amount": 5000,
     "currency": "XAF",
+    "country": "CM",
     "merchant_reference": "ORDER-1234",
     "description": "Achat sur MonSite.com",
     "customer_name": "Jean Dupont",
@@ -248,15 +272,16 @@ curl -X POST http://localhost:8001/api/v1/payments \
 ```
 
 **Validation rules:**
-- `amount`: Must be > 0 and >= 100 XAF (minimum). Max 5,000,000.
+- `amount`: Must be > 0 and >= minimum for the country (default 100). Max amount depends on country and operator (configurable in admin).
 - `currency`: Must be one of `XAF`, `XOF`, `EUR`, `USD`.
+- `country`: Optional. ISO 3166-1 alpha-2 code (e.g. "CM", "CI"). Auto-detected from `customer_phone` prefix if omitted.
 - Authentication: Both `X-API-Key` and `X-API-Secret` headers are required.
 
 ### Step 2: Payment Record Created
 
 LtcPay creates a `Payment` record in PostgreSQL:
 - Generates a unique `reference` (e.g., `PAY-A1B2C3D4E5F67890`)
-- Computes `fee` at 1.5% of the amount
+- Computes `fee` based on the merchant's configured rate
 - Sets `status = PENDING`
 - Sets `expires_at` to 30 minutes from now
 - Generates `payment_url` pointing to `/pay/{reference}`
@@ -277,7 +302,7 @@ If the payment is no longer PENDING (already completed, failed, etc.), a status 
 ### Step 5-6: Customer Pays
 
 The customer interacts with the TouchPay SDK:
-1. Selects a payment method (Orange Money, MTN Mobile Money, bank card)
+1. Selects a payment method (operators vary by country)
 2. Enters their phone number or card details
 3. Confirms the payment on their device (USSD prompt for mobile money)
 
@@ -408,6 +433,7 @@ curl -X POST http://localhost:8001/api/v1/payments \
   -d '{
     "amount": 5000,
     "currency": "XAF",
+    "country": "CM",
     "payment_mode": "DIRECT_API",
     "operator": "MTN",
     "customer_phone": "237670000000",
@@ -418,8 +444,9 @@ curl -X POST http://localhost:8001/api/v1/payments \
 
 **Required fields for Direct API**:
 - `payment_mode`: Must be `"DIRECT_API"`
-- `operator`: Must be `"MTN"` or `"ORANGE"`
+- `operator`: Must be a valid operator code for the country (fetched via `GET /api/v1/payments/countries`)
 - `customer_phone`: Customer's mobile money phone number
+- `country`: Optional. ISO 3166-1 alpha-2 code (e.g. "CM", "CI"). If omitted, it is auto-detected from `customer_phone` prefix
 
 **Response**:
 ```json
@@ -427,6 +454,7 @@ curl -X POST http://localhost:8001/api/v1/payments \
   "payment_id": "uuid",
   "reference": "PAY-ABC123",
   "amount": "5000.00",
+  "country": "CM",
   "status": "PROCESSING",
   "payment_mode": "DIRECT_API",
   "payment_url": null,
@@ -471,7 +499,8 @@ curl http://localhost:8001/api/v1/payments/PAY-ABC123 \
   "reference": "PAY-ABC123",
   "status": "PROCESSING",
   "payment_mode": "DIRECT_API",
-  "operator": "MTN"
+  "operator": "MTN",
+  "country": "CM"
 }
 
 // After customer approval
@@ -480,6 +509,7 @@ curl http://localhost:8001/api/v1/payments/PAY-ABC123 \
   "status": "COMPLETED",
   "payment_mode": "DIRECT_API",
   "operator": "MTN",
+  "country": "CM",
   "completed_at": "2026-04-09T10:02:30Z"
 }
 ```
@@ -533,7 +563,7 @@ Mobile app shows success/failure screen based on final status.
 
 All webhooks (both from TouchPay and to merchants) use **HMAC-SHA256** signatures:
 
-- **TouchPay -> LtcPay:** Verified using `TOUCHPAY_SECRET` configuration
+- **TouchPay -> LtcPay:** Verified using per-country TouchPay credentials stored in database
 - **LtcPay -> Merchant:** Signed using the merchant's `webhook_secret`
 
 In production, missing or invalid signatures cause the webhook to be rejected (HTTP 401).
@@ -552,12 +582,12 @@ The callback handler is idempotent:
 
 ## Fee Structure
 
-| Component       | Rate / Value     |
-|-----------------|------------------|
-| Platform fee    | 1.5% of amount   |
-| Min payment     | 100 XAF          |
-| Max payment     | 5,000,000 XAF    |
-| Link expiry     | 30 minutes        |
+| Component       | Rate / Value                                              |
+|-----------------|-----------------------------------------------------------|
+| Platform fee    | Configurable per merchant                                 |
+| Min payment     | Per country (default 100)                                 |
+| Max payment     | Per country/operator (e.g. 500,000 XAF for Mobile Money CM) |
+| Link expiry     | 30 minutes                                                |
 
 ## Error Handling
 
