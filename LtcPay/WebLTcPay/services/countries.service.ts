@@ -107,6 +107,20 @@ export interface MerchantCountryInfo {
   is_active: boolean;
 }
 
+export interface CountryTestCheck {
+  name: string;
+  status: "pass" | "fail";
+  message: string;
+  latency_ms: number | null;
+}
+
+export interface CountryTestResult {
+  country_code: string;
+  overall_status: "pass" | "partial" | "fail";
+  checks: CountryTestCheck[];
+  tested_at: string;
+}
+
 /* ── Service ──────────────────────────────────────────────── */
 
 export const countriesService = {
@@ -163,6 +177,12 @@ export const countriesService = {
       form,
       { headers: { "Content-Type": "multipart/form-data" } },
     );
+    return r.data;
+  },
+
+  /* Integration test */
+  async testIntegration(code: string): Promise<CountryTestResult> {
+    const r = await api.post<CountryTestResult>(`/admin/countries/${code}/test`);
     return r.data;
   },
 

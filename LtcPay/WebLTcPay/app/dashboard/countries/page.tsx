@@ -11,6 +11,7 @@ import {
   countriesService,
   type Country,
   type CountryOperator,
+  type CountryTestResult,
   type CreateCountryData,
   type UpdateCountryData,
   type CreateOperatorData,
@@ -140,6 +141,8 @@ export default function CountriesPage() {
   const [operators, setOperators] = useState<Record<string, CountryOperator[]>>({});
   const [addOpFor, setAddOpFor] = useState<string | null>(null);
   const [editingOp, setEditingOp] = useState<{ countryCode: string; op: CountryOperator } | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, CountryTestResult>>({});
+  const [testingCode, setTestingCode] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -203,6 +206,19 @@ export default function CountriesPage() {
       setOperators((prev) => ({ ...prev, [countryCode]: ops }));
     } catch {
       setError("Failed to delete operator");
+    }
+  };
+
+  const handleTestIntegration = async (code: string) => {
+    setTestingCode(code);
+    if (expandedCode !== code) toggleExpand(code);
+    try {
+      const result = await countriesService.testIntegration(code);
+      setTestResults((prev) => ({ ...prev, [code]: result }));
+    } catch {
+      setError("Failed to run integration test");
+    } finally {
+      setTestingCode(null);
     }
   };
 
@@ -284,6 +300,15 @@ export default function CountriesPage() {
                     </div>
                     <div style={{ display: "flex", gap: 4 }} onClick={(e) => e.stopPropagation()}>
                       <button
+                        onClick={() => handleTestIntegration(c.code)}
+                        className="btn btn-ghost btn-sm"
+                        title="Tester l'integration"
+                        disabled={testingCode === c.code}
+                        style={{ padding: "4px 6px", color: testingCode === c.code ? "var(--muted)" : "var(--primary)" }}
+                      >
+                        <Icon name={testingCode === c.code ? "refresh" : "zap"} size={13} />
+                      </button>
+                      <button
                         onClick={() => handleToggleActive(c)}
                         className="btn btn-ghost btn-sm"
                         title={c.is_active ? "Desactiver" : "Activer"}
@@ -310,9 +335,61 @@ export default function CountriesPage() {
                     </div>
                   </div>
 
-                  {/* Operators sub-table */}
+                  {/* Expanded section */}
                   {expandedCode === c.code && (
                     <div style={{ background: "var(--bg-2)", padding: "12px 16px 12px 52px", borderBottom: "1px solid var(--line)" }}>
+
+                      {/* Integration test results */}
+                      {(testingCode === c.code || testResults[c.code]) && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>
+                              <T fr="Test d'integration" en="Integration Test" />
+                              {testResults[c.code] && (
+                                <Pill
+                                  tone={testResults[c.code].overall_status === "pass" ? "success" : testResults[c.code].overall_status === "partial" ? "warn" : "fail"}
+                                >
+                                  {testResults[c.code].overall_status.toUpperCase()}
+                                </Pill>
+                              )}
+                            </span>
+                            {testResults[c.code] && (
+                              <span style={{ fontSize: 10, color: "var(--muted)" }}>
+                                {new Date(testResults[c.code].tested_at).toLocaleTimeString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {testingCode === c.code ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 12, color: "var(--muted)" }}>
+                              <div style={{ width: 16, height: 16, border: "2px solid var(--line)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                              <T fr="Test en cours..." en="Testing..." />
+                            </div>
+                          ) : testResults[c.code] ? (
+                            <div style={{ display: "grid", gap: 4 }}>
+                              {testResults[c.code].checks.map((ch) => (
+                                <div
+                                  key={ch.name}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
+                                    background: "var(--surface)", borderRadius: 8, fontSize: 12,
+                                    borderLeft: `3px solid ${ch.status === "pass" ? "var(--success)" : "var(--rose)"}`,
+                                  }}
+                                >
+                                  <Icon name={ch.status === "pass" ? "check" : "x"} size={14} color={ch.status === "pass" ? "var(--success)" : "var(--rose)"} />
+                                  <span style={{ fontWeight: 500, minWidth: 160 }}>{ch.name.replace(/_/g, " ")}</span>
+                                  <span style={{ flex: 1, color: "var(--muted)" }}>{ch.message}</span>
+                                  {ch.latency_ms != null && (
+                                    <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{ch.latency_ms}ms</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {/* Operators sub-table */}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>
                           <T fr="Operateurs" en="Operators" /> ({(operators[c.code] || []).length})
