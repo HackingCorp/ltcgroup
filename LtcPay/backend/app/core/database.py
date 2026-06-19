@@ -56,6 +56,60 @@ async def init_models():
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT false NOT NULL",
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ",
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL",
+            # Multi-country: add country column to payments
+            "ALTER TABLE payment_gateway_payments ADD COLUMN IF NOT EXISTS country VARCHAR(2)",
+            # Multi-country: convert operator from enum to varchar(20)
+            # (safe: ALTER TYPE ... USING works even if already varchar)
+            """DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_type WHERE typname = 'mobilemoneyoperator'
+                ) THEN
+                    ALTER TABLE payment_gateway_payments
+                        ALTER COLUMN operator TYPE VARCHAR(20) USING operator::text;
+                    DROP TYPE IF EXISTS mobilemoneyoperator;
+                END IF;
+            END $$""",
         ]
         for stmt in alter_statements:
             await conn.execute(text(stmt))
+
+        # Seed Cameroon if supported_countries table is empty
+        row = await conn.execute(text("SELECT 1 FROM supported_countries LIMIT 1"))
+        if row.first() is None:
+            import os
+            import uuid as _uuid
+            from app.core.encryption import encrypt_value
+
+            agency = os.environ.get("TOUCHPAY_DIRECT_AGENCY_CODE", "")
+            login = os.environ.get("TOUCHPAY_DIRECT_LOGIN", "")
+            password = encrypt_value(os.environ.get("TOUCHPAY_DIRECT_PASSWORD", ""))
+            secret = encrypt_value(os.environ.get("TOUCHPAY_SECRET", ""))
+            merchant_id = os.environ.get("TOUCHPAY_MERCHANT_ID", "LTCGR11789")
+            secure_code = encrypt_value(os.environ.get("TOUCHPAY_SECURE_CODE", ""))
+            website = os.environ.get("TOUCHPAY_MERCHANT_WEBSITE", "ltcgroup.site")
+            sdk_url = os.environ.get("TOUCHPAY_SDK_URL", "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js")
+            api_url = os.environ.get("TOUCHPAY_DIRECT_API_URL", "https://apidist.gutouch.net/apidist/sec/touchpayapi")
+            svc_mtn = os.environ.get("TOUCHPAY_SERVICE_CODE_MTN", "PAIEMENTMARCHAND_MTN_CM")
+            svc_om = os.environ.get("TOUCHPAY_SERVICE_CODE_ORANGE", "CM_PAIEMENTMARCHAND_OM_TP")
+
+            await conn.execute(text(
+                "INSERT INTO supported_countries "
+                "(code,name,currency,phone_prefix,phone_digits,phone_pattern,flag_emoji,"
+                "default_city,min_amount,max_amount,tp_agency_code,tp_login,tp_password,"
+                "tp_secret,tp_merchant_id,tp_secure_code,tp_merchant_website,tp_sdk_url,"
+                "tp_direct_api_url,is_active,created_at,updated_at) "
+                "VALUES ('CM','Cameroun','XAF','237',9,'6XX XX XX XX','\U0001F1E8\U0001F1F2',"
+                "'Douala',100,500000,:agency,:login,:password,"
+                ":secret,:merchant_id,:secure_code,:website,:sdk_url,"
+                ":api_url,true,now(),now())"
+            ), {"agency": agency, "login": login, "password": password,
+                "secret": secret, "merchant_id": merchant_id, "secure_code": secure_code,
+                "website": website, "sdk_url": sdk_url, "api_url": api_url})
+
+            await conn.execute(text(
+                "INSERT INTO country_operators (id,country_code,operator_code,operator_name,"
+                "service_code,color,ussd_code,is_active,created_at,updated_at) VALUES "
+                "(:id1,'CM','MTN','MTN MoMo',:svc_mtn,'#FFCC00','*126#',true,now(),now()),"
+                "(:id2,'CM','ORANGE','Orange Money',:svc_om,'#FF6B00','#150*4#',true,now(),now())"
+            ), {"id1": str(_uuid.uuid4()), "id2": str(_uuid.uuid4()),
+                "svc_mtn": svc_mtn, "svc_om": svc_om})
