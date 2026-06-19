@@ -73,24 +73,21 @@ async def init_models():
         for stmt in alter_statements:
             await conn.execute(text(stmt))
 
-        # Seed Cameroon if supported_countries table is empty
-        row = await conn.execute(text("SELECT 1 FROM supported_countries LIMIT 1"))
+        # Seed Cameroon if not present
+        import os
+        import uuid as _uuid
+
+        def _safe_encrypt(val: str) -> str:
+            if not val:
+                return ""
+            try:
+                from app.core.encryption import encrypt_value
+                return encrypt_value(val)
+            except (ValueError, Exception):
+                return val
+
+        row = await conn.execute(text("SELECT 1 FROM supported_countries WHERE code = 'CM'"))
         if row.first() is None:
-            import os
-            import uuid as _uuid
-
-            # Try to encrypt, but fall back to plaintext if no key configured.
-            # Credentials were already plaintext in env vars; they can be
-            # re-encrypted later via the admin API once the key is set.
-            def _safe_encrypt(val: str) -> str:
-                if not val:
-                    return ""
-                try:
-                    from app.core.encryption import encrypt_value
-                    return encrypt_value(val)
-                except (ValueError, Exception):
-                    return val
-
             agency = os.environ.get("TOUCHPAY_DIRECT_AGENCY_CODE", "")
             login = os.environ.get("TOUCHPAY_DIRECT_LOGIN", "")
             password = _safe_encrypt(os.environ.get("TOUCHPAY_DIRECT_PASSWORD", ""))
@@ -100,8 +97,6 @@ async def init_models():
             website = os.environ.get("TOUCHPAY_MERCHANT_WEBSITE", "ltcgroup.site")
             sdk_url = os.environ.get("TOUCHPAY_SDK_URL", "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js")
             api_url = os.environ.get("TOUCHPAY_DIRECT_API_URL", "https://apidist.gutouch.net/apidist/sec/touchpayapi")
-            svc_mtn = os.environ.get("TOUCHPAY_SERVICE_CODE_MTN", "PAIEMENTMARCHAND_MTN_CM")
-            svc_om = os.environ.get("TOUCHPAY_SERVICE_CODE_ORANGE", "CM_PAIEMENTMARCHAND_OM_TP")
 
             await conn.execute(text(
                 "INSERT INTO supported_countries "
@@ -117,6 +112,15 @@ async def init_models():
                 "secret": secret, "merchant_id": merchant_id, "secure_code": secure_code,
                 "website": website, "sdk_url": sdk_url, "api_url": api_url})
 
+        # Seed CM operators if missing (separate check so they get added
+        # even if supported_countries was already seeded on a previous startup)
+        svc_mtn = os.environ.get("TOUCHPAY_SERVICE_CODE_MTN", "PAIEMENTMARCHAND_MTN_CM")
+        svc_om = os.environ.get("TOUCHPAY_SERVICE_CODE_ORANGE", "CM_PAIEMENTMARCHAND_OM_TP")
+
+        op_row = await conn.execute(text(
+            "SELECT 1 FROM country_operators WHERE country_code = 'CM' LIMIT 1"
+        ))
+        if op_row.first() is None:
             await conn.execute(text(
                 "INSERT INTO country_operators (id,country_code,operator_code,operator_name,"
                 "service_code,color,ussd_code,is_active,created_at,updated_at) VALUES "
