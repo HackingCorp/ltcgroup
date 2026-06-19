@@ -55,12 +55,17 @@ def encrypt_value(plaintext: str) -> str:
 
 
 def decrypt_value(ciphertext: str) -> str:
-    """Decrypt a base64-encoded ciphertext, return plaintext string."""
+    """Decrypt a base64-encoded ciphertext, return plaintext string.
+
+    If decryption fails (no key, wrong key, or value was stored as plaintext),
+    returns the original value as-is. This allows graceful handling of
+    credentials that were seeded before an encryption key was configured.
+    """
     if not ciphertext:
         return ""
-    f = _get_fernet()
     try:
+        f = _get_fernet()
         return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
-    except InvalidToken:
-        logger.error("Failed to decrypt credential -- invalid token or wrong key")
-        return ""
+    except (InvalidToken, ValueError):
+        # Value is likely stored as plaintext (pre-encryption or no key)
+        return ciphertext

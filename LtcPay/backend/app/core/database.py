@@ -78,14 +78,25 @@ async def init_models():
         if row.first() is None:
             import os
             import uuid as _uuid
-            from app.core.encryption import encrypt_value
+
+            # Try to encrypt, but fall back to plaintext if no key configured.
+            # Credentials were already plaintext in env vars; they can be
+            # re-encrypted later via the admin API once the key is set.
+            def _safe_encrypt(val: str) -> str:
+                if not val:
+                    return ""
+                try:
+                    from app.core.encryption import encrypt_value
+                    return encrypt_value(val)
+                except (ValueError, Exception):
+                    return val
 
             agency = os.environ.get("TOUCHPAY_DIRECT_AGENCY_CODE", "")
             login = os.environ.get("TOUCHPAY_DIRECT_LOGIN", "")
-            password = encrypt_value(os.environ.get("TOUCHPAY_DIRECT_PASSWORD", ""))
-            secret = encrypt_value(os.environ.get("TOUCHPAY_SECRET", ""))
+            password = _safe_encrypt(os.environ.get("TOUCHPAY_DIRECT_PASSWORD", ""))
+            secret = _safe_encrypt(os.environ.get("TOUCHPAY_SECRET", ""))
             merchant_id = os.environ.get("TOUCHPAY_MERCHANT_ID", "LTCGR11789")
-            secure_code = encrypt_value(os.environ.get("TOUCHPAY_SECURE_CODE", ""))
+            secure_code = _safe_encrypt(os.environ.get("TOUCHPAY_SECURE_CODE", ""))
             website = os.environ.get("TOUCHPAY_MERCHANT_WEBSITE", "ltcgroup.site")
             sdk_url = os.environ.get("TOUCHPAY_SDK_URL", "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js")
             api_url = os.environ.get("TOUCHPAY_DIRECT_API_URL", "https://apidist.gutouch.net/apidist/sec/touchpayapi")
