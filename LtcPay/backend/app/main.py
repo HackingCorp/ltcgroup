@@ -106,17 +106,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Allow cross-origin loading of static assets (images, fonts, etc.)
-@app.middleware("http")
-async def static_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    if request.url.path.startswith("/static/"):
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-    return response
+# Static files with cross-origin headers (needed for logos loaded from other domains)
+class CORSStaticFiles(StaticFiles):
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            original_send = send
+            async def send_with_cors(message):
+                if message["type"] == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    headers.append((b"access-control-allow-origin", b"*"))
+                    headers.append((b"cross-origin-resource-policy", b"cross-origin"))
+                    message["headers"] = headers
+                await original_send(message)
+            await super().__call__(scope, receive, send_with_cors)
+        else:
+            await super().__call__(scope, receive, send)
 
-# Static files and templates
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", CORSStaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # API routes
