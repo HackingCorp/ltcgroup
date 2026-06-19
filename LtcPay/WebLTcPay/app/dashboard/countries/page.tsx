@@ -17,7 +17,28 @@ import {
   type UpdateOperatorData,
 } from "@/services/countries.service";
 
+/* ── Helper: backend static URL ──────────────────────────── */
+
+function backendUrl(path: string): string {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return `${window.location.protocol}//pay.ltcgroup.site${path}`;
+  }
+  return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}${path}`;
+}
+
 /* ── Country presets (auto-fill metadata) ──────────────────── */
+
+interface OperatorPreset {
+  operator_code: string;
+  operator_name: string;
+  service_code: string;
+  color: string;
+  min_amount: number;
+  max_amount: number;
+  ussd_code: string;
+}
 
 interface CountryPreset {
   code: string;
@@ -30,27 +51,81 @@ interface CountryPreset {
   default_city: string;
   min_amount: number;
   max_amount: number;
+  operators: OperatorPreset[];
 }
 
 const COUNTRY_PRESETS: CountryPreset[] = [
-  { code: "CM", name: "Cameroun", currency: "XAF", phone_prefix: "237", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1F2}", default_city: "Douala", min_amount: 100, max_amount: 500000 },
-  { code: "CI", name: "C\u00f4te d'Ivoire", currency: "XOF", phone_prefix: "225", phone_digits: 10, phone_pattern: "0X XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EE}", default_city: "Abidjan", min_amount: 100, max_amount: 500000 },
-  { code: "SN", name: "S\u00e9n\u00e9gal", currency: "XOF", phone_prefix: "221", phone_digits: 9, phone_pattern: "7X XXX XX XX", flag_emoji: "\u{1F1F8}\u{1F1F3}", default_city: "Dakar", min_amount: 100, max_amount: 500000 },
-  { code: "GA", name: "Gabon", currency: "XAF", phone_prefix: "241", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1E6}", default_city: "Libreville", min_amount: 100, max_amount: 500000 },
-  { code: "CG", name: "Congo", currency: "XAF", phone_prefix: "242", phone_digits: 9, phone_pattern: "0X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1EC}", default_city: "Brazzaville", min_amount: 100, max_amount: 500000 },
-  { code: "CD", name: "RDC", currency: "CDF", phone_prefix: "243", phone_digits: 9, phone_pattern: "9X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1E9}", default_city: "Kinshasa", min_amount: 500, max_amount: 5000000 },
-  { code: "TD", name: "Tchad", currency: "XAF", phone_prefix: "235", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1E9}", default_city: "N'Djamena", min_amount: 100, max_amount: 500000 },
-  { code: "CF", name: "R\u00e9publique Centrafricaine", currency: "XAF", phone_prefix: "236", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EB}", default_city: "Bangui", min_amount: 100, max_amount: 500000 },
-  { code: "BJ", name: "B\u00e9nin", currency: "XOF", phone_prefix: "229", phone_digits: 10, phone_pattern: "XX XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EF}", default_city: "Cotonou", min_amount: 100, max_amount: 500000 },
-  { code: "TG", name: "Togo", currency: "XOF", phone_prefix: "228", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1EC}", default_city: "Lom\u00e9", min_amount: 100, max_amount: 500000 },
-  { code: "BF", name: "Burkina Faso", currency: "XOF", phone_prefix: "226", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EB}", default_city: "Ouagadougou", min_amount: 100, max_amount: 500000 },
-  { code: "ML", name: "Mali", currency: "XOF", phone_prefix: "223", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F2}\u{1F1F1}", default_city: "Bamako", min_amount: 100, max_amount: 500000 },
-  { code: "NE", name: "Niger", currency: "XOF", phone_prefix: "227", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F3}\u{1F1EA}", default_city: "Niamey", min_amount: 100, max_amount: 500000 },
-  { code: "GN", name: "Guin\u00e9e", currency: "GNF", phone_prefix: "224", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1F3}", default_city: "Conakry", min_amount: 1000, max_amount: 5000000 },
-  { code: "GQ", name: "Guin\u00e9e \u00c9quatoriale", currency: "XAF", phone_prefix: "240", phone_digits: 9, phone_pattern: "XXX XXX XXX", flag_emoji: "\u{1F1EC}\u{1F1F6}", default_city: "Malabo", min_amount: 100, max_amount: 500000 },
-  { code: "KE", name: "Kenya", currency: "KES", phone_prefix: "254", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1F0}\u{1F1EA}", default_city: "Nairobi", min_amount: 10, max_amount: 150000 },
-  { code: "UG", name: "Uganda", currency: "UGX", phone_prefix: "256", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1FA}\u{1F1EC}", default_city: "Kampala", min_amount: 500, max_amount: 5000000 },
-  { code: "NG", name: "Nigeria", currency: "NGN", phone_prefix: "234", phone_digits: 10, phone_pattern: "8XX XXX XXXX", flag_emoji: "\u{1F1F3}\u{1F1EC}", default_city: "Lagos", min_amount: 100, max_amount: 10000000 },
+  { code: "CM", name: "Cameroun", currency: "XAF", phone_prefix: "237", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1F2}", default_city: "Douala", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "MTN", operator_name: "MTN MoMo", service_code: "PAIEMENTMARCHAND_MTN_CM", color: "#FFCC00", min_amount: 100, max_amount: 500000, ussd_code: "*126#" },
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "CM_PAIEMENTMARCHAND_OM_TP", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#150*4#" },
+  ]},
+  { code: "CI", name: "C\u00f4te d'Ivoire", currency: "XOF", phone_prefix: "225", phone_digits: 10, phone_pattern: "0X XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EE}", default_city: "Abidjan", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHANDOMPAYCIDIRECT", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#144*82#" },
+    { operator_code: "MTN", operator_name: "MTN Money", service_code: "PAIEMENTMARCHAND_MTN_CI", color: "#FFCC00", min_amount: 100, max_amount: 500000, ussd_code: "*133#" },
+    { operator_code: "WAVE", operator_name: "Wave", service_code: "PAIEMENTMARCHAND_WAVE_CI", color: "#1DC3E2", min_amount: 100, max_amount: 1000000, ussd_code: "" },
+  ]},
+  { code: "SN", name: "S\u00e9n\u00e9gal", currency: "XOF", phone_prefix: "221", phone_digits: 9, phone_pattern: "7X XXX XX XX", flag_emoji: "\u{1F1F8}\u{1F1F3}", default_city: "Dakar", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_SN", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#144*82#" },
+    { operator_code: "WAVE", operator_name: "Wave", service_code: "PAIEMENTMARCHAND_WAVE_SN", color: "#1DC3E2", min_amount: 100, max_amount: 1000000, ussd_code: "" },
+    { operator_code: "FREE", operator_name: "Free Money", service_code: "PAIEMENTMARCHAND_FREE_SN", color: "#CD1E25", min_amount: 100, max_amount: 500000, ussd_code: "#555#" },
+  ]},
+  { code: "GA", name: "Gabon", currency: "XAF", phone_prefix: "241", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1E6}", default_city: "Libreville", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_GA", color: "#ED1C24", min_amount: 100, max_amount: 500000, ussd_code: "*444#" },
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_GA", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+  ]},
+  { code: "CG", name: "Congo", currency: "XAF", phone_prefix: "242", phone_digits: 9, phone_pattern: "0X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1EC}", default_city: "Brazzaville", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_CG", color: "#ED1C24", min_amount: 100, max_amount: 500000, ussd_code: "*444#" },
+    { operator_code: "MTN", operator_name: "MTN Money", service_code: "PAIEMENTMARCHAND_MTN_CG", color: "#FFCC00", min_amount: 100, max_amount: 500000, ussd_code: "*150#" },
+  ]},
+  { code: "CD", name: "RDC", currency: "CDF", phone_prefix: "243", phone_digits: 9, phone_pattern: "9X XXX XXXX", flag_emoji: "\u{1F1E8}\u{1F1E9}", default_city: "Kinshasa", min_amount: 500, max_amount: 5000000, operators: [
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_CD", color: "#ED1C24", min_amount: 500, max_amount: 5000000, ussd_code: "*444#" },
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_CD", color: "#FF6B00", min_amount: 500, max_amount: 5000000, ussd_code: "#144#" },
+    { operator_code: "MPESA", operator_name: "M-Pesa", service_code: "PAIEMENTMARCHAND_MPESA_CD", color: "#4CB050", min_amount: 500, max_amount: 5000000, ussd_code: "*151#" },
+    { operator_code: "AFRIMONEY", operator_name: "Afrimoney", service_code: "PAIEMENTMARCHAND_AFRIMONEY_CD", color: "#003399", min_amount: 500, max_amount: 5000000, ussd_code: "" },
+  ]},
+  { code: "TD", name: "Tchad", currency: "XAF", phone_prefix: "235", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1E9}", default_city: "N'Djamena", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_TD", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_TD", color: "#ED1C24", min_amount: 100, max_amount: 500000, ussd_code: "*444#" },
+  ]},
+  { code: "CF", name: "R\u00e9publique Centrafricaine", currency: "XAF", phone_prefix: "236", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E8}\u{1F1EB}", default_city: "Bangui", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_CF", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#144#" },
+  ]},
+  { code: "BJ", name: "B\u00e9nin", currency: "XOF", phone_prefix: "229", phone_digits: 10, phone_pattern: "XX XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EF}", default_city: "Cotonou", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "MTN", operator_name: "MTN Money", service_code: "PAIEMENTMARCHAND_MTN_BJ", color: "#FFCC00", min_amount: 100, max_amount: 500000, ussd_code: "*880#" },
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_BJ", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+  ]},
+  { code: "TG", name: "Togo", currency: "XOF", phone_prefix: "228", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F9}\u{1F1EC}", default_city: "Lom\u00e9", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "TMONEY", operator_name: "T-Money", service_code: "PAIEMENTMARCHAND_TMONEY_TG", color: "#00A651", min_amount: 100, max_amount: 500000, ussd_code: "*145#" },
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_TG", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+  ]},
+  { code: "BF", name: "Burkina Faso", currency: "XOF", phone_prefix: "226", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1E7}\u{1F1EB}", default_city: "Ouagadougou", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_BF", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_BF", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#144#" },
+  ]},
+  { code: "ML", name: "Mali", currency: "XOF", phone_prefix: "223", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F2}\u{1F1F1}", default_city: "Bamako", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_ML", color: "#FF6B00", min_amount: 100, max_amount: 500000, ussd_code: "#144#" },
+    { operator_code: "MOOV", operator_name: "Moov Money", service_code: "PAIEMENTMARCHAND_MOOV_ML", color: "#0066B3", min_amount: 100, max_amount: 500000, ussd_code: "" },
+    { operator_code: "WAVE", operator_name: "Wave", service_code: "PAIEMENTMARCHAND_WAVE_ML", color: "#1DC3E2", min_amount: 100, max_amount: 1000000, ussd_code: "" },
+  ]},
+  { code: "NE", name: "Niger", currency: "XOF", phone_prefix: "227", phone_digits: 8, phone_pattern: "XX XX XX XX", flag_emoji: "\u{1F1F3}\u{1F1EA}", default_city: "Niamey", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_NE", color: "#ED1C24", min_amount: 100, max_amount: 500000, ussd_code: "*444#" },
+  ]},
+  { code: "GN", name: "Guin\u00e9e", currency: "GNF", phone_prefix: "224", phone_digits: 9, phone_pattern: "6XX XX XX XX", flag_emoji: "\u{1F1EC}\u{1F1F3}", default_city: "Conakry", min_amount: 1000, max_amount: 5000000, operators: [
+    { operator_code: "MTN", operator_name: "MTN Money", service_code: "PAIEMENTMARCHAND_MTN_GN", color: "#FFCC00", min_amount: 1000, max_amount: 5000000, ussd_code: "*150#" },
+    { operator_code: "ORANGE", operator_name: "Orange Money", service_code: "PAIEMENTMARCHAND_OM_GN", color: "#FF6B00", min_amount: 1000, max_amount: 5000000, ussd_code: "#144#" },
+  ]},
+  { code: "GQ", name: "Guin\u00e9e \u00c9quatoriale", currency: "XAF", phone_prefix: "240", phone_digits: 9, phone_pattern: "XXX XXX XXX", flag_emoji: "\u{1F1EC}\u{1F1F6}", default_city: "Malabo", min_amount: 100, max_amount: 500000, operators: [
+    { operator_code: "MUNI", operator_name: "Muni", service_code: "PAIEMENTMARCHAND_MUNI_GQ", color: "#009639", min_amount: 100, max_amount: 500000, ussd_code: "" },
+  ]},
+  { code: "KE", name: "Kenya", currency: "KES", phone_prefix: "254", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1F0}\u{1F1EA}", default_city: "Nairobi", min_amount: 10, max_amount: 150000, operators: [
+    { operator_code: "MPESA", operator_name: "M-Pesa", service_code: "PAIEMENTMARCHAND_MPESA_KE", color: "#4CB050", min_amount: 10, max_amount: 150000, ussd_code: "*334#" },
+    { operator_code: "AIRTEL", operator_name: "Airtel Money", service_code: "PAIEMENTMARCHAND_AIRTEL_KE", color: "#ED1C24", min_amount: 10, max_amount: 150000, ussd_code: "*444#" },
+  ]},
+  { code: "UG", name: "Uganda", currency: "UGX", phone_prefix: "256", phone_digits: 9, phone_pattern: "7XX XXX XXX", flag_emoji: "\u{1F1FA}\u{1F1EC}", default_city: "Kampala", min_amount: 500, max_amount: 5000000, operators: [
+    { operator_code: "MTN", operator_name: "MTN", service_code: "PAIEMENTMARCHAND_MTN_UG", color: "#FFCC00", min_amount: 500, max_amount: 5000000, ussd_code: "*165#" },
+    { operator_code: "AIRTEL", operator_name: "Airtel", service_code: "PAIEMENTMARCHAND_AIRTEL_UG", color: "#ED1C24", min_amount: 500, max_amount: 5000000, ussd_code: "*185#" },
+  ]},
+  { code: "NG", name: "Nigeria", currency: "NGN", phone_prefix: "234", phone_digits: 10, phone_pattern: "8XX XXX XXXX", flag_emoji: "\u{1F1F3}\u{1F1EC}", default_city: "Lagos", min_amount: 100, max_amount: 10000000, operators: [] },
 ];
 
 /* ── page ──────────────────────────────────────────────────── */
@@ -261,12 +336,14 @@ export default function CountriesPage() {
                                 background: "var(--surface)", borderRadius: 8, fontSize: 13,
                               }}
                             >
-                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: op.color, flexShrink: 0 }} />
+                              {op.logo_url ? (
+                                <img src={backendUrl(op.logo_url)} alt={op.operator_name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain", flexShrink: 0 }} />
+                              ) : (
+                                <span style={{ width: 10, height: 10, borderRadius: "50%", background: op.color, flexShrink: 0 }} />
+                              )}
                               <span style={{ fontWeight: 500, minWidth: 100 }}>{op.operator_name}</span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{op.service_code}</span>
-                              {op.ussd_code && (
-                                <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{op.ussd_code}</span>
-                              )}
+                              <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fmt(op.min_amount)} – {fmt(op.max_amount)}</span>
                               <Pill tone={op.is_active ? "success" : "fail"}>
                                 {op.is_active ? "ON" : "OFF"}
                               </Pill>
@@ -424,6 +501,15 @@ function CountryModal({
         await countriesService.update(country!.code, rest as UpdateCountryData);
       } else {
         await countriesService.create(payload);
+        // Auto-create operators from preset
+        const preset = COUNTRY_PRESETS.find((p) => p.code === payload.code);
+        if (preset && preset.operators.length > 0) {
+          for (const op of preset.operators) {
+            try {
+              await countriesService.createOperator(payload.code, op);
+            } catch { /* operator may already exist, skip */ }
+          }
+        }
       }
       onSaved();
     } catch (err: unknown) {
@@ -694,24 +780,45 @@ function OperatorModal({
     operator_name: operator?.operator_name || "",
     service_code: operator?.service_code || "",
     color: operator?.color || "#000000",
+    logo_url: operator?.logo_url || "",
+    min_amount: operator?.min_amount ?? 100,
+    max_amount: operator?.max_amount ?? 500000,
     ussd_code: operator?.ussd_code || "",
     is_active: operator?.is_active ?? true,
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>(operator?.logo_url ? backendUrl(operator.logo_url) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (field: string, value: string | boolean) =>
+  const set = (field: string, value: string | number | boolean) =>
     setForm((p) => ({ ...p, [field]: value }));
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Logo trop volumineux (max 2 Mo)");
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError("");
     try {
+      let savedOp;
       if (isEdit) {
-        await countriesService.updateOperator(countryCode, operator!.id, form as UpdateOperatorData);
+        savedOp = await countriesService.updateOperator(countryCode, operator!.id, form as UpdateOperatorData);
       } else {
-        await countriesService.createOperator(countryCode, form);
+        savedOp = await countriesService.createOperator(countryCode, form);
+      }
+      // Upload logo if a file was selected
+      if (logoFile && savedOp?.id) {
+        await countriesService.uploadOperatorLogo(countryCode, savedOp.id, logoFile);
       }
       onSaved();
     } catch (err: unknown) {
@@ -771,6 +878,22 @@ function OperatorModal({
             <Input value={form.service_code} onChange={(e) => set("service_code", e.target.value)} placeholder="PAIEMENTMARCHAND_MTN_CM" required />
           </div>
 
+          {/* Row: min/max amount */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Montant min" en="Min amount" />
+              </label>
+              <Input type="number" value={form.min_amount} onChange={(e) => set("min_amount", parseInt(e.target.value) || 100)} min={1} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Montant max" en="Max amount" />
+              </label>
+              <Input type="number" value={form.max_amount} onChange={(e) => set("max_amount", parseInt(e.target.value) || 500000)} min={1} />
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
@@ -788,6 +911,33 @@ function OperatorModal({
                 <T fr="Code USSD" en="USSD Code" />
               </label>
               <Input value={form.ussd_code} onChange={(e) => set("ussd_code", e.target.value)} placeholder="*126#" />
+            </div>
+          </div>
+
+          {/* Logo upload */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Logo operateur" en="Operator Logo" />
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "contain", border: "1px solid var(--line)", background: "#fff" }} />
+              ) : (
+                <div style={{ width: 48, height: 48, borderRadius: 8, border: "2px dashed var(--line)", display: "grid", placeItems: "center", background: "var(--bg-2)" }}>
+                  <Icon name="upload" size={18} color="var(--muted)" />
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleLogoChange}
+                  style={{ fontSize: 12, width: "100%" }}
+                />
+                <p style={{ fontSize: 10, color: "var(--muted)", margin: "4px 0 0" }}>
+                  PNG, JPG, WebP, SVG — max 2 Mo
+                </p>
+              </div>
             </div>
           </div>
 

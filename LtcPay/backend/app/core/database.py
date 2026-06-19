@@ -56,6 +56,10 @@ async def init_models():
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT false NOT NULL",
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ",
             "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active' NOT NULL",
+            # Operator logo + per-operator transaction limits
+            "ALTER TABLE country_operators ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500) DEFAULT '' NOT NULL",
+            "ALTER TABLE country_operators ADD COLUMN IF NOT EXISTS min_amount INTEGER DEFAULT 100 NOT NULL",
+            "ALTER TABLE country_operators ADD COLUMN IF NOT EXISTS max_amount INTEGER DEFAULT 500000 NOT NULL",
             # Multi-country: add country column to payments
             "ALTER TABLE payment_gateway_payments ADD COLUMN IF NOT EXISTS country VARCHAR(2)",
             # Multi-country: convert operator from enum to varchar(20)

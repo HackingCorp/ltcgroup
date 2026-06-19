@@ -192,6 +192,7 @@ async def payment_page(reference: str, request: Request):
                         "code": op.operator_code,
                         "name": op.operator_name,
                         "color": op.color,
+                        "logo_url": op.logo_url or "",
                         "ussd_code": op.ussd_code,
                     }
                     for op in operators

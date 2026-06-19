@@ -9,6 +9,9 @@ export interface CountryOperator {
   operator_name: string;
   service_code: string;
   color: string;
+  logo_url: string;
+  min_amount: number;
+  max_amount: number;
   ussd_code: string;
   is_active: boolean;
   created_at: string;
@@ -79,6 +82,9 @@ export interface CreateOperatorData {
   operator_name: string;
   service_code: string;
   color?: string;
+  logo_url?: string;
+  min_amount?: number;
+  max_amount?: number;
   ussd_code?: string;
   is_active?: boolean;
 }
@@ -88,6 +94,9 @@ export interface UpdateOperatorData {
   operator_name?: string;
   service_code?: string;
   color?: string;
+  logo_url?: string;
+  min_amount?: number;
+  max_amount?: number;
   ussd_code?: string;
   is_active?: boolean;
 }
@@ -144,6 +153,17 @@ export const countriesService = {
 
   async removeOperator(countryCode: string, opId: string): Promise<void> {
     await api.delete(`/admin/countries/${countryCode}/operators/${opId}`);
+  },
+
+  async uploadOperatorLogo(countryCode: string, opId: string, file: File): Promise<CountryOperator> {
+    const form = new FormData();
+    form.append("file", file);
+    const r = await api.post<CountryOperator>(
+      `/admin/countries/${countryCode}/operators/${opId}/logo`,
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    return r.data;
   },
 
   /* Merchant country restrictions */

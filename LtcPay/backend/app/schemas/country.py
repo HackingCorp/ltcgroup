@@ -15,6 +15,9 @@ class OperatorCreate(BaseModel):
     operator_name: str = Field(..., min_length=1, max_length=100)
     service_code: str = Field(..., min_length=1, max_length=100)
     color: str = Field(default="#000000", max_length=7)
+    logo_url: str = Field(default="", max_length=500)
+    min_amount: int = Field(default=100, ge=1)
+    max_amount: int = Field(default=500_000, ge=1)
     ussd_code: str = Field(default="", max_length=20)
     is_active: bool = True
 
@@ -24,6 +27,9 @@ class OperatorUpdate(BaseModel):
     operator_name: Optional[str] = Field(None, min_length=1, max_length=100)
     service_code: Optional[str] = Field(None, min_length=1, max_length=100)
     color: Optional[str] = Field(None, max_length=7)
+    logo_url: Optional[str] = Field(None, max_length=500)
+    min_amount: Optional[int] = Field(None, ge=1)
+    max_amount: Optional[int] = Field(None, ge=1)
     ussd_code: Optional[str] = Field(None, max_length=20)
     is_active: Optional[bool] = None
 
@@ -35,6 +41,9 @@ class OperatorResponse(BaseModel):
     operator_name: str
     service_code: str
     color: str
+    logo_url: str
+    min_amount: int
+    max_amount: int
     ussd_code: str
     is_active: bool
     created_at: datetime
@@ -127,6 +136,9 @@ class PublicOperatorInfo(BaseModel):
     code: str
     name: str
     color: str
+    logo_url: str
+    min_amount: int
+    max_amount: int
     ussd_code: str
 
 

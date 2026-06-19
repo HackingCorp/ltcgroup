@@ -72,6 +72,9 @@ async def list_available_countries(
                 code=op.operator_code,
                 name=op.operator_name,
                 color=op.color,
+                logo_url=op.logo_url or "",
+                min_amount=op.min_amount,
+                max_amount=op.max_amount,
                 ussd_code=op.ussd_code,
             )
             for op in (c.operators or []) if op.is_active
@@ -219,13 +222,30 @@ async def create_payment(
     else:
         customer_amount = base_amount
 
-    # Transaction limit: use country-specific max_amount if available
+    # Transaction limit: use operator-specific limits, fallback to country
     if provider == PaymentProvider.TOUCHPAY and country_obj:
-        max_amount = country_obj.max_amount
+        op_min = None
+        op_max = None
+        if payload.operator and country_code:
+            operators = await country_service.get_active_operators(db, country_code)
+            op_obj = next((o for o in operators if o.operator_code == payload.operator.upper()), None)
+            if op_obj:
+                op_min = op_obj.min_amount
+                op_max = op_obj.max_amount
+
+        max_amount = op_max or country_obj.max_amount
+        min_amount = op_min or country_obj.min_amount
+        op_label = payload.operator or "Mobile Money"
+
+        if customer_amount < Decimal(str(min_amount)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Le montant minimum par transaction {op_label} est de {min_amount:,} {country_obj.currency}.",
+            )
         if customer_amount > Decimal(str(max_amount)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Le montant maximum par transaction Mobile Money pour {country_obj.name} est de {max_amount:,} {country_obj.currency} (frais compris). Utilisez payment_method: BANK_CARD pour les montants superieurs.",
+                detail=f"Le montant maximum par transaction {op_label} pour {country_obj.name} est de {max_amount:,} {country_obj.currency} (frais compris). Utilisez payment_method: BANK_CARD pour les montants superieurs.",
             )
 
     # Currency: use country currency if not explicitly provided

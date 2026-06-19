@@ -86,6 +86,9 @@ class CountryOperator(Base):
     operator_name: Mapped[str] = mapped_column(String(100), nullable=False)  # "MTN MoMo"
     service_code: Mapped[str] = mapped_column(String(100), nullable=False)  # "PAIEMENTMARCHAND_MTN_CM"
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#000000")
+    logo_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    min_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    max_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=500_000)
     ussd_code: Mapped[str] = mapped_column(String(20), nullable=False, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

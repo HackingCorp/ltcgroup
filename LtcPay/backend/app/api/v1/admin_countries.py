@@ -6,8 +6,9 @@ All endpoints require admin authentication.
 """
 import logging
 import uuid
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +24,8 @@ from app.schemas.country import (
     OperatorCreate, OperatorUpdate, OperatorResponse,
     MerchantCountryResponse, MerchantCountryToggle,
 )
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "static" / "operators"
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +282,9 @@ async def create_operator(
         operator_name=payload.operator_name,
         service_code=payload.service_code,
         color=payload.color,
+        logo_url=payload.logo_url,
+        min_amount=payload.min_amount,
+        max_amount=payload.max_amount,
         ussd_code=payload.ussd_code,
         is_active=payload.is_active,
     )
@@ -309,7 +315,7 @@ async def update_operator(
     if not op:
         raise HTTPException(status_code=404, detail="Operator not found")
 
-    for field in ("operator_code", "operator_name", "service_code", "color", "ussd_code", "is_active"):
+    for field in ("operator_code", "operator_name", "service_code", "color", "logo_url", "min_amount", "max_amount", "ussd_code", "is_active"):
         val = getattr(payload, field, None)
         if val is not None:
             if field == "operator_code":
@@ -344,6 +350,51 @@ async def delete_operator(
     await db.delete(op)
     await db.commit()
     logger.info("Operator deleted: %s/%s by admin %s", code.upper(), op.operator_code, admin.email)
+
+
+@router.post("/{code}/operators/{op_id}/logo", response_model=OperatorResponse)
+async def upload_operator_logo(
+    code: str,
+    op_id: uuid.UUID,
+    file: UploadFile = File(...),
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a logo image for an operator."""
+    result = await db.execute(
+        select(CountryOperator).where(
+            CountryOperator.id == op_id,
+            CountryOperator.country_code == code.upper(),
+        )
+    )
+    op = result.scalar_one_or_none()
+    if not op:
+        raise HTTPException(status_code=404, detail="Operator not found")
+
+    # Validate file type
+    if file.content_type not in ("image/png", "image/jpeg", "image/webp", "image/svg+xml"):
+        raise HTTPException(status_code=400, detail="Only PNG, JPEG, WebP, and SVG images are allowed")
+
+    # Read and save file
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:  # 2 MB
+        raise HTTPException(status_code=400, detail="File too large (max 2 MB)")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "png"
+    if ext not in ("png", "jpg", "jpeg", "webp", "svg"):
+        ext = "png"
+    filename = f"{code.upper()}_{op.operator_code}.{ext}"
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    dest = UPLOAD_DIR / filename
+    dest.write_bytes(content)
+
+    op.logo_url = f"/static/operators/{filename}"
+    await db.commit()
+    await db.refresh(op)
+
+    logger.info("Operator logo uploaded: %s/%s -> %s by admin %s", code.upper(), op.operator_code, filename, admin.email)
+    return OperatorResponse.model_validate(op)
 
 
 # ---------------------------------------------------------------------------

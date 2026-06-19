@@ -962,7 +962,11 @@
                 <div class="pm-list" id="momo-methods">
                     {% for op in country.operators %}
                     <div class="pm-item" data-method="{{ op.code|lower }}" data-operator-code="{{ op.code }}" onclick="selectMethod('{{ op.code|lower }}')">
+                        {% if op.logo_url %}
+                        <div class="pm-logo" style="background: {{ op.color }}; padding: 4px;"><img src="{{ op.logo_url }}" alt="{{ op.name }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;"></div>
+                        {% else %}
                         <div class="pm-logo" style="background: {{ op.color }}; {% if op.code == 'MTN' %}color: #2a2200;{% endif %}">{{ op.code[:3] }}</div>
+                        {% endif %}
                         <div class="pm-label">
                             <strong>{{ op.name }}</strong>
                             <small>+{{ country.phone_prefix }} {{ country.phone_pattern }}</small>
@@ -1194,6 +1198,7 @@
         code: "{{ op.code }}",
         name: "{{ op.name }}",
         color: "{{ op.color }}",
+        logo_url: "{{ op.logo_url }}",
         ussd: "{{ op.ussd_code }}"
     };
     {% endfor %}
