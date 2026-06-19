@@ -85,10 +85,26 @@ async def services_status(
         "status": redis_status,
     })
 
-    # TouchPay API
+    # TouchPay API (ping SDK URL)
+    tp_status = "operational"
+    tp_latency = 0.0
+    try:
+        import httpx
+        start = time.monotonic()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.head(
+                "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js"
+            )
+        tp_latency = round((time.monotonic() - start) * 1000, 1)
+        if resp.status_code != 200:
+            tp_status = "degraded"
+    except Exception:
+        tp_status = "down"
+
     services.append({
         "name": "TouchPay API",
-        "status": "operational",
+        "status": tp_status,
+        "latency_ms": tp_latency,
     })
 
     return {"services": services}

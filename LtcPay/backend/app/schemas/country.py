@@ -170,3 +170,21 @@ class MerchantCountryResponse(BaseModel):
 
 class MerchantCountryToggle(BaseModel):
     is_active: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Country integration test schemas
+# ---------------------------------------------------------------------------
+
+class CountryTestCheck(BaseModel):
+    name: str
+    status: str  # "pass" or "fail"
+    message: str
+    latency_ms: Optional[float] = None
+
+
+class CountryTestResult(BaseModel):
+    country_code: str
+    overall_status: str  # "pass", "partial", or "fail"
+    checks: list[CountryTestCheck]
+    tested_at: datetime

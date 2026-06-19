@@ -5,16 +5,19 @@ CRUD for countries, operators, and merchant country restrictions.
 All endpoints require admin authentication.
 """
 import logging
+import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.core.encryption import encrypt_value
+from app.core.encryption import encrypt_value, decrypt_value
 from app.api.v1.auth import get_current_admin
 from app.models.admin_user import AdminUser
 from app.models.country import SupportedCountry, CountryOperator, MerchantCountry
@@ -23,6 +26,7 @@ from app.schemas.country import (
     CountryCreate, CountryUpdate, CountryResponse, CountryDetailResponse,
     OperatorCreate, OperatorUpdate, OperatorResponse,
     MerchantCountryResponse, MerchantCountryToggle,
+    CountryTestCheck, CountryTestResult,
 )
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "operators"
@@ -226,6 +230,214 @@ async def delete_country(
     await db.delete(country)
     await db.commit()
     logger.info("Country deleted: %s by admin %s", code, admin.email)
+
+
+# ---------------------------------------------------------------------------
+# Integration test
+# ---------------------------------------------------------------------------
+
+@router.post("/{code}/test", response_model=CountryTestResult)
+async def test_country_integration(
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test TouchPay integration for a country without making a real payment.
+
+    Runs 5 checks: credentials completeness, Direct API connectivity,
+    Direct API authentication, SDK URL reachability, and operator configuration.
+    """
+    code = code.upper()
+
+    # Load country (any status, not just active)
+    result = await db.execute(
+        select(SupportedCountry)
+        .options(selectinload(SupportedCountry.operators))
+        .where(SupportedCountry.code == code)
+    )
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    checks: list[CountryTestCheck] = []
+
+    # Decrypt credentials
+    creds = {
+        "agency_code": country.tp_agency_code or "",
+        "login": country.tp_login or "",
+        "password": decrypt_value(country.tp_password) if country.tp_password else "",
+        "merchant_id": country.tp_merchant_id or "",
+        "secure_code": decrypt_value(country.tp_secure_code) if country.tp_secure_code else "",
+        "sdk_url": country.tp_sdk_url or "",
+        "direct_api_url": country.tp_direct_api_url or "",
+    }
+
+    # -- Check 1: Credentials completeness --
+    required_fields = ["agency_code", "login", "password", "merchant_id", "secure_code"]
+    missing = [f for f in required_fields if not creds[f]]
+    creds_ok = len(missing) == 0
+
+    if creds_ok:
+        checks.append(CountryTestCheck(
+            name="credentials_complete",
+            status="pass",
+            message=f"All {len(required_fields)} required credentials are configured",
+        ))
+    else:
+        checks.append(CountryTestCheck(
+            name="credentials_complete",
+            status="fail",
+            message=f"Missing credentials: {', '.join(missing)}",
+        ))
+
+    # -- Check 2 & 3: Direct API (skip if credentials incomplete) --
+    if creds_ok:
+        api_url = creds["direct_api_url"]
+        agency_code = creds["agency_code"]
+        login = creds["login"]
+        password = creds["password"]
+        url = (
+            f"{api_url.rstrip('/')}/{agency_code}/transaction"
+            f"?loginAgent={login}&passwordAgent={password}"
+        )
+        test_body = {"idFromClient": "TEST-PING", "amount": "1"}
+
+        # Check 2: Connectivity (PUT without Digest Auth)
+        try:
+            start = time.monotonic()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.put(url, json=test_body)
+            latency = round((time.monotonic() - start) * 1000)
+            checks.append(CountryTestCheck(
+                name="direct_api_connectivity",
+                status="pass",
+                message=f"TouchPay Direct API reachable ({resp.status_code} in {latency}ms)",
+                latency_ms=latency,
+            ))
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            checks.append(CountryTestCheck(
+                name="direct_api_connectivity",
+                status="fail",
+                message=f"Cannot reach TouchPay Direct API: {type(exc).__name__}",
+            ))
+            # Skip auth check if server unreachable
+            checks.append(CountryTestCheck(
+                name="direct_api_auth",
+                status="fail",
+                message="Skipped (server unreachable)",
+            ))
+        else:
+            # Check 3: Authentication (PUT with Digest Auth)
+            try:
+                start = time.monotonic()
+                auth = httpx.DigestAuth(login, password)
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.put(url, json=test_body, auth=auth)
+                latency = round((time.monotonic() - start) * 1000)
+
+                if resp.status_code == 401:
+                    checks.append(CountryTestCheck(
+                        name="direct_api_auth",
+                        status="fail",
+                        message="Digest authentication rejected (401)",
+                        latency_ms=latency,
+                    ))
+                else:
+                    checks.append(CountryTestCheck(
+                        name="direct_api_auth",
+                        status="pass",
+                        message="Digest authentication accepted",
+                        latency_ms=latency,
+                    ))
+            except (httpx.ConnectError, httpx.TimeoutException) as exc:
+                checks.append(CountryTestCheck(
+                    name="direct_api_auth",
+                    status="fail",
+                    message=f"Auth request failed: {type(exc).__name__}",
+                ))
+    else:
+        checks.append(CountryTestCheck(
+            name="direct_api_connectivity",
+            status="fail",
+            message="Skipped (credentials incomplete)",
+        ))
+        checks.append(CountryTestCheck(
+            name="direct_api_auth",
+            status="fail",
+            message="Skipped (credentials incomplete)",
+        ))
+
+    # -- Check 4: SDK URL reachable --
+    sdk_url = creds["sdk_url"]
+    if sdk_url:
+        try:
+            start = time.monotonic()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.head(sdk_url)
+            latency = round((time.monotonic() - start) * 1000)
+            if resp.status_code == 200:
+                checks.append(CountryTestCheck(
+                    name="sdk_url_reachable",
+                    status="pass",
+                    message="SDK JS file reachable (200)",
+                    latency_ms=latency,
+                ))
+            else:
+                checks.append(CountryTestCheck(
+                    name="sdk_url_reachable",
+                    status="fail",
+                    message=f"SDK URL returned HTTP {resp.status_code}",
+                    latency_ms=latency,
+                ))
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            checks.append(CountryTestCheck(
+                name="sdk_url_reachable",
+                status="fail",
+                message=f"Cannot reach SDK URL: {type(exc).__name__}",
+            ))
+    else:
+        checks.append(CountryTestCheck(
+            name="sdk_url_reachable",
+            status="fail",
+            message="SDK URL not configured",
+        ))
+
+    # -- Check 5: Operators configured --
+    active_ops = [
+        op for op in (country.operators or [])
+        if op.is_active and op.service_code
+    ]
+    if active_ops:
+        op_names = ", ".join(op.operator_code for op in active_ops)
+        checks.append(CountryTestCheck(
+            name="operators_configured",
+            status="pass",
+            message=f"{len(active_ops)} active operator(s) with service codes ({op_names})",
+        ))
+    else:
+        checks.append(CountryTestCheck(
+            name="operators_configured",
+            status="fail",
+            message="No active operators with service codes configured",
+        ))
+
+    # Compute overall status
+    statuses = [c.status for c in checks]
+    if all(s == "pass" for s in statuses):
+        overall = "pass"
+    elif all(s == "fail" for s in statuses):
+        overall = "fail"
+    else:
+        overall = "partial"
+
+    logger.info("Country integration test: %s → %s by admin %s", code, overall, admin.email)
+
+    return CountryTestResult(
+        country_code=code,
+        overall_status=overall,
+        checks=checks,
+        tested_at=datetime.now(timezone.utc),
+    )
 
 
 # ---------------------------------------------------------------------------
