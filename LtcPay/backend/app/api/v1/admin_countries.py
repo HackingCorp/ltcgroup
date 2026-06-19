@@ -25,7 +25,7 @@ from app.schemas.country import (
     MerchantCountryResponse, MerchantCountryToggle,
 )
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent / "static" / "operators"
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "operators"
 
 logger = logging.getLogger(__name__)
 
