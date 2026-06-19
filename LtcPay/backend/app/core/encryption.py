@@ -47,11 +47,22 @@ def _get_fernet() -> Fernet:
 
 
 def encrypt_value(plaintext: str) -> str:
-    """Encrypt a plaintext string, return base64-encoded ciphertext."""
+    """Encrypt a plaintext string, return base64-encoded ciphertext.
+
+    If no encryption key is configured, stores as plaintext with a warning.
+    Credentials can be re-encrypted later once the key is set.
+    """
     if not plaintext:
         return ""
-    f = _get_fernet()
-    return f.encrypt(plaintext.encode("utf-8")).decode("utf-8")
+    try:
+        f = _get_fernet()
+        return f.encrypt(plaintext.encode("utf-8")).decode("utf-8")
+    except ValueError:
+        logger.warning(
+            "CREDENTIAL_ENCRYPTION_KEY not set — storing credential as plaintext. "
+            "Set the key and re-save to encrypt."
+        )
+        return plaintext
 
 
 def decrypt_value(ciphertext: str) -> str:
