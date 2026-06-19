@@ -963,7 +963,7 @@
                     {% for op in country.operators %}
                     <div class="pm-item" data-method="{{ op.code|lower }}" data-operator-code="{{ op.code }}" onclick="selectMethod('{{ op.code|lower }}')">
                         {% if op.logo_url %}
-                        <div class="pm-logo" style="background: {{ op.color }}; padding: 4px;"><img src="{{ op.logo_url }}" alt="{{ op.name }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" onerror="this.parentElement.outerHTML='<div class=\'pm-logo\' style=\'background: {{ op.color }}; {% if op.code == &quot;MTN&quot; %}color: #2a2200;{% endif %}\'>{{ op.code[:3] }}</div>';"></div>
+                        <div class="pm-logo" style="background: {{ op.color }}; padding: 4px;"><img src="{{ op.logo_url }}" alt="{{ op.name }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" onerror="this.style.display='none';this.parentElement.textContent='{{ op.code[:3] }}';"></div>
                         {% else %}
                         <div class="pm-logo" style="background: {{ op.color }}; {% if op.code == 'MTN' %}color: #2a2200;{% endif %}">{{ op.code[:3] }}</div>
                         {% endif %}
