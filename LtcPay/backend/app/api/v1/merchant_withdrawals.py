@@ -13,47 +13,54 @@ from app.models.merchant import Merchant
 from app.models.payment import Payment, PaymentStatus
 from app.models.withdrawal import Withdrawal, WithdrawalStatus
 from app.api.v1.merchant_auth import get_current_merchant_jwt
+from app.models.country import SupportedCountry
 from app.schemas.withdrawal import (
     WithdrawalCreate,
     WithdrawalResponse,
     WithdrawalListResponse,
     BalanceResponse,
+    CountryBalanceResponse,
+    BalanceByCountryResponse,
 )
 
 router = APIRouter(prefix="/merchant-dashboard", tags=["Merchant Withdrawals"])
 
 
-async def _compute_balance(merchant_id, db: AsyncSession) -> dict:
-    """Compute available balance for a merchant."""
+async def _compute_balance(
+    merchant_id, db: AsyncSession, country_code: Optional[str] = None
+) -> dict:
+    """Compute available balance for a merchant, optionally filtered by country."""
+    # Payment filters
+    payment_filters = [
+        Payment.merchant_id == merchant_id,
+        Payment.status == PaymentStatus.COMPLETED,
+    ]
+    if country_code:
+        payment_filters.append(Payment.country == country_code)
+
+    # Withdrawal filters
+    def _withdrawal_filters(statuses):
+        filters = [Withdrawal.merchant_id == merchant_id, Withdrawal.status.in_(statuses)]
+        if country_code:
+            filters.append(Withdrawal.country_code == country_code)
+        return filters
+
     # Total earned from COMPLETED payments
     earned_q = await db.execute(
-        select(func.coalesce(func.sum(Payment.amount), 0)).where(
-            and_(
-                Payment.merchant_id == merchant_id,
-                Payment.status == PaymentStatus.COMPLETED,
-            )
-        )
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(and_(*payment_filters))
     )
     total_earned = Decimal(str(earned_q.scalar() or 0))
 
     # Total fees from completed payments
     fees_q = await db.execute(
-        select(func.coalesce(func.sum(Payment.fee), 0)).where(
-            and_(
-                Payment.merchant_id == merchant_id,
-                Payment.status == PaymentStatus.COMPLETED,
-            )
-        )
+        select(func.coalesce(func.sum(Payment.fee), 0)).where(and_(*payment_filters))
     )
     total_fees = Decimal(str(fees_q.scalar() or 0))
 
     # Total completed withdrawals
     withdrawn_q = await db.execute(
         select(func.coalesce(func.sum(Withdrawal.amount), 0)).where(
-            and_(
-                Withdrawal.merchant_id == merchant_id,
-                Withdrawal.status == WithdrawalStatus.COMPLETED,
-            )
+            and_(*_withdrawal_filters([WithdrawalStatus.COMPLETED]))
         )
     )
     total_withdrawn = Decimal(str(withdrawn_q.scalar() or 0))
@@ -66,15 +73,20 @@ async def _compute_balance(merchant_id, db: AsyncSession) -> dict:
     ]
     pending_q = await db.execute(
         select(func.coalesce(func.sum(Withdrawal.amount), 0)).where(
-            and_(
-                Withdrawal.merchant_id == merchant_id,
-                Withdrawal.status.in_(pending_statuses),
-            )
+            and_(*_withdrawal_filters(pending_statuses))
         )
     )
     pending_withdrawals = Decimal(str(pending_q.scalar() or 0))
 
     available_balance = total_earned - total_fees - total_withdrawn - pending_withdrawals
+
+    # Resolve currency from country if specified
+    currency = "XAF"
+    if country_code:
+        country_q = await db.execute(
+            select(SupportedCountry.currency).where(SupportedCountry.code == country_code)
+        )
+        currency = country_q.scalar() or "XAF"
 
     return {
         "total_earned": total_earned,
@@ -82,7 +94,7 @@ async def _compute_balance(merchant_id, db: AsyncSession) -> dict:
         "total_withdrawn": total_withdrawn,
         "pending_withdrawals": pending_withdrawals,
         "available_balance": max(available_balance, Decimal("0.00")),
-        "currency": "XAF",
+        "currency": currency,
     }
 
 
@@ -95,6 +107,54 @@ async def get_balance(
     return await _compute_balance(merchant.id, db)
 
 
+@router.get("/balance/by-country", response_model=BalanceByCountryResponse)
+async def get_balance_by_country(
+    merchant: Merchant = Depends(get_current_merchant_jwt),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get merchant's balance broken down by country."""
+    # Find distinct countries from this merchant's payments
+    countries_q = await db.execute(
+        select(Payment.country).where(
+            and_(
+                Payment.merchant_id == merchant.id,
+                Payment.country.isnot(None),
+            )
+        ).distinct()
+    )
+    country_codes = [row[0] for row in countries_q.all() if row[0]]
+
+    # Load country info
+    country_info = {}
+    if country_codes:
+        info_q = await db.execute(
+            select(SupportedCountry).where(SupportedCountry.code.in_(country_codes))
+        )
+        for c in info_q.scalars().all():
+            country_info[c.code] = c
+
+    # Compute per-country balances
+    by_country = []
+    for code in sorted(country_codes):
+        bal = await _compute_balance(merchant.id, db, country_code=code)
+        info = country_info.get(code)
+        by_country.append(CountryBalanceResponse(
+            country_code=code,
+            country_name=info.name if info else code,
+            currency=info.currency if info else "XAF",
+            total_earned=bal["total_earned"],
+            total_fees=bal["total_fees"],
+            total_withdrawn=bal["total_withdrawn"],
+            pending_withdrawals=bal["pending_withdrawals"],
+            available_balance=bal["available_balance"],
+        ))
+
+    # Total balance (global)
+    total = await _compute_balance(merchant.id, db)
+
+    return BalanceByCountryResponse(total=total, by_country=by_country)
+
+
 @router.post("/withdrawals", response_model=WithdrawalResponse)
 async def create_withdrawal(
     data: WithdrawalCreate,
@@ -102,20 +162,21 @@ async def create_withdrawal(
     db: AsyncSession = Depends(get_db),
 ):
     """Request a withdrawal."""
-    balance_info = await _compute_balance(merchant.id, db)
+    balance_info = await _compute_balance(merchant.id, db, country_code=data.country_code)
     available = balance_info["available_balance"]
 
     if data.amount > available:
         raise HTTPException(
             status_code=400,
-            detail=f"Insufficient balance. Available: {available} {data.currency}",
+            detail=f"Insufficient balance. Available: {available} {balance_info['currency']}",
         )
 
     withdrawal = Withdrawal(
         merchant_id=merchant.id,
         amount=data.amount,
-        currency=data.currency,
+        currency=balance_info["currency"],
         method=data.method,
+        country_code=data.country_code,
         mobile_money_number=data.mobile_money_number,
         mobile_money_operator=data.mobile_money_operator,
         bank_name=data.bank_name,

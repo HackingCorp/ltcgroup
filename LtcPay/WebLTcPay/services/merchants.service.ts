@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { Merchant, MerchantCredentials, MerchantListResponse, BalanceInfo } from "@/types";
+import type { Merchant, MerchantCredentials, MerchantListResponse, BalanceInfo, CountryBalanceInfo } from "@/types";
 
 export interface MerchantBalanceInfo extends BalanceInfo {
   total_payments: number;
@@ -33,6 +33,7 @@ export interface MerchantWithdrawalItem {
   currency: string;
   method: string;
   status: string;
+  country_code?: string;
   mobile_money_number?: string;
   mobile_money_operator?: string;
   bank_name?: string;
@@ -127,6 +128,11 @@ export const merchantsService = {
 
   async getBalance(id: string): Promise<MerchantBalanceInfo> {
     const response = await api.get<MerchantBalanceInfo>(`/merchants/${id}/balance`);
+    return response.data;
+  },
+
+  async getBalanceByCountry(id: string): Promise<{ total: MerchantBalanceInfo; by_country: CountryBalanceInfo[] }> {
+    const response = await api.get<{ total: MerchantBalanceInfo; by_country: CountryBalanceInfo[] }>(`/merchants/${id}/balance/by-country`);
     return response.data;
   },
 

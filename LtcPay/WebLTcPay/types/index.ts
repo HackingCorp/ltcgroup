@@ -209,6 +209,7 @@ export interface Withdrawal {
   currency: string;
   method: "MOBILE_MONEY" | "BANK_TRANSFER";
   status: "PENDING" | "APPROVED" | "REJECTED" | "PROCESSING" | "COMPLETED" | "FAILED";
+  country_code?: string;
   mobile_money_number?: string;
   mobile_money_operator?: string;
   bank_name?: string;
@@ -224,11 +225,28 @@ export interface WithdrawalCreate {
   amount: number;
   currency?: string;
   method: "MOBILE_MONEY" | "BANK_TRANSFER";
+  country_code?: string;
   mobile_money_number?: string;
   mobile_money_operator?: string;
   bank_name?: string;
   bank_account_number?: string;
   bank_account_name?: string;
+}
+
+export interface CountryBalanceInfo {
+  country_code: string;
+  country_name: string;
+  currency: string;
+  total_earned: number;
+  total_fees: number;
+  total_withdrawn: number;
+  pending_withdrawals: number;
+  available_balance: number;
+}
+
+export interface BalanceByCountryInfo {
+  total: BalanceInfo;
+  by_country: CountryBalanceInfo[];
 }
 
 export interface WithdrawalListResponse {

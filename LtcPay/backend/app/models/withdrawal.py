@@ -56,6 +56,7 @@ class Withdrawal(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="XAF")
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
 
     # Method
     method: Mapped[WithdrawalMethod] = mapped_column(

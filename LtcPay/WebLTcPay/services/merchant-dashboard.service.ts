@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import type { MerchantDashboardStats, BalanceInfo, Payment, PaginatedResponse } from "@/types";
+import type { MerchantDashboardStats, BalanceInfo, BalanceByCountryInfo, Payment, PaginatedResponse } from "@/types";
 
 export const merchantDashboardService = {
   async getStats(): Promise<MerchantDashboardStats> {
@@ -25,6 +25,11 @@ export const merchantDashboardService = {
 
   async getBalance(): Promise<BalanceInfo> {
     const response = await api.get<BalanceInfo>("/merchant-dashboard/balance");
+    return response.data;
+  },
+
+  async getBalanceByCountry(): Promise<BalanceByCountryInfo> {
+    const response = await api.get<BalanceByCountryInfo>("/merchant-dashboard/balance/by-country");
     return response.data;
   },
 

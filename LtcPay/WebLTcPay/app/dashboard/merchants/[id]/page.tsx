@@ -19,7 +19,7 @@ import type {
   MerchantWithdrawalItem,
   PaginatedItems,
 } from "@/services/merchants.service";
-import type { Merchant } from "@/types";
+import type { Merchant, CountryBalanceInfo } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
 /* ── helpers ───────────────────────────────────────────────── */
@@ -54,6 +54,7 @@ export default function MerchantDetailPage() {
 
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [balance, setBalance] = useState<MerchantBalanceInfo | null>(null);
+  const [countryBalances, setCountryBalances] = useState<CountryBalanceInfo[]>([]);
   const [tab, setTab] = useState<Tab>("payments");
   const [payments, setPayments] = useState<PaginatedItems<MerchantPaymentItem> | null>(null);
   const [withdrawals, setWithdrawals] = useState<PaginatedItems<MerchantWithdrawalItem> | null>(null);
@@ -83,10 +84,12 @@ export default function MerchantDetailPage() {
     Promise.all([
       merchantsService.get(merchantId),
       merchantsService.getBalance(merchantId),
+      merchantsService.getBalanceByCountry(merchantId).catch(() => null),
     ])
-      .then(([m, b]) => {
+      .then(([m, b, bc]) => {
         setMerchant(m);
         setBalance(b);
+        if (bc) setCountryBalances(bc.by_country);
       })
       .catch(() => setError("Failed to load merchant details"))
       .finally(() => setLoading(false));
@@ -155,6 +158,43 @@ export default function MerchantDetailPage() {
         <KpiCard label={<T fr="Take rate effectif" en="Effective take rate" />} value={feeStr} />
         <KpiCard label={<T fr="Revenu LTC" en="LTC revenue" />} value={fmtCompact(ltcRevenue)} unit="F" />
       </div>
+
+      {/* Per-country balance breakdown */}
+      {countryBalances.length > 1 && (
+        <div className="nk-card" style={{ marginBottom: 16 }}>
+          <div className="card-head">
+            <h3><T fr="Soldes par pays" en="Balance by country" /></h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(countryBalances.length, 4)}, 1fr)`, gap: 12 }}>
+            {countryBalances.map((cb) => (
+              <div key={cb.country_code} style={{ padding: 12, background: "var(--bg-2)", borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{cb.country_name}</span>
+                  <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{cb.country_code} · {cb.currency}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 12 }}>
+                  <div>
+                    <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase" }}><T fr="Revenus" en="Earned" /></div>
+                    <div style={{ fontWeight: 500 }}>{formatCurrency(cb.total_earned, cb.currency)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase" }}><T fr="Frais" en="Fees" /></div>
+                    <div style={{ fontWeight: 500 }}>{formatCurrency(cb.total_fees, cb.currency)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase" }}><T fr="Retire" en="Withdrawn" /></div>
+                    <div style={{ fontWeight: 500 }}>{formatCurrency(cb.total_withdrawn, cb.currency)}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase" }}><T fr="Disponible" en="Available" /></div>
+                    <div style={{ fontWeight: 600, color: "var(--success)" }}>{formatCurrency(cb.available_balance, cb.currency)}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Two-column layout: left (legal info + activity) / right (risk + admin) */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>

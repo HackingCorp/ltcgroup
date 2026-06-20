@@ -12,6 +12,7 @@ class WithdrawalCreate(BaseModel):
     amount: Decimal = Field(..., gt=0, decimal_places=2)
     currency: str = Field(default="XAF", max_length=3)
     method: WithdrawalMethod
+    country_code: Optional[str] = Field(None, min_length=2, max_length=2)
 
     # Mobile Money fields
     mobile_money_number: Optional[str] = Field(None, min_length=9, max_length=20)
@@ -53,6 +54,7 @@ class WithdrawalResponse(BaseModel):
     bank_account_number: Optional[str] = None
     bank_account_name: Optional[str] = None
 
+    country_code: Optional[str] = None
     admin_note: Optional[str] = None
     processed_at: Optional[datetime] = None
     created_at: datetime
@@ -76,6 +78,22 @@ class BalanceResponse(BaseModel):
     pending_withdrawals: Decimal
     available_balance: Decimal
     currency: str = "XAF"
+
+
+class CountryBalanceResponse(BaseModel):
+    country_code: str
+    country_name: str
+    currency: str
+    total_earned: Decimal
+    total_fees: Decimal
+    total_withdrawn: Decimal
+    pending_withdrawals: Decimal
+    available_balance: Decimal
+
+
+class BalanceByCountryResponse(BaseModel):
+    total: BalanceResponse
+    by_country: list[CountryBalanceResponse]
 
 
 class AdminWithdrawalAction(BaseModel):

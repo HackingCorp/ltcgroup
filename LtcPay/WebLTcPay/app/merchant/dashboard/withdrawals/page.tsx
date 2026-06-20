@@ -9,11 +9,12 @@ import { Card, CardContent, CardHeader, Button, Input } from "@/components/ui";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 import { withdrawalsService } from "@/services/withdrawals.service";
 import { formatCurrency, getStatusColor } from "@/lib/utils";
-import type { BalanceInfo, Withdrawal, WithdrawalListResponse } from "@/types";
+import type { BalanceInfo, BalanceByCountryInfo, CountryBalanceInfo, Withdrawal, WithdrawalListResponse } from "@/types";
 
 const withdrawalSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   method: z.enum(["MOBILE_MONEY", "BANK_TRANSFER"]),
+  country_code: z.string().optional(),
   mobile_money_number: z.string().optional(),
   mobile_money_operator: z.string().optional(),
   bank_name: z.string().optional(),
@@ -45,6 +46,7 @@ type WithdrawalForm = z.infer<typeof withdrawalSchema>;
 
 export default function MerchantWithdrawalsPage() {
   const [balance, setBalance] = useState<BalanceInfo | null>(null);
+  const [balanceByCountry, setBalanceByCountry] = useState<BalanceByCountryInfo | null>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -58,11 +60,13 @@ export default function MerchantWithdrawalsPage() {
 
   const loadData = async () => {
     try {
-      const [b, w] = await Promise.all([
+      const [b, bc, w] = await Promise.all([
         merchantDashboardService.getBalance(),
+        merchantDashboardService.getBalanceByCountry().catch(() => null),
         withdrawalsService.list({ page_size: 50 }),
       ]);
       setBalance(b);
+      setBalanceByCountry(bc);
       setWithdrawals(w);
     } catch {
       // handled
@@ -79,6 +83,7 @@ export default function MerchantWithdrawalsPage() {
       await withdrawalsService.create({
         amount: parseFloat(data.amount),
         method: data.method,
+        country_code: data.country_code || undefined,
         mobile_money_number: data.mobile_money_number,
         mobile_money_operator: data.mobile_money_operator,
         bank_name: data.bank_name,
@@ -133,6 +138,40 @@ export default function MerchantWithdrawalsPage() {
         </CardContent>
       </Card>
 
+      {/* Per-country balances */}
+      {balanceByCountry && balanceByCountry.by_country.length > 1 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {balanceByCountry.by_country.map((cb) => (
+            <Card key={cb.country_code}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-700">{cb.country_name}</span>
+                  <span className="text-xs text-gray-400">{cb.country_code} · {cb.currency}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-gray-500">Earned</p>
+                    <p className="font-medium text-gray-900">{formatCurrency(cb.total_earned, cb.currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Fees</p>
+                    <p className="font-medium text-gray-900">{formatCurrency(cb.total_fees, cb.currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Withdrawn</p>
+                    <p className="font-medium text-gray-900">{formatCurrency(cb.total_withdrawn, cb.currency)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Available</p>
+                    <p className="font-bold text-green-600">{formatCurrency(cb.available_balance, cb.currency)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Request Withdrawal */}
       <Card>
         <CardHeader>
@@ -142,12 +181,29 @@ export default function MerchantWithdrawalsPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
             <Input
               id="amount"
-              label="Amount (XAF)"
+              label="Amount"
               type="number"
               placeholder="Enter amount"
               error={errors.amount?.message}
               {...register("amount")}
             />
+
+            {balanceByCountry && balanceByCountry.by_country.length > 1 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <select
+                  {...register("country_code")}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
+                >
+                  <option value="">All countries (global)</option>
+                  {balanceByCountry.by_country.map((cb) => (
+                    <option key={cb.country_code} value={cb.country_code}>
+                      {cb.country_name} ({cb.currency}) — Available: {formatCurrency(cb.available_balance, cb.currency)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
@@ -232,6 +288,7 @@ export default function MerchantWithdrawalsPage() {
                   <tr className="border-b text-left text-gray-500">
                     <th className="pb-3 font-medium">Reference</th>
                     <th className="pb-3 font-medium">Amount</th>
+                    <th className="pb-3 font-medium">Country</th>
                     <th className="pb-3 font-medium">Method</th>
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">Date</th>
@@ -242,6 +299,7 @@ export default function MerchantWithdrawalsPage() {
                     <tr key={w.id} className="hover:bg-gray-50">
                       <td className="py-3 font-mono text-xs">{w.reference}</td>
                       <td className="py-3">{formatCurrency(w.amount, w.currency)}</td>
+                      <td className="py-3 text-xs text-gray-500">{w.country_code || "—"}</td>
                       <td className="py-3 text-xs">
                         {w.method === "MOBILE_MONEY" ? `Mobile Money (${w.mobile_money_operator})` : "Bank Transfer"}
                       </td>
