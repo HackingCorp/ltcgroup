@@ -474,7 +474,7 @@ async def get_merchant_payments(
             "status": p.status.value,
             "description": p.description,
             "payment_method": p.method.value if p.method else None,
-            "operator": p.operator.value if p.operator else None,
+            "operator": p.operator if p.operator else None,
             "customer_email": p.customer_info.get("email") if p.customer_info else None,
             "customer_phone": p.customer_info.get("phone") if p.customer_info else None,
             "customer_name": p.customer_info.get("name") if p.customer_info else None,
