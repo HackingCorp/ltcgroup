@@ -16,6 +16,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.encryption import encrypt_value, decrypt_value
 from app.api.v1.auth import get_current_admin
@@ -261,15 +262,15 @@ async def test_country_integration(
 
     checks: list[CountryTestCheck] = []
 
-    # Decrypt credentials
+    # Decrypt credentials (per-country DB values, fallback to global env vars)
     creds = {
-        "agency_code": country.tp_agency_code or "",
-        "login": country.tp_login or "",
-        "password": decrypt_value(country.tp_password) if country.tp_password else "",
-        "merchant_id": country.tp_merchant_id or "",
-        "secure_code": decrypt_value(country.tp_secure_code) if country.tp_secure_code else "",
-        "sdk_url": country.tp_sdk_url or "",
-        "direct_api_url": country.tp_direct_api_url or "",
+        "agency_code": country.tp_agency_code or settings.TOUCHPAY_DIRECT_AGENCY_CODE,
+        "login": country.tp_login or settings.TOUCHPAY_DIRECT_LOGIN,
+        "password": (decrypt_value(country.tp_password) if country.tp_password else "") or settings.TOUCHPAY_DIRECT_PASSWORD,
+        "merchant_id": country.tp_merchant_id or settings.TOUCHPAY_MERCHANT_ID,
+        "secure_code": (decrypt_value(country.tp_secure_code) if country.tp_secure_code else "") or settings.TOUCHPAY_SECURE_CODE,
+        "sdk_url": country.tp_sdk_url or settings.TOUCHPAY_SDK_URL,
+        "direct_api_url": country.tp_direct_api_url or settings.TOUCHPAY_DIRECT_API_URL,
     }
 
     # -- Check 1: Credentials completeness --

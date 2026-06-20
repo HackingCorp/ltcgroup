@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.encryption import decrypt_value
 from app.models.country import SupportedCountry, CountryOperator, MerchantCountry
 
@@ -155,21 +156,24 @@ class CountryService:
     ) -> dict:
         """Get decrypted TouchPay credentials for a country.
 
+        Per-country DB values take priority. When a DB field is empty,
+        falls back to the global env-var settings from config.py.
+
         Returns dict with keys: agency_code, login, password, secret,
         merchant_id, secure_code, merchant_website, sdk_url, direct_api_url.
         """
         country = await self.get_active_country(db, country_code)
 
         return {
-            "agency_code": country.tp_agency_code,
-            "login": country.tp_login,
-            "password": decrypt_value(country.tp_password),
-            "secret": decrypt_value(country.tp_secret),
-            "merchant_id": country.tp_merchant_id,
-            "secure_code": decrypt_value(country.tp_secure_code),
-            "merchant_website": country.tp_merchant_website,
-            "sdk_url": country.tp_sdk_url,
-            "direct_api_url": country.tp_direct_api_url,
+            "agency_code": country.tp_agency_code or settings.TOUCHPAY_DIRECT_AGENCY_CODE,
+            "login": country.tp_login or settings.TOUCHPAY_DIRECT_LOGIN,
+            "password": (decrypt_value(country.tp_password) if country.tp_password else "") or settings.TOUCHPAY_DIRECT_PASSWORD,
+            "secret": (decrypt_value(country.tp_secret) if country.tp_secret else "") or settings.TOUCHPAY_SECRET,
+            "merchant_id": country.tp_merchant_id or settings.TOUCHPAY_MERCHANT_ID,
+            "secure_code": (decrypt_value(country.tp_secure_code) if country.tp_secure_code else "") or settings.TOUCHPAY_SECURE_CODE,
+            "merchant_website": country.tp_merchant_website or settings.TOUCHPAY_MERCHANT_WEBSITE,
+            "sdk_url": country.tp_sdk_url or settings.TOUCHPAY_SDK_URL,
+            "direct_api_url": country.tp_direct_api_url or settings.TOUCHPAY_DIRECT_API_URL,
         }
 
     @staticmethod
