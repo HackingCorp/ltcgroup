@@ -148,6 +148,33 @@ async def get_country(
     return _country_to_detail(country)
 
 
+@router.get("/{code}/credentials")
+async def get_country_credentials(
+    code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get decrypted TouchPay credentials for a country (admin only)."""
+    result = await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code.upper())
+    )
+    country = result.scalar_one_or_none()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    return {
+        "agency_code": country.tp_agency_code or "",
+        "login": country.tp_login or "",
+        "password": decrypt_value(country.tp_password) if country.tp_password else "",
+        "secret": decrypt_value(country.tp_secret) if country.tp_secret else "",
+        "merchant_id": country.tp_merchant_id or "",
+        "secure_code": decrypt_value(country.tp_secure_code) if country.tp_secure_code else "",
+        "merchant_website": country.tp_merchant_website or "",
+        "sdk_url": country.tp_sdk_url or "",
+        "direct_api_url": country.tp_direct_api_url or "",
+    }
+
+
 @router.patch("/{code}", response_model=CountryDetailResponse)
 async def update_country(
     code: str,

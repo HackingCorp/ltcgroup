@@ -135,6 +135,11 @@ export const countriesService = {
     return r.data;
   },
 
+  async getCredentials(code: string): Promise<CountryCredentials> {
+    const r = await api.get<CountryCredentials>(`/admin/countries/${code}/credentials`);
+    return r.data;
+  },
+
   async create(data: CreateCountryData): Promise<Country> {
     const r = await api.post<Country>("/admin/countries", data);
     return r.data;

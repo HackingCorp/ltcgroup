@@ -553,9 +553,33 @@ function CountryModal({
     sdk_url: "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
     direct_api_url: "https://apidist.gutouch.net/apidist/sec/touchpayapi",
   });
-  const [showCreds, setShowCreds] = useState(!isEdit);
+  const [showCreds, setShowCreds] = useState(true);
+  const [loadingCreds, setLoadingCreds] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Load existing credentials when editing
+  useEffect(() => {
+    if (isEdit && country?.code) {
+      setLoadingCreds(true);
+      countriesService.getCredentials(country.code)
+        .then((c) => {
+          setCreds({
+            agency_code: c.agency_code || "",
+            login: c.login || "",
+            password: c.password || "",
+            secret: c.secret || "",
+            merchant_id: c.merchant_id || "",
+            secure_code: c.secure_code || "",
+            merchant_website: c.merchant_website || "",
+            sdk_url: c.sdk_url || "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
+            direct_api_url: c.direct_api_url || "https://apidist.gutouch.net/apidist/sec/touchpayapi",
+          });
+        })
+        .catch(() => { /* credentials not available */ })
+        .finally(() => setLoadingCreds(false));
+    }
+  }, [isEdit, country?.code]);
 
   const set = (field: string, value: string | number | boolean) =>
     setForm((p) => ({ ...p, [field]: value }));
@@ -771,9 +795,9 @@ function CountryModal({
 
             {showCreds && (
               <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-                {isEdit && (
+                {loadingCreds && (
                   <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-                    <T fr="Laissez vide pour conserver les valeurs actuelles." en="Leave empty to keep current values." />
+                    <T fr="Chargement des credentials..." en="Loading credentials..." />
                   </p>
                 )}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -789,11 +813,11 @@ function CountryModal({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Password</label>
-                    <Input type="password" value={creds.password} onChange={(e) => setCred("password", e.target.value)} placeholder="••••••••" />
+                    <Input value={creds.password} onChange={(e) => setCred("password", e.target.value)} placeholder="Password" />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Secret</label>
-                    <Input type="password" value={creds.secret} onChange={(e) => setCred("secret", e.target.value)} placeholder="••••••••" />
+                    <Input value={creds.secret} onChange={(e) => setCred("secret", e.target.value)} placeholder="Secret" />
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -803,7 +827,7 @@ function CountryModal({
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Secure Code</label>
-                    <Input type="password" value={creds.secure_code} onChange={(e) => setCred("secure_code", e.target.value)} placeholder="••••••••" />
+                    <Input value={creds.secure_code} onChange={(e) => setCred("secure_code", e.target.value)} placeholder="Secure code" />
                   </div>
                 </div>
                 <div>
