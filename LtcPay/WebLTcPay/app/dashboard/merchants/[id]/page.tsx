@@ -25,6 +25,7 @@ import { formatCurrency } from "@/lib/utils";
 /* ── helpers ───────────────────────────────────────────────── */
 
 type Tab = "payments" | "withdrawals";
+type AdminAction = null | "take-rate" | "payout" | "kyc" | "regen-keys" | "suspend";
 
 function paymentStatusTone(s: string): "success" | "warn" | "fail" | "neutral" {
   const upper = s.toUpperCase();
@@ -66,6 +67,10 @@ export default function MerchantDetailPage() {
   const [error, setError] = useState("");
   const [allCountries, setAllCountries] = useState<Country[]>([]);
   const [merchantCountries, setMerchantCountries] = useState<MerchantCountryInfo[]>([]);
+  const [adminAction, setAdminAction] = useState<AdminAction>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [newFeeRate, setNewFeeRate] = useState("");
+  const [regenResult, setRegenResult] = useState<{ api_key_live?: string; api_secret?: string; webhook_secret?: string } | null>(null);
 
   const loadMerchantCountries = () => {
     if (!merchantId) return;
@@ -128,6 +133,34 @@ export default function MerchantDetailPage() {
     );
   }
 
+  const handleUpdateFeeRate = async () => {
+    const rate = parseFloat(newFeeRate);
+    if (isNaN(rate) || rate < 1.75 || rate > 20) return;
+    setActionLoading(true);
+    try {
+      const updated = await merchantsService.update(merchantId, { fee_rate: rate });
+      setMerchant(updated);
+      setAdminAction(null);
+    } catch { /* ignore */ } finally { setActionLoading(false); }
+  };
+
+  const handleRegenKeys = async () => {
+    setActionLoading(true);
+    try {
+      const creds = await merchantsService.regenerateApiSecret(merchantId);
+      setRegenResult({ api_key_live: creds.api_key_live, api_secret: creds.api_secret, webhook_secret: creds.webhook_secret });
+    } catch { /* ignore */ } finally { setActionLoading(false); }
+  };
+
+  const handleToggleSuspend = async () => {
+    setActionLoading(true);
+    try {
+      const updated = await merchantsService.update(merchantId, { is_active: !merchant.is_active });
+      setMerchant(updated);
+      setAdminAction(null);
+    } catch { /* ignore */ } finally { setActionLoading(false); }
+  };
+
   const feeRate = merchant.fee_rate ?? 1.75;
   const gmv30 = balance?.total_earned ?? 5240000;
   const txCount = balance?.total_payments ?? 1247;
@@ -148,7 +181,7 @@ export default function MerchantDetailPage() {
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="external" size={13} /> <T fr="Voir comme marchand" en="View as merchant" /></button>
         <button className="btn btn-ghost btn-sm"><Icon name="message" size={13} /> <T fr="Contacter" en="Contact" /></button>
-        <button className="btn btn-ghost btn-sm" style={{ color: "var(--rose)", borderColor: "var(--rose)" }}><T fr="Suspendre" en="Suspend" /></button>
+        <button className="btn btn-ghost btn-sm" style={{ color: merchant.is_active ? "var(--rose)" : "var(--success)", borderColor: merchant.is_active ? "var(--rose)" : "var(--success)" }} onClick={() => setAdminAction("suspend")}><T fr={merchant.is_active ? "Suspendre" : "Reactiver"} en={merchant.is_active ? "Suspend" : "Reactivate"} /></button>
       </>}
     >
       {/* KPI cards */}
@@ -286,11 +319,11 @@ export default function MerchantDetailPage() {
           <div className="nk-card">
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Actions admin" en="Admin actions" /></h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start", color: "var(--rose)", borderColor: "var(--rose-soft)" }}><Icon name="pause" size={13} color="var(--rose)" /> <T fr="Suspendre compte" en="Suspend account" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setNewFeeRate(String(feeRate)); setAdminAction("take-rate"); }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("payout")}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("kyc")}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setRegenResult(null); setAdminAction("regen-keys"); }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start", color: "var(--rose)", borderColor: "var(--rose-soft)" }} onClick={() => setAdminAction("suspend")}><Icon name="pause" size={13} color="var(--rose)" /> <T fr={merchant.is_active ? "Suspendre compte" : "Reactiver compte"} en={merchant.is_active ? "Suspend account" : "Reactivate account"} /></button>
             </div>
           </div>
         </div>
@@ -335,6 +368,104 @@ export default function MerchantDetailPage() {
           statusFilter={withdrawalsStatus}
           onStatusFilter={(s) => { setWithdrawalsStatus(s); setWithdrawalsPage(1); }}
         />
+      )}
+      {/* Admin action modals */}
+      {adminAction && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "grid", placeItems: "center" }} onClick={() => { if (!actionLoading) { setAdminAction(null); setRegenResult(null); } }}>
+          <div className="nk-card" style={{ width: 420, maxWidth: "90vw", padding: 24 }} onClick={(e) => e.stopPropagation()}>
+
+            {adminAction === "take-rate" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Modifier le take rate" en="Edit take rate" /></h3>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}><T fr="Take rate (%)" en="Take rate (%)" /></label>
+              <input
+                type="number" step="0.25" min="1.75" max="20" value={newFeeRate}
+                onChange={(e) => setNewFeeRate(e.target.value)}
+                className="input" style={{ width: "100%", marginBottom: 6 }}
+              />
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 16px" }}><T fr="Min: 1.75% — Max: 20%" en="Min: 1.75% — Max: 20%" /></p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost" onClick={() => setAdminAction(null)} disabled={actionLoading}><T fr="Annuler" en="Cancel" /></button>
+                <button className="btn btn-primary" onClick={handleUpdateFeeRate} disabled={actionLoading}>
+                  {actionLoading ? "..." : <T fr="Enregistrer" en="Save" />}
+                </button>
+              </div>
+            </>)}
+
+            {adminAction === "payout" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Compte de reglement" en="Payout account" /></h3>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 16px" }}>
+                <T fr="Cette fonctionnalite sera disponible prochainement. Les reglements sont actuellement geres manuellement." en="This feature will be available soon. Payouts are currently handled manually." />
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost" onClick={() => setAdminAction(null)}><T fr="Fermer" en="Close" /></button>
+              </div>
+            </>)}
+
+            {adminAction === "kyc" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Forcer re-KYC" en="Force re-KYC" /></h3>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 16px" }}>
+                <T fr="Cette fonctionnalite sera disponible prochainement. Le KYC est actuellement gere manuellement." en="This feature will be available soon. KYC is currently handled manually." />
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost" onClick={() => setAdminAction(null)}><T fr="Fermer" en="Close" /></button>
+              </div>
+            </>)}
+
+            {adminAction === "regen-keys" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Regenerer les cles" en="Regenerate keys" /></h3>
+              {!regenResult ? (<>
+                <p style={{ fontSize: 13, color: "var(--rose)", margin: "0 0 16px" }}>
+                  <T fr="Attention : cette action va generer un nouveau secret API. L'ancien secret sera invalide immediatement." en="Warning: this will generate a new API secret. The old secret will be invalidated immediately." />
+                </p>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button className="btn btn-ghost" onClick={() => setAdminAction(null)} disabled={actionLoading}><T fr="Annuler" en="Cancel" /></button>
+                  <button className="btn btn-primary" style={{ background: "var(--rose)" }} onClick={handleRegenKeys} disabled={actionLoading}>
+                    {actionLoading ? "..." : <T fr="Regenerer" en="Regenerate" />}
+                  </button>
+                </div>
+              </>) : (<>
+                <p style={{ fontSize: 13, color: "var(--success)", margin: "0 0 12px" }}>
+                  <T fr="Nouvelles cles generees avec succes. Copiez-les maintenant, elles ne seront plus affichees." en="New keys generated. Copy them now — they won't be shown again." />
+                </p>
+                <div style={{ background: "var(--bg-2)", borderRadius: 8, padding: 12, fontSize: 12, fontFamily: "var(--mono)", display: "flex", flexDirection: "column", gap: 8, marginBottom: 16, wordBreak: "break-all" }}>
+                  <div><span style={{ color: "var(--muted)" }}>API Key:</span> {regenResult.api_key_live}</div>
+                  <div><span style={{ color: "var(--muted)" }}>API Secret:</span> {regenResult.api_secret}</div>
+                  <div><span style={{ color: "var(--muted)" }}>Webhook Secret:</span> {regenResult.webhook_secret}</div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button className="btn btn-primary" onClick={() => { setAdminAction(null); setRegenResult(null); }}><T fr="Fermer" en="Close" /></button>
+                </div>
+              </>)}
+            </>)}
+
+            {adminAction === "suspend" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}>
+                {merchant.is_active
+                  ? <T fr="Suspendre ce marchand ?" en="Suspend this merchant?" />
+                  : <T fr="Reactiver ce marchand ?" en="Reactivate this merchant?" />
+                }
+              </h3>
+              <p style={{ fontSize: 13, color: merchant.is_active ? "var(--rose)" : "var(--muted)", margin: "0 0 16px" }}>
+                {merchant.is_active
+                  ? <T fr="Le marchand ne pourra plus accepter de paiements tant que son compte sera suspendu." en="The merchant will not be able to accept payments while suspended." />
+                  : <T fr="Le marchand pourra a nouveau accepter des paiements." en="The merchant will be able to accept payments again." />
+                }
+              </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost" onClick={() => setAdminAction(null)} disabled={actionLoading}><T fr="Annuler" en="Cancel" /></button>
+                <button
+                  className="btn btn-primary"
+                  style={merchant.is_active ? { background: "var(--rose)" } : {}}
+                  onClick={handleToggleSuspend}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "..." : merchant.is_active ? <T fr="Suspendre" en="Suspend" /> : <T fr="Reactiver" en="Reactivate" />}
+                </button>
+              </div>
+            </>)}
+
+          </div>
+        </div>
       )}
     </PageWrapper>
   );
