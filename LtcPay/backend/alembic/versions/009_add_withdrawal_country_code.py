@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers
-revision = "009_withdrawal_country"
-down_revision = "008_multi_country"
+revision = "009"
+down_revision = "008"
 branch_labels = None
 depends_on = None
 
