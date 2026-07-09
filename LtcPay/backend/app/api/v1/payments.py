@@ -365,6 +365,8 @@ async def create_payment(
         reference=payment.reference,
         payment_token=payment.payment_token,
         amount=payment.amount,
+        fee=payment.fee,
+        fee_bearer=merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
         currency=payment.currency,
         status=payment.status,
         payment_mode=payment.payment_mode,
@@ -400,7 +402,9 @@ async def get_payment(
             detail="Payment not found",
         )
 
-    return PaymentResponse.model_validate(payment)
+    resp = PaymentResponse.model_validate(payment)
+    resp.fee_bearer = merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer)
+    return resp
 
 
 @router.get("", response_model=PaymentListResponse)

@@ -105,6 +105,11 @@ export const merchantDashboardService = {
     return response.data;
   },
 
+  async updatePayouts(data: { payout_schedule?: string; fee_bearer?: string }) {
+    const response = await api.patch("/merchant-dashboard/settings/payouts", data);
+    return response.data;
+  },
+
   // ── Billing ──────────────────────────────────────
   async getBillingInvoices(params?: { page?: number }) {
     const response = await api.get("/merchant-dashboard/billing/invoices", { params });

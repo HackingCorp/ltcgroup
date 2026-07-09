@@ -82,6 +82,8 @@ class PaymentInitiateResponse(BaseModel):
     reference: str
     payment_token: str
     amount: Decimal
+    fee: Decimal = Decimal("0")
+    fee_bearer: str = "MERCHANT"
     currency: str
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
@@ -101,6 +103,7 @@ class PaymentResponse(BaseModel):
     provider_transaction_id: Optional[str] = None
     amount: Decimal
     fee: Decimal = Decimal("0")
+    fee_bearer: str = "MERCHANT"
     currency: str
     method: Optional[PaymentMethod] = None
     status: PaymentStatus

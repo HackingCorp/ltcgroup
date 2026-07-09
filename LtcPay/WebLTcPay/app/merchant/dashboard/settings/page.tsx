@@ -31,6 +31,8 @@ export default function MerchantSettingsPage() {
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [emailConfirm, setEmailConfirm] = useState(false);
   const [payoutSchedule, setPayoutSchedule] = useState("daily");
+  const [feeBearer, setFeeBearer] = useState("MERCHANT");
+  const [savingPayouts, setSavingPayouts] = useState(false);
   const [selectedColor, setSelectedColor] = useState("#2D24E5");
 
   useEffect(() => {
@@ -47,9 +49,12 @@ export default function MerchantSettingsPage() {
           setEmailConfirm(res.security.email_confirm_withdrawals ?? false);
         }
 
-        // Initialize payout schedule
+        // Initialize payout settings
         if (res.payouts?.payout_schedule) {
           setPayoutSchedule(res.payouts.payout_schedule);
+        }
+        if (res.payouts?.fee_bearer) {
+          setFeeBearer(res.payouts.fee_bearer);
         }
 
         // Initialize branding color
@@ -207,6 +212,61 @@ export default function MerchantSettingsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Fee bearer selector */}
+              <div style={{ marginTop: 32 }}>
+                <h4 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 16, margin: "0 0 4px" }}>
+                  <T fr="Porteur des frais" en="Fee bearer" />
+                </h4>
+                <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 12px" }}>
+                  <T
+                    fr={`Taux actuel : ${settings?.payouts?.fee_rate ?? 1.75}%. Choisissez qui supporte les frais de transaction.`}
+                    en={`Current rate: ${settings?.payouts?.fee_rate ?? 1.75}%. Choose who bears the transaction fees.`}
+                  />
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { v: "MERCHANT", labelFr: "Marchand", labelEn: "Merchant", subFr: "Les frais sont deduits de votre solde. Le client paie le montant exact.", subEn: "Fees are deducted from your balance. Customer pays the exact amount." },
+                    { v: "CLIENT", labelFr: "Client", labelEn: "Customer", subFr: "Les frais sont ajoutes au montant paye par le client. Vous recevez le montant integral.", subEn: "Fees are added to the amount paid by the customer. You receive the full amount." },
+                  ].map(o => (
+                    <div
+                      key={o.v}
+                      onClick={() => setFeeBearer(o.v)}
+                      style={{
+                        padding: 14,
+                        border: "1px solid " + (feeBearer === o.v ? "var(--ink)" : "var(--line)"),
+                        borderRadius: 10,
+                        background: feeBearer === o.v ? "var(--bg-2)" : "transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: 14 }}>
+                        <T fr={o.labelFr} en={o.labelEn} />
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                        <T fr={o.subFr} en={o.subEn} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save button */}
+              <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  className="btn btn-primary"
+                  disabled={savingPayouts}
+                  onClick={async () => {
+                    setSavingPayouts(true);
+                    try {
+                      const res = await merchantDashboardService.updatePayouts({ payout_schedule: payoutSchedule, fee_bearer: feeBearer });
+                      setSettings((prev: any) => ({ ...prev, payouts: res.payouts ?? prev?.payouts }));
+                    } catch { /* ignore */ } finally { setSavingPayouts(false); }
+                  }}
+                >
+                  {savingPayouts ? "..." : <T fr="Enregistrer" en="Save" />}
+                </button>
               </div>
             </div>
           )}

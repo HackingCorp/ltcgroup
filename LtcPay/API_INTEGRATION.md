@@ -61,6 +61,7 @@ Body:
   "reference": "PAY-ABC123",
   "amount": "5000.00",
   "fee": "87.50",
+  "fee_bearer": "MERCHANT",
   "currency": "XAF",
   "country": "CM",
   "status": "PENDING",
@@ -218,6 +219,7 @@ Body:
   "reference": "PAY-ABC123",
   "amount": "5000.00",
   "fee": "87.50",
+  "fee_bearer": "MERCHANT",
   "currency": "XAF",
   "country": "CM",
   "status": "PROCESSING",  // ← Immédiatement en cours
@@ -267,6 +269,7 @@ Headers:
   "status": "PROCESSING",  // ou COMPLETED, FAILED
   "amount": "5000.00",
   "fee": "87.50",
+  "fee_bearer": "MERCHANT",
   "currency": "XAF",
   "country": "CM",
   "payment_mode": "DIRECT_API",
@@ -453,7 +456,7 @@ Headers:
 
 ## Système de frais
 
-Chaque marchand dispose d'une **configuration de frais** définie par l'administrateur LtcPay. Le taux est propre à chaque marchand et n'a pas besoin d'être précisé dans les requêtes API — il est appliqué automatiquement.
+Chaque marchand dispose d'une **configuration de frais** modifiable par le marchand (dans Paramètres → Réglements) ou par l'administrateur LtcPay. Le taux est propre à chaque marchand et n'a pas besoin d'être précisé dans les requêtes API — il est appliqué automatiquement.
 
 ### Imputation des frais (`fee_bearer`)
 
@@ -472,16 +475,17 @@ Montant demandé : 10 000 XAF → Le client paie 10 000 XAF, le marchand reçoit
 Montant demandé : 10 000 XAF → Le client paie 10 000 + frais, le marchand reçoit 10 000 XAF
 ```
 
-Le champ `fee` est retourné dans toutes les réponses de paiement pour indiquer le montant des frais calculés.
+Les champs `fee` et `fee_bearer` sont retournés dans toutes les réponses de paiement pour indiquer le montant des frais calculés et qui les supporte.
 
 ---
 
 ## Configuration Merchant
 
-Dans le dashboard admin, chaque merchant a :
+Dans le dashboard (marchand ou admin), chaque merchant a :
 
 - **`default_payment_mode`** : Mode de paiement par défaut (SDK ou DIRECT_API)
-- **`fee_bearer`** : Imputation des frais (`MERCHANT` ou `CLIENT`)
+- **`fee_rate`** : Taux de commission (défaut : 1.75%, min : 1.75%, max : 20%)
+- **`fee_bearer`** : Imputation des frais (`MERCHANT` ou `CLIENT`) — modifiable par le marchand dans Paramètres → Réglements
 
 ```
 SDK → Utilisé par défaut si payment_mode n'est pas fourni
@@ -519,6 +523,7 @@ Body:
     "merchant_reference": "ORDER-123",
     "amount": 5000.0,
     "fee": 87.5,
+    "fee_bearer": "MERCHANT",
     "currency": "XAF",
     "status": "COMPLETED",
     "payment_mode": "DIRECT_API",

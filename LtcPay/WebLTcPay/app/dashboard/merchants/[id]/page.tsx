@@ -70,6 +70,7 @@ export default function MerchantDetailPage() {
   const [adminAction, setAdminAction] = useState<AdminAction>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [newFeeRate, setNewFeeRate] = useState("");
+  const [newFeeBearer, setNewFeeBearer] = useState("MERCHANT");
   const [regenResult, setRegenResult] = useState<{ api_key_live?: string; api_secret?: string; webhook_secret?: string } | null>(null);
 
   const loadMerchantCountries = () => {
@@ -133,12 +134,15 @@ export default function MerchantDetailPage() {
     );
   }
 
-  const handleUpdateFeeRate = async () => {
+  const handleUpdateFeeConfig = async () => {
     const rate = parseFloat(newFeeRate);
     if (isNaN(rate) || rate < 1.75 || rate > 20) return;
     setActionLoading(true);
     try {
-      const updated = await merchantsService.update(merchantId, { fee_rate: rate });
+      const updated = await merchantsService.update(merchantId, {
+        fee_rate: rate,
+        fee_bearer: newFeeBearer as "MERCHANT" | "CLIENT",
+      });
       setMerchant(updated);
       setAdminAction(null);
     } catch { /* ignore */ } finally { setActionLoading(false); }
@@ -319,7 +323,7 @@ export default function MerchantDetailPage() {
           <div className="nk-card">
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Actions admin" en="Admin actions" /></h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setNewFeeRate(String(feeRate)); setAdminAction("take-rate"); }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setNewFeeRate(String(feeRate)); setNewFeeBearer(merchant.fee_bearer ?? "MERCHANT"); setAdminAction("take-rate"); }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("payout")}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("kyc")}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setRegenResult(null); setAdminAction("regen-keys"); }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
@@ -375,7 +379,7 @@ export default function MerchantDetailPage() {
           <div className="nk-card" style={{ width: 420, maxWidth: "90vw", padding: 24 }} onClick={(e) => e.stopPropagation()}>
 
             {adminAction === "take-rate" && (<>
-              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Modifier le take rate" en="Edit take rate" /></h3>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Frais de transaction" en="Transaction fees" /></h3>
               <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}><T fr="Take rate (%)" en="Take rate (%)" /></label>
               <input
                 type="number" step="0.25" min="1.75" max="20" value={newFeeRate}
@@ -383,9 +387,33 @@ export default function MerchantDetailPage() {
                 className="input" style={{ width: "100%", marginBottom: 6 }}
               />
               <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 16px" }}><T fr="Min: 1.75% — Max: 20%" en="Min: 1.75% — Max: 20%" /></p>
+
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 8 }}><T fr="Porteur des frais" en="Fee bearer" /></label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                {[
+                  { v: "MERCHANT", labelFr: "Marchand", labelEn: "Merchant", subFr: "Frais deduits du solde marchand", subEn: "Fees deducted from merchant balance" },
+                  { v: "CLIENT", labelFr: "Client", labelEn: "Customer", subFr: "Frais ajoutes au montant client", subEn: "Fees added to customer amount" },
+                ].map(o => (
+                  <div
+                    key={o.v}
+                    onClick={() => setNewFeeBearer(o.v)}
+                    style={{
+                      padding: 10,
+                      border: "1px solid " + (newFeeBearer === o.v ? "var(--ink)" : "var(--line)"),
+                      borderRadius: 8,
+                      background: newFeeBearer === o.v ? "var(--bg-2)" : "transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, fontSize: 13 }}><T fr={o.labelFr} en={o.labelEn} /></div>
+                    <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}><T fr={o.subFr} en={o.subEn} /></div>
+                  </div>
+                ))}
+              </div>
+
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button className="btn btn-ghost" onClick={() => setAdminAction(null)} disabled={actionLoading}><T fr="Annuler" en="Cancel" /></button>
-                <button className="btn btn-primary" onClick={handleUpdateFeeRate} disabled={actionLoading}>
+                <button className="btn btn-primary" onClick={handleUpdateFeeConfig} disabled={actionLoading}>
                   {actionLoading ? "..." : <T fr="Enregistrer" en="Save" />}
                 </button>
               </div>
