@@ -11,6 +11,39 @@ LtcPay supporte **deux modes d'intégration** pour s'adapter à vos besoins :
 
 ---
 
+## Informations du compte marchand
+
+Récupérez votre configuration (taux de frais, porteur des frais, mode de paiement par défaut) sans initier de paiement :
+
+```bash
+GET https://api.ltcgroup.site/api/v1/payments/me
+Headers:
+  X-API-Key: ltcpay_live_xxx
+  X-API-Secret: your_secret
+```
+
+### Réponse
+
+```json
+{
+  "merchant_id": "uuid",
+  "name": "Ma Boutique",
+  "email": "contact@maboutique.cm",
+  "fee_rate": 1.75,
+  "fee_bearer": "MERCHANT",
+  "default_payment_mode": "SDK",
+  "is_active": true
+}
+```
+
+| Champ | Description |
+|-------|-------------|
+| `fee_rate` | Taux de commission en pourcentage (ex: 1.75%) |
+| `fee_bearer` | Qui supporte les frais : `MERCHANT` (déduits du solde marchand) ou `CLIENT` (ajoutés au montant client) |
+| `default_payment_mode` | Mode de paiement par défaut : `SDK` ou `DIRECT_API` |
+
+---
+
 ## 🌐 Mode SDK (Web Integration)
 
 **Idéal pour :** Sites web, boutiques en ligne, applications web

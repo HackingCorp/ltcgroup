@@ -94,6 +94,22 @@ async def list_available_countries(
     return result
 
 
+@router.get("/me")
+async def get_merchant_info(
+    merchant: Merchant = Depends(get_current_merchant),
+):
+    """Return the authenticated merchant's public configuration (fee rate, fee bearer, etc.)."""
+    return {
+        "merchant_id": str(merchant.id),
+        "name": merchant.name,
+        "email": merchant.email,
+        "fee_rate": float(merchant.fee_rate),
+        "fee_bearer": merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
+        "default_payment_mode": merchant.default_payment_mode.value if hasattr(merchant.default_payment_mode, "value") else str(merchant.default_payment_mode),
+        "is_active": merchant.is_active,
+    }
+
+
 @router.post("", response_model=PaymentInitiateResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("60/minute")
 async def create_payment(

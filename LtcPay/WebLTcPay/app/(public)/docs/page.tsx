@@ -8,6 +8,7 @@ import { T } from "@/lib/i18n";
 const SECTIONS = [
   { id: "intro", label: "Introduction", cat: "Getting started" },
   { id: "auth", label: "Authentication", cat: "Getting started" },
+  { id: "merchant-info", label: "Merchant info", cat: "Account" },
   { id: "create", label: "Create payment", cat: "Payments" },
   { id: "get", label: "Get payment", cat: "Payments" },
   { id: "list", label: "List payments", cat: "Payments" },
@@ -172,6 +173,60 @@ function AuthSection() {
           en="The API is rate-limited to 60 requests per minute per IP address. Responses include X-RateLimit-Limit and X-RateLimit-Remaining headers."
         />
       </p>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  Section: Merchant Info                          */
+/* ═══════════════════════════════════════════════ */
+function MerchantInfoSection() {
+  return (
+    <>
+      <SectionTitle
+        cat="Account"
+        title="Merchant info"
+        desc={
+          <T
+            fr="Récupère la configuration de votre compte marchand : taux de frais, porteur des frais, mode de paiement par défaut."
+            en="Retrieve your merchant account configuration: fee rate, fee bearer, default payment mode."
+          />
+        }
+      />
+      <EndpointBar method="GET" path="/api/v1/payments/me" color="#2563eb" />
+      <H2><T fr="Exemple" en="Example" /></H2>
+      <CodeBlock lang="curl">{`curl ${BASE_URL}/api/v1/payments/me \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..."`}</CodeBlock>
+
+      <H2><T fr="Champs de la réponse" en="Response fields" /></H2>
+      <FieldTable fields={[
+        { name: "merchant_id", type: "uuid", desc: "Identifiant unique du marchand." },
+        { name: "name", type: "string", desc: "Nom du marchand." },
+        { name: "email", type: "string", desc: "Email du marchand." },
+        { name: "fee_rate", type: "number", desc: "Taux de frais en pourcentage (ex: 1.75)." },
+        { name: "fee_bearer", type: "string", desc: "Qui supporte les frais : MERCHANT ou CLIENT." },
+        { name: "default_payment_mode", type: "string", desc: "Mode de paiement par défaut : SDK ou DIRECT_API." },
+        { name: "is_active", type: "boolean", desc: "Indique si le compte est actif." },
+      ]} />
+
+      <H2><T fr="Exemple de réponse" en="Response example" /></H2>
+      <CodeBlock lang="json">{`{
+  "merchant_id": "28f281fd-5354-46fa-9c46-1be82e600368",
+  "name": "Ma Boutique",
+  "email": "contact@maboutique.cm",
+  "fee_rate": 1.75,
+  "fee_bearer": "MERCHANT",
+  "default_payment_mode": "SDK",
+  "is_active": true
+}`}</CodeBlock>
+
+      <InfoBox>
+        <T
+          fr="Cet endpoint vous permet de vérifier votre configuration de frais à tout moment, sans initier de paiement."
+          en="This endpoint lets you check your fee configuration at any time, without initiating a payment."
+        />
+      </InfoBox>
     </>
   );
 }
@@ -859,6 +914,7 @@ function ErrorsSection() {
 const SECTION_MAP: Record<string, () => React.ReactElement> = {
   intro: IntroSection,
   auth: AuthSection,
+  "merchant-info": MerchantInfoSection,
   create: CreatePaymentSection,
   get: GetPaymentSection,
   list: ListPaymentsSection,
