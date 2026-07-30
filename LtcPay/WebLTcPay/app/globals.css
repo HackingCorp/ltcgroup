@@ -365,6 +365,7 @@
     content: ""; position: absolute; right: -60px; top: -60px;
     width: 220px; height: 220px; border-radius: 50%;
     background: radial-gradient(circle, rgba(201, 255, 61, 0.18), transparent 65%);
+    pointer-events: none;
   }
   .kpi-card.accent { background: var(--accent); border: 0; }
 
