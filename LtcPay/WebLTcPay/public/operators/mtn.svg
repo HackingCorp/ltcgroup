@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="24" fill="#FFCC00"/>
+  <ellipse cx="24" cy="24" rx="18" ry="11.5" fill="none" stroke="#004F9F" stroke-width="2.4"/>
+  <text x="24" y="27.8" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="10.5" fill="#004F9F">MTN</text>
+</svg>

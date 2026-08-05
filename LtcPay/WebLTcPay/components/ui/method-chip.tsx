@@ -12,16 +12,31 @@ interface MethodChipProps {
   label?: string;
 }
 
+const OPERATOR_LOGOS: Record<string, string> = {
+  orange: "/operators/orange.svg",
+  mtn: "/operators/mtn.svg",
+  wave: "/operators/wave.svg",
+  moov: "/operators/moov.svg",
+  airtel: "/operators/airtel.svg",
+  card: "/operators/card.svg",
+};
+
 export function MethodChip({ kind, label }: MethodChipProps) {
   const cfg = METHOD_CONFIG[kind] || { bg: "var(--ink)", init: "??", name: kind };
+  const logo = OPERATOR_LOGOS[kind];
   return (
     <span className="method-chip">
-      <span
-        className="swatch"
-        style={{ background: cfg.bg, color: cfg.fg || "white" }}
-      >
-        {cfg.init}
-      </span>
+      {logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="swatch" src={logo} alt={cfg.name} />
+      ) : (
+        <span
+          className="swatch"
+          style={{ background: cfg.bg, color: cfg.fg || "white" }}
+        >
+          {cfg.init}
+        </span>
+      )}
       {label || cfg.name}
     </span>
   );

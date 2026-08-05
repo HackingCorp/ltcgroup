@@ -265,7 +265,13 @@ export default function MerchantDetailPage() {
           <div className="nk-card" style={{ marginBottom: 12 }}>
             <div className="card-head">
               <h3><T fr="Activite recente" en="Recent activity" /></h3>
-              <button className="btn btn-link"><T fr="Voir tout" en="View all" /> {"→"}</button>
+              <button
+                className="btn btn-link"
+                onClick={() => {
+                  setTab("payments");
+                  document.getElementById("merchant-activity-tables")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              ><T fr="Voir tout" en="View all" /> {"→"}</button>
             </div>
             <div className="tbl">
               {(payments?.items ?? []).slice(0, 5).map((tx) => (
@@ -334,7 +340,7 @@ export default function MerchantDetailPage() {
       </div>
 
       {/* Tab switches */}
-      <div style={{ display: "flex", gap: 4, background: "var(--bg-2)", borderRadius: 8, padding: 4, marginBottom: 16 }}>
+      <div id="merchant-activity-tables" style={{ display: "flex", gap: 4, background: "var(--bg-2)", borderRadius: 8, padding: 4, marginBottom: 16 }}>
         <button
           onClick={() => setTab("payments")}
           className={tab === "payments" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
