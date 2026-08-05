@@ -10,6 +10,11 @@ import type { NextRequest } from "next/server";
  */
 export function middleware(request: NextRequest) {
   if (request.method === "POST") {
+    // This app has no Server Actions, so any POST carrying a Next-Action
+    // header is a bot probe ("Failed to find Server Action" log flood)
+    if (request.headers.get("next-action") !== null) {
+      return new NextResponse("Bad Request", { status: 400 });
+    }
     const ct = request.headers.get("content-type") || "";
     // If it's a multipart form POST but has no or tiny content-length, reject it
     if (ct.includes("multipart/form-data")) {
