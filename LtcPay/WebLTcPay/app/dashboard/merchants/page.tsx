@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
@@ -28,15 +28,24 @@ export default function MerchantsPage() {
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const loadMerchants = () => {
     setIsLoading(true);
-    merchantsService
-      .list()
-      .then((data) => {
-        setMerchants(data.merchants);
-        setTotalCount(data.total_count);
-      })
+    // The API caps page_size at 100, so walk every page to hold the full list
+    // in memory — search, filters and counts all run client-side over it.
+    (async () => {
+      const PAGE_SIZE = 100;
+      const first = await merchantsService.list(1, PAGE_SIZE);
+      const all = [...first.merchants];
+      const pages = Math.ceil(first.total_count / PAGE_SIZE);
+      for (let p = 2; p <= pages; p++) {
+        const next = await merchantsService.list(p, PAGE_SIZE);
+        all.push(...next.merchants);
+      }
+      setMerchants(all);
+      setTotalCount(first.total_count);
+    })()
       .catch(() => setError("Failed to load merchants"))
       .finally(() => setIsLoading(false));
   };
@@ -58,8 +67,35 @@ export default function MerchantsPage() {
   const activeCount = merchants.filter((m) => m.is_active).length;
   const suspendedCount = merchants.filter((m) => !m.is_active).length;
 
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return merchants.filter((m) => {
+      if (filter === "live" && !m.is_active) return false;
+      if (filter === "suspended" && m.is_active) return false;
+      if (!q) return true;
+      return [m.name, m.email, m.id, m.phone, m.website]
+        .some((field) => field?.toLowerCase().includes(q));
+    });
+  }, [merchants, filter, search]);
+
+  const exportCsv = () => {
+    const header = ["id", "name", "email", "phone", "website", "fee_rate", "status", "created_at"];
+    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = visible.map((m) => [
+      m.id, m.name, m.email, m.phone, m.website, m.fee_rate,
+      m.is_active ? "live" : "suspended", m.created_at,
+    ].map(escape).join(","));
+    const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `marchands-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const FILTERS = [
-    { id: "all", label: <T fr="Tous" en="All" />, count: totalCount },
+    { id: "all", label: <T fr="Tous" en="All" />, count: merchants.length },
     { id: "live", label: "Live", count: activeCount },
     { id: "suspended", label: <T fr="Suspendus" en="Suspended" />, count: suspendedCount, tone: "fail" as const },
   ];
@@ -70,8 +106,9 @@ export default function MerchantsPage() {
       title={<T fr="Marchands" en="Merchants" />}
       sub={<T fr={`${activeCount} actifs · ${suspendedCount} suspendus`} en={`${activeCount} active · ${suspendedCount} suspended`} />}
       actions={<>
-        <button className="btn btn-ghost btn-sm"><Icon name="filter" size={13} /> <T fr="Filtres" en="Filters" /></button>
-        <button className="btn btn-ghost btn-sm"><Icon name="download" size={13} /> CSV</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={visible.length === 0}>
+          <Icon name="download" size={13} /> CSV
+        </button>
         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
           <Icon name="plus" size={13} color="white" /> <T fr="Onboard marchand" en="Onboard merchant" />
         </button>
@@ -94,7 +131,13 @@ export default function MerchantsPage() {
       <div className="nk-card" style={{ padding: 14, marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 240, display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-2)", borderRadius: 6 }}>
           <Icon name="search" size={14} color="var(--muted)" />
-          <input className="nk-input" style={{ border: 0, padding: 0, background: "transparent", outline: "none", width: "100%", fontSize: 13 }} placeholder="nom, ID, RCCM, email..." />
+          <input
+            className="nk-input"
+            style={{ border: 0, padding: 0, background: "transparent", outline: "none", width: "100%", fontSize: 13 }}
+            placeholder="nom, ID, RCCM, email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         {FILTERS.map(f => (
           <button
@@ -135,8 +178,8 @@ export default function MerchantsPage() {
                 <span><T fr="Statut" en="Status" /></span>
                 <span></span>
               </div>
-              {merchants.length > 0 ? (
-                merchants.map((m) => {
+              {visible.length > 0 ? (
+                visible.map((m) => {
                   const bal = balances[m.id];
                   return (
                     <Link href={`/dashboard/merchants/${m.id}`} key={m.id} style={{ textDecoration: "none", color: "inherit" }}>
@@ -152,7 +195,9 @@ export default function MerchantsPage() {
                         <div><Pill tone="neutral" plain>{"—"}</Pill> <span className="mono" style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>{m.fee_rate ?? 1.75}%</span></div>
                         <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{bal ? fmtCompact(bal.total_earned) + " F" : "—"}</div>
                         <div><Pill tone="success">low</Pill></div>
-                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>—</div>
+                        <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                          {m.created_at ? new Date(m.created_at).toLocaleDateString("fr-FR", { month: "short", year: "numeric" }) : "—"}
+                        </div>
                         <div>
                           <Pill tone={m.is_active ? "success" : "fail"}>{m.is_active ? "live" : "suspended"}</Pill>
                         </div>
@@ -163,12 +208,16 @@ export default function MerchantsPage() {
                 })
               ) : (
                 <div style={{ padding: 48, textAlign: "center", color: "var(--muted)", fontSize: 14, gridColumn: "1 / -1" }}>
-                  <T fr="Aucun marchand pour le moment" en="No merchants yet" />
+                  {search.trim() || filter !== "all" ? (
+                    <T fr="Aucun marchand ne correspond à votre recherche" en="No merchant matches your search" />
+                  ) : (
+                    <T fr="Aucun marchand pour le moment" en="No merchants yet" />
+                  )}
                 </div>
               )}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 18px", borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--muted)" }}>
-              <span><T fr={`Affichage 1-${merchants.length} sur ${totalCount} marchands`} en={`Showing 1-${merchants.length} of ${totalCount} merchants`} /></span>
+              <span><T fr={`${visible.length} sur ${totalCount} marchands`} en={`${visible.length} of ${totalCount} merchants`} /></span>
             </div>
           </>
         )}

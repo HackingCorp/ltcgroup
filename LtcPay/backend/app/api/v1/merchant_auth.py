@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from sqlalchemy import select
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import hash_api_secret, generate_api_secret
 from app.models.merchant import Merchant
 from app.api.v1.auth import create_access_token, LoginRequest
@@ -72,11 +73,17 @@ async def get_current_merchant_jwt(
 
 
 @router.post("/register")
+@limiter.limit("5/hour")
 async def register_merchant(
+    request: Request,
     data: MerchantRegisterWithPassword,
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new merchant with password for portal access."""
+    """
+    Register a new merchant with password for portal access.
+
+    Rate limit: 5 registrations per hour per IP, matching /merchants/register.
+    """
     # Check if email already exists
     result = await db.execute(select(Merchant).where(Merchant.email == data.email))
     if result.scalar_one_or_none():
@@ -120,11 +127,13 @@ async def register_merchant(
 
 
 @router.post("/login")
+@limiter.limit("10/minute")
 async def login_merchant(
+    request: Request,
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Login merchant to the portal."""
+    """Login merchant to the portal. Rate limit: 10 attempts per minute per IP."""
     result = await db.execute(select(Merchant).where(Merchant.email == data.email))
     merchant = result.scalar_one_or_none()
 
@@ -195,11 +204,17 @@ def _create_reset_token(merchant_id: str) -> str:
 
 
 @router.post("/forgot-password")
+@limiter.limit("5/hour")
 async def forgot_password(
+    request: Request,
     data: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Request a password reset link. The link is logged for admin to share."""
+    """
+    Request a password reset link. The link is logged for admin to share.
+
+    Rate limit: 5 requests per hour per IP.
+    """
     result = await db.execute(select(Merchant).where(Merchant.email == data.email))
     merchant = result.scalar_one_or_none()
 
