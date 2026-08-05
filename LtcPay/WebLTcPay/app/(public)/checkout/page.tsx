@@ -177,15 +177,6 @@ export default function CheckoutPage() {
         }
         .otp-stage h3 { font-family: var(--display); font-weight: 500; font-size: 26px; letter-spacing: -0.02em; margin: 0 0 8px; }
         .otp-stage p { color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 360px; margin: 0 0 20px; }
-        .otp-cells { display: flex; gap: 8px; margin-bottom: 16px; }
-        .otp-cell {
-          width: 42px; height: 54px; border: 1px solid var(--line); border-radius: 10px;
-          display: grid; place-items: center; font-family: var(--mono); font-size: 22px;
-          background: var(--surface, #fff);
-        }
-        .otp-cell.filled { border-color: var(--ink); }
-        .otp-cell.cursor::after { content: ""; display: block; width: 2px; height: 22px; background: var(--ink); animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
 
         .succ-stage { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20px 12px; flex: 1; justify-content: center; }
         .succ-mark {
@@ -350,13 +341,6 @@ export default function CheckoutPage() {
                 }}>#150*4#</span>{" "}
                 <T fr="et saisissez votre PIN." en="and enter your PIN." />
               </p>
-              <div className="otp-cells">
-                {[true, true, true, true, false].map((filled, i) => (
-                  <div key={i} className={"otp-cell " + (filled ? "filled" : "cursor")}>
-                    {filled ? "•" : ""}
-                  </div>
-                ))}
-              </div>
               <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
                 <T fr="Expire dans" en="Expires in" />{" "}
                 <strong style={{ color: "var(--ink)" }}>02:14</strong>
