@@ -42,6 +42,16 @@ function timeAgo(dateStr: string): string {
   return `il y a ${diffW} sem`;
 }
 
+/* Renders today's date only after mount — the page is prerendered at build
+   time, so rendering new Date() during SSR causes a hydration mismatch. */
+function TodayDate() {
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }));
+  }, []);
+  return <span>{today || "—"}</span>;
+}
+
 /* ── page ──────────────────────────────────────────────────── */
 
 export default function SecurityPage() {
@@ -131,7 +141,7 @@ export default function SecurityPage() {
           borderRadius: 4,
           border: "1px solid var(--line)",
         }}>
-          {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} &middot; 24h
+          <TodayDate /> &middot; 24h
         </span>
       </div>
 

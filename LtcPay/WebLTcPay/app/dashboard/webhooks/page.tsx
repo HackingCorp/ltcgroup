@@ -43,9 +43,11 @@ function timeAgo(dateStr: string): string {
 
 function WebhookChart() {
   const w = 700, h = 180, pad = 24;
+  // Deterministic pseudo-random so SSR and client render the same SVG (no hydration mismatch)
+  const noise = (i: number, salt: number) => Math.abs(Math.sin(i * 12.9898 + salt) * 43758.5453) % 1;
   const data = Array.from({ length: 48 }, (_, i) => ({
-    v: 800 + Math.sin(i * 0.4) * 200 + Math.random() * 300,
-    err: i > 30 && i < 33 ? 24 : Math.random() < 0.1 ? Math.random() * 8 : 0,
+    v: 800 + Math.sin(i * 0.4) * 200 + noise(i, 1) * 300,
+    err: i > 30 && i < 33 ? 24 : noise(i, 2) < 0.1 ? noise(i, 3) * 8 : 0,
   }));
   const max = Math.max(...data.map(d => d.v));
   const step = (w - pad * 2) / data.length;
