@@ -78,26 +78,36 @@ function WebhookChart() {
 
 /* ── page ──────────────────────────────────────────────────── */
 
+const FAILURE_CODE_LABELS: Record<string, { fr: string; en: string }> = {
+  "02": { fr: "Numero / wallet invalide", en: "Invalid phone / wallet" },
+  "19": { fr: "Operateur indisponible", en: "Operator unavailable" },
+  "27": { fr: "Non autorise (PIN / refus)", en: "Unauthorized (PIN / declined)" },
+  unknown: { fr: "Autre", en: "Other" },
+};
+
 export default function WebhooksPage() {
   const [stats, setStats] = useState<any>(null);
   const [methodBreakdown, setMethodBreakdown] = useState<any[]>([]);
   const [errors, setErrors] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [failures, setFailures] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, methodRes, errorsRes, logsRes] = await Promise.all([
+        const [statsRes, methodRes, errorsRes, logsRes, failuresRes] = await Promise.all([
           adminDashboardService.getWebhookStats(),
           adminDashboardService.getWebhookMethodBreakdown(),
           adminDashboardService.getWebhookErrors(),
           adminDashboardService.getWebhookLogs({ page: 1, page_size: 10 }),
+          adminDashboardService.getFailureBreakdown(7).catch(() => null),
         ]);
         setStats(statsRes);
         setMethodBreakdown(methodRes?.items || methodRes?.breakdown || []);
         setErrors(errorsRes?.items || errorsRes?.errors || []);
         setLogs(logsRes?.items || []);
+        setFailures(failuresRes);
       } catch (err) {
         console.error(err);
       } finally {
@@ -218,6 +228,51 @@ export default function WebhooksPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Payment failures by operator code */}
+      <div className="nk-card" style={{ marginBottom: 12 }}>
+        <div className="card-head" style={{ marginBottom: 8 }}>
+          <div>
+            <h3 style={{ fontWeight: 500, fontSize: 18, margin: 0 }}>
+              <T fr="Echecs paiements par code" en="Payment failures by code" />
+            </h3>
+            <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+              <T fr={`${failures?.total_failed ?? 0} echecs sur ${failures?.days ?? 7} jours — un pic de [19] signale une panne operateur`} en={`${failures?.total_failed ?? 0} failures over ${failures?.days ?? 7} days — a [19] spike means an operator outage`} />
+            </p>
+          </div>
+        </div>
+        {(failures?.items?.length ?? 0) > 0 ? failures.items.map((f: any, i: number) => {
+          const label = FAILURE_CODE_LABELS[f.code] || FAILURE_CODE_LABELS.unknown;
+          const maxFail = Math.max(...failures.items.map((x: any) => x.count || 0), 1);
+          return (
+            <div key={f.code} style={{ padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Pill tone={f.code === "19" ? "warn" : "neutral"} plain>[{f.code}]</Pill>
+                  <span style={{ fontWeight: 500, fontSize: 13 }}><T fr={label.fr} en={label.en} /></span>
+                  {f.sample_message && (
+                    <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{f.sample_message}</span>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, alignItems: "center" }}>
+                  {Object.entries(f.by_operator || {}).map(([op, n]) => (
+                    <span key={op} className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{op}: {String(n)}</span>
+                  ))}
+                  <span className="mono" style={{ fontWeight: 600 }}>{f.count}</span>
+                </div>
+              </div>
+              <div style={{ height: 4, background: "var(--bg-2)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: ((f.count || 0) / maxFail * 100) + "%", height: "100%", background: f.code === "19" ? "var(--warn)" : "var(--rose)" }} />
+              </div>
+            </div>
+          );
+        }) : (
+          <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            <Icon name="check" size={20} color="var(--success)" />
+            <p style={{ marginTop: 8 }}><T fr="Aucun echec sur la periode" en="No failures over the period" /></p>
+          </div>
+        )}
       </div>
 
       {/* Recent callbacks table */}

@@ -2,6 +2,7 @@
 LtcPay - Payment Gateway Application
 """
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -403,10 +404,28 @@ async def submit_payment(reference: str, request: Request):
     return {"status": "ok", "message": "Payment initiated, awaiting confirmation"}
 
 
+# Customer-facing messages for TouchPay/operator failure codes
+# (extracted from the "[NN] ..." message in the failure callback)
+TOUCHPAY_FAILURE_MESSAGES = {
+    "02": "Numero invalide ou wallet introuvable. Verifiez le numero saisi et reessayez.",
+    "19": "L'operateur est momentanement indisponible. Reessayez dans quelques minutes.",
+    "27": "Paiement non autorise : la demande a ete refusee ou a expire. Relancez le paiement et validez avec votre code PIN.",
+}
+TOUCHPAY_FAILURE_DEFAULT = "Le paiement a echoue. Veuillez reessayer."
+_FAILURE_CODE_RE = re.compile(r"^\s*\[(\w+)\]")
+
+
+def extract_failure_code(touchpay_data: dict | None) -> str | None:
+    """Extract the operator failure code from a stored callback message."""
+    raw = (touchpay_data or {}).get("message") or ""
+    m = _FAILURE_CODE_RE.match(str(raw))
+    return m.group(1) if m else None
+
+
 @app.get("/pay/{reference}/poll")
 async def poll_payment_status(reference: str):
     """Poll payment status (used by checkout page JS for Direct API payments)."""
-    from app.models.payment import Payment
+    from app.models.payment import Payment, PaymentStatus
 
     async with async_session() as db:
         result = await db.execute(
@@ -417,10 +436,15 @@ async def poll_payment_status(reference: str):
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    return {
+    response = {
         "status": payment.status.value,
         "reference": payment.reference,
     }
+    if payment.status == PaymentStatus.FAILED:
+        code = extract_failure_code(payment.touchpay_data)
+        response["failure_code"] = code
+        response["message"] = TOUCHPAY_FAILURE_MESSAGES.get(code, TOUCHPAY_FAILURE_DEFAULT)
+    return response
 
 
 # ---------------------------------------------------------------------------

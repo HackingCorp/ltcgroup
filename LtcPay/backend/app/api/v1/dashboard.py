@@ -169,3 +169,45 @@ async def list_payments_admin(
         "page": page,
         "per_page": per_page,
     }
+
+
+@router.get("/failures")
+async def get_failure_breakdown(
+    days: int = Query(7, ge=1, le=90),
+    _=Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate FAILED payments by operator failure code over the last N days.
+
+    The code is extracted from the "[NN] ..." message stored in touchpay_data
+    by the TouchPay callback handler. Lets admins spot an operator outage
+    (e.g. a spike of [19]) at a glance.
+    """
+    from app.main import extract_failure_code
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await db.execute(
+        select(Payment.touchpay_data, Payment.operator)
+        .where(Payment.status == PaymentStatus.FAILED, Payment.created_at >= since)
+    )
+    rows = result.all()
+
+    counts: dict = {}
+    for touchpay_data, operator in rows:
+        code = extract_failure_code(touchpay_data) or "unknown"
+        raw_message = (touchpay_data or {}).get("message") or None
+        entry = counts.setdefault(code, {
+            "code": code,
+            "count": 0,
+            "sample_message": raw_message,
+            "by_operator": {},
+        })
+        entry["count"] += 1
+        if entry["sample_message"] is None and raw_message:
+            entry["sample_message"] = raw_message
+        if operator:
+            op = operator.value if hasattr(operator, "value") else str(operator)
+            entry["by_operator"][op] = entry["by_operator"].get(op, 0) + 1
+
+    items = sorted(counts.values(), key=lambda e: -e["count"])
+    return {"days": days, "total_failed": len(rows), "items": items}

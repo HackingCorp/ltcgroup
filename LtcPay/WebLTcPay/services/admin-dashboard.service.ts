@@ -97,4 +97,9 @@ export const adminDashboardService = {
     const response = await api.get("/admin/webhooks/errors");
     return response.data;
   },
+
+  async getFailureBreakdown(days = 7) {
+    const response = await api.get("/dashboard/failures", { params: { days } });
+    return response.data;
+  },
 };
