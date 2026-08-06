@@ -26,6 +26,7 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.velocity import check_phone_velocity
 from app.services.country_service import country_service
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,9 @@ class TouchPayDirectService:
         normalized_phone = self._normalize_phone(
             phone_number, country.phone_prefix, country.phone_digits,
         )
+
+        # Anti-spam: cap initiation attempts per phone number
+        check_phone_velocity(normalized_phone)
 
         payload = {
             "idFromClient": payment_reference,

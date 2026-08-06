@@ -39,6 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.velocity import record_payment_failure
 from app.models.payment import Payment, PaymentStatus
 
 logger = logging.getLogger(__name__)
@@ -351,6 +352,9 @@ async def _process_callback(
         }
 
     await db.commit()
+
+    if new_status == PaymentStatus.FAILED:
+        record_payment_failure(payment.reference)
 
     logger.info(
         "TouchPay callback: Payment %s updated %s -> %s (token=%s, command=%s)",

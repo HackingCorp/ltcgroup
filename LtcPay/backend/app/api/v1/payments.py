@@ -32,6 +32,7 @@ from app.schemas.payment import (
     PaymentListResponse,
 )
 from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
+from app.core.velocity import PaymentVelocityError
 from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
@@ -364,6 +365,15 @@ async def create_payment(
             payment.status = PaymentStatus.PROCESSING
             await db.commit()
             await db.refresh(payment)
+        except PaymentVelocityError as exc:
+            logger.warning("Velocity limit on creation for %s: %s", reference, exc)
+            payment.status = PaymentStatus.FAILED
+            payment.direct_api_data = {"error": "velocity_limit", "detail": str(exc)}
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Trop de tentatives pour ce numero. Reessayez dans 30 minutes.",
+            )
         except TouchPayDirectError as exc:
             logger.error(
                 "Direct API initiation failed for %s: %s", reference, exc

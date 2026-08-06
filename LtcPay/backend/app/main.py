@@ -318,6 +318,7 @@ async def submit_payment(reference: str, request: Request):
     """
     from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+    from app.core.velocity import PaymentVelocityError
     from app.services.country_service import country_service
     from sqlalchemy import update as sa_update
 
@@ -376,6 +377,12 @@ async def submit_payment(reference: str, request: Request):
                 operator_code=operator_str,
                 country_code=country_code,
                 callback_url=callback_url,
+            )
+        except PaymentVelocityError as exc:
+            logger.warning("Velocity limit on submit for %s: %s", reference, exc)
+            raise HTTPException(
+                status_code=429,
+                detail="Trop de tentatives pour ce numero. Reessayez dans 30 minutes.",
             )
         except TouchPayDirectError as exc:
             logger.error("Direct API submit failed for %s: %s", reference, exc)
