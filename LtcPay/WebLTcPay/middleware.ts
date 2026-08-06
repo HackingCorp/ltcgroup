@@ -9,20 +9,11 @@ import type { NextRequest } from "next/server";
  * This middleware blocks those requests before they reach the page renderer.
  */
 export function middleware(request: NextRequest) {
+  // This app has no Server Actions and no forms that POST to page routes
+  // (all mutations go through the backend API), so any POST reaching a page
+  // is a bot probe — Next-Action header or $ACTION_ID_x multipart body.
   if (request.method === "POST") {
-    // This app has no Server Actions, so any POST carrying a Next-Action
-    // header is a bot probe ("Failed to find Server Action" log flood)
-    if (request.headers.get("next-action") !== null) {
-      return new NextResponse("Bad Request", { status: 400 });
-    }
-    const ct = request.headers.get("content-type") || "";
-    // If it's a multipart form POST but has no or tiny content-length, reject it
-    if (ct.includes("multipart/form-data")) {
-      const cl = parseInt(request.headers.get("content-length") || "0", 10);
-      if (cl < 10) {
-        return new NextResponse("Bad Request", { status: 400 });
-      }
-    }
+    return new NextResponse("Method Not Allowed", { status: 405 });
   }
   return NextResponse.next();
 }
