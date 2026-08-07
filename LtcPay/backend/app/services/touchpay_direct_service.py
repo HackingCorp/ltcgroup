@@ -156,20 +156,30 @@ class TouchPayDirectService:
                 response.status_code, payment_reference,
             )
 
-            if response.status_code >= 400:
+            # TouchPay signals rejections with HTTP 300 ("Mauvaise requete",
+            # bad phone format, ...) as well as 4xx/5xx — only 2xx is success.
+            if response.status_code >= 300:
                 error_text = response.text
                 logger.error(
                     "TouchPay Direct HTTP error: status=%s body=%s ref=%s",
                     response.status_code, error_text, payment_reference,
                 )
+                try:
+                    err_data = response.json()
+                except ValueError:
+                    err_data = None
+                msg = (err_data or {}).get("detailMessage") or (err_data or {}).get("message") \
+                    or f"HTTP {response.status_code}: {error_text}"
                 raise TouchPayDirectError(
-                    f"HTTP {response.status_code}: {error_text}",
+                    msg,
                     status_code=response.status_code,
+                    raw_response=err_data,
                 )
 
             data = response.json()
 
-            # Check business-level status in response body
+            # Check business-level status in response body (HTTP can be 200
+            # with an error status inside — same convention as the SDK API)
             tp_status = data.get("status")
             if tp_status is not None:
                 try:
@@ -177,8 +187,9 @@ class TouchPayDirectService:
                 except (ValueError, TypeError):
                     tp_status_int = None
 
-                if tp_status_int is not None and tp_status_int >= 400:
-                    msg = data.get("message", "TouchPay Direct business error")
+                if tp_status_int is not None and tp_status_int >= 300:
+                    msg = data.get("message") or data.get("detailMessage") \
+                        or "TouchPay Direct business error"
                     logger.warning(
                         "TouchPay Direct business error: status=%s message=%s ref=%s",
                         tp_status, msg, payment_reference,

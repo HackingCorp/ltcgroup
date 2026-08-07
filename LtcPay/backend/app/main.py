@@ -415,7 +415,10 @@ async def submit_payment(reference: str, request: Request):
 # (extracted from the "[NN] ..." message in the failure callback)
 TOUCHPAY_FAILURE_MESSAGES = {
     "02": "Numero invalide ou wallet introuvable. Verifiez le numero saisi et reessayez.",
+    "04": "Compte Mobile Money introuvable pour ce numero. Verifiez le numero saisi.",
+    "11": "Ce compte Mobile Money est desactive ou bloque. Contactez votre operateur.",
     "19": "L'operateur est momentanement indisponible. Reessayez dans quelques minutes.",
+    "21": "Transaction invalide. Veuillez relancer le paiement.",
     "27": "Paiement non autorise : la demande a ete refusee ou a expire. Relancez le paiement et validez avec votre code PIN.",
 }
 TOUCHPAY_FAILURE_DEFAULT = "Le paiement a echoue. Veuillez reessayer."
@@ -427,6 +430,25 @@ def extract_failure_code(touchpay_data: dict | None) -> str | None:
     raw = (touchpay_data or {}).get("message") or ""
     m = _FAILURE_CODE_RE.match(str(raw))
     return m.group(1) if m else None
+
+
+def resolve_failure_message(touchpay_data: dict | None) -> tuple[str | None, str]:
+    """Return (failure_code, customer-facing message) for a failed payment.
+
+    Falls back to keyword matching for operator messages without a [NN]
+    code (e.g. Orange Money: "Le solde du compte du payeur est insuffisant",
+    "Beneficiaire introuvable", MTN: "PAYEE_NOT_FOUND").
+    """
+    code = extract_failure_code(touchpay_data)
+    if code and code in TOUCHPAY_FAILURE_MESSAGES:
+        return code, TOUCHPAY_FAILURE_MESSAGES[code]
+
+    raw = str((touchpay_data or {}).get("message") or "").lower()
+    if "insuffisant" in raw:
+        return code, "Solde insuffisant sur le compte Mobile Money. Rechargez votre compte et reessayez."
+    if "introuvable" in raw or "payee_not_found" in raw or "not found" in raw:
+        return code, "Compte Mobile Money introuvable pour ce numero. Verifiez le numero saisi."
+    return code, TOUCHPAY_FAILURE_DEFAULT
 
 
 @app.get("/pay/{reference}/poll")
@@ -448,9 +470,9 @@ async def poll_payment_status(reference: str):
         "reference": payment.reference,
     }
     if payment.status == PaymentStatus.FAILED:
-        code = extract_failure_code(payment.touchpay_data)
+        code, message = resolve_failure_message(payment.touchpay_data)
         response["failure_code"] = code
-        response["message"] = TOUCHPAY_FAILURE_MESSAGES.get(code, TOUCHPAY_FAILURE_DEFAULT)
+        response["message"] = message
     return response
 
 
