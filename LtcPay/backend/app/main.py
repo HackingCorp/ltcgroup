@@ -317,8 +317,10 @@ async def submit_payment(reference: str, request: Request):
     - Direct API mode: if not already provided, customer can still submit here
     """
     from app.models.payment import Payment, PaymentStatus, PaymentMode
-    from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
-    from app.core.velocity import PaymentVelocityError
+    from app.services.touchpay_direct_service import (
+        touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
+    )
+    from app.core.velocity import PaymentVelocityError, record_payment_failure
     from app.services.country_service import country_service
     from sqlalchemy import update as sa_update
 
@@ -386,9 +388,10 @@ async def submit_payment(reference: str, request: Request):
             )
         except TouchPayDirectError as exc:
             logger.error("Direct API submit failed for %s: %s", reference, exc)
+            record_payment_failure(reference)
             raise HTTPException(
                 status_code=502,
-                detail=f"Payment initiation failed: {exc}",
+                detail=friendly_initiation_error(exc),
             )
 
         # Update payment with operator, phone, country and PROCESSING status

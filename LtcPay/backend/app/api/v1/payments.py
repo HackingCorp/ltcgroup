@@ -32,8 +32,10 @@ from app.schemas.payment import (
     PaymentListResponse,
 )
 from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
-from app.core.velocity import PaymentVelocityError
-from app.services.touchpay_direct_service import touchpay_direct_service, TouchPayDirectError
+from app.core.velocity import PaymentVelocityError, record_payment_failure
+from app.services.touchpay_direct_service import (
+    touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
+)
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
 
@@ -381,9 +383,10 @@ async def create_payment(
             payment.status = PaymentStatus.FAILED
             payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
             await db.commit()
+            record_payment_failure(reference)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Payment initiation failed: {exc}",
+                detail=friendly_initiation_error(exc),
             )
 
     return PaymentInitiateResponse(

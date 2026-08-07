@@ -41,6 +41,18 @@ class TouchPayDirectError(Exception):
         self.raw_response = raw_response or {}
 
 
+def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
+    """Customer-facing French message for a TouchPay initiation rejection."""
+    raw = str(exc).lower()
+    if "operation similaire" in raw:
+        return "Une operation similaire a deja ete envoyee. Patientez 5 minutes avant de reessayer."
+    if "tec-internal" in raw or "erreur interne" in raw:
+        return "L'operateur est momentanement indisponible. Reessayez dans quelques minutes."
+    if "numero de telephone" in raw or "indicatif" in raw:
+        return "Numero de telephone invalide. Saisissez 9 chiffres sans indicatif pays."
+    return f"Le paiement n'a pas pu etre initie : {exc}"
+
+
 class TouchPayDirectService:
     """Client for the TouchPay Direct API (server-to-server).
 
