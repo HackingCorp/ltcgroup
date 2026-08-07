@@ -570,6 +570,12 @@ function CountriesSection() {
       <H2><T fr="Exemple" en="Example" /></H2>
       <CodeBlock lang="curl">{`curl ${BASE_URL}/api/v1/payments/countries`}</CodeBlock>
 
+      <H2><T fr="Parametres de requete" en="Query parameters" /></H2>
+      <FieldTable fields={[
+        { name: "include_unavailable", type: "boolean", desc: "Par defaut (false), seuls les operateurs disponibles sont retournes. Avec true, les operateurs temporairement desactives sont inclus avec available: false — utile pour les afficher grises (« momentanement indisponible ») au lieu de les masquer." },
+      ]} />
+      <CodeBlock lang="curl">{`curl "${BASE_URL}/api/v1/payments/countries?include_unavailable=true"`}</CodeBlock>
+
       <H2><T fr="Reponse" en="Response" /></H2>
       <CodeBlock lang="json">{`[
   {
@@ -590,7 +596,8 @@ function CountriesSection() {
         "logo_url": "",
         "min_amount": null,
         "max_amount": 500000,
-        "ussd_code": "*126#"
+        "ussd_code": "*126#",
+        "available": true
       },
       {
         "code": "ORANGE",
@@ -599,7 +606,8 @@ function CountriesSection() {
         "logo_url": "",
         "min_amount": null,
         "max_amount": 500000,
-        "ussd_code": "#150*50#"
+        "ussd_code": "#150*50#",
+        "available": true
       }
     ]
   }
@@ -616,7 +624,7 @@ function CountriesSection() {
         { name: "flag_emoji", type: "string", desc: "Emoji drapeau du pays." },
         { name: "min_amount", type: "integer", desc: "Montant minimum par transaction." },
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction." },
-        { name: "operators", type: "array", desc: "Liste des operateurs actifs pour ce pays." },
+        { name: "operators", type: "array", desc: "Liste des operateurs disponibles pour ce pays (tous les operateurs, y compris desactives, avec include_unavailable=true)." },
       ]} />
 
       <H2><T fr="Champs operateur" en="Operator fields" /></H2>
@@ -628,12 +636,13 @@ function CountriesSection() {
         { name: "min_amount", type: "integer|null", desc: "Limite min specifique a l'operateur (null = utilise la limite pays)." },
         { name: "max_amount", type: "integer|null", desc: "Limite max specifique a l'operateur (null = utilise la limite pays)." },
         { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
+        { name: "available", type: "boolean", desc: "false si l'operateur est temporairement desactive par la plateforme (panne, maintenance). Les operateurs indisponibles n'apparaissent qu'avec include_unavailable=true. Un paiement soumis sur un operateur indisponible est rejete en 400." },
       ]} />
 
       <InfoBox>
         <T
-          fr="Utilisez cet endpoint pour construire dynamiquement l'interface de selection d'operateur dans votre application. Les operateurs et limites peuvent changer sans modification de code."
-          en="Use this endpoint to dynamically build the operator selection UI in your app. Operators and limits can change without code modifications."
+          fr="Utilisez cet endpoint pour construire dynamiquement l'interface de selection d'operateur dans votre application. Les operateurs et limites peuvent changer sans modification de code. Rafraichissez la liste regulierement : un operateur en panne peut etre desactive par la plateforme, puis reactive une fois le service retabli. Avec include_unavailable=true, affichez les operateurs indisponibles grises plutot que de les masquer pour une meilleure experience client."
+          en="Use this endpoint to dynamically build the operator selection UI in your app. Operators and limits can change without code modifications. Refresh the list regularly: an operator experiencing an outage may be disabled by the platform and re-enabled once service is restored. With include_unavailable=true, show unavailable operators greyed out rather than hiding them for a better customer experience."
         />
       </InfoBox>
     </>
