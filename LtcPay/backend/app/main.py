@@ -74,11 +74,19 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down LtcPay...")
 
 
+# Interactive docs stay on outside production; in production they are served
+# only when ENABLE_API_DOCS is explicitly set (partners use the public docs
+# site, so the OpenAPI schema is just a map of the API for scanners).
+_docs_enabled = settings.environment != "production" or settings.enable_api_docs
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="LtcPay - Payment Gateway with TouchPay Integration",
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 # Rate limiting

@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://ltcpay:ltcpay_secret@localhost:5432/ltcpay"
     redis_url: str = "redis://localhost:6379/1"
     environment: str = "development"
+    # Expose Swagger/ReDoc/openapi.json. Off in production by default:
+    # the schema maps every endpoint (including admin) for scanners.
+    # Set ENABLE_API_DOCS=true to re-enable temporarily.
+    enable_api_docs: bool = False
 
     # Monitoring
     sentry_dsn: str = ""  # Set to enable Sentry error tracking
