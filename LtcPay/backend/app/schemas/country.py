@@ -140,6 +140,10 @@ class PublicOperatorInfo(BaseModel):
     min_amount: int
     max_amount: int
     ussd_code: str
+    # False when the operator is temporarily disabled by the platform.
+    # Only present in responses when include_unavailable=true is requested;
+    # default listings contain available operators only.
+    available: bool = True
 
 
 class PublicCountryInfo(BaseModel):

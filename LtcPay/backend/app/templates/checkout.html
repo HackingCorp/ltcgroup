@@ -305,6 +305,11 @@
         .pm-item:hover {
             border-color: var(--line-2);
         }
+        .pm-item.unavailable {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
         .pm-item.active {
             border-color: var(--ink);
             border-width: 2px;
@@ -935,7 +940,7 @@
                 <div class="pm-section-label">Mobile Money</div>
                 <div class="pm-list" id="momo-methods">
                     {% for op in country.operators %}
-                    <div class="pm-item" data-method="{{ op.code|lower }}" data-operator-code="{{ op.code }}" onclick="selectMethod('{{ op.code|lower }}')">
+                    <div class="pm-item{% if not op.is_active %} unavailable{% endif %}" data-method="{{ op.code|lower }}" data-operator-code="{{ op.code }}"{% if op.is_active %} onclick="selectMethod('{{ op.code|lower }}')"{% endif %}>
                         {% if op.logo_url %}
                         <div class="pm-logo" style="background: {{ op.color }}; padding: 4px;"><img src="{{ op.logo_url }}" alt="{{ op.name }}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" onerror="this.style.display='none';this.parentElement.textContent='{{ op.code[:3] }}';"></div>
                         {% else %}
@@ -943,11 +948,19 @@
                         {% endif %}
                         <div class="pm-label">
                             <strong>{{ op.name }}</strong>
+                            {% if op.is_active %}
                             <small>+{{ country.phone_prefix }} {{ country.phone_pattern }}</small>
+                            {% else %}
+                            <small>Momentanement indisponible</small>
+                            {% endif %}
                         </div>
                         <div class="pm-meta">
+                            {% if op.is_active %}
                             <span class="pm-fee">~5 sec</span>
                             <span class="pm-radio"></span>
+                            {% else %}
+                            <span class="pm-fee">indisponible</span>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -1158,9 +1171,9 @@
     var paymentCurrency = "{{ payment.currency }}";
     var stripeEnabled = {{ 'true' if show_card else 'false' }};
     var countryPrefix = "{{ country.phone_prefix }}";
-    // Build operator lookup from server-rendered data
+    // Build operator lookup from server-rendered data (available operators only)
     var operatorMap = {};
-    {% for op in country.operators %}
+    {% for op in country.operators if op.is_active %}
     operatorMap["{{ op.code|lower }}"] = {
         code: "{{ op.code }}",
         name: "{{ op.name }}",

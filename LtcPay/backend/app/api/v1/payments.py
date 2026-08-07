@@ -57,13 +57,17 @@ def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
 @router.get("/countries", response_model=list[PublicCountryInfo])
 async def list_available_countries(
     request: Request,
+    include_unavailable: bool = False,
     db: AsyncSession = Depends(get_db),
     merchant: Merchant | None = Depends(get_optional_merchant),
 ):
     """List countries available for payments.
 
     If authenticated with merchant API keys, filters by merchant restrictions.
-    Returns active countries with their active operators.
+    Returns active countries with their active operators. With
+    include_unavailable=true, temporarily disabled operators are included
+    too, flagged with available=false, so partner UIs can grey them out
+    instead of hiding them.
     """
     merchant_id = merchant.id if merchant else None
     countries = await country_service.get_available_countries(db, merchant_id=merchant_id)
@@ -79,8 +83,9 @@ async def list_available_countries(
                 min_amount=op.min_amount,
                 max_amount=op.max_amount,
                 ussd_code=op.ussd_code,
+                available=bool(op.is_active),
             )
-            for op in (c.operators or []) if op.is_active
+            for op in (c.operators or []) if (op.is_active or include_unavailable)
         ]
         result.append(PublicCountryInfo(
             code=c.code,

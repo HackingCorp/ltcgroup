@@ -89,6 +89,17 @@ class CountryService:
         )
         return list(result.scalars().all())
 
+    async def get_operators(
+        self, db: AsyncSession, country_code: str,
+    ) -> list[CountryOperator]:
+        """Get all operators for a country, including temporarily disabled ones."""
+        result = await db.execute(
+            select(CountryOperator).where(
+                CountryOperator.country_code == country_code.upper(),
+            ).order_by(CountryOperator.operator_code)
+        )
+        return list(result.scalars().all())
+
     async def is_country_available(
         self, db: AsyncSession, country_code: str, merchant_id: uuid.UUID,
     ) -> bool:

@@ -195,7 +195,9 @@ async def payment_page(reference: str, request: Request):
     try:
         async with async_session() as db2:
             country = await country_service.get_active_country(db2, country_code)
-            operators = await country_service.get_active_operators(db2, country_code)
+            # All operators, including disabled ones: the checkout greys
+            # them out with an "unavailable" note instead of hiding them
+            operators = await country_service.get_operators(db2, country_code)
             country_context = {
                 "code": country.code,
                 "phone_prefix": country.phone_prefix,
@@ -210,6 +212,7 @@ async def payment_page(reference: str, request: Request):
                         "color": op.color,
                         "logo_url": op.logo_url or "",
                         "ussd_code": op.ussd_code,
+                        "is_active": bool(op.is_active),
                     }
                     for op in operators
                 ],
