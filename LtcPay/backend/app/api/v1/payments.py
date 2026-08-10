@@ -35,6 +35,7 @@ from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
 from app.core.velocity import PaymentVelocityError, record_payment_failure
 from app.services.touchpay_direct_service import (
     touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
+    is_customer_error,
 )
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
@@ -382,13 +383,17 @@ async def create_payment(
                 detail="Trop de tentatives pour ce numero. Reessayez dans 30 minutes.",
             )
         except TouchPayDirectError as exc:
-            logger.error(
-                "Direct API initiation failed for %s: %s", reference, exc
+            customer_caused = is_customer_error(exc)
+            logger.log(
+                logging.INFO if customer_caused else logging.ERROR,
+                "Direct API initiation %s for %s: %s",
+                "rejected" if customer_caused else "failed", reference, exc,
             )
             payment.status = PaymentStatus.FAILED
             payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
             await db.commit()
-            record_payment_failure(reference)
+            if not customer_caused:
+                record_payment_failure(reference)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=friendly_initiation_error(exc),

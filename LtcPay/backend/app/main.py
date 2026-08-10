@@ -330,6 +330,7 @@ async def submit_payment(reference: str, request: Request):
     from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.services.touchpay_direct_service import (
         touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
+        is_customer_error,
     )
     from app.core.velocity import PaymentVelocityError, record_payment_failure
     from app.services.country_service import country_service
@@ -398,8 +399,14 @@ async def submit_payment(reference: str, request: Request):
                 detail="Trop de tentatives pour ce numero. Reessayez dans 30 minutes.",
             )
         except TouchPayDirectError as exc:
-            logger.error("Direct API submit failed for %s: %s", reference, exc)
-            record_payment_failure(reference)
+            customer_caused = is_customer_error(exc)
+            logger.log(
+                logging.INFO if customer_caused else logging.ERROR,
+                "Direct API submit %s for %s: %s",
+                "rejected" if customer_caused else "failed", reference, exc,
+            )
+            if not customer_caused:
+                record_payment_failure(reference)
             raise HTTPException(
                 status_code=502,
                 detail=friendly_initiation_error(exc),

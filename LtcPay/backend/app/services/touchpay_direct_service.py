@@ -50,7 +50,32 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
         return "L'operateur est momentanement indisponible. Reessayez dans quelques minutes."
     if "numero de telephone" in raw or "indicatif" in raw:
         return "Numero de telephone invalide. Saisissez 9 chiffres sans indicatif pays."
+    if "insuffisant" in raw:
+        return "Solde insuffisant sur le compte Mobile Money. Rechargez votre compte et reessayez."
+    if "introuvable" in raw or "not found" in raw:
+        return "Compte Mobile Money introuvable pour ce numero. Verifiez le numero saisi."
     return f"Le paiement n'a pas pu etre initie : {exc}"
+
+
+# Rejections caused by the customer or their wallet rather than by a fault on
+# our side or the operator's. They are expected traffic, so they must not be
+# logged as errors nor counted toward the operator-outage alert — otherwise a
+# normal afternoon of shoppers with empty wallets trips it.
+_CUSTOMER_ERROR_MARKERS = (
+    "insuffisant",          # OM: solde du compte du payeur est insuffisant
+    "introuvable",          # OM: beneficiaire introuvable
+    "not found",            # MTN: [04] Account not found
+    "operation similaire",  # TouchPay 5-minute duplicate guard
+    "numero de telephone",  # bad phone format submitted by the customer
+    "indicatif",
+    "disabled or blocked",  # MTN: [11] account disabled
+)
+
+
+def is_customer_error(exc: "TouchPayDirectError") -> bool:
+    """True when the rejection is the customer's situation, not an incident."""
+    raw = str(exc).lower()
+    return any(marker in raw for marker in _CUSTOMER_ERROR_MARKERS)
 
 
 class TouchPayDirectService:
