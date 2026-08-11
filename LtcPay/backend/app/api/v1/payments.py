@@ -99,6 +99,7 @@ async def list_available_countries(
             flag_emoji=c.flag_emoji,
             min_amount=c.min_amount,
             max_amount=c.max_amount,
+            enforce_phone_prefix_check=bool(getattr(c, "enforce_phone_prefix_check", True)),
             operators=ops,
         ))
     return result

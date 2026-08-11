@@ -1172,6 +1172,8 @@
     var paymentCurrency = "{{ payment.currency }}";
     var stripeEnabled = {{ 'true' if show_card else 'false' }};
     var countryPrefix = "{{ country.phone_prefix }}";
+    // false = number portability country: prefix mismatch is a hint, not a blocker
+    var prefixCheckEnforced = {{ 'true' if country.enforce_phone_prefix_check else 'false' }};
     // Build operator lookup from server-rendered data (available operators only)
     var operatorMap = {};
     {% for op in country.operators if op.is_active %}
@@ -1307,7 +1309,8 @@
                 }
             }
 
-            btn.disabled = phone.length < 8 || !!mismatch;
+            // With number portability the mismatch is informative only
+            btn.disabled = phone.length < 8 || (prefixCheckEnforced && !!mismatch);
         } else if (selectedMethod === 'card') {
             btn.disabled = !stripeReady;
         } else {

@@ -32,6 +32,13 @@ class SupportedCountry(Base):
     default_city: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     min_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     max_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=500_000)
+    # When False, operator phone_prefixes are informative only (UI hints):
+    # payments are never rejected on a prefix mismatch. Use for countries
+    # with active number portability (e.g. SN, CI) where a prefix no longer
+    # proves the operator.
+    enforce_phone_prefix_check: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default="true",
+    )
 
     # TouchPay credentials (sensitive fields encrypted with Fernet)
     tp_agency_code: Mapped[str] = mapped_column(Text, nullable=False, default="")

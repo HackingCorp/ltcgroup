@@ -198,6 +198,7 @@ async def payment_page(reference: str, request: Request):
         "phone_digits": 9,
         "flag_emoji": "\U0001F1E8\U0001F1F2",
         "currency": payment.currency,
+        "enforce_phone_prefix_check": True,
         "operators": [],
     }
     try:
@@ -213,6 +214,7 @@ async def payment_page(reference: str, request: Request):
                 "phone_digits": country.phone_digits,
                 "flag_emoji": country.flag_emoji,
                 "currency": country.currency,
+                "enforce_phone_prefix_check": bool(getattr(country, "enforce_phone_prefix_check", True)),
                 "operators": [
                     {
                         "code": op.operator_code,

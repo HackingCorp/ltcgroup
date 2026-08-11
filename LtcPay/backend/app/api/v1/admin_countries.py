@@ -50,6 +50,7 @@ def _country_to_response(country: SupportedCountry) -> CountryResponse:
         default_city=country.default_city,
         min_amount=country.min_amount,
         max_amount=country.max_amount,
+        enforce_phone_prefix_check=bool(getattr(country, "enforce_phone_prefix_check", True)),
         credentials_configured=creds_ok,
         is_active=country.is_active,
         created_at=country.created_at,
@@ -111,6 +112,7 @@ async def create_country(
         default_city=payload.default_city,
         min_amount=payload.min_amount,
         max_amount=payload.max_amount,
+        enforce_phone_prefix_check=payload.enforce_phone_prefix_check,
         is_active=payload.is_active,
         tp_agency_code=creds.agency_code if creds else "",
         tp_login=creds.login if creds else "",
@@ -194,7 +196,8 @@ async def update_country(
 
     # Update simple fields
     for field in ("name", "currency", "phone_prefix", "phone_digits", "phone_pattern",
-                  "flag_emoji", "default_city", "min_amount", "max_amount", "is_active"):
+                  "flag_emoji", "default_city", "min_amount", "max_amount",
+                  "enforce_phone_prefix_check", "is_active"):
         val = getattr(payload, field, None)
         if val is not None:
             if field == "currency":

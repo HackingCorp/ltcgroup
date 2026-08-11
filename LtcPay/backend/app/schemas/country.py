@@ -90,6 +90,7 @@ class CountryCreate(BaseModel):
     default_city: str = Field(default="", max_length=100)
     min_amount: int = Field(default=100, ge=1)
     max_amount: int = Field(default=500_000, ge=1)
+    enforce_phone_prefix_check: bool = True
     credentials: Optional[CountryCredentials] = None
     is_active: bool = True
 
@@ -104,6 +105,7 @@ class CountryUpdate(BaseModel):
     default_city: Optional[str] = Field(None, max_length=100)
     min_amount: Optional[int] = Field(None, ge=1)
     max_amount: Optional[int] = Field(None, ge=1)
+    enforce_phone_prefix_check: Optional[bool] = None
     credentials: Optional[CountryCredentials] = None
     is_active: Optional[bool] = None
 
@@ -120,6 +122,7 @@ class CountryResponse(BaseModel):
     default_city: str
     min_amount: int
     max_amount: int
+    enforce_phone_prefix_check: bool = True
     credentials_configured: bool  # True if agency_code + merchant_id are non-empty
     is_active: bool
     created_at: datetime
@@ -163,6 +166,9 @@ class PublicCountryInfo(BaseModel):
     flag_emoji: str
     min_amount: int
     max_amount: int
+    # False = operator phone_prefixes are UI hints only (number portability):
+    # the API will not reject a payment on a prefix mismatch in this country.
+    enforce_phone_prefix_check: bool = True
     operators: list[PublicOperatorInfo] = []
 
 

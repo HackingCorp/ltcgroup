@@ -174,16 +174,19 @@ class TouchPayDirectService:
 
         # Reject numbers that provably belong to another operator before
         # sending anything to TouchPay (mismatch-only: unknown ranges pass).
-        all_operators = await country_service.get_operators(db, country_code)
-        mismatch = country_service.operator_mismatch(
-            all_operators, normalized_phone, operator_code,
-        )
-        if mismatch:
-            raise OperatorMismatchError(
-                f"Ce numero appartient a {mismatch.operator_name}, pas a {op.operator_name}. "
-                "Verifiez le numero saisi ou changez d'operateur.",
-                raw_response={"detected_operator": mismatch.operator_code},
+        # Skipped for countries with number portability, where a prefix no
+        # longer proves the operator (enforce_phone_prefix_check=false).
+        if getattr(country, "enforce_phone_prefix_check", True):
+            all_operators = await country_service.get_operators(db, country_code)
+            mismatch = country_service.operator_mismatch(
+                all_operators, normalized_phone, operator_code,
             )
+            if mismatch:
+                raise OperatorMismatchError(
+                    f"Ce numero appartient a {mismatch.operator_name}, pas a {op.operator_name}. "
+                    "Verifiez le numero saisi ou changez d'operateur.",
+                    raw_response={"detected_operator": mismatch.operator_code},
+                )
 
         # Anti-spam: cap initiation attempts per phone number
         check_phone_velocity(normalized_phone)
