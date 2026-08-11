@@ -258,8 +258,10 @@ async def create_payment(
                 op_min = op_obj.min_amount
                 op_max = op_obj.max_amount
 
-        max_amount = op_max or country_obj.max_amount
-        min_amount = op_min or country_obj.min_amount
+        # `is not None`, not truthiness: an operator limit set to 0 (no
+        # minimum / no cap) must win over the country limit, not fall back
+        max_amount = op_max if op_max is not None else country_obj.max_amount
+        min_amount = op_min if op_min is not None else country_obj.min_amount
         op_label = payload.operator or "Mobile Money"
 
         if customer_amount < Decimal(str(min_amount)):

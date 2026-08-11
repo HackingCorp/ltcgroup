@@ -594,7 +594,7 @@ function CountriesSection() {
         "name": "MTN MoMo",
         "color": "#ffcc00",
         "logo_url": "",
-        "min_amount": null,
+        "min_amount": 100,
         "max_amount": 500000,
         "ussd_code": "*126#",
         "available": true
@@ -604,7 +604,7 @@ function CountriesSection() {
         "name": "Orange Money",
         "color": "#ff6600",
         "logo_url": "",
-        "min_amount": null,
+        "min_amount": 100,
         "max_amount": 500000,
         "ussd_code": "#150*50#",
         "available": true
@@ -633,8 +633,8 @@ function CountriesSection() {
         { name: "name", type: "string", desc: "Nom complet de l'operateur." },
         { name: "color", type: "string", desc: "Couleur CSS hex pour l'affichage." },
         { name: "logo_url", type: "string", desc: "URL du logo (peut etre vide)." },
-        { name: "min_amount", type: "integer|null", desc: "Limite min specifique a l'operateur (null = utilise la limite pays)." },
-        { name: "max_amount", type: "integer|null", desc: "Limite max specifique a l'operateur (null = utilise la limite pays)." },
+        { name: "min_amount", type: "integer", desc: "Montant minimum par transaction pour cet operateur. Toujours renseigne : cette limite prime sur celle du pays." },
+        { name: "max_amount", type: "integer", desc: "Montant maximum par transaction pour cet operateur, frais compris lorsque le client les supporte. Un paiement hors limites est rejete en 400." },
         { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
         { name: "available", type: "boolean", desc: "false si l'operateur est temporairement desactive par la plateforme (panne, maintenance). Les operateurs indisponibles n'apparaissent qu'avec include_unavailable=true. Un paiement soumis sur un operateur indisponible est rejete en 400." },
       ]} />
