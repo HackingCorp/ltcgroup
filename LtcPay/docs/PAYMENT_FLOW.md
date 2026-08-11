@@ -84,7 +84,9 @@ GET /api/v1/payments/countries
 
 Returns active countries with their operators, limits, and phone formats. Works with or without authentication (with auth, filters by merchant's allowed countries).
 
-Each operator carries an `available` boolean. By default only available operators are returned; pass `?include_unavailable=true` to also receive temporarily disabled operators (`available: false`) so your UI can grey them out with a "temporarily unavailable" note instead of hiding them. Refresh this list regularly — the platform may disable an operator during an outage and re-enable it once service is restored. Submitting a payment on an unavailable operator is rejected with HTTP 400.
+Each operator carries a `phone_prefixes` array — the national-number prefixes it owns (e.g. `["69", "655"]` for Orange CM). Use it to preselect the operator from the typed number or warn on a number/operator mismatch client-side. Server-side, a payment whose number provably belongs to another operator of the same country is rejected with HTTP 400 before any PSP call; numbers in unconfigured ranges are never blocked. Prefixes are managed per operator in the admin dashboard.
+
+Each operator also carries an `available` boolean. By default only available operators are returned; pass `?include_unavailable=true` to also receive temporarily disabled operators (`available: false`) so your UI can grey them out with a "temporarily unavailable" note instead of hiding them. Refresh this list regularly — the platform may disable an operator during an outage and re-enable it once service is restored. Submitting a payment on an unavailable operator is rejected with HTTP 400.
 
 ## Complete Payment Flow (SDK Mode)
 

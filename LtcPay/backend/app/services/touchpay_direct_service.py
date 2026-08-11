@@ -41,9 +41,19 @@ class TouchPayDirectError(Exception):
         self.raw_response = raw_response or {}
 
 
+class OperatorMismatchError(TouchPayDirectError):
+    """The phone number provably belongs to a different operator.
+
+    Raised before any TouchPay call; callers map it to HTTP 400. Subclasses
+    TouchPayDirectError so an unaware caller still handles it safely.
+    """
+
+
 def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
     """Customer-facing French message for a TouchPay initiation rejection."""
     raw = str(exc).lower()
+    if "appartient a" in raw:
+        return str(exc)  # already a customer-facing French message
     if "operation similaire" in raw:
         return "Une operation similaire a deja ete envoyee. Patientez 5 minutes avant de reessayer."
     if "tec-internal" in raw or "erreur interne" in raw:
@@ -69,6 +79,7 @@ _CUSTOMER_ERROR_MARKERS = (
     "numero de telephone",  # bad phone format submitted by the customer
     "indicatif",
     "disabled or blocked",  # MTN: [11] account disabled
+    "appartient a",         # local prefix check: number belongs to another operator
 )
 
 
@@ -160,6 +171,19 @@ class TouchPayDirectService:
         normalized_phone = self._normalize_phone(
             phone_number, country.phone_prefix, country.phone_digits,
         )
+
+        # Reject numbers that provably belong to another operator before
+        # sending anything to TouchPay (mismatch-only: unknown ranges pass).
+        all_operators = await country_service.get_operators(db, country_code)
+        mismatch = country_service.operator_mismatch(
+            all_operators, normalized_phone, operator_code,
+        )
+        if mismatch:
+            raise OperatorMismatchError(
+                f"Ce numero appartient a {mismatch.operator_name}, pas a {op.operator_name}. "
+                "Verifiez le numero saisi ou changez d'operateur.",
+                raw_response={"detected_operator": mismatch.operator_code},
+            )
 
         # Anti-spam: cap initiation attempts per phone number
         check_phone_velocity(normalized_phone)

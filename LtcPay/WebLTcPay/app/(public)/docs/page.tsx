@@ -597,6 +597,7 @@ function CountriesSection() {
         "min_amount": 100,
         "max_amount": 500000,
         "ussd_code": "*126#",
+        "phone_prefixes": ["67", "650", "651", "652", "653", "654"],
         "available": true
       },
       {
@@ -607,6 +608,7 @@ function CountriesSection() {
         "min_amount": 100,
         "max_amount": 500000,
         "ussd_code": "#150*50#",
+        "phone_prefixes": ["69", "655", "656", "657", "658", "659"],
         "available": true
       }
     ]
@@ -636,6 +638,7 @@ function CountriesSection() {
         { name: "min_amount", type: "integer", desc: "Montant minimum par transaction pour cet operateur. Toujours renseigne : cette limite prime sur celle du pays." },
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction pour cet operateur, frais compris lorsque le client les supporte. Un paiement hors limites est rejete en 400." },
         { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
+        { name: "phone_prefixes", type: "string[]", desc: "Prefixes de numeros nationaux appartenant a cet operateur (ex: [\"69\", \"655\"]). Utilisez-les pour preselectionner l'operateur ou avertir le client d'une incoherence numero/operateur avant soumission. Si le numero appartient de facon averee a un autre operateur du meme pays, l'API rejette le paiement en 400 avant tout appel a l'operateur. Une liste vide = plages inconnues, aucun blocage." },
         { name: "available", type: "boolean", desc: "false si l'operateur est temporairement desactive par la plateforme (panne, maintenance). Les operateurs indisponibles n'apparaissent qu'avec include_unavailable=true. Un paiement soumis sur un operateur indisponible est rejete en 400." },
       ]} />
 

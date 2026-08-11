@@ -34,8 +34,8 @@ from app.schemas.payment import (
 from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
 from app.core.velocity import PaymentVelocityError, record_payment_failure
 from app.services.touchpay_direct_service import (
-    touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
-    is_customer_error,
+    touchpay_direct_service, TouchPayDirectError, OperatorMismatchError,
+    friendly_initiation_error, is_customer_error,
 )
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
@@ -84,6 +84,7 @@ async def list_available_countries(
                 min_amount=op.min_amount,
                 max_amount=op.max_amount,
                 ussd_code=op.ussd_code,
+                phone_prefixes=list(op.phone_prefixes or []),
                 available=bool(op.is_active),
             )
             for op in (c.operators or []) if (op.is_active or include_unavailable)
@@ -375,6 +376,15 @@ async def create_payment(
             payment.status = PaymentStatus.PROCESSING
             await db.commit()
             await db.refresh(payment)
+        except OperatorMismatchError as exc:
+            logger.info("Operator mismatch on creation for %s: %s", reference, exc)
+            payment.status = PaymentStatus.FAILED
+            payment.direct_api_data = {"error": "operator_mismatch", "detail": str(exc)}
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
         except PaymentVelocityError as exc:
             logger.warning("Velocity limit on creation for %s: %s", reference, exc)
             payment.status = PaymentStatus.FAILED

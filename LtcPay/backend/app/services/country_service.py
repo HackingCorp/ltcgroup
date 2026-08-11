@@ -89,6 +89,43 @@ class CountryService:
         )
         return list(result.scalars().all())
 
+    @staticmethod
+    def detect_operator_by_prefix(
+        operators: list[CountryOperator], national_phone: str,
+    ) -> CountryOperator | None:
+        """Find which operator owns a national number, based on phone_prefixes.
+
+        Returns None when no configured prefix matches — unknown ranges are
+        never treated as evidence of anything.
+        """
+        for op in operators:
+            for prefix in (op.phone_prefixes or []):
+                if prefix and national_phone.startswith(str(prefix)):
+                    return op
+        return None
+
+    @classmethod
+    def operator_mismatch(
+        cls,
+        operators: list[CountryOperator],
+        national_phone: str,
+        selected_operator_code: str,
+    ) -> CountryOperator | None:
+        """Return the operator a number actually belongs to when it provably
+        is NOT the selected one; None when the selection is fine or unknown.
+
+        Mismatch-only semantics: a number is only rejected on positive
+        evidence (it matches another operator's configured prefixes). Numbers
+        in unconfigured ranges pass through, so incomplete prefix data can
+        never block legitimate payments.
+        """
+        detected = cls.detect_operator_by_prefix(operators, national_phone)
+        if detected is None:
+            return None
+        if detected.operator_code == selected_operator_code.upper():
+            return None
+        return detected
+
     async def get_operators(
         self, db: AsyncSession, country_code: str,
     ) -> list[CountryOperator]:

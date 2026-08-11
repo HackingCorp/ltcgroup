@@ -1002,6 +1002,7 @@
                     <div class="field-hint">
                         Demande de paiement envoyee a ce numero. Confirmez avec votre PIN.
                     </div>
+                    <div class="field-hint" id="operator-mismatch-hint" style="display: none; color: var(--rose);"></div>
                 </div>
                 {% endif %}
 
@@ -1179,7 +1180,8 @@
         name: "{{ op.name }}",
         color: "{{ op.color }}",
         logo_url: "{{ op.logo_url }}",
-        ussd: "{{ op.ussd_code }}"
+        ussd: "{{ op.ussd_code }}",
+        prefixes: {{ op.phone_prefixes | tojson }}
     };
     {% endfor %}
     var stripePublishableKey = "{{ stripe_publishable_key }}";
@@ -1265,6 +1267,24 @@
     };
 
     // ==================== FORM VALIDATION ====================
+    // Returns the operator that provably owns the number when it is NOT the
+    // selected one; null when the selection is fine or the range is unknown.
+    function detectOperatorMismatch(nationalPhone) {
+        if (!operatorMap[selectedMethod]) return null;
+        var detected = null;
+        for (var key in operatorMap) {
+            var prefixes = operatorMap[key].prefixes || [];
+            for (var i = 0; i < prefixes.length; i++) {
+                if (prefixes[i] && nationalPhone.indexOf(prefixes[i]) === 0) {
+                    detected = key;
+                    break;
+                }
+            }
+            if (detected) break;
+        }
+        return (detected && detected !== selectedMethod) ? detected : null;
+    }
+
     function validatePayBtn() {
         var btn = $('pay-btn');
         if (!btn) return;
@@ -1272,7 +1292,22 @@
         if (operatorMap[selectedMethod]) {
             var phoneEl = $('phone-input');
             var phone = phoneEl ? phoneEl.value.replace(/\s/g, '').trim() : '';
-            btn.disabled = phone.length < 8;
+
+            var mismatch = phone.length >= 3 ? detectOperatorMismatch(phone) : null;
+            var hintEl = $('operator-mismatch-hint');
+            if (hintEl) {
+                if (mismatch) {
+                    hintEl.textContent = 'Ce numero semble etre un numero ' +
+                        (operatorMap[mismatch].name || mismatch.toUpperCase()) +
+                        ', pas ' + (operatorMap[selectedMethod].name || selectedMethod.toUpperCase()) +
+                        '. Verifiez le numero ou changez d\'operateur.';
+                    hintEl.style.display = '';
+                } else {
+                    hintEl.style.display = 'none';
+                }
+            }
+
+            btn.disabled = phone.length < 8 || !!mismatch;
         } else if (selectedMethod === 'card') {
             btn.disabled = !stripeReady;
         } else {

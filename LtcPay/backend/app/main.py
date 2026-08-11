@@ -220,6 +220,7 @@ async def payment_page(reference: str, request: Request):
                         "color": op.color,
                         "logo_url": op.logo_url or "",
                         "ussd_code": op.ussd_code,
+                        "phone_prefixes": list(op.phone_prefixes or []),
                         "is_active": bool(op.is_active),
                     }
                     for op in operators
@@ -329,8 +330,8 @@ async def submit_payment(reference: str, request: Request):
     """
     from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.services.touchpay_direct_service import (
-        touchpay_direct_service, TouchPayDirectError, friendly_initiation_error,
-        is_customer_error,
+        touchpay_direct_service, TouchPayDirectError, OperatorMismatchError,
+        friendly_initiation_error, is_customer_error,
     )
     from app.core.velocity import PaymentVelocityError, record_payment_failure
     from app.services.country_service import country_service
@@ -392,6 +393,9 @@ async def submit_payment(reference: str, request: Request):
                 country_code=country_code,
                 callback_url=callback_url,
             )
+        except OperatorMismatchError as exc:
+            logger.info("Operator mismatch on submit for %s: %s", reference, exc)
+            raise HTTPException(status_code=400, detail=str(exc))
         except PaymentVelocityError as exc:
             logger.warning("Velocity limit on submit for %s: %s", reference, exc)
             raise HTTPException(

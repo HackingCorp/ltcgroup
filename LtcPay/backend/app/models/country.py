@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, String, Text,
+    Boolean, DateTime, ForeignKey, Integer, JSON, String, Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -90,6 +90,10 @@ class CountryOperator(Base):
     min_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     max_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=500_000)
     ussd_code: Mapped[str] = mapped_column(String(20), nullable=False, default="")
+    # National-number prefixes owned by this operator (e.g. ["69", "655"]).
+    # Used to detect operator/number mismatches before calling the PSP.
+    # Empty/null = no prefix knowledge; numbers are never blocked on it.
+    phone_prefixes: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,

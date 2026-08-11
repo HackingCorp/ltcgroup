@@ -127,8 +127,10 @@ async def init_models():
         if op_row.first() is None:
             await conn.execute(text(
                 "INSERT INTO country_operators (id,country_code,operator_code,operator_name,"
-                "service_code,color,ussd_code,is_active,created_at,updated_at) VALUES "
-                "(:id1,'CM','MTN','MTN MoMo',:svc_mtn,'#FFCC00','*126#',true,now(),now()),"
-                "(:id2,'CM','ORANGE','Orange Money',:svc_om,'#FF6B00','#150*4#',true,now(),now())"
+                "service_code,color,ussd_code,phone_prefixes,is_active,created_at,updated_at) VALUES "
+                "(:id1,'CM','MTN','MTN MoMo',:svc_mtn,'#FFCC00','*126#',"
+                "'[\"67\", \"650\", \"651\", \"652\", \"653\", \"654\"]',true,now(),now()),"
+                "(:id2,'CM','ORANGE','Orange Money',:svc_om,'#FF6B00','#150*4#',"
+                "'[\"69\", \"655\", \"656\", \"657\", \"658\", \"659\"]',true,now(),now())"
             ), {"id1": str(_uuid.uuid4()), "id2": str(_uuid.uuid4()),
                 "svc_mtn": svc_mtn, "svc_om": svc_om})

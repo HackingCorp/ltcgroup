@@ -19,6 +19,7 @@ class OperatorCreate(BaseModel):
     min_amount: int = Field(default=100, ge=1)
     max_amount: int = Field(default=500_000, ge=1)
     ussd_code: str = Field(default="", max_length=20)
+    phone_prefixes: list[str] = Field(default_factory=list)
     is_active: bool = True
 
 
@@ -31,6 +32,7 @@ class OperatorUpdate(BaseModel):
     min_amount: Optional[int] = Field(None, ge=1)
     max_amount: Optional[int] = Field(None, ge=1)
     ussd_code: Optional[str] = Field(None, max_length=20)
+    phone_prefixes: Optional[list[str]] = None
     is_active: Optional[bool] = None
 
 
@@ -45,6 +47,7 @@ class OperatorResponse(BaseModel):
     min_amount: int
     max_amount: int
     ussd_code: str
+    phone_prefixes: Optional[list[str]] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -140,6 +143,10 @@ class PublicOperatorInfo(BaseModel):
     min_amount: int
     max_amount: int
     ussd_code: str
+    # National-number prefixes owned by this operator (e.g. ["69", "655"]).
+    # Empty list = unknown; partner UIs can use these to preselect the
+    # operator or warn on a mismatch before submitting.
+    phone_prefixes: list[str] = []
     # False when the operator is temporarily disabled by the platform.
     # Only present in responses when include_unavailable=true is requested;
     # default listings contain available operators only.
