@@ -17,4 +17,6 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Apply pending DB migrations before serving — code deployed ahead of its
+# migrations caused a production outage (UndefinedColumnError, 2026-08-11)
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
