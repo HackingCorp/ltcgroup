@@ -187,5 +187,21 @@ class Payment(Base):
     def customer_phone(self) -> str | None:
         return (self.customer_info or {}).get("phone")
 
+    # Normalized failure info, derived from the stored operator messages.
+    # None unless the payment is FAILED.
+    @property
+    def failure_code(self) -> str | None:
+        if self.status != PaymentStatus.FAILED:
+            return None
+        from app.services.failure_reasons import classify_failure, payment_failure_raw_message
+        return classify_failure(payment_failure_raw_message(self))[0]
+
+    @property
+    def failure_reason(self) -> str | None:
+        if self.status != PaymentStatus.FAILED:
+            return None
+        from app.services.failure_reasons import classify_failure, payment_failure_raw_message
+        return classify_failure(payment_failure_raw_message(self))[1]
+
     def __repr__(self):
         return f"<Payment {self.reference} {self.amount} {self.currency} [{self.status}]>"

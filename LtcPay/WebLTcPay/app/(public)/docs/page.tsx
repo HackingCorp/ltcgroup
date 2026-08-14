@@ -442,6 +442,8 @@ function GetPaymentSection() {
         { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
         { name: "customer_info", type: "object|null", desc: "Infos client (name, email, phone)." },
         { name: "description", type: "string|null", desc: "Description du paiement." },
+        { name: "failure_code", type: "string|null", desc: "Code d'échec stable si status=FAILED (ex: INSUFFICIENT_FUNDS, ACCOUNT_BLOCKED). Voir Error codes." },
+        { name: "failure_reason", type: "string|null", desc: "Message d'échec prêt à afficher au client si status=FAILED." },
         { name: "completed_at", type: "datetime|null", desc: "Date de complétion (null si non terminé)." },
         { name: "created_at", type: "datetime", desc: "Date de création." },
         { name: "updated_at", type: "datetime", desc: "Date de dernière mise à jour." },
@@ -472,6 +474,8 @@ function GetPaymentSection() {
     "phone": "237670123456"
   },
   "description": "Pagne + livraison",
+  "failure_code": null,
+  "failure_reason": null,
   "completed_at": "2026-06-10T14:45:30Z",
   "created_at": "2026-06-10T14:42:00Z",
   "updated_at": "2026-06-10T14:45:30Z"
@@ -774,11 +778,20 @@ function verifySignature(body, signature, secret) {
     "customer_email": null,
     "customer_phone": "237670123456",
     "description": "Pagne + livraison",
+    "failure_code": null,
+    "failure_reason": null,
     "completed_at": "2026-06-10T14:45:30Z",
     "created_at": "2026-06-10T14:42:00Z"
   },
   "timestamp": "2026-06-10T14:45:31Z"
 }`}</CodeBlock>
+
+      <InfoBox>
+        <T
+          fr="Pour un paiement FAILED, failure_code et failure_reason indiquent la cause exacte de l'échec (solde insuffisant, compte bloqué, refus du client...). Affichez failure_reason à votre client pour qu'il sache quoi corriger. Voir la liste complète dans Error codes."
+          en="For a FAILED payment, failure_code and failure_reason give the exact cause of the failure (insufficient balance, blocked account, customer refusal...). Show failure_reason to your customer so they know what to fix. See the full list in Error codes."
+        />
+      </InfoBox>
 
       <InfoBox>
         <T
@@ -916,6 +929,47 @@ function ErrorsSection() {
     }
   ]
 }`}</CodeBlock>
+
+      <H2><T fr="Motifs d'échec de paiement" en="Payment failure reasons" /></H2>
+      <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+        <T
+          fr="Quand un paiement passe au statut FAILED, l'API expose un code stable (failure_code) et un message prêt à afficher (failure_reason). Vous les trouvez dans le webhook payment.status_changed et dans GET /payments/{reference}. Affichez failure_reason à votre client : il saura exactement pourquoi le paiement n'est pas passé et quoi faire."
+          en="When a payment transitions to FAILED, the API exposes a stable code (failure_code) and a display-ready message (failure_reason). You will find them in the payment.status_changed webhook and in GET /payments/{reference}. Show failure_reason to your customer: they will know exactly why the payment did not go through and what to do."
+        />
+      </p>
+      <FieldTable fields={[
+        { name: "INSUFFICIENT_FUNDS", type: "client", desc: "Solde insuffisant sur le compte Mobile Money du client. Le client doit recharger son compte puis réessayer." },
+        { name: "ACCOUNT_BLOCKED", type: "client", desc: "Le compte Mobile Money du client est bloqué par l'opérateur. Le client doit contacter son opérateur (Orange/MTN)." },
+        { name: "ACCOUNT_NOT_FOUND", type: "client", desc: "Aucun compte Mobile Money n'existe pour ce numéro. Le client doit vérifier le numéro saisi." },
+        { name: "NOT_AUTHORIZED", type: "client", desc: "Le client n'a pas autorisé le paiement : demande de confirmation (push USSD) refusée ou non validée." },
+        { name: "REJECTED_BY_OPERATOR", type: "client", desc: "Paiement rejeté par l'opérateur : demande non validée à temps, expirée ou refusée. Le client peut réessayer." },
+        { name: "DUPLICATE_PAYMENT", type: "client", desc: "Une opération identique (même numéro, même montant) a été envoyée il y a moins de 5 minutes. Le client doit patienter 5 minutes." },
+        { name: "WRONG_OPERATOR", type: "client", desc: "Le numéro n'appartient pas à l'opérateur sélectionné (ex: numéro Orange avec MTN MoMo sélectionné)." },
+        { name: "INVALID_PHONE", type: "client", desc: "Numéro de téléphone invalide. Format attendu : 9 chiffres sans indicatif pays." },
+        { name: "TOO_MANY_ATTEMPTS", type: "client", desc: "Trop de tentatives de paiement pour ce numéro. Le client doit attendre 30 minutes." },
+        { name: "OPERATOR_UNAVAILABLE", type: "operator", desc: "L'opérateur Mobile Money est momentanément indisponible (panne, maintenance). Réessayez dans quelques minutes." },
+        { name: "PAYMENT_FAILED", type: "generic", desc: "Échec non catégorisé. Le client peut réessayer ou utiliser un autre moyen de paiement." },
+      ]} />
+
+      <H2><T fr="Exemple : webhook d'un paiement échoué" en="Example: failed payment webhook" /></H2>
+      <CodeBlock lang="json">{`{
+  "event": "payment.status_changed",
+  "data": {
+    "reference": "PAY-A1B2C3D4E5F67890",
+    "status": "FAILED",
+    "failure_code": "INSUFFICIENT_FUNDS",
+    "failure_reason": "Solde insuffisant sur le compte Mobile Money du client.",
+    ...
+  },
+  "timestamp": "2026-08-14T20:13:50Z"
+}`}</CodeBlock>
+
+      <InfoBox>
+        <T
+          fr="Les erreurs de type 'client' ne sont pas des pannes : c'est la situation du client (solde, compte, refus). Guidez-le avec le message plutôt que de lui proposer de réessayer en boucle."
+          en="'client' type errors are not outages: they reflect the customer's situation (balance, account, refusal). Guide them with the message rather than prompting endless retries."
+        />
+      </InfoBox>
     </>
   );
 }
