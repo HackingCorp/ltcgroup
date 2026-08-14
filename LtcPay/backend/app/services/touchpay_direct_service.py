@@ -62,6 +62,8 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
         return "Numero de telephone invalide. Saisissez 9 chiffres sans indicatif pays."
     if "insuffisant" in raw:
         return "Solde insuffisant sur le compte Mobile Money. Rechargez votre compte et reessayez."
+    if "bloque" in raw or "blocked" in raw:
+        return "Ce compte Mobile Money est bloque. Contactez votre operateur."
     if "introuvable" in raw or "not found" in raw:
         return "Compte Mobile Money introuvable pour ce numero. Verifiez le numero saisi."
     return f"Le paiement n'a pas pu etre initie : {exc}"
@@ -79,6 +81,7 @@ _CUSTOMER_ERROR_MARKERS = (
     "numero de telephone",  # bad phone format submitted by the customer
     "indicatif",
     "disabled or blocked",  # MTN: [11] account disabled
+    "bloque",               # OM: utilisateur bloque
     "appartient a",         # local prefix check: number belongs to another operator
 )
 
@@ -224,21 +227,24 @@ class TouchPayDirectService:
             # bad phone format, ...) as well as 4xx/5xx — only 2xx is success.
             if response.status_code >= 300:
                 error_text = response.text
-                logger.error(
-                    "TouchPay Direct HTTP error: status=%s body=%s ref=%s",
-                    response.status_code, error_text, payment_reference,
-                )
                 try:
                     err_data = response.json()
                 except ValueError:
                     err_data = None
                 msg = (err_data or {}).get("detailMessage") or (err_data or {}).get("message") \
                     or f"HTTP {response.status_code}: {error_text}"
-                raise TouchPayDirectError(
+                exc = TouchPayDirectError(
                     msg,
                     status_code=response.status_code,
                     raw_response=err_data,
                 )
+                logger.log(
+                    logging.INFO if is_customer_error(exc) else logging.ERROR,
+                    "TouchPay Direct %s: status=%s body=%s ref=%s",
+                    "customer rejection" if is_customer_error(exc) else "HTTP error",
+                    response.status_code, error_text, payment_reference,
+                )
+                raise exc
 
             data = response.json()
 
@@ -254,11 +260,13 @@ class TouchPayDirectService:
                 if tp_status_int is not None and tp_status_int >= 300:
                     msg = data.get("message") or data.get("detailMessage") \
                         or "TouchPay Direct business error"
-                    logger.warning(
+                    exc = TouchPayDirectError(msg, status_code=tp_status_int, raw_response=data)
+                    logger.log(
+                        logging.INFO if is_customer_error(exc) else logging.WARNING,
                         "TouchPay Direct business error: status=%s message=%s ref=%s",
                         tp_status, msg, payment_reference,
                     )
-                    raise TouchPayDirectError(msg, status_code=tp_status_int, raw_response=data)
+                    raise exc
 
             logger.info(
                 "TouchPay Direct: payment initiated successfully ref=%s data=%s",
