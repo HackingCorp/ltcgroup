@@ -29,6 +29,8 @@ from app.api.v1 import admin_users
 from app.api.v1 import admin_countries
 from app.api.v1.endpoints import callbacks
 from app.api.v1.endpoints import stripe_callbacks
+from app.api.v1.endpoints import accountpe_callbacks
+from app.api.v1 import admin_providers
 from app.api.v1.endpoints import payments as direct_payments
 from app.api.v1.endpoints import transactions
 
@@ -99,6 +101,7 @@ api_router.include_router(admin_users.router)
 
 # Admin country management
 api_router.include_router(admin_countries.router)
+api_router.include_router(admin_providers.router)
 api_router.include_router(admin_countries.merchant_router)
 
 # Merchant payment API (authenticated via API key)
@@ -126,6 +129,13 @@ api_router.include_router(
     callbacks.router,
     prefix="/callbacks",
     tags=["Callbacks"],
+)
+
+# AccountPE callbacks (webhooks)
+api_router.include_router(
+    accountpe_callbacks.router,
+    prefix="/callbacks",
+    tags=["AccountPE Callbacks"],
 )
 
 # Stripe callbacks (webhooks)

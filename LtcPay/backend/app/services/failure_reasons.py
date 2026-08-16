@@ -32,12 +32,12 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     ),
     (
         "NOT_AUTHORIZED",
-        ("unauthorized",),
+        ("unauthorized", "declined"),
         "Le client n'a pas autorise le paiement (demande de confirmation refusee ou non validee).",
     ),
     (
         "DUPLICATE_PAYMENT",
-        ("operation similaire",),
+        ("operation similaire", "transaction id already exists"),
         "Une operation identique a ete envoyee il y a moins de 5 minutes. Le client doit patienter avant de reessayer.",
     ),
     (
@@ -62,7 +62,7 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     ),
     (
         "REJECTED_BY_OPERATOR",
-        ("echec chez le partenaire", "invalid transaction"),
+        ("echec chez le partenaire", "invalid transaction", "rejected"),
         "Le paiement a ete rejete par l'operateur (demande non validee, expiree ou refusee).",
     ),
 ]

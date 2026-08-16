@@ -31,6 +31,7 @@ class PaymentMode(str, enum.Enum):
 class PaymentProvider(str, enum.Enum):
     TOUCHPAY = "TOUCHPAY"
     STRIPE = "STRIPE"
+    ACCOUNTPE = "ACCOUNTPE"
 
 
 class MobileMoneyOperator(str, enum.Enum):

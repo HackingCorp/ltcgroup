@@ -80,7 +80,10 @@ class SupportedCountry(Base):
 class CountryOperator(Base):
     __tablename__ = "country_operators"
     __table_args__ = (
-        UniqueConstraint("country_code", "operator_code", name="uq_country_operator"),
+        UniqueConstraint(
+            "country_code", "provider_code", "operator_code",
+            name="uq_country_provider_operator",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -90,6 +93,11 @@ class CountryOperator(Base):
         String(2), ForeignKey("supported_countries.code", ondelete="CASCADE"), nullable=False,
     )
     operator_code: Mapped[str] = mapped_column(String(20), nullable=False)  # "MTN", "ORANGE", "WAVE"
+    # Which PSP this operator row belongs to. The same operator (e.g. MTN/CM)
+    # may exist once per provider, each with its own service_code and limits.
+    provider_code: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="TOUCHPAY", server_default="TOUCHPAY",
+    )
     operator_name: Mapped[str] = mapped_column(String(100), nullable=False)  # "MTN MoMo"
     service_code: Mapped[str] = mapped_column(String(100), nullable=False)  # "PAIEMENTMARCHAND_MTN_CM"
     color: Mapped[str] = mapped_column(String(7), nullable=False, default="#000000")

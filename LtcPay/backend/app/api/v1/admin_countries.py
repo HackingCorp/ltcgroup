@@ -506,21 +506,24 @@ async def create_operator(
     if not country.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Country not found")
 
-    # Check uniqueness
+    # Check uniqueness (per provider: MTN can exist once per PSP)
+    provider_code = (payload.provider_code or "TOUCHPAY").upper()
     existing = await db.execute(
         select(CountryOperator).where(
             CountryOperator.country_code == code,
+            CountryOperator.provider_code == provider_code,
             CountryOperator.operator_code == payload.operator_code.upper(),
         )
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=409,
-            detail=f"Operator '{payload.operator_code}' already exists for {code}",
+            detail=f"Operator '{payload.operator_code}' already exists for {code} via {provider_code}",
         )
 
     op = CountryOperator(
         country_code=code,
+        provider_code=provider_code,
         operator_code=payload.operator_code.upper(),
         operator_name=payload.operator_name,
         service_code=payload.service_code,

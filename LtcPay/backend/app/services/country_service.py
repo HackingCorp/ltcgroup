@@ -78,15 +78,16 @@ class CountryService:
         return [c for c in countries if restrictions.get(c.code, False)]
 
     async def get_active_operators(
-        self, db: AsyncSession, country_code: str,
+        self, db: AsyncSession, country_code: str, provider_code: str | None = None,
     ) -> list[CountryOperator]:
-        """Get active operators for a country."""
-        result = await db.execute(
-            select(CountryOperator).where(
-                CountryOperator.country_code == country_code.upper(),
-                CountryOperator.is_active == True,  # noqa: E712
-            ).order_by(CountryOperator.operator_code)
+        """Get active operators for a country, optionally for one provider."""
+        query = select(CountryOperator).where(
+            CountryOperator.country_code == country_code.upper(),
+            CountryOperator.is_active == True,  # noqa: E712
         )
+        if provider_code:
+            query = query.where(CountryOperator.provider_code == provider_code.upper())
+        result = await db.execute(query.order_by(CountryOperator.operator_code))
         return list(result.scalars().all())
 
     @staticmethod

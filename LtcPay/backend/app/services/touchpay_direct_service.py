@@ -151,8 +151,8 @@ class TouchPayDirectService:
 
         country = await country_service.get_active_country(db, country_code)
 
-        # Find operator's service_code
-        operators = await country_service.get_active_operators(db, country_code)
+        # Find operator's service_code (TouchPay-scoped rows only)
+        operators = await country_service.get_active_operators(db, country_code, provider_code="TOUCHPAY")
         op = next((o for o in operators if o.operator_code == operator_code.upper()), None)
         if not op:
             raise TouchPayDirectError(

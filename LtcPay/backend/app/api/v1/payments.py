@@ -39,6 +39,8 @@ from app.services.touchpay_direct_service import (
 )
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
+from app.services.provider_service import ProviderRoutingError
+from app.services.payment_router import initiate_mobile_payment
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +77,16 @@ async def list_available_countries(
 
     result = []
     for c in countries:
-        ops = [
-            PublicOperatorInfo(
+        # The same operator may exist once per provider (e.g. MTN via
+        # TouchPay and via AccountPE). Merchants see one entry per operator:
+        # available if ANY provider serves it; display fields from the
+        # first active row.
+        by_code: dict[str, PublicOperatorInfo] = {}
+        for op in (c.operators or []):
+            existing = by_code.get(op.operator_code)
+            if existing is not None and (existing.available or not op.is_active):
+                continue
+            by_code[op.operator_code] = PublicOperatorInfo(
                 code=op.operator_code,
                 name=op.operator_name,
                 color=op.color,
@@ -87,7 +97,9 @@ async def list_available_countries(
                 phone_prefixes=list(op.phone_prefixes or []),
                 available=bool(op.is_active),
             )
-            for op in (c.operators or []) if (op.is_active or include_unavailable)
+        ops = [
+            o for o in sorted(by_code.values(), key=lambda o: o.code)
+            if (o.available or include_unavailable)
         ]
         result.append(PublicCountryInfo(
             code=c.code,
@@ -359,24 +371,32 @@ async def create_payment(
         and payload.customer_phone
         and country_code
     ):
-        callback_url = (
-            f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
-        )
         try:
-            direct_response = await touchpay_direct_service.initiate_payment(
+            provider_used, direct_response = await initiate_mobile_payment(
                 db=db,
-                payment_reference=reference,
+                payment=payment,
+                reference=reference,
                 amount=int(customer_amount),
                 phone_number=payload.customer_phone,
                 operator_code=payload.operator,
                 country_code=country_code,
-                callback_url=callback_url,
+                customer_info=customer_info,
+                description=payload.description,
             )
-            # Store response and update status to PROCESSING
+            payment.provider = PaymentProvider(provider_used)
             payment.direct_api_data = direct_response
             payment.status = PaymentStatus.PROCESSING
             await db.commit()
             await db.refresh(payment)
+        except ProviderRoutingError as exc:
+            logger.warning("No provider for %s: %s", reference, exc)
+            payment.status = PaymentStatus.FAILED
+            payment.direct_api_data = {"error": "no_provider_available", "detail": str(exc)}
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
         except OperatorMismatchError as exc:
             logger.info("Operator mismatch on creation for %s: %s", reference, exc)
             payment.status = PaymentStatus.FAILED

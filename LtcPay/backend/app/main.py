@@ -64,12 +64,57 @@ async def create_default_admin():
 
 
 @asynccontextmanager
+async def seed_payment_providers():
+    """Ensure the provider registry has its baseline rows (idempotent).
+
+    Alembic migration 012 seeds existing databases; this covers fresh
+    installs bootstrapped via create_all. Every country without provider
+    links gets TouchPay as its default so behavior stays unchanged.
+    """
+    from app.models.provider import CountryProvider, ProviderConfig, ProviderGroup
+    from app.models.country import SupportedCountry
+
+    baseline = [
+        ("TOUCHPAY", "TouchPay (InTouch)", ProviderGroup.MOBILE, True),
+        ("STRIPE", "Stripe", ProviderGroup.CARD, True),
+        ("ACCOUNTPE", "AccountPE (Swychr)", ProviderGroup.MOBILE, False),
+    ]
+    async with async_session() as db:
+        existing = {
+            p.code for p in (await db.execute(select(ProviderConfig))).scalars().all()
+        }
+        for code, name, group, active in baseline:
+            if code not in existing:
+                db.add(ProviderConfig(
+                    code=code, name=name, provider_group=group,
+                    is_active=active, config={},
+                ))
+
+        linked = {
+            cp.country_code
+            for cp in (await db.execute(select(CountryProvider))).scalars().all()
+            if cp.provider_code == "TOUCHPAY"
+        }
+        countries = (await db.execute(select(SupportedCountry))).scalars().all()
+        for country in countries:
+            if country.code not in linked:
+                db.add(CountryProvider(
+                    country_code=country.code, provider_code="TOUCHPAY",
+                    priority=1, is_active=True,
+                ))
+        await db.commit()
+
+
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting LtcPay...")
     await init_models()
     logger.info("Database tables created")
     await create_default_admin()
+    try:
+        await seed_payment_providers()
+    except Exception as exc:
+        logger.warning("Provider seed skipped: %s", exc)
     yield
     logger.info("Shutting down LtcPay...")
 
@@ -383,18 +428,25 @@ async def submit_payment(reference: str, request: Request):
                 detail=f"Operateur '{operator_str}' non disponible pour le pays '{country_code}'. Disponibles: {', '.join(sorted(valid_ops))}",
             )
 
-        callback_url = f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
+        from app.services.payment_router import initiate_mobile_payment
+        from app.services.provider_service import ProviderRoutingError
+        from app.models.payment import PaymentProvider
 
         try:
-            direct_response = await touchpay_direct_service.initiate_payment(
+            provider_used, direct_response = await initiate_mobile_payment(
                 db=db,
-                payment_reference=reference,
+                payment=payment,
+                reference=reference,
                 amount=int(payment.amount),
                 phone_number=phone,
                 operator_code=operator_str,
                 country_code=country_code,
-                callback_url=callback_url,
+                customer_info=payment.customer_info,
+                description=payment.description,
             )
+        except ProviderRoutingError as exc:
+            logger.warning("No provider on submit for %s: %s", reference, exc)
+            raise HTTPException(status_code=400, detail=str(exc))
         except OperatorMismatchError as exc:
             logger.info("Operator mismatch on submit for %s: %s", reference, exc)
             raise HTTPException(status_code=400, detail=str(exc))
@@ -430,6 +482,7 @@ async def submit_payment(reference: str, request: Request):
                 operator=operator_str,
                 country=country_code,
                 customer_info=customer_info,
+                provider=PaymentProvider(provider_used),
                 direct_api_data=direct_response,
             )
         )

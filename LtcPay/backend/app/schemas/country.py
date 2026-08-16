@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, UUID4
 
 class OperatorCreate(BaseModel):
     operator_code: str = Field(..., min_length=1, max_length=20)
+    provider_code: str = Field(default="TOUCHPAY", min_length=1, max_length=20)
     operator_name: str = Field(..., min_length=1, max_length=100)
     service_code: str = Field(..., min_length=1, max_length=100)
     color: str = Field(default="#000000", max_length=7)
@@ -25,6 +26,7 @@ class OperatorCreate(BaseModel):
 
 class OperatorUpdate(BaseModel):
     operator_code: Optional[str] = Field(None, min_length=1, max_length=20)
+    provider_code: Optional[str] = Field(None, min_length=1, max_length=20)
     operator_name: Optional[str] = Field(None, min_length=1, max_length=100)
     service_code: Optional[str] = Field(None, min_length=1, max_length=100)
     color: Optional[str] = Field(None, max_length=7)
@@ -40,6 +42,7 @@ class OperatorResponse(BaseModel):
     id: UUID4
     country_code: str
     operator_code: str
+    provider_code: str = "TOUCHPAY"
     operator_name: str
     service_code: str
     color: str

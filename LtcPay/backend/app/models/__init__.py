@@ -16,6 +16,7 @@ from app.models.dispute import Dispute, DisputeStatus
 from app.models.webhook_log import WebhookLog
 from app.models.audit_log import AuditLog
 from app.models.country import SupportedCountry, CountryOperator, MerchantCountry
+from app.models.provider import ProviderConfig, CountryProvider, ProviderGroup
 
 __all__ = [
     "Base",
