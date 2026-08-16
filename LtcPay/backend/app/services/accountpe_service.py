@@ -88,6 +88,19 @@ class AccountPEService:
             phone_number, country.phone_prefix, country.phone_digits,
         )
 
+        # AccountPE's payment_method is case-sensitive ("Moov", "Airtel",
+        # "Mpesa", ...) — use the exact value stored as service_code on the
+        # ACCOUNTPE operator row, never the normalized operator code.
+        operators = await country_service.get_active_operators(
+            db, country_code, provider_code="ACCOUNTPE",
+        )
+        op = next((o for o in operators if o.operator_code == operator_code.upper()), None)
+        if not op:
+            raise AccountPEError(
+                f"Operator '{operator_code}' not available via AccountPE for '{country_code}'"
+            )
+        payment_method = op.service_code or operator_code.upper()
+
         # Same pre-flight guards as the TouchPay direct path: reject numbers
         # that provably belong to another operator, and rate-limit attempts.
         if getattr(country, "enforce_phone_prefix_check", True):
@@ -109,7 +122,7 @@ class AccountPEService:
             "transaction_id": payment_reference,
             "amount": amount,
             "mobile": normalized_phone,
-            "payment_method": operator_code.upper(),
+            "payment_method": payment_method,
             "description": description or payment_reference,
             "pass_digital_charge": False,
             "source": "LtcPay",
