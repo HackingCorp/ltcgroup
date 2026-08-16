@@ -170,14 +170,16 @@ class CountryService:
         if not await self.is_country_available(db, country_code, merchant_id):
             return False
 
+        # The same operator may exist once per provider — any active row
+        # makes the operator available.
         result = await db.execute(
             select(CountryOperator).where(
                 CountryOperator.country_code == country_code.upper(),
                 CountryOperator.operator_code == operator_code.upper(),
                 CountryOperator.is_active == True,  # noqa: E712
-            )
+            ).limit(1)
         )
-        return result.scalar_one_or_none() is not None
+        return result.scalars().first() is not None
 
     async def detect_country_by_phone(
         self, db: AsyncSession, phone: str,
