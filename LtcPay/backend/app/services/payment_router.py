@@ -66,8 +66,11 @@ async def _dispatch(
         )
     if provider.code == "ACCOUNTPE":
         # Unsigned per-request callbacks authenticate with this token; the
-        # signed account-level webhook works regardless.
-        cb = f"{settings.webhook_base_url}/api/v1/callbacks/accountpe?token={payment.payment_token}"
+        # outcome param tells success from failure since their payload may
+        # carry no status. The signed account-level webhook works regardless.
+        base_cb = f"{settings.webhook_base_url}/api/v1/callbacks/accountpe?token={payment.payment_token}"
+        cb = f"{base_cb}&outcome=success"
+        failed_cb = f"{base_cb}&outcome=failed"
         info = customer_info or {}
         return await accountpe_service.initiate_payment(
             db=db,
@@ -81,7 +84,7 @@ async def _dispatch(
             customer_email=info.get("email"),
             description=description,
             callback_url=cb,
-            failed_callback_url=cb,
+            failed_callback_url=failed_cb,
         )
     raise TouchPayDirectError(f"No integration for provider '{provider.code}'")
 

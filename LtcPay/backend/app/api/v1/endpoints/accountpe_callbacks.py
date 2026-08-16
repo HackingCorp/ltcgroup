@@ -63,21 +63,40 @@ async def accountpe_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     raw_body = await request.body()
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    # Per-request callbacks don't follow the documented account-webhook
+    # payload — be tolerant: JSON, form-encoded, or empty body.
+    payload: dict = {}
+    if raw_body:
+        try:
+            data = await request.json()
+            if isinstance(data, dict):
+                payload = data
+        except Exception:
+            try:
+                payload = dict(await request.form())
+            except Exception:
+                payload = {}
 
-    attrs = _extract_attributes(payload if isinstance(payload, dict) else {})
+    attrs = _extract_attributes(payload)
     transaction_id = attrs.get("transaction_id")
-    if not transaction_id:
-        logger.warning("AccountPE webhook: no transaction_id in payload")
-        raise HTTPException(status_code=400, detail="Missing transaction_id")
+    token = request.query_params.get("token")
 
-    result = await db.execute(select(Payment).where(Payment.reference == transaction_id))
-    payment = result.scalar_one_or_none()
+    payment = None
+    if transaction_id:
+        result = await db.execute(select(Payment).where(Payment.reference == transaction_id))
+        payment = result.scalar_one_or_none()
+    if payment is None and token:
+        # Callback identified only by our per-payment token in the URL
+        result = await db.execute(select(Payment).where(Payment.payment_token == token))
+        payment = result.scalar_one_or_none()
+        if payment is not None:
+            transaction_id = payment.reference
+
     if not payment:
-        logger.warning("AccountPE webhook: payment not found: %s", transaction_id)
+        logger.warning(
+            "AccountPE webhook: payment not found (transaction_id=%s) body=%s",
+            transaction_id, raw_body[:500],
+        )
         raise HTTPException(status_code=404, detail="Payment not found")
 
     # --- Authenticate the delivery ---
@@ -95,17 +114,37 @@ async def accountpe_webhook(
             logger.warning("AccountPE webhook: invalid signature for %s", transaction_id)
 
     if not authenticated:
-        token = request.query_params.get("token")
         authenticated = bool(token) and token == payment.payment_token
 
     if not authenticated:
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     # --- Map status ---
+    # Prefer the payload status (account-level webhook). Per-request
+    # callbacks may carry no status at all: fall back to the outcome query
+    # param we bake into the two callback URLs at initiation
+    # (outcome=success on callback_url, outcome=failed on failed_callback_url).
+    raw_status = attrs.get("status")
+    if raw_status is None:
+        outcome = (request.query_params.get("outcome") or "").lower()
+        if outcome == "success":
+            raw_status = 1
+        elif outcome == "failed":
+            raw_status = 2
+        else:
+            logger.warning(
+                "AccountPE webhook: no status for %s (outcome=%r) body=%s",
+                transaction_id, outcome, raw_body[:500],
+            )
+            raise HTTPException(status_code=400, detail="Missing or invalid status")
     try:
-        provider_status = int(attrs.get("status"))
+        provider_status = int(raw_status)
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Missing or invalid status")
+        # e.g. the payin creation response uses string statuses ("pending")
+        label_to_code = {v.lower(): k for k, v in _STATUS_LABELS.items()}
+        provider_status = label_to_code.get(str(raw_status).lower())
+        if provider_status is None:
+            raise HTTPException(status_code=400, detail="Missing or invalid status")
 
     status_label = _STATUS_LABELS.get(provider_status, str(provider_status))
 
