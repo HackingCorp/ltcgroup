@@ -63,7 +63,6 @@ async def create_default_admin():
             logger.info("Default admin account created: lontsi05@gmail.com")
 
 
-@asynccontextmanager
 async def seed_payment_providers():
     """Ensure the provider registry has its baseline rows (idempotent).
 
@@ -105,6 +104,7 @@ async def seed_payment_providers():
         await db.commit()
 
 
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     logger.info("Starting LtcPay...")
