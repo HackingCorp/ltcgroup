@@ -218,6 +218,7 @@ class WebhookPayload(BaseModel):
     amount: Decimal
     currency: str
     method: Optional[PaymentMethod] = None
+    provider: Optional[PaymentProvider] = None
     completed_at: Optional[datetime] = None
     failure_code: Optional[str] = None
     failure_reason: Optional[str] = None

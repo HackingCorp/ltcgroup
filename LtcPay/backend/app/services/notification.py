@@ -62,6 +62,7 @@ def _build_webhook_payload(payment: Payment) -> dict:
             "customer_email": payment.customer_email,
             "customer_phone": payment.customer_phone,
             "description": payment.description,
+            "provider": payment.provider.value if payment.provider else None,
             "failure_code": payment.failure_code,
             "failure_reason": payment.failure_reason,
             "completed_at": (

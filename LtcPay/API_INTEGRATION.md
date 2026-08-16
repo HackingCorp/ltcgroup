@@ -125,10 +125,18 @@ LtcPay enverra une notification POST à votre `callback_url` :
     "reference": "PAY-ABC123",
     "status": "COMPLETED",
     "amount": 5000.00,
-    "merchant_reference": "ORDER-123"
+    "merchant_reference": "ORDER-123",
+    "provider": "TOUCHPAY",
+    "failure_code": null,
+    "failure_reason": null
   }
 }
 ```
+
+Pour un paiement `FAILED`, `failure_code` (code stable, ex: `INSUFFICIENT_FUNDS`,
+`ACCOUNT_BLOCKED`, `NOT_AUTHORIZED`) et `failure_reason` (message français prêt à
+afficher) indiquent la cause exacte — montrez `failure_reason` à votre client.
+La liste complète des codes est dans la section « Motifs d'échec » ci-dessous.
 
 ---
 
@@ -405,6 +413,42 @@ Les opérateurs disponibles sont dynamiques et dépendent des pays activés pour
 | `FAILED` | Paiement échoué | Oui ❌ |
 | `CANCELLED` | Annulé par le client | Oui ❌ |
 | `EXPIRED` | Lien de paiement expiré (30 min) | Oui ❌ |
+
+---
+
+## Motifs d'échec (failure_code / failure_reason)
+
+Quand un paiement passe en `FAILED`, l'API expose un code stable (`failure_code`)
+et un message prêt à afficher (`failure_reason`), présents dans le webhook
+`payment.status_changed` et dans `GET /api/v1/payments/{reference}`.
+
+| failure_code | Type | Signification |
+|---|---|---|
+| `INSUFFICIENT_FUNDS` | client | Solde Mobile Money insuffisant — le client doit recharger. |
+| `ACCOUNT_BLOCKED` | client | Compte Mobile Money bloqué — contacter l'opérateur. |
+| `ACCOUNT_NOT_FOUND` | client | Aucun compte Mobile Money pour ce numéro. |
+| `NOT_AUTHORIZED` | client | Push de confirmation refusé ou non validé. |
+| `REJECTED_BY_OPERATOR` | client | Rejeté par l'opérateur (demande expirée ou refusée). |
+| `DUPLICATE_PAYMENT` | client | Opération identique envoyée il y a moins de 5 minutes. |
+| `WRONG_OPERATOR` | client | Le numéro n'appartient pas à l'opérateur sélectionné. |
+| `INVALID_PHONE` | client | Numéro invalide (9 chiffres sans indicatif attendus). |
+| `TOO_MANY_ATTEMPTS` | client | Trop de tentatives — attendre 30 minutes. |
+| `OPERATOR_UNAVAILABLE` | opérateur | Opérateur momentanément indisponible. |
+| `PAYMENT_FAILED` | générique | Échec non catégorisé. |
+
+Les erreurs de type « client » ne sont pas des pannes : guidez le client avec le
+message plutôt que de proposer de réessayer en boucle.
+
+---
+
+## Fournisseurs de paiement (provider)
+
+Le champ `provider` (réponses API et webhook) indique quel fournisseur a traité
+le paiement : `TOUCHPAY` ou `ACCOUNTPE` pour le Mobile Money, `STRIPE` pour la
+carte bancaire. Le choix du fournisseur mobile est automatique par pays, avec
+bascule sur un fournisseur secondaire en cas de panne du fournisseur par défaut.
+C'est transparent pour votre intégration : mêmes endpoints, mêmes statuts,
+mêmes webhooks — traitez `provider` comme une information de traçabilité.
 
 ---
 
