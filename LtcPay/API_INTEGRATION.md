@@ -444,8 +444,11 @@ message plutôt que de proposer de réessayer en boucle.
 ## Fournisseurs de paiement (provider)
 
 Le champ `provider` (réponses API et webhook) indique quel fournisseur a traité
-le paiement : `TOUCHPAY` ou `ACCOUNTPE` pour le Mobile Money, `STRIPE` pour la
-carte bancaire. Le choix du fournisseur mobile est automatique par pays, avec
+le paiement : `TOUCHPAY` ou `ACCOUNTPE` pour le Mobile Money, `STRIPE` ou
+`ENKAP` pour la carte bancaire. Pour une carte via E-nkap (`payment_mode:
+REDIRECT`), redirigez simplement le client vers `payment_url` (page de paiement
+hébergée) puis interrogez `GET /api/v1/payments/{reference}` — le statut y est
+re-vérifié en direct auprès du fournisseur à chaque appel. Le choix du fournisseur mobile est automatique par pays, avec
 bascule sur un fournisseur secondaire en cas de panne du fournisseur par défaut.
 C'est transparent pour votre intégration : mêmes endpoints, mêmes statuts,
 mêmes webhooks — traitez `provider` comme une information de traçabilité.

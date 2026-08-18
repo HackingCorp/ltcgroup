@@ -77,6 +77,7 @@ async def seed_payment_providers():
         ("TOUCHPAY", "TouchPay (InTouch)", ProviderGroup.MOBILE, True),
         ("STRIPE", "Stripe", ProviderGroup.CARD, True),
         ("ACCOUNTPE", "AccountPE (Swychr)", ProviderGroup.MOBILE, False),
+        ("ENKAP", "E-nkap (Maviance)", ProviderGroup.CARD, False),
     ]
     async with async_session() as db:
         existing = {
@@ -361,6 +362,57 @@ async def create_stripe_intent(reference: str, request: Request):
         "client_secret": intent_result["client_secret"],
         "publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
     }
+
+
+@app.get("/pay/{reference}/return", response_class=HTMLResponse)
+async def payment_return_page(reference: str, request: Request):
+    """Landing page after a hosted payment page (E-nkap redirect).
+
+    Never credits anything: it triggers a server-side re-verification for
+    E-nkap payments, then shows the current status. If the merchant set a
+    return_url, the customer is offered a link back to the shop.
+    """
+    from app.models.payment import Payment, PaymentProvider, PaymentStatus
+
+    async with async_session() as db:
+        result = await db.execute(select(Payment).where(Payment.reference == reference))
+        payment = result.scalar_one_or_none()
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+
+        if payment.provider == PaymentProvider.ENKAP and payment.status in (
+            PaymentStatus.PENDING, PaymentStatus.PROCESSING,
+        ):
+            from app.api.v1.endpoints.enkap_callbacks import verify_and_settle
+            await verify_and_settle(db, payment)
+
+        status_value = payment.status.value
+        merchant_url = payment.return_url or ""
+
+    variants = {
+        "COMPLETED": ("✅", "Paiement confirmé", "Votre paiement a été confirmé. Merci !"),
+        "FAILED": ("❌", "Paiement échoué", "Le paiement n'a pas abouti. Vous pouvez réessayer."),
+        "CANCELLED": ("⚠️", "Paiement annulé", "Le paiement a été annulé."),
+        "EXPIRED": ("⏰", "Session expirée", "La session de paiement a expiré. Relancez le paiement."),
+    }
+    icon, title, message = variants.get(
+        status_value,
+        ("⏳", "Paiement en cours", "Votre paiement est en cours de confirmation. "
+         "Cette page se rafraîchit automatiquement."),
+    )
+    refresh = '<meta http-equiv="refresh" content="5">' if status_value in ("PENDING", "PROCESSING") else ""
+    back = f'<p><a href="{merchant_url}">Retourner à la boutique</a></p>' if merchant_url else ""
+    return HTMLResponse(f"""<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{refresh}
+<title>{title} — LtcPay</title>
+<style>body{{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
+min-height:100vh;margin:0;background:#f6f7f9;color:#111}}
+.card{{background:#fff;border-radius:14px;padding:40px;max-width:420px;text-align:center;
+box-shadow:0 2px 12px rgba(0,0,0,.07)}}h1{{font-size:20px;margin:12px 0}}
+.i{{font-size:44px}}p{{color:#555;line-height:1.5}}a{{color:#2563eb}}</style></head>
+<body><div class="card"><div class="i">{icon}</div><h1>{title}</h1>
+<p>{message}</p><p style="font-size:12px;color:#999">Référence : {reference}</p>{back}
+</div></body></html>""")
 
 
 @app.post("/pay/{reference}/submit")

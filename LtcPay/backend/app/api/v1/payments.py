@@ -41,6 +41,7 @@ from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
 from app.services.provider_service import ProviderRoutingError
 from app.services.payment_router import initiate_mobile_payment
+from app.services.enkap_service import enkap_service, EnkapError
 
 logger = logging.getLogger(__name__)
 
@@ -191,12 +192,38 @@ async def create_payment(
     Rate limit: 60 requests per minute per IP.
     """
     # Determine provider and payment mode:
-    # - payment_method == BANK_CARD -> Stripe provider
-    # - Otherwise -> TouchPay provider (SDK or DIRECT_API)
+    # - payment_method == BANK_CARD -> CARD-group routing per country
+    #   (country_providers priority; legacy fallback: Stripe), REDIRECT mode
+    #   for hosted-page providers (E-nkap), STRIPE mode for PaymentIntents.
+    # - Otherwise -> mobile money (SDK or DIRECT_API), provider decided by
+    #   the mobile routing at initiation time.
     provider = PaymentProvider.TOUCHPAY
-    if payload.payment_method == PaymentMethod.BANK_CARD and stripe_service.is_configured:
-        provider = PaymentProvider.STRIPE
-        payment_mode = PaymentMode.STRIPE
+    if payload.payment_method == PaymentMethod.BANK_CARD:
+        card_candidates = await provider_service.resolve_card_providers(
+            db, payload.country,
+        )
+        provider = None
+        for candidate in card_candidates:
+            if candidate.code == "ENKAP":
+                cfg = provider_service.decrypted_config(candidate)
+                if cfg.get("consumer_key") and cfg.get("consumer_secret"):
+                    provider = PaymentProvider.ENKAP
+                    payment_mode = PaymentMode.REDIRECT
+                    break
+            elif candidate.code == "STRIPE" and stripe_service.is_configured:
+                provider = PaymentProvider.STRIPE
+                payment_mode = PaymentMode.STRIPE
+                break
+        if provider is None:
+            if stripe_service.is_configured:
+                provider = PaymentProvider.STRIPE
+                payment_mode = PaymentMode.STRIPE
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Aucun fournisseur de paiement par carte disponible"
+                           + (f" pour le pays '{payload.country}'." if payload.country else "."),
+                )
     elif payload.payment_mode:
         payment_mode = payload.payment_mode
     elif payload.operator and payload.customer_phone:
@@ -207,6 +234,11 @@ async def create_payment(
     # --- Resolve country ---
     country_code = None
     country_obj = None
+
+    if provider == PaymentProvider.ENKAP and payload.country:
+        # Card routing already picked E-nkap from this country's providers.
+        country_code = payload.country.upper()
+        country_obj = await country_service.get_active_country(db, country_code)
 
     if provider == PaymentProvider.TOUCHPAY:
         if payload.country:
@@ -336,6 +368,59 @@ async def create_payment(
     db.add(payment)
     await db.commit()
     await db.refresh(payment)
+
+    # For E-nkap provider (hosted card page), create the order and hand the
+    # merchant the redirect URL as payment_url. On E-nkap failure, fail over
+    # to Stripe when it is configured.
+    if provider == PaymentProvider.ENKAP:
+        enkap_provider = await provider_service.get_provider(db, "ENKAP")
+        info = customer_info or {}
+        try:
+            order = await enkap_service.create_order(
+                enkap_provider,
+                payment_reference=reference,
+                amount=int(customer_amount),
+                currency=currency,
+                customer_name=info.get("name"),
+                customer_email=info.get("email"),
+                customer_phone=info.get("phone"),
+                description=payload.description,
+                return_url=payload.return_url
+                or f"{settings.webhook_base_url}/pay/{reference}/return",
+                notification_url=f"{settings.webhook_base_url}/api/v1/callbacks/enkap",
+                country_phone_prefix=country_obj.phone_prefix if country_obj else "237",
+            )
+            payment.provider_transaction_id = order["txid"]
+            payment.payment_url = order["redirect_url"]
+            payment.direct_api_data = {
+                "provider": "ENKAP",
+                "txid": order["txid"],
+                "redirect_url": order["redirect_url"],
+                "raw": order["raw"],
+            }
+            await db.commit()
+            await db.refresh(payment)
+        except EnkapError as exc:
+            if stripe_service.is_configured:
+                logger.warning(
+                    "E-nkap failed for %s (%s) — failing over to Stripe", reference, exc,
+                )
+                provider = PaymentProvider.STRIPE
+                payment.provider = provider
+                payment.payment_mode = PaymentMode.STRIPE
+                payment.direct_api_data = {
+                    "failover_trail": [{"provider": "ENKAP", "error": str(exc)}],
+                }
+                await db.commit()
+            else:
+                logger.error("E-nkap initiation failed for %s: %s", reference, exc)
+                payment.status = PaymentStatus.FAILED
+                payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
+                await db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"E-nkap payment creation failed: {exc}",
+                )
 
     # For Stripe provider, create a PaymentIntent
     if provider == PaymentProvider.STRIPE:
@@ -473,6 +558,16 @@ async def get_payment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment not found",
         )
+
+    # E-nkap has no trustworthy webhook: merchants poll this endpoint, so a
+    # pending hosted-page payment is re-verified live against the E-nkap
+    # status API (the guide's recommended reconciliation path).
+    if (
+        payment.provider == PaymentProvider.ENKAP
+        and payment.status in (PaymentStatus.PENDING, PaymentStatus.PROCESSING)
+    ):
+        from app.api.v1.endpoints.enkap_callbacks import verify_and_settle
+        await verify_and_settle(db, payment)
 
     resp = PaymentResponse.model_validate(payment)
     resp.fee_bearer = merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer)

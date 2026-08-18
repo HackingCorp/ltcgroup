@@ -106,6 +106,29 @@ class ProviderService:
                 candidates.append((provider, op))
         return candidates
 
+    async def resolve_card_providers(
+        self, db: AsyncSession, country_code: str | None,
+    ) -> list[ProviderConfig]:
+        """Ordered active CARD-group providers for a country.
+
+        Without a country (legacy card payments), returns an empty list —
+        the caller falls back to the historical Stripe behavior.
+        """
+        if not country_code:
+            return []
+        result = await db.execute(
+            select(CountryProvider, ProviderConfig)
+            .join(ProviderConfig, CountryProvider.provider_code == ProviderConfig.code)
+            .where(
+                CountryProvider.country_code == country_code.upper(),
+                CountryProvider.is_active == True,  # noqa: E712
+                ProviderConfig.is_active == True,  # noqa: E712
+                ProviderConfig.provider_group == ProviderGroup.CARD,
+            )
+            .order_by(CountryProvider.priority)
+        )
+        return [provider for _, provider in result.all()]
+
     def decrypted_config(self, provider: ProviderConfig) -> dict:
         """Provider account config with sensitive values decrypted."""
         config = dict(provider.config or {})

@@ -30,6 +30,7 @@ from app.api.v1 import admin_countries
 from app.api.v1.endpoints import callbacks
 from app.api.v1.endpoints import stripe_callbacks
 from app.api.v1.endpoints import accountpe_callbacks
+from app.api.v1.endpoints import enkap_callbacks
 from app.api.v1 import admin_providers
 from app.api.v1.endpoints import payments as direct_payments
 from app.api.v1.endpoints import transactions
@@ -136,6 +137,13 @@ api_router.include_router(
     accountpe_callbacks.router,
     prefix="/callbacks",
     tags=["AccountPE Callbacks"],
+)
+
+# E-nkap callbacks (unsigned wake-up webhooks)
+api_router.include_router(
+    enkap_callbacks.router,
+    prefix="/callbacks",
+    tags=["E-nkap Callbacks"],
 )
 
 # Stripe callbacks (webhooks)

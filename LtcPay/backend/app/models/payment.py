@@ -26,12 +26,14 @@ class PaymentMode(str, enum.Enum):
     SDK = "SDK"
     DIRECT_API = "DIRECT_API"
     STRIPE = "STRIPE"
+    REDIRECT = "REDIRECT"  # hosted payment page (E-nkap, ...)
 
 
 class PaymentProvider(str, enum.Enum):
     TOUCHPAY = "TOUCHPAY"
     STRIPE = "STRIPE"
     ACCOUNTPE = "ACCOUNTPE"
+    ENKAP = "ENKAP"
 
 
 class MobileMoneyOperator(str, enum.Enum):
