@@ -61,27 +61,21 @@ async def verify_and_settle(db: AsyncSession, payment: Payment) -> PaymentStatus
     ):
         # Attempt-level outcome: a declined card or dead session must not
         # kill the payment link — the customer can retry with a new hosted
-        # session (create-intent opens one). The payment only closes as
-        # EXPIRED once its own expiry passes without a confirmed attempt.
-        now = datetime.now(timezone.utc)
-        expires_at = payment.expires_at
-        if expires_at is not None and expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at is not None and now > expires_at:
-            new_status = PaymentStatus.EXPIRED
-        else:
-            merged = dict(payment.touchpay_data or {})
-            merged.update({
-                "provider": "ENKAP",
-                "last_attempt_status": payment_status,
-                "message": f"E-nkap: tentative {(payment_status or '').lower()}"
-                           + (f" ({status_info.get('provider_name')})"
-                              if status_info.get("provider_name") else "")
-                           + " — nouvelle tentative possible",
-            })
-            payment.touchpay_data = merged
-            await db.commit()
-            return payment.status
+        # session (create-intent opens one). Payment links stay payable
+        # until confirmed, matching the platform-wide behavior where
+        # expires_at is informative, never enforced.
+        merged = dict(payment.touchpay_data or {})
+        merged.update({
+            "provider": "ENKAP",
+            "last_attempt_status": payment_status,
+            "message": f"E-nkap: tentative {(payment_status or '').lower()}"
+                       + (f" ({status_info.get('provider_name')})"
+                          if status_info.get("provider_name") else "")
+                       + " — nouvelle tentative possible",
+        })
+        payment.touchpay_data = merged
+        await db.commit()
+        return payment.status
     else:
         return payment.status  # CREATED / PENDING / PROCESSING / unknown
 
