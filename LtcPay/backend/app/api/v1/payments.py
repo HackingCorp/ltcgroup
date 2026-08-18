@@ -388,8 +388,9 @@ async def create_payment(
                 customer_email=info.get("email"),
                 customer_phone=info.get("phone"),
                 description=payload.description,
-                return_url=payload.return_url
-                or f"{settings.webhook_base_url}/pay/{reference}/return",
+                # ALWAYS our status page: E-nkap redirects to returnUrl even
+                # on FAILURE, so the merchant success page must never be it.
+                return_url=f"{settings.webhook_base_url}/pay/{reference}/return",
                 notification_url=f"{settings.webhook_base_url}/api/v1/callbacks/enkap",
                 country_phone_prefix=country_obj.phone_prefix if country_obj else "237",
             )

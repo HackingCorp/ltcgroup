@@ -398,21 +398,48 @@ async def create_stripe_intent(reference: str, request: Request):
             if not (cfg.get("consumer_key") and cfg.get("consumer_secret")):
                 break
             existing_redirect = (payment.direct_api_data or {}).get("redirect_url")
-            if payment.provider == PaymentProvider.ENKAP and existing_redirect:
-                return {"redirect_url": existing_redirect}
+            attempt = 1
+            if payment.provider == PaymentProvider.ENKAP and payment.provider_transaction_id:
+                # A previous hosted session exists. Settle if it concluded,
+                # reuse it only while it is still open — a FAILED/EXPIRED
+                # session's URL just 401s at E-nkap.
+                from app.api.v1.endpoints.enkap_callbacks import verify_and_settle
+                settled = await verify_and_settle(db, payment)
+                if settled not in (PaymentStatus.PENDING, PaymentStatus.PROCESSING):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Payment is {settled.value}, cannot create intent",
+                    )
+                try:
+                    order_state = await enkap_service.check_order_status(
+                        cp, txid=payment.provider_transaction_id,
+                    )
+                except EnkapError:
+                    order_state = {"payment_status": None}
+                if (
+                    existing_redirect
+                    and order_state.get("payment_status") in ("CREATED", "PENDING", "PROCESSING")
+                ):
+                    return {"redirect_url": existing_redirect}
+                # Dead session: open a fresh one. merchantReference must be
+                # unique per attempt at E-nkap, so suffix the reference; the
+                # /instant webhook strips the suffix to find the payment.
+                attempt = len((payment.direct_api_data or {}).get("attempts", [])) + 2
             info = payment.customer_info or {}
             try:
                 order = await enkap_service.create_order(
                     cp,
                     payment_reference=reference,
+                    merchant_reference=reference if attempt == 1 else f"{reference}-{attempt}",
                     amount=int(payment.amount),
                     currency=payment.currency,
                     customer_name=info.get("name"),
                     customer_email=info.get("email"),
                     customer_phone=info.get("phone"),
                     description=payment.description,
-                    return_url=payment.return_url
-                    or f"{settings.webhook_base_url}/pay/{reference}/return",
+                    # ALWAYS our status page (E-nkap redirects here even on
+                    # failure); it links back to the merchant return_url.
+                    return_url=f"{settings.webhook_base_url}/pay/{reference}/return",
                     notification_url=f"{settings.webhook_base_url}/api/v1/callbacks/enkap",
                 )
             except EnkapError as exc:
@@ -431,6 +458,9 @@ async def create_stripe_intent(reference: str, request: Request):
                     provider_transaction_id=order["txid"],
                     direct_api_data={
                         "provider": "ENKAP",
+                        "attempts": (payment.direct_api_data or {}).get("attempts", [])
+                        + ([{"txid": payment.provider_transaction_id}]
+                           if payment.provider_transaction_id else []),
                         "txid": order["txid"],
                         "redirect_url": order["redirect_url"],
                         "raw": order["raw"],

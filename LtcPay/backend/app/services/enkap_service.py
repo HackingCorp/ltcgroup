@@ -166,6 +166,7 @@ class EnkapService:
         return_url: str,
         notification_url: str,
         country_phone_prefix: str = "237",
+        merchant_reference: str | None = None,
     ) -> dict:
         """Create an E-nkap payment order. Returns {txid, redirect_url, raw}."""
         config = provider_service.decrypted_config(provider)
@@ -186,8 +187,9 @@ class EnkapService:
                 "subTotal": amount,
             }],
             "langKey": "fr",
-            # Our PAY-xxx reference is unique per payment — reconciliation key.
-            "merchantReference": payment_reference,
+            # Unique per attempt at E-nkap; defaults to our PAY-xxx reference,
+            # suffixed (-2, -3, ...) on retries after a dead session.
+            "merchantReference": merchant_reference or payment_reference,
             "orderDate": now.isoformat(),
             "phoneNumber": self._format_phone(customer_phone, country_phone_prefix),
             "totalAmount": amount,
