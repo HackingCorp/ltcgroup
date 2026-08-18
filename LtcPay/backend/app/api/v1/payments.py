@@ -39,7 +39,7 @@ from app.services.touchpay_direct_service import (
 )
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
-from app.services.provider_service import ProviderRoutingError
+from app.services.provider_service import ProviderRoutingError, provider_service
 from app.services.payment_router import initiate_mobile_payment
 from app.services.enkap_service import enkap_service, EnkapError
 
