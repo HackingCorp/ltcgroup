@@ -194,29 +194,25 @@ async def payment_return_generic(request: Request, status: str = "", txid: str =
     """Static landing page for hosted payment pages (account-level fallback).
 
     Used when the PSP portal needs one fixed return URL. Per-payment
-    returns go to /pay/{reference}/return; this generic variant only shows
-    an informative outcome (nothing is ever credited from a return page).
+    returns go to /pay/{reference}/return; nothing is ever credited here.
     """
     failed = status.upper() in ("FAILED", "CANCELED", "CANCELLED", "EXPIRED")
-    icon = "❌" if failed else "✅"
-    title = "Paiement non abouti" if failed else "Paiement traité"
-    message = (
-        "Le paiement n'a pas abouti (échec, annulation ou session expirée). "
-        "Vous pouvez retourner sur la boutique et réessayer."
-        if failed else
-        "Votre paiement a été transmis. La confirmation définitive vous sera "
-        "communiquée par le marchand — vous pouvez fermer cette page."
-    )
-    return HTMLResponse(f"""<!doctype html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{title} — LtcPay</title>
-<style>body{{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
-min-height:100vh;margin:0;background:#f6f7f9;color:#111}}
-.card{{background:#fff;border-radius:14px;padding:40px;max-width:420px;text-align:center;
-box-shadow:0 2px 12px rgba(0,0,0,.07)}}h1{{font-size:20px;margin:12px 0}}
-.i{{font-size:44px}}p{{color:#555;line-height:1.5}}</style></head>
-<body><div class="card"><div class="i">{icon}</div><h1>{title}</h1><p>{message}</p>
-</div></body></html>""")
+    return templates.TemplateResponse("payment_return.html", {
+        "request": request,
+        "variant": "fail" if failed else "success",
+        "title": "Paiement non abouti" if failed else "Paiement traité",
+        "message": (
+            "Le paiement n'a pas abouti (échec, annulation ou session expirée). "
+            "Vous pouvez retourner sur la boutique et réessayer."
+            if failed else
+            "Votre paiement a été transmis. La confirmation définitive vous sera "
+            "communiquée par le marchand."
+        ),
+        "badge_bg": "var(--rose-soft)" if failed else "var(--success-soft)",
+        "refresh": False,
+        "amount": None, "currency": "", "merchant_name": "", "description": "",
+        "reference": "", "merchant_url": "", "retry_url": "",
+    })
 
 
 @app.get("/pay/{reference}", response_class=HTMLResponse)
@@ -519,10 +515,12 @@ async def payment_return_page(reference: str, request: Request):
     """Landing page after a hosted payment page (E-nkap redirect).
 
     Never credits anything: it triggers a server-side re-verification for
-    E-nkap payments, then shows the current status. If the merchant set a
-    return_url, the customer is offered a link back to the shop.
+    E-nkap payments, then shows the real outcome in the checkout's visual
+    language. A failed card attempt shows an explicit failure with a retry
+    button (the payment link stays open for another attempt).
     """
     from app.models.payment import Payment, PaymentProvider, PaymentStatus
+    from app.models.merchant import Merchant as MerchantModel
 
     async with async_session() as db:
         result = await db.execute(select(Payment).where(Payment.reference == reference))
@@ -536,33 +534,70 @@ async def payment_return_page(reference: str, request: Request):
             from app.api.v1.endpoints.enkap_callbacks import verify_and_settle
             await verify_and_settle(db, payment)
 
-        status_value = payment.status.value
-        merchant_url = payment.return_url or ""
+        merchant = (await db.execute(
+            select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
+        )).scalar_one_or_none()
 
-    variants = {
-        "COMPLETED": ("✅", "Paiement confirmé", "Votre paiement a été confirmé. Merci !"),
-        "FAILED": ("❌", "Paiement échoué", "Le paiement n'a pas abouti. Vous pouvez réessayer."),
-        "CANCELLED": ("⚠️", "Paiement annulé", "Le paiement a été annulé."),
-        "EXPIRED": ("⏰", "Session expirée", "La session de paiement a expiré. Relancez le paiement."),
-    }
-    icon, title, message = variants.get(
-        status_value,
-        ("⏳", "Paiement en cours", "Votre paiement est en cours de confirmation. "
-         "Cette page se rafraîchit automatiquement."),
-    )
-    refresh = '<meta http-equiv="refresh" content="5">' if status_value in ("PENDING", "PROCESSING") else ""
-    back = f'<p><a href="{merchant_url}">Retourner à la boutique</a></p>' if merchant_url else ""
-    return HTMLResponse(f"""<!doctype html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{refresh}
-<title>{title} — LtcPay</title>
-<style>body{{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
-min-height:100vh;margin:0;background:#f6f7f9;color:#111}}
-.card{{background:#fff;border-radius:14px;padding:40px;max-width:420px;text-align:center;
-box-shadow:0 2px 12px rgba(0,0,0,.07)}}h1{{font-size:20px;margin:12px 0}}
-.i{{font-size:44px}}p{{color:#555;line-height:1.5}}a{{color:#2563eb}}</style></head>
-<body><div class="card"><div class="i">{icon}</div><h1>{title}</h1>
-<p>{message}</p><p style="font-size:12px;color:#999">Référence : {reference}</p>{back}
-</div></body></html>""")
+        status_value = payment.status.value
+        last_attempt = (payment.touchpay_data or {}).get("last_attempt_status") or ""
+        merchant_url = payment.return_url or ""
+        merchant_name = merchant.name if merchant else ""
+        amount = f"{int(payment.amount):,}".replace(",", "\u202f")
+        currency = payment.currency or "XAF"
+        description = (payment.description or "")[:60]
+
+    retry_url = ""
+    refresh = False
+    if status_value == "COMPLETED":
+        variant, title = "success", "Paiement confirmé"
+        message = "Votre paiement a été confirmé. Merci !"
+        badge_bg = "var(--success-soft)"
+    elif status_value in ("FAILED", "CANCELLED"):
+        variant = "fail" if status_value == "FAILED" else "warn"
+        title = "Paiement échoué" if status_value == "FAILED" else "Paiement annulé"
+        message = (
+            "Le paiement n'a pas abouti. Vous pouvez réessayer ou utiliser "
+            "un autre moyen de paiement."
+        )
+        badge_bg = "var(--rose-soft)" if status_value == "FAILED" else "var(--warn-soft)"
+    elif status_value == "EXPIRED":
+        variant, title = "warn", "Session expirée"
+        message = "La session de paiement a expiré. Relancez le paiement depuis la boutique."
+        badge_bg = "var(--warn-soft)"
+    elif last_attempt in ("FAILED", "CANCELED", "CANCELLED", "EXPIRED"):
+        # Payment still open, but the last hosted attempt concluded badly:
+        # say so plainly and offer a fresh attempt.
+        variant, title = "fail", "Paiement non abouti"
+        message = (
+            "La tentative n'a pas abouti (carte refusée, annulation ou session "
+            "expirée). Aucun montant n'a été débité — vous pouvez réessayer."
+        )
+        badge_bg = "var(--rose-soft)"
+        retry_url = f"/pay/{reference}"
+    else:
+        variant, title = "pending", "Paiement en cours"
+        message = (
+            "Votre paiement est en cours de confirmation. "
+            "Cette page se rafraîchit automatiquement."
+        )
+        badge_bg = "var(--primary-faint, #F2F1FF)"
+        refresh = True
+
+    return templates.TemplateResponse("payment_return.html", {
+        "request": request,
+        "variant": variant,
+        "title": title,
+        "message": message,
+        "badge_bg": badge_bg,
+        "refresh": refresh,
+        "amount": amount,
+        "currency": currency,
+        "merchant_name": merchant_name,
+        "description": description,
+        "reference": reference,
+        "merchant_url": merchant_url,
+        "retry_url": retry_url,
+    })
 
 
 @app.post("/pay/{reference}/submit")

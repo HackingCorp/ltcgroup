@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if refresh %}<meta http-equiv="refresh" content="5">{% endif %}
+    <title>{{ title }} - Nkap Pay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FAFAF7; --bg-2: #F3F3EF; --surface: #FFFFFF;
+            --ink: #0A0A0A; --ink-2: #1F1F1D; --muted: #6B6B66; --muted-2: #9F9F98;
+            --line: #E8E8E2;
+            --primary: #2D24E5;
+            --accent: #C9FF3D; --accent-2: #A9DD20;
+            --success: #14935A; --success-soft: #DCF3E7;
+            --warn: #C77900; --warn-soft: #FFEFD2;
+            --rose: #D33144; --rose-soft: #FBE0E3;
+            --display: "Space Grotesk", system-ui, -apple-system, sans-serif;
+            --mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+            --shadow-lg: 0 18px 48px rgba(10, 10, 10, 0.10);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--display); background: var(--bg-2); color: var(--ink);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+        }
+        .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+        .card {
+            width: 100%; max-width: 460px; background: var(--surface);
+            border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-lg);
+        }
+        .head {
+            background: var(--ink); color: var(--bg); padding: 28px 32px;
+            position: relative; overflow: hidden;
+        }
+        .head::after {
+            content: ""; position: absolute; right: -60px; top: -60px;
+            width: 220px; height: 220px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(201,255,61,0.18), transparent 65%);
+            pointer-events: none;
+        }
+        .brand {
+            font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--muted-2); display: flex;
+            justify-content: space-between; align-items: center;
+        }
+        .brand b { color: var(--accent); font-weight: 600; }
+        {% if amount %}
+        .amount {
+            font-size: 40px; font-weight: 700; letter-spacing: -0.02em; margin-top: 14px;
+        }
+        .amount small { font-size: 16px; font-weight: 500; color: var(--muted-2); margin-left: 6px; }
+        .meta {
+            margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.18);
+            display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;
+        }
+        .meta .row { display: flex; justify-content: space-between; gap: 16px; }
+        .meta .k { color: var(--muted-2); }
+        .meta .v { color: var(--bg); text-align: right; }
+        {% endif %}
+        .body { padding: 36px 32px 32px; text-align: center; }
+        .badge {
+            width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 18px;
+            display: flex; align-items: center; justify-content: center;
+            background: {{ badge_bg }};
+        }
+        .badge svg { width: 34px; height: 34px; }
+        h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+        .msg { font-size: 14px; line-height: 1.65; color: var(--muted); max-width: 340px; margin: 0 auto; }
+        .actions { margin-top: 26px; display: flex; flex-direction: column; gap: 10px; }
+        .btn {
+            display: block; width: 100%; padding: 15px 20px; border-radius: 12px;
+            font-family: var(--display); font-size: 15px; font-weight: 600;
+            text-align: center; text-decoration: none; cursor: pointer; border: 0;
+            transition: transform .12s ease, opacity .12s ease;
+        }
+        .btn:hover { transform: translateY(-1px); opacity: .92; }
+        .btn-accent { background: var(--accent); color: var(--ink); }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+        .foot {
+            padding: 16px 32px 22px; text-align: center; font-family: var(--mono);
+            font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--muted-2); border-top: 1px solid var(--line);
+        }
+        .spin {
+            width: 34px; height: 34px; border-radius: 50%;
+            border: 3px solid rgba(45,36,229,0.15); border-top-color: var(--primary);
+            animation: r 0.9s linear infinite;
+        }
+        @keyframes r { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="head">
+            <div class="brand">
+                <span>SECURISE PAR <b>Nkap Pay</b></span>
+                {% if reference %}<span class="mono">{{ reference }}</span>{% endif %}
+            </div>
+            {% if amount %}
+            <div class="amount mono">{{ amount }}<small>{{ currency }}</small></div>
+            <div class="meta mono">
+                {% if merchant_name %}
+                <div class="row"><span class="k">MARCHAND</span><span class="v">{{ merchant_name }}</span></div>
+                {% endif %}
+                {% if description %}
+                <div class="row"><span class="k">OBJET</span><span class="v">{{ description }}</span></div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="body">
+            <div class="badge">
+                {% if variant == "success" %}
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 12.5L9.5 17.5L19.5 7" stroke="#14935A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% elif variant == "fail" %}
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18M18 6L6 18" stroke="#D33144" stroke-width="2.6" stroke-linecap="round"/></svg>
+                {% elif variant == "warn" %}
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v9" stroke="#C77900" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="18.2" r="1.6" fill="#C77900"/></svg>
+                {% else %}
+                <div class="spin"></div>
+                {% endif %}
+            </div>
+            <h1>{{ title }}</h1>
+            <p class="msg">{{ message }}</p>
+            <div class="actions">
+                {% if retry_url %}
+                <a class="btn btn-accent" href="{{ retry_url }}">Réessayer le paiement</a>
+                {% endif %}
+                {% if merchant_url %}
+                <a class="btn {{ 'btn-accent' if not retry_url else 'btn-ghost' }}" href="{{ merchant_url }}">Retourner à la boutique</a>
+                {% endif %}
+                {% if not merchant_url and not retry_url %}
+                <span class="msg" style="font-size:12.5px;">Vous pouvez fermer cette page.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="foot">Paiement securise &middot; Mobile Money &amp; Cartes &middot; Nkap Pay</div>
+    </div>
+</body>
+</html>
