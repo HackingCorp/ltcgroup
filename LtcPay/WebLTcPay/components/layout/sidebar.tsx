@@ -27,6 +27,7 @@ const ADMIN_NAV: NavSection[] = [
       { id: "overview", label: "a.overview", icon: "activity", href: "/dashboard" },
       { id: "merchants", label: "a.merchants", icon: "building", href: "/dashboard/merchants" },
       { id: "countries", label: "a.countries", icon: "globe", href: "/dashboard/countries" },
+      { id: "providers", label: "Fournisseurs", icon: "zap", href: "/dashboard/providers" },
       { id: "finance", label: "a.finance", icon: "trend", href: "/dashboard/finance" },
     ],
   },
