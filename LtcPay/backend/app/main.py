@@ -281,8 +281,18 @@ async def payment_page(reference: str, request: Request):
         async with async_session() as db2:
             country = await country_service.get_active_country(db2, country_code)
             # All operators, including disabled ones: the checkout greys
-            # them out with an "unavailable" note instead of hiding them
-            operators = await country_service.get_operators(db2, country_code)
+            # them out with an "unavailable" note instead of hiding them.
+            # The same operator exists once per provider (TouchPay,
+            # AccountPE, ...) — show ONE button per operator_code, counted
+            # available if any provider row is active.
+            raw_operators = await country_service.get_operators(db2, country_code)
+            by_code = {}
+            for op in raw_operators:
+                existing = by_code.get(op.operator_code)
+                if existing is not None and (existing.is_active or not op.is_active):
+                    continue
+                by_code[op.operator_code] = op
+            operators = sorted(by_code.values(), key=lambda o: o.operator_code)
             country_context = {
                 "code": country.code,
                 "phone_prefix": country.phone_prefix,
