@@ -204,7 +204,9 @@ function MerchantInfoSection() {
         { name: "merchant_id", type: "uuid", desc: "Identifiant unique du marchand." },
         { name: "name", type: "string", desc: "Nom du marchand." },
         { name: "email", type: "string", desc: "Email du marchand." },
-        { name: "fee_rate", type: "number", desc: "Taux de frais en pourcentage (ex: 1.75)." },
+        { name: "fee_rate", type: "number", desc: "Taux de frais de base en pourcentage (ex: 1.75)." },
+        { name: "fee_rates", type: "object", desc: "Taux EFFECTIF par méthode : MOBILE_MONEY (taux de base) et BANK_CARD (max entre votre taux et le plancher carte). Utilisez ces valeurs pour calculer les frais avant de créer le paiement." },
+        { name: "card_min_fee_rate", type: "number", desc: "Plancher de frais appliqué aux paiements par carte pour tous les marchands (actuellement 5)." },
         { name: "fee_bearer", type: "string", desc: "Qui supporte les frais : MERCHANT ou CLIENT." },
         { name: "default_payment_mode", type: "string", desc: "Mode de paiement par défaut : SDK ou DIRECT_API." },
         { name: "is_active", type: "boolean", desc: "Indique si le compte est actif." },
@@ -216,6 +218,11 @@ function MerchantInfoSection() {
   "name": "Ma Boutique",
   "email": "contact@maboutique.cm",
   "fee_rate": 1.75,
+  "fee_rates": {
+    "MOBILE_MONEY": 1.75,
+    "BANK_CARD": 5.0
+  },
+  "card_min_fee_rate": 5.0,
   "fee_bearer": "MERCHANT",
   "default_payment_mode": "SDK",
   "is_active": true

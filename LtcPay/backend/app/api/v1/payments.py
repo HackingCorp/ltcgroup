@@ -127,12 +127,25 @@ async def list_available_countries(
 async def get_merchant_info(
     merchant: Merchant = Depends(get_current_merchant),
 ):
-    """Return the authenticated merchant's public configuration (fee rate, fee bearer, etc.)."""
+    """Return the authenticated merchant's public configuration (fee rate, fee bearer, etc.).
+
+    fee_rates gives the EFFECTIVE rate per payment method for this merchant:
+    card payments carry a platform-wide minimum (card_min_fee_rate), so
+    fee_rates.BANK_CARD = max(fee_rate, card_min_fee_rate) while
+    fee_rates.MOBILE_MONEY is the merchant's own rate. Use these to display
+    fees to your customer before creating the payment.
+    """
+    base_rate = float(merchant.fee_rate)
     return {
         "merchant_id": str(merchant.id),
         "name": merchant.name,
         "email": merchant.email,
-        "fee_rate": float(merchant.fee_rate),
+        "fee_rate": base_rate,
+        "fee_rates": {
+            "MOBILE_MONEY": base_rate,
+            "BANK_CARD": float(max(merchant.fee_rate, CARD_MIN_FEE_RATE)),
+        },
+        "card_min_fee_rate": float(CARD_MIN_FEE_RATE),
         "fee_bearer": merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
         "default_payment_mode": merchant.default_payment_mode.value if hasattr(merchant.default_payment_mode, "value") else str(merchant.default_payment_mode),
         "is_active": merchant.is_active,

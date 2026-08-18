@@ -30,6 +30,8 @@ Headers:
   "name": "Ma Boutique",
   "email": "contact@maboutique.cm",
   "fee_rate": 1.75,
+  "fee_rates": { "MOBILE_MONEY": 1.75, "BANK_CARD": 5.0 },
+  "card_min_fee_rate": 5.0,
   "fee_bearer": "MERCHANT",
   "default_payment_mode": "SDK",
   "is_active": true
