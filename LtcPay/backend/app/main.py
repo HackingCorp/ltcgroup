@@ -108,6 +108,8 @@ async def seed_payment_providers():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
+    import asyncio as _asyncio
+
     logger.info("Starting LtcPay...")
     await init_models()
     logger.info("Database tables created")
@@ -116,7 +118,10 @@ async def lifespan(app: FastAPI):
         await seed_payment_providers()
     except Exception as exc:
         logger.warning("Provider seed skipped: %s", exc)
+    from app.services.enkap_reconciler import reconciliation_loop
+    sweep_task = _asyncio.create_task(reconciliation_loop())
     yield
+    sweep_task.cancel()
     logger.info("Shutting down LtcPay...")
 
 
