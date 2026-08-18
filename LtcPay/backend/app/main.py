@@ -358,6 +358,26 @@ async def create_stripe_intent(reference: str, request: Request):
                 detail=f"Payment is {payment.status.value}, cannot create intent",
             )
 
+        # Card payments carry a platform-wide 5% minimum fee. A payment
+        # created for mobile may carry a lower fee — bump it when the
+        # customer switches to the card tab (merchant-borne: amount to pay
+        # is unchanged, the fee line is what adjusts).
+        from decimal import Decimal as _Dec
+        from app.api.v1.payments import CARD_MIN_FEE_RATE
+        # Base = net amount (customer-borne fees are already inside amount)
+        _base = _Dec(payment.amount) - _Dec(payment.fee or 0)
+        if _base <= 0:
+            _base = _Dec(payment.amount)
+        _min_fee = (_base * CARD_MIN_FEE_RATE / _Dec("100")).quantize(_Dec("0.01"))
+        if _Dec(payment.fee or 0) < _min_fee:
+            await db.execute(
+                sa_update(Payment)
+                .where(Payment.id == payment.id)
+                .values(fee=_min_fee)
+            )
+            await db.commit()
+            await db.refresh(payment)
+
         # Card routing: when the country's card providers rank a hosted-page
         # provider (E-nkap) first, hand the JS a redirect instead of a
         # Stripe intent. Falls through to Stripe on E-nkap failure.

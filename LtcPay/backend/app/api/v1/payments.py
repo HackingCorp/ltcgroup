@@ -53,6 +53,11 @@ def _generate_reference() -> str:
     return f"PAY-{uuid.uuid4().hex[:16].upper()}"
 
 
+# Card payments cost more at the PSPs (E-nkap/flocash ~4.3%): platform-wide
+# minimum fee rate for BANK_CARD, applied on top of the merchant's own rate.
+CARD_MIN_FEE_RATE = Decimal("5")
+
+
 def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
     """Compute merchant fee based on their configured rate."""
     return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
@@ -288,7 +293,10 @@ async def create_payment(
 
     reference = _generate_reference()
     base_amount = payload.amount
-    fee = _compute_fee(base_amount, merchant.fee_rate)
+    effective_fee_rate = merchant.fee_rate
+    if payload.payment_method == PaymentMethod.BANK_CARD:
+        effective_fee_rate = max(effective_fee_rate, CARD_MIN_FEE_RATE)
+    fee = _compute_fee(base_amount, effective_fee_rate)
 
     # If customer bears the fee, add it to the amount they pay
     if merchant.fee_bearer == FeeBearer.CLIENT:
