@@ -365,7 +365,23 @@ async def create_stripe_intent(reference: str, request: Request):
         # Card routing: when the country's card providers rank a hosted-page
         # provider (E-nkap) first, hand the JS a redirect instead of a
         # Stripe intent. Falls through to Stripe on E-nkap failure.
-        card_providers = await provider_service.resolve_card_providers(db, payment.country)
+        # Legacy payments may carry no country: resolve it from the customer
+        # phone, else from the merchant's single available country.
+        from app.services.country_service import country_service
+        card_country = payment.country
+        if not card_country:
+            info_phone = (payment.customer_info or {}).get("phone")
+            if info_phone:
+                detected = await country_service.detect_country_by_phone(db, info_phone)
+                if detected:
+                    card_country = detected.code
+        if not card_country:
+            available = await country_service.get_available_countries(
+                db, merchant_id=payment.merchant_id,
+            )
+            if len(available) == 1:
+                card_country = available[0].code
+        card_providers = await provider_service.resolve_card_providers(db, card_country)
         from app.models.merchant import Merchant as MerchantModel
         merchant_row = (await db.execute(
             select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
@@ -409,6 +425,7 @@ async def create_stripe_intent(reference: str, request: Request):
                 .values(
                     provider=PaymentProvider.ENKAP,
                     payment_mode=PaymentMode.REDIRECT,
+                    country=card_country,
                     provider_transaction_id=order["txid"],
                     direct_api_data={
                         "provider": "ENKAP",
