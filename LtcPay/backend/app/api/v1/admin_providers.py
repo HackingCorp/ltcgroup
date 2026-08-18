@@ -216,6 +216,80 @@ async def remove_country_link(
     await db.commit()
 
 
+merchant_prefs_router = APIRouter(
+    prefix="/admin/merchants", tags=["Admin Merchant Providers"],
+)
+
+
+class MerchantPrefsUpdate(BaseModel):
+    # {"MOBILE": {"CM": ["ACCOUNTPE", "TOUCHPAY"]}, "CARD": {"CM": ["STRIPE"]}}
+    provider_prefs: dict[str, dict[str, list[str]]] | None = None
+
+
+@merchant_prefs_router.get("/{merchant_id}/provider-prefs")
+async def get_merchant_provider_prefs(
+    merchant_id: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.merchant import Merchant
+    merchant = (await db.execute(
+        select(Merchant).where(Merchant.id == merchant_id)
+    )).scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+    return {"merchant_id": merchant_id, "provider_prefs": merchant.provider_prefs or {}}
+
+
+@merchant_prefs_router.put("/{merchant_id}/provider-prefs")
+async def set_merchant_provider_prefs(
+    merchant_id: str,
+    payload: MerchantPrefsUpdate,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a merchant's provider routing preferences (full replace).
+
+    Listed providers are tried first (in order) for that group and country;
+    unlisted active providers follow in country-priority order. Global and
+    per-country toggles still apply — prefs can reorder, never re-enable.
+    Set provider_prefs to null/{} to clear.
+    """
+    from app.models.merchant import Merchant
+    merchant = (await db.execute(
+        select(Merchant).where(Merchant.id == merchant_id)
+    )).scalar_one_or_none()
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    prefs = payload.provider_prefs or None
+    if prefs:
+        known = {
+            p.code for p in (await db.execute(select(ProviderConfig))).scalars().all()
+        }
+        normalized: dict = {}
+        for group, by_country in prefs.items():
+            if group.upper() not in ("MOBILE", "CARD"):
+                raise HTTPException(status_code=422, detail=f"Unknown group '{group}'")
+            normalized[group.upper()] = {}
+            for cc, codes in (by_country or {}).items():
+                bad = [c for c in codes if str(c).upper() not in known]
+                if bad:
+                    raise HTTPException(
+                        status_code=422, detail=f"Unknown provider(s): {bad}",
+                    )
+                normalized[group.upper()][cc.upper()] = [str(c).upper() for c in codes]
+        prefs = normalized
+
+    merchant.provider_prefs = prefs
+    await db.commit()
+    logger.info(
+        "Admin %s set provider prefs for merchant %s (%s): %s",
+        admin.email, merchant.name, merchant_id, prefs,
+    )
+    return {"merchant_id": merchant_id, "provider_prefs": prefs or {}}
+
+
 @router.get("/{code}/countries/{country_code}/operators")
 async def list_provider_operators(
     code: str,

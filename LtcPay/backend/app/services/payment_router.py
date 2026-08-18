@@ -100,6 +100,7 @@ async def initiate_mobile_payment(
     country_code: str,
     customer_info: dict | None = None,
     description: str | None = None,
+    merchant=None,
 ) -> tuple[str, dict]:
     """Initiate via the country's providers in priority order, with failover.
 
@@ -108,6 +109,9 @@ async def initiate_mobile_payment(
     """
     candidates = await provider_service.resolve_mobile_providers(
         db, country_code, operator_code,
+    )
+    candidates = provider_service.apply_merchant_prefs(
+        candidates, merchant, "MOBILE", country_code,
     )
     if not candidates:
         raise ProviderRoutingError(

@@ -343,10 +343,9 @@ async def create_stripe_intent(reference: str, request: Request):
     """
     from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentProvider
     from app.services.stripe_service import stripe_service, StripeServiceError
+    from app.services.provider_service import provider_service
+    from app.services.enkap_service import enkap_service, EnkapError
     from sqlalchemy import update as sa_update
-
-    if not stripe_service.is_configured:
-        raise HTTPException(status_code=400, detail="Stripe is not configured")
 
     async with async_session() as db:
         result = await db.execute(
@@ -362,6 +361,68 @@ async def create_stripe_intent(reference: str, request: Request):
                 status_code=400,
                 detail=f"Payment is {payment.status.value}, cannot create intent",
             )
+
+        # Card routing: when the country's card providers rank a hosted-page
+        # provider (E-nkap) first, hand the JS a redirect instead of a
+        # Stripe intent. Falls through to Stripe on E-nkap failure.
+        card_providers = await provider_service.resolve_card_providers(db, payment.country)
+        from app.models.merchant import Merchant as MerchantModel
+        merchant_row = (await db.execute(
+            select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
+        )).scalar_one_or_none()
+        card_providers = provider_service.apply_merchant_prefs(
+            card_providers, merchant_row, "CARD", payment.country,
+        )
+        for cp in card_providers:
+            if cp.code != "ENKAP":
+                break  # STRIPE ranked first -> classic intent flow below
+            cfg = provider_service.decrypted_config(cp)
+            if not (cfg.get("consumer_key") and cfg.get("consumer_secret")):
+                break
+            existing_redirect = (payment.direct_api_data or {}).get("redirect_url")
+            if payment.provider == PaymentProvider.ENKAP and existing_redirect:
+                return {"redirect_url": existing_redirect}
+            info = payment.customer_info or {}
+            try:
+                order = await enkap_service.create_order(
+                    cp,
+                    payment_reference=reference,
+                    amount=int(payment.amount),
+                    currency=payment.currency,
+                    customer_name=info.get("name"),
+                    customer_email=info.get("email"),
+                    customer_phone=info.get("phone"),
+                    description=payment.description,
+                    return_url=payment.return_url
+                    or f"{settings.webhook_base_url}/pay/{reference}/return",
+                    notification_url=f"{settings.webhook_base_url}/api/v1/callbacks/enkap",
+                )
+            except EnkapError as exc:
+                logger.warning(
+                    "E-nkap card init failed on checkout for %s (%s) — trying Stripe",
+                    reference, exc,
+                )
+                break
+            await db.execute(
+                sa_update(Payment)
+                .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
+                .values(
+                    provider=PaymentProvider.ENKAP,
+                    payment_mode=PaymentMode.REDIRECT,
+                    provider_transaction_id=order["txid"],
+                    direct_api_data={
+                        "provider": "ENKAP",
+                        "txid": order["txid"],
+                        "redirect_url": order["redirect_url"],
+                        "raw": order["raw"],
+                    },
+                )
+            )
+            await db.commit()
+            return {"redirect_url": order["redirect_url"]}
+
+        if not stripe_service.is_configured:
+            raise HTTPException(status_code=400, detail="Card payments are not configured")
 
         # If PaymentIntent already exists, return it
         if payment.stripe_client_secret:
@@ -524,6 +585,11 @@ async def submit_payment(reference: str, request: Request):
         from app.services.provider_service import ProviderRoutingError
         from app.models.payment import PaymentProvider
 
+        from app.models.merchant import Merchant as MerchantModel
+        merchant_row = (await db.execute(
+            select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
+        )).scalar_one_or_none()
+
         try:
             provider_used, direct_response = await initiate_mobile_payment(
                 db=db,
@@ -535,6 +601,7 @@ async def submit_payment(reference: str, request: Request):
                 country_code=country_code,
                 customer_info=payment.customer_info,
                 description=payment.description,
+                merchant=merchant_row,
             )
         except ProviderRoutingError as exc:
             logger.warning("No provider on submit for %s: %s", reference, exc)

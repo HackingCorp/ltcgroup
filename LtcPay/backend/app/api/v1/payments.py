@@ -202,6 +202,9 @@ async def create_payment(
         card_candidates = await provider_service.resolve_card_providers(
             db, payload.country,
         )
+        card_candidates = provider_service.apply_merchant_prefs(
+            card_candidates, merchant, "CARD", payload.country,
+        )
         provider = None
         for candidate in card_candidates:
             if candidate.code == "ENKAP":
@@ -467,6 +470,7 @@ async def create_payment(
                 country_code=country_code,
                 customer_info=customer_info,
                 description=payload.description,
+                merchant=merchant,
             )
             payment.provider = PaymentProvider(provider_used)
             payment.direct_api_data = direct_response

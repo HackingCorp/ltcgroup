@@ -129,6 +129,35 @@ class ProviderService:
         )
         return [provider for _, provider in result.all()]
 
+    @staticmethod
+    def apply_merchant_prefs(candidates, merchant, group: str, country_code: str | None):
+        """Reorder provider candidates according to a merchant's preferences.
+
+        merchant.provider_prefs shape:
+            {"MOBILE": {"CM": ["ACCOUNTPE", "TOUCHPAY"]}, "CARD": {...}}
+        Listed providers come first in that order; unlisted ones keep their
+        country-priority order after them. Toggles are already applied by the
+        resolve_* queries — prefs can only reorder, never re-enable.
+        Accepts both ProviderConfig items and (ProviderConfig, op) tuples.
+        """
+        if merchant is None or not country_code:
+            return candidates
+        prefs = (
+            (getattr(merchant, "provider_prefs", None) or {})
+            .get(group.upper(), {})
+            .get(country_code.upper())
+        )
+        if not prefs:
+            return candidates
+        rank = {str(code).upper(): i for i, code in enumerate(prefs)}
+
+        def sort_key(indexed):
+            index, item = indexed
+            provider = item[0] if isinstance(item, tuple) else item
+            return (rank.get(provider.code, len(rank)), index)
+
+        return [item for _, item in sorted(enumerate(candidates), key=lambda x: sort_key(x))]
+
     def decrypted_config(self, provider: ProviderConfig) -> dict:
         """Provider account config with sensitive values decrypted."""
         config = dict(provider.config or {})

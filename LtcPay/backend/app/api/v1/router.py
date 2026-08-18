@@ -103,6 +103,7 @@ api_router.include_router(admin_users.router)
 # Admin country management
 api_router.include_router(admin_countries.router)
 api_router.include_router(admin_providers.router)
+api_router.include_router(admin_providers.merchant_prefs_router)
 api_router.include_router(admin_countries.merchant_router)
 
 # Merchant payment API (authenticated via API key)

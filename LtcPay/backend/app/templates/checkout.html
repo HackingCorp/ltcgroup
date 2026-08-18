@@ -1442,6 +1442,12 @@
             return resp.json();
         })
         .then(function(data) {
+            if (data.redirect_url) {
+                // Hosted card page (E-nkap): leave for the secure page
+                showStatus('Redirection vers la page de paiement sécurisée…', 'info');
+                window.location.href = data.redirect_url;
+                return;
+            }
             stripeClientSecret = data.client_secret;
             mountStripeElements(data.publishable_key || stripePublishableKey);
         })

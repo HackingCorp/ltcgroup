@@ -3,7 +3,7 @@ import enum
 import secrets
 from decimal import Decimal
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, Text, Index, Enum as SQLEnum, Numeric
+from sqlalchemy import String, Boolean, DateTime, Text, Index, Enum as SQLEnum, Numeric, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -57,6 +57,14 @@ class Merchant(Base):
     webhook_secret: Mapped[str] = mapped_column(
         String(255), nullable=False, default=lambda: secrets.token_hex(32)
     )
+
+    # Per-merchant provider routing overrides. Shape:
+    #   {"MOBILE": {"CM": ["ACCOUNTPE", "TOUCHPAY"]},
+    #    "CARD":   {"CM": ["STRIPE", "ENKAP"]}}
+    # Listed providers are tried first (in that order) for that group and
+    # country; unlisted active providers follow in country-priority order.
+    # Global and per-country toggles still apply on top.
+    provider_prefs: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Default payment mode for this merchant
     default_payment_mode: Mapped[PaymentMode] = mapped_column(
