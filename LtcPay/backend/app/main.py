@@ -189,6 +189,36 @@ app.include_router(api_router, prefix="/api/v1")
 # Serves the HTML page with native form for both SDK and Direct API modes.
 # All payments now use TouchPay Direct API with a unified native interface.
 # ---------------------------------------------------------------------------
+@app.get("/pay/return", response_class=HTMLResponse)
+async def payment_return_generic(request: Request, status: str = "", txid: str = ""):
+    """Static landing page for hosted payment pages (account-level fallback).
+
+    Used when the PSP portal needs one fixed return URL. Per-payment
+    returns go to /pay/{reference}/return; this generic variant only shows
+    an informative outcome (nothing is ever credited from a return page).
+    """
+    failed = status.upper() in ("FAILED", "CANCELED", "CANCELLED", "EXPIRED")
+    icon = "❌" if failed else "✅"
+    title = "Paiement non abouti" if failed else "Paiement traité"
+    message = (
+        "Le paiement n'a pas abouti (échec, annulation ou session expirée). "
+        "Vous pouvez retourner sur la boutique et réessayer."
+        if failed else
+        "Votre paiement a été transmis. La confirmation définitive vous sera "
+        "communiquée par le marchand — vous pouvez fermer cette page."
+    )
+    return HTMLResponse(f"""<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — LtcPay</title>
+<style>body{{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;
+min-height:100vh;margin:0;background:#f6f7f9;color:#111}}
+.card{{background:#fff;border-radius:14px;padding:40px;max-width:420px;text-align:center;
+box-shadow:0 2px 12px rgba(0,0,0,.07)}}h1{{font-size:20px;margin:12px 0}}
+.i{{font-size:44px}}p{{color:#555;line-height:1.5}}</style></head>
+<body><div class="card"><div class="i">{icon}</div><h1>{title}</h1><p>{message}</p>
+</div></body></html>""")
+
+
 @app.get("/pay/{reference}", response_class=HTMLResponse)
 async def payment_page(reference: str, request: Request):
     """Render the unified payment checkout page.
