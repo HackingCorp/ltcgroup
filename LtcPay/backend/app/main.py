@@ -381,6 +381,8 @@ async def create_stripe_intent(reference: str, request: Request):
             )
             if len(available) == 1:
                 card_country = available[0].code
+        if not card_country:
+            card_country = "CM"  # same legacy fallback as /pay/{ref}/submit
         card_providers = await provider_service.resolve_card_providers(db, card_country)
         from app.models.merchant import Merchant as MerchantModel
         merchant_row = (await db.execute(
