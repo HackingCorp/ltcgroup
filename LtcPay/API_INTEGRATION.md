@@ -447,10 +447,22 @@ message plutôt que de proposer de réessayer en boucle.
 
 Le champ `provider` (réponses API et webhook) indique quel fournisseur a traité
 le paiement : `TOUCHPAY` ou `ACCOUNTPE` pour le Mobile Money, `STRIPE` ou
-`ENKAP` pour la carte bancaire. Pour une carte via E-nkap (`payment_mode:
-REDIRECT`), redirigez simplement le client vers `payment_url` (page de paiement
-hébergée) puis interrogez `GET /api/v1/payments/{reference}` — le statut y est
-re-vérifié en direct auprès du fournisseur à chaque appel. Le choix du fournisseur mobile est automatique par pays, avec
+`ENKAP` pour la carte bancaire.
+
+### Carte bancaire via API (payment_mode: REDIRECT)
+
+La carte s'intègre en API pure, comme le Direct API mobile :
+
+1. `POST /api/v1/payments` avec `payment_method: "BANK_CARD"` et `country`
+2. La réponse contient `payment_mode: "REDIRECT"` et `payment_url` = la page
+   de paiement sécurisée du fournisseur carte (WebView sur mobile,
+   redirection sur web). L'étape navigateur est imposée par 3-D Secure —
+   aucun fournisseur ne débite une carte sans elle.
+3. Pollez `GET /api/v1/payments/{reference}` : le statut est re-vérifié en
+   direct chez le fournisseur à chaque appel. Le webhook
+   `payment.status_changed` arrive aussi.
+4. Session de 10 minutes ; carte refusée = paiement toujours ouvert, une
+   nouvelle session est créée automatiquement au prochain essai. Le choix du fournisseur mobile est automatique par pays, avec
 bascule sur un fournisseur secondaire en cas de panne du fournisseur par défaut.
 C'est transparent pour votre intégration : mêmes endpoints, mêmes statuts,
 mêmes webhooks — traitez `provider` comme une information de traçabilité.

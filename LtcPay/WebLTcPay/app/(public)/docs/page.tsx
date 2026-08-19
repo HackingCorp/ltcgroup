@@ -702,16 +702,37 @@ function PaymentModesSection() {
         </ul>
       </div>
 
-      <H2>Stripe <T fr="(Carte bancaire)" en="(Bank card)" /></H2>
+      <H2>REDIRECT <T fr="(Carte bancaire via API)" en="(Bank card via API)" /></H2>
       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, fontSize: 13, lineHeight: 1.8, marginBottom: 24 }}>
-        <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Paiement par carte Visa/Mastercard" en="Visa/Mastercard card payment" /></p>
+        <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Paiement carte en intégration API pure — recommandé web et mobile" en="Card payment as a pure API integration — recommended for web and mobile" /></p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <li><T fr="Envoyez payment_method: BANK_CARD dans la requête" en='Send payment_method: "BANK_CARD" in the request' /></li>
-          <li><T fr="Le client est redirigé vers la page de checkout avec formulaire carte sécurisé" en="Customer is redirected to checkout page with secure card form" /></li>
-          <li><T fr="3D Secure géré automatiquement" en="3D Secure handled automatically" /></li>
-          <li><T fr="Recevez le résultat via webhook" en="Receive the result via webhook" /></li>
+          <li><T fr="Envoyez payment_method: BANK_CARD et country dans la requête" en='Send payment_method: "BANK_CARD" and country in the request' /></li>
+          <li><T fr="La réponse contient payment_mode: REDIRECT et payment_url = la page de paiement sécurisée du fournisseur carte (pas la page Nkap Pay)" en="Response contains payment_mode: REDIRECT and payment_url = the card provider's secure payment page (not the Nkap Pay page)" /></li>
+          <li><T fr="Ouvrez payment_url dans une WebView (app mobile) ou une redirection (web)" en="Open payment_url in a WebView (mobile app) or a redirect (web)" /></li>
+          <li><T fr="3-D Secure géré automatiquement — l'étape navigateur est imposée par la sécurité carte, mais votre intégration reste 100% API" en="3-D Secure handled automatically — the browser step is mandated by card security, but your integration stays 100% API" /></li>
+          <li><T fr="Pollez GET /payments/{'{reference}'} comme en Direct API : le statut y est re-vérifié en direct chez le fournisseur à chaque appel — et recevez aussi le webhook" en="Poll GET /payments/{'{reference}'} like Direct API: the status is live re-verified with the provider on each call — plus the webhook" /></li>
+          <li><T fr="Session de paiement de 10 minutes ; en cas de carte refusée, le paiement reste ouvert et un nouvel appel du client à payment_url... recrée une session automatiquement" en="10-minute payment session; on a declined card the payment stays open and a new session is created automatically" /></li>
         </ul>
       </div>
+
+      <H2><T fr="Exemple : carte via API" en="Example: card via API" /></H2>
+      <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
+  -H "X-API-Key: VOTRE_CLE" -H "X-API-Secret: VOTRE_SECRET" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "amount": 10000,
+    "currency": "XAF",
+    "country": "CM",
+    "payment_method": "BANK_CARD",
+    "customer_info": {"name": "Jean Dupont", "phone": "237670123456"}
+  }'`}</CodeBlock>
+      <CodeBlock lang="json">{`{
+  "reference": "PAY-XXXXXXXXXXXXXXXX",
+  "status": "PENDING",
+  "payment_mode": "REDIRECT",
+  "payment_url": "https://payment-v2.enkap.cm/payment/ui/auth?stxid=...",
+  ...
+}`}</CodeBlock>
     </>
   );
 }
