@@ -872,8 +872,9 @@
 
             <div class="ck-amount-label">Total a payer</div>
             <div class="ck-amount">
-                {{ "{:,.0f}".format(payment.amount).replace(",", " ") }}<small>{{ payment.currency }}</small>
+                <span id="ck-amount-main">{{ mobile_total_str }}</span><small>{{ payment.currency }}</small>
             </div>
+            <div id="ck-card-fee-note" class="mono" style="display:none; font-size:11px; color: var(--accent); letter-spacing: 0.05em;">FRAIS CARTE INCLUS</div>
 
             {% if payment.description %}
             <p class="ck-amount-desc">{{ payment.description }}</p>
@@ -882,7 +883,7 @@
             <div class="ck-items">
                 <div class="li">
                     <span>Montant</span>
-                    <span>{{ "{:,.0f}".format(payment.amount).replace(",", " ") }} {{ payment.currency }}</span>
+                    <span><span class="ck-amount-sync">{{ mobile_total_str }}</span> {{ payment.currency }}</span>
                 </div>
                 <div class="li">
                     <span>Reference</span>
@@ -896,7 +897,7 @@
                 {% endif %}
                 <div class="tot">
                     <span>Total</span>
-                    <strong>{{ "{:,.0f}".format(payment.amount).replace(",", " ") }} {{ payment.currency }}</strong>
+                    <strong><span class="ck-amount-sync">{{ mobile_total_str }}</span> {{ payment.currency }}</strong>
                 </div>
             </div>
 
@@ -1237,8 +1238,22 @@
     }
 
     // ==================== METHOD SELECTION ====================
+    var METHOD_TOTALS = { mobile: "{{ mobile_total_str }}", card: "{{ card_total_str }}" };
+
+    function updateDisplayedTotal(method) {
+        var isCard = method === 'card';
+        var total = isCard ? METHOD_TOTALS.card : METHOD_TOTALS.mobile;
+        var main = document.getElementById('ck-amount-main');
+        if (main) main.textContent = total;
+        var syncs = document.querySelectorAll('.ck-amount-sync');
+        for (var i = 0; i < syncs.length; i++) syncs[i].textContent = total;
+        var note = document.getElementById('ck-card-fee-note');
+        if (note) note.style.display = (isCard && METHOD_TOTALS.card !== METHOD_TOTALS.mobile) ? 'block' : 'none';
+    }
+
     window.selectMethod = function(method) {
         selectedMethod = method;
+        updateDisplayedTotal(method);
 
         // Update radio buttons
         var items = document.querySelectorAll('.pm-item');

@@ -40,15 +40,31 @@ async def verify_and_settle(db: AsyncSession, payment: Payment) -> PaymentStatus
     if provider is None:
         return payment.status
 
-    txid = payment.provider_transaction_id
+    # A payment may have several hosted sessions (retries): check the
+    # current one first, then every previous attempt — a customer can pay
+    # on an older session that is no longer the payment's current txid.
+    dad = payment.direct_api_data or {}
+    txids = [payment.provider_transaction_id]
+    txids += [a.get("txid") for a in reversed(dad.get("attempts", []) or [])]
+    txids = [t for i, t in enumerate(txids) if t and t not in txids[:i]]
+
+    status_info = None
     try:
-        status_info = await enkap_service.check_order_status(
-            provider,
-            txid=txid,
-            merchant_reference=None if txid else payment.reference,
-        )
+        for candidate in txids or [None]:
+            info = await enkap_service.check_order_status(
+                provider,
+                txid=candidate,
+                merchant_reference=None if candidate else payment.reference,
+            )
+            if status_info is None:
+                status_info = info  # current session's verdict by default
+            if info.get("is_paid"):
+                status_info = info  # any confirmed session settles the payment
+                break
     except EnkapError as exc:
         logger.warning("E-nkap verify failed for %s: %s", payment.reference, exc)
+        return payment.status
+    if status_info is None:
         return payment.status
 
     payment_status = status_info.get("payment_status")
@@ -91,6 +107,13 @@ async def verify_and_settle(db: AsyncSession, payment: Payment) -> PaymentStatus
     update_values: dict = {"status": new_status, "touchpay_data": merged}
     if new_status == PaymentStatus.COMPLETED:
         update_values["completed_at"] = datetime.now(timezone.utc)
+        # The card total (base + card rate) is charged on the hosted session
+        # but kept virtual until settlement — persist it now so the fee and
+        # amount reflect what was actually collected.
+        if dad.get("card_amount") is not None:
+            from decimal import Decimal as _Dec
+            update_values["amount"] = _Dec(str(dad["card_amount"]))
+            update_values["fee"] = _Dec(str(dad.get("card_fee") or payment.fee or 0))
 
     result = await db.execute(
         update(Payment)

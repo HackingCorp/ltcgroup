@@ -318,11 +318,27 @@ async def payment_page(reference: str, request: Request):
     except Exception as exc:
         logger.warning("Failed to load country context for %s: %s", country_code, exc)
 
+    # Per-method totals: cards carry the card rate (5% floor). Displayed
+    # dynamically on the page; the stored payment keeps its creation pricing.
+    def _fmt(v):
+        return "{:,.0f}".format(v).replace(",", "\u202f")
+    from app.api.v1.payments import reprice_for_method
+    mobile_total_str = _fmt(payment.amount)
+    card_total_str = mobile_total_str
+    try:
+        if payment.merchant:
+            _card_amount, _ = reprice_for_method(payment, payment.merchant, "CARD")
+            card_total_str = _fmt(_card_amount)
+    except Exception as exc:
+        logger.warning("Card total display failed for %s: %s", reference, exc)
+
     return templates.TemplateResponse(
         "checkout.html",
         {
             "request": request,
             "payment": payment,
+            "mobile_total_str": mobile_total_str,
+            "card_total_str": card_total_str,
             "merchant": payment.merchant,
             "payment_mode": payment.payment_mode.value,
             "payment_method": payment_method,
@@ -363,28 +379,26 @@ async def create_stripe_intent(reference: str, request: Request):
                 detail=f"Payment is {payment.status.value}, cannot create intent",
             )
 
-        # The customer picked CARD: reprice for the card rate. Fee always
-        # follows; for CLIENT-borne fees the charged total follows too
-        # (base + card fee) — otherwise the card PSP would collect the
-        # mobile-rate total.
+        # The customer picked CARD: compute the card pricing (base + card
+        # rate for CLIENT-borne fees) WITHOUT persisting it — the stored
+        # payment keeps its creation pricing so the checkout page and a
+        # later mobile attempt stay correct. The card total is charged on
+        # the hosted session and persisted only when that session settles.
         from decimal import Decimal as _Dec
         from app.api.v1.payments import reprice_for_method
         from app.models.merchant import Merchant as _Merchant
         _m = (await db.execute(
             select(_Merchant).where(_Merchant.id == payment.merchant_id)
         )).scalar_one_or_none()
-        amount_changed = False
-        if _m:
-            _new_amount, _new_fee = reprice_for_method(payment, _m, "CARD")
-            if _new_amount != _Dec(payment.amount) or _new_fee != _Dec(payment.fee or 0):
-                amount_changed = _new_amount != _Dec(payment.amount)
-                await db.execute(
-                    sa_update(Payment)
-                    .where(Payment.id == payment.id)
-                    .values(amount=_new_amount, fee=_new_fee)
-                )
-                await db.commit()
-                await db.refresh(payment)
+        card_amount, card_fee = (
+            reprice_for_method(payment, _m, "CARD")
+            if _m else (_Dec(payment.amount), _Dec(payment.fee or 0))
+        )
+        prior = payment.direct_api_data or {}
+        amount_changed = (
+            prior.get("card_amount") is not None
+            and _Dec(str(prior["card_amount"])) != card_amount
+        )
 
         # Card routing: when the country's card providers rank a hosted-page
         # provider (E-nkap) first, hand the JS a redirect instead of a
@@ -440,10 +454,11 @@ async def create_stripe_intent(reference: str, request: Request):
                     )
                 except EnkapError:
                     order_state = {"payment_status": None}
+                from app.services.enkap_service import PENDING_STATUSES as _OPEN
                 if (
                     existing_redirect
                     and not amount_changed
-                    and order_state.get("payment_status") in ("CREATED", "PENDING", "PROCESSING")
+                    and order_state.get("payment_status") in _OPEN
                 ):
                     return {"redirect_url": existing_redirect}
                 # Dead session: open a fresh one. merchantReference must be
@@ -456,7 +471,7 @@ async def create_stripe_intent(reference: str, request: Request):
                     cp,
                     payment_reference=reference,
                     merchant_reference=reference if attempt == 1 else f"{reference}-{attempt}",
-                    amount=int(payment.amount),
+                    amount=int(card_amount),
                     currency=payment.currency,
                     customer_name=info.get("name"),
                     customer_email=info.get("email"),
@@ -483,6 +498,8 @@ async def create_stripe_intent(reference: str, request: Request):
                     provider_transaction_id=order["txid"],
                     direct_api_data={
                         "provider": "ENKAP",
+                        "card_amount": str(card_amount),
+                        "card_fee": str(card_fee),
                         "attempts": (payment.direct_api_data or {}).get("attempts", [])
                         + ([{"txid": payment.provider_transaction_id}]
                            if payment.provider_transaction_id else []),
@@ -702,21 +719,6 @@ async def submit_payment(reference: str, request: Request):
         merchant_row = (await db.execute(
             select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
         )).scalar_one_or_none()
-
-        # The customer picked MOBILE: reprice at the mobile rate (also
-        # undoes an inflated total left by a previous card-tab visit).
-        if merchant_row:
-            from decimal import Decimal as _Dec
-            from app.api.v1.payments import reprice_for_method
-            _new_amount, _new_fee = reprice_for_method(payment, merchant_row, "MOBILE")
-            if _new_amount != _Dec(payment.amount) or _new_fee != _Dec(payment.fee or 0):
-                await db.execute(
-                    sa_update(Payment)
-                    .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
-                    .values(amount=_new_amount, fee=_new_fee)
-                )
-                await db.commit()
-                await db.refresh(payment)
 
         try:
             provider_used, direct_response = await initiate_mobile_payment(
