@@ -58,6 +58,13 @@ def _generate_reference() -> str:
 CARD_MIN_FEE_RATE = Decimal("5")
 
 
+def effective_card_rate(merchant) -> Decimal:
+    """Card fee rate for a merchant: their card rate (or base rate), floored
+    at the platform card minimum."""
+    base = getattr(merchant, "fee_rate_card", None) or merchant.fee_rate
+    return max(Decimal(base), CARD_MIN_FEE_RATE)
+
+
 def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
     """Compute merchant fee based on their configured rate."""
     return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
@@ -143,7 +150,7 @@ async def get_merchant_info(
         "fee_rate": base_rate,
         "fee_rates": {
             "MOBILE_MONEY": base_rate,
-            "BANK_CARD": float(max(merchant.fee_rate, CARD_MIN_FEE_RATE)),
+            "BANK_CARD": float(effective_card_rate(merchant)),
         },
         "card_min_fee_rate": float(CARD_MIN_FEE_RATE),
         "fee_bearer": merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
@@ -308,7 +315,7 @@ async def create_payment(
     base_amount = payload.amount
     effective_fee_rate = merchant.fee_rate
     if payload.payment_method == PaymentMethod.BANK_CARD:
-        effective_fee_rate = max(effective_fee_rate, CARD_MIN_FEE_RATE)
+        effective_fee_rate = effective_card_rate(merchant)
     fee = _compute_fee(base_amount, effective_fee_rate)
 
     # If customer bears the fee, add it to the amount they pay

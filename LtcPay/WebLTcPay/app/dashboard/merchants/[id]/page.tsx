@@ -70,6 +70,7 @@ export default function MerchantDetailPage() {
   const [adminAction, setAdminAction] = useState<AdminAction>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [newFeeRate, setNewFeeRate] = useState("");
+  const [newFeeRateCard, setNewFeeRateCard] = useState("");
   const [newFeeBearer, setNewFeeBearer] = useState("MERCHANT");
   const [regenResult, setRegenResult] = useState<{ api_key_live?: string; api_secret?: string; webhook_secret?: string } | null>(null);
 
@@ -137,10 +138,17 @@ export default function MerchantDetailPage() {
   const handleUpdateFeeConfig = async () => {
     const rate = parseFloat(newFeeRate);
     if (isNaN(rate) || rate < 1.75 || rate > 20) return;
+    const cardRaw = newFeeRateCard.trim();
+    let cardRate: number | null = null;
+    if (cardRaw !== "") {
+      cardRate = parseFloat(cardRaw);
+      if (isNaN(cardRate) || cardRate < 5 || cardRate > 20) return;
+    }
     setActionLoading(true);
     try {
       const updated = await merchantsService.update(merchantId, {
         fee_rate: rate,
+        fee_rate_card: cardRate,
         fee_bearer: newFeeBearer as "MERCHANT" | "CLIENT",
       });
       setMerchant(updated);
@@ -329,7 +337,7 @@ export default function MerchantDetailPage() {
           <div className="nk-card">
             <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 14px" }}><T fr="Actions admin" en="Admin actions" /></h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setNewFeeRate(String(feeRate)); setNewFeeBearer(merchant.fee_bearer ?? "MERCHANT"); setAdminAction("take-rate"); }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setNewFeeRate(String(feeRate)); setNewFeeRateCard(merchant.fee_rate_card != null ? String(merchant.fee_rate_card) : ""); setNewFeeBearer(merchant.fee_bearer ?? "MERCHANT"); setAdminAction("take-rate"); }}><Icon name="card" size={13} /> <T fr="Modifier le take rate" en="Edit take rate" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("payout")}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("kyc")}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setRegenResult(null); setAdminAction("regen-keys"); }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
@@ -386,13 +394,22 @@ export default function MerchantDetailPage() {
 
             {adminAction === "take-rate" && (<>
               <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}><T fr="Frais de transaction" en="Transaction fees" /></h3>
-              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}><T fr="Take rate (%)" en="Take rate (%)" /></label>
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}><T fr="Taux Mobile Money (%)" en="Mobile Money rate (%)" /></label>
               <input
                 type="number" step="0.25" min="1.75" max="20" value={newFeeRate}
                 onChange={(e) => setNewFeeRate(e.target.value)}
                 className="input" style={{ width: "100%", marginBottom: 6 }}
               />
-              <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 16px" }}><T fr="Min: 1.75% — Max: 20%" en="Min: 1.75% — Max: 20%" /></p>
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 12px" }}><T fr="Min: 1.75% — Max: 20%" en="Min: 1.75% — Max: 20%" /></p>
+
+              <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 4 }}><T fr="Taux Carte bancaire (%)" en="Bank card rate (%)" /></label>
+              <input
+                type="number" step="0.25" min="5" max="20" value={newFeeRateCard}
+                placeholder="Auto: max(taux mobile, 5%)"
+                onChange={(e) => setNewFeeRateCard(e.target.value)}
+                className="input" style={{ width: "100%", marginBottom: 6 }}
+              />
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 16px" }}><T fr="Min: 5% (plancher plateforme) — vide = automatique" en="Min: 5% (platform floor) — empty = automatic" /></p>
 
               <label style={{ fontSize: 12, color: "var(--muted)", display: "block", marginBottom: 8 }}><T fr="Porteur des frais" en="Fee bearer" /></label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>

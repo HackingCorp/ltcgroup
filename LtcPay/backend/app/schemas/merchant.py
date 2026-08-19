@@ -41,6 +41,10 @@ class MerchantUpdate(BaseModel):
     is_active: Optional[bool] = None
     default_payment_mode: Optional[PaymentMode] = None
     fee_rate: Optional[Decimal] = Field(None, ge=Decimal("1.75"), le=Decimal("20.00"))
+    fee_rate_card: Optional[Decimal] = Field(
+        None, ge=Decimal("5.00"), le=Decimal("20.00"),
+        description="Taux carte (min 5%). Null = max(fee_rate, 5%).",
+    )
     fee_bearer: Optional[FeeBearer] = None
 
 
@@ -62,6 +66,7 @@ class MerchantResponse(BaseModel):
     logo_url: Optional[str] = None
     default_payment_mode: PaymentMode = PaymentMode.SDK
     fee_rate: Decimal = Decimal("1.75")
+    fee_rate_card: Optional[Decimal] = None
     fee_bearer: FeeBearer = FeeBearer.MERCHANT
     created_at: datetime
     updated_at: datetime

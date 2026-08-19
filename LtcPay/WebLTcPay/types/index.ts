@@ -122,6 +122,7 @@ export interface Merchant {
   logo_url?: string;
   default_payment_mode: "SDK" | "DIRECT_API";
   fee_rate: number;
+  fee_rate_card?: number | null;
   fee_bearer: "MERCHANT" | "CLIENT";
   created_at: string;
   updated_at: string;

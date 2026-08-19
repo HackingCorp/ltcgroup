@@ -75,6 +75,9 @@ class Merchant(Base):
     fee_rate: Mapped[Decimal] = mapped_column(
         Numeric(5, 2), default=Decimal("1.75"), server_default="1.75", nullable=False
     )
+    # Card-specific rate; NULL = derive from fee_rate. The effective card
+    # rate is always floored at the platform card minimum (5%).
+    fee_rate_card: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     fee_bearer: Mapped[FeeBearer] = mapped_column(
         SQLEnum(FeeBearer), default=FeeBearer.MERCHANT, server_default="MERCHANT", nullable=False
     )

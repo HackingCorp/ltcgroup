@@ -368,12 +368,17 @@ async def create_stripe_intent(reference: str, request: Request):
         # customer switches to the card tab (merchant-borne: amount to pay
         # is unchanged, the fee line is what adjusts).
         from decimal import Decimal as _Dec
-        from app.api.v1.payments import CARD_MIN_FEE_RATE
+        from app.api.v1.payments import effective_card_rate
+        from app.models.merchant import Merchant as _Merchant
+        _m = (await db.execute(
+            select(_Merchant).where(_Merchant.id == payment.merchant_id)
+        )).scalar_one_or_none()
+        _card_rate = effective_card_rate(_m) if _m else _Dec("5")
         # Base = net amount (customer-borne fees are already inside amount)
         _base = _Dec(payment.amount) - _Dec(payment.fee or 0)
         if _base <= 0:
             _base = _Dec(payment.amount)
-        _min_fee = (_base * CARD_MIN_FEE_RATE / _Dec("100")).quantize(_Dec("0.01"))
+        _min_fee = (_base * _card_rate / _Dec("100")).quantize(_Dec("0.01"))
         if _Dec(payment.fee or 0) < _min_fee:
             await db.execute(
                 sa_update(Payment)
