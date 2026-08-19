@@ -363,30 +363,28 @@ async def create_stripe_intent(reference: str, request: Request):
                 detail=f"Payment is {payment.status.value}, cannot create intent",
             )
 
-        # Card payments carry a platform-wide 5% minimum fee. A payment
-        # created for mobile may carry a lower fee — bump it when the
-        # customer switches to the card tab (merchant-borne: amount to pay
-        # is unchanged, the fee line is what adjusts).
+        # The customer picked CARD: reprice for the card rate. Fee always
+        # follows; for CLIENT-borne fees the charged total follows too
+        # (base + card fee) — otherwise the card PSP would collect the
+        # mobile-rate total.
         from decimal import Decimal as _Dec
-        from app.api.v1.payments import effective_card_rate
+        from app.api.v1.payments import reprice_for_method
         from app.models.merchant import Merchant as _Merchant
         _m = (await db.execute(
             select(_Merchant).where(_Merchant.id == payment.merchant_id)
         )).scalar_one_or_none()
-        _card_rate = effective_card_rate(_m) if _m else _Dec("5")
-        # Base = net amount (customer-borne fees are already inside amount)
-        _base = _Dec(payment.amount) - _Dec(payment.fee or 0)
-        if _base <= 0:
-            _base = _Dec(payment.amount)
-        _min_fee = (_base * _card_rate / _Dec("100")).quantize(_Dec("0.01"))
-        if _Dec(payment.fee or 0) < _min_fee:
-            await db.execute(
-                sa_update(Payment)
-                .where(Payment.id == payment.id)
-                .values(fee=_min_fee)
-            )
-            await db.commit()
-            await db.refresh(payment)
+        amount_changed = False
+        if _m:
+            _new_amount, _new_fee = reprice_for_method(payment, _m, "CARD")
+            if _new_amount != _Dec(payment.amount) or _new_fee != _Dec(payment.fee or 0):
+                amount_changed = _new_amount != _Dec(payment.amount)
+                await db.execute(
+                    sa_update(Payment)
+                    .where(Payment.id == payment.id)
+                    .values(amount=_new_amount, fee=_new_fee)
+                )
+                await db.commit()
+                await db.refresh(payment)
 
         # Card routing: when the country's card providers rank a hosted-page
         # provider (E-nkap) first, hand the JS a redirect instead of a
@@ -444,6 +442,7 @@ async def create_stripe_intent(reference: str, request: Request):
                     order_state = {"payment_status": None}
                 if (
                     existing_redirect
+                    and not amount_changed
                     and order_state.get("payment_status") in ("CREATED", "PENDING", "PROCESSING")
                 ):
                     return {"redirect_url": existing_redirect}
@@ -703,6 +702,21 @@ async def submit_payment(reference: str, request: Request):
         merchant_row = (await db.execute(
             select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
         )).scalar_one_or_none()
+
+        # The customer picked MOBILE: reprice at the mobile rate (also
+        # undoes an inflated total left by a previous card-tab visit).
+        if merchant_row:
+            from decimal import Decimal as _Dec
+            from app.api.v1.payments import reprice_for_method
+            _new_amount, _new_fee = reprice_for_method(payment, merchant_row, "MOBILE")
+            if _new_amount != _Dec(payment.amount) or _new_fee != _Dec(payment.fee or 0):
+                await db.execute(
+                    sa_update(Payment)
+                    .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
+                    .values(amount=_new_amount, fee=_new_fee)
+                )
+                await db.commit()
+                await db.refresh(payment)
 
         try:
             provider_used, direct_response = await initiate_mobile_payment(

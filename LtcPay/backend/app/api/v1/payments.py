@@ -70,6 +70,27 @@ def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
     return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
 
 
+def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal]:
+    """Recompute (amount, fee) for the method the customer actually picked.
+
+    A payment is created before the customer chooses mobile or card on the
+    checkout, so its fee reflects the mobile rate. Rates differ per method:
+    when the customer switches, the fee — and, for CLIENT-borne fees, the
+    total charged — must follow. Derives the net base from the stored
+    values, so calling it repeatedly or switching back and forth is stable.
+    """
+    amount = Decimal(payment.amount)
+    fee = Decimal(payment.fee or 0)
+    client_borne = str(getattr(merchant.fee_bearer, "value", merchant.fee_bearer)) == "CLIENT"
+    base = (amount - fee) if client_borne else amount
+    if base <= 0:
+        base = amount
+    rate = effective_card_rate(merchant) if method == "CARD" else Decimal(merchant.fee_rate)
+    new_fee = _compute_fee(base, rate)
+    new_amount = (base + new_fee) if client_borne else base
+    return new_amount, new_fee
+
+
 @router.get("/countries", response_model=list[PublicCountryInfo])
 async def list_available_countries(
     request: Request,
