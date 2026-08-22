@@ -26,7 +26,11 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.velocity import check_phone_velocity
+from app.core.velocity import (
+    check_phone_velocity,
+    duplicate_payin_wait,
+    record_payin_attempt,
+)
 from app.services.country_service import country_service
 
 logger = logging.getLogger(__name__)
@@ -55,6 +59,14 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
     if "appartient a" in raw:
         return str(exc)  # already a customer-facing French message
     if "operation similaire" in raw:
+        wait = (exc.raw_response or {}).get("retry_after")
+        if wait:
+            minutes, seconds = divmod(int(wait), 60)
+            delay = f"{minutes} min {seconds:02d} s" if minutes else f"{seconds} secondes"
+            return (
+                "Une operation similaire a deja ete envoyee pour ce numero. "
+                f"Patientez encore {delay} avant de reessayer."
+            )
         return "Une operation similaire a deja ete envoyee. Patientez 5 minutes avant de reessayer."
     if "tec-internal" in raw or "erreur interne" in raw:
         return "L'operateur est momentanement indisponible. Reessayez dans quelques minutes."
@@ -84,6 +96,16 @@ _CUSTOMER_ERROR_MARKERS = (
     "bloque",               # OM: utilisateur bloque
     "appartient a",         # local prefix check: number belongs to another operator
 )
+
+
+def duplicate_retry_after(exc: "TouchPayDirectError") -> int | None:
+    """Seconds to wait when the rejection is our pre-flight duplicate guard.
+
+    None for every other rejection, including TouchPay's own duplicate error,
+    which does not tell us how much of its window is left.
+    """
+    wait = (exc.raw_response or {}).get("retry_after")
+    return int(wait) if wait else None
 
 
 def is_customer_error(exc: "TouchPayDirectError") -> bool:
@@ -194,6 +216,23 @@ class TouchPayDirectService:
         # Anti-spam: cap initiation attempts per phone number
         check_phone_velocity(normalized_phone)
 
+        # TouchPay rejects a repeat of the same payin within 5 minutes. Answer
+        # locally with the time left rather than spending a round-trip on a
+        # request we know it will refuse. Raised as a TouchPayDirectError so
+        # every caller treats it exactly like TouchPay's own rejection.
+        wait = duplicate_payin_wait(operator_code, normalized_phone, amount)
+        if wait:
+            logger.info(
+                "TouchPay Direct: duplicate window active for ref=%s phone=%s "
+                "amount=%s — %ss left, skipping the call",
+                payment_reference, normalized_phone, amount, wait,
+            )
+            raise TouchPayDirectError(
+                "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+                status_code=300,
+                raw_response={"retry_after": wait},
+            )
+
         payload = {
             "idFromClient": payment_reference,
             "amount": str(amount),
@@ -267,6 +306,11 @@ class TouchPayDirectService:
                         tp_status, msg, payment_reference,
                     )
                     raise exc
+
+            # TouchPay accepted it, so its 5-minute window is now open for
+            # this recipient/amount: mirror it so the next attempt is told to
+            # wait instead of being bounced back by TouchPay.
+            record_payin_attempt(operator_code, normalized_phone, amount)
 
             logger.info(
                 "TouchPay Direct: payment initiated successfully ref=%s data=%s",

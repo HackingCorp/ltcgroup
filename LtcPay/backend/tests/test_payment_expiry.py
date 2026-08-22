@@ -1,0 +1,221 @@
+"""
+LtcPay - expiry sweep and duplicate-window guard tests.
+
+Covers the two defects observed in production on 2026-08-22:
+- abandoned checkouts stayed PENDING forever because nothing applied
+  `expires_at` (4 payments, 2,024,700 XAF)
+- customers retrying immediately after a failure spent a TouchPay round-trip
+  only to be refused by its 5-minute duplicate guard (9 payments)
+"""
+import uuid
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import pytest
+import pytest_asyncio
+from sqlalchemy import select
+
+from app.core import velocity
+from app.models.merchant import Merchant
+from app.models.payment import Payment, PaymentStatus
+from app.services import payment_expirer
+from app.services.payment_expirer import PROCESSING_GRACE_MINUTES, expire_once
+from app.services.touchpay_direct_service import (
+    TouchPayDirectError,
+    duplicate_retry_after,
+    friendly_initiation_error,
+    is_customer_error,
+)
+
+from tests.conftest import TestSessionLocal
+
+
+@pytest_asyncio.fixture(autouse=True)
+def _use_test_session():
+    """Point the sweep at the in-memory test database."""
+    with patch.object(payment_expirer, "async_session", TestSessionLocal):
+        yield
+
+
+async def _make_payment(
+    db, merchant: Merchant, status: PaymentStatus, expires_in_minutes: float,
+) -> Payment:
+    reference = f"PAY-{uuid.uuid4().hex[:16].upper()}"
+    payment = Payment(
+        merchant_id=merchant.id,
+        reference=reference,
+        payment_token=reference,
+        amount=Decimal("510000.00"),
+        currency="XAF",
+        status=status,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=expires_in_minutes),
+        payment_url=f"http://test/pay/{reference}",
+    )
+    db.add(payment)
+    await db.commit()
+    return payment
+
+
+async def _status_of(db, payment: Payment) -> PaymentStatus:
+    """Read the status back from a fresh session, bypassing the identity map."""
+    async with TestSessionLocal() as fresh:
+        row = await fresh.execute(
+            select(Payment.status).where(Payment.id == payment.id)
+        )
+        return row.scalar_one()
+
+
+class TestExpirySweep:
+    """The job that finally applies expires_at."""
+
+    async def test_expires_past_due_pending_payment(self, db_session, demo_merchant):
+        payment = await _make_payment(
+            db_session, demo_merchant, PaymentStatus.PENDING, -30,
+        )
+
+        assert await expire_once() == 1
+        assert await _status_of(db_session, payment) == PaymentStatus.EXPIRED
+
+    async def test_leaves_pending_payment_still_within_its_window(
+        self, db_session, demo_merchant,
+    ):
+        payment = await _make_payment(
+            db_session, demo_merchant, PaymentStatus.PENDING, 30,
+        )
+
+        assert await expire_once() == 0
+        assert await _status_of(db_session, payment) == PaymentStatus.PENDING
+
+    async def test_processing_payment_keeps_its_grace_period(
+        self, db_session, demo_merchant,
+    ):
+        """An operator prompt may still be answered just after expiry."""
+        payment = await _make_payment(
+            db_session, demo_merchant, PaymentStatus.PROCESSING,
+            -(PROCESSING_GRACE_MINUTES - 5),
+        )
+
+        assert await expire_once() == 0
+        assert await _status_of(db_session, payment) == PaymentStatus.PROCESSING
+
+    async def test_processing_payment_expires_after_the_grace_period(
+        self, db_session, demo_merchant,
+    ):
+        payment = await _make_payment(
+            db_session, demo_merchant, PaymentStatus.PROCESSING,
+            -(PROCESSING_GRACE_MINUTES + 5),
+        )
+
+        assert await expire_once() == 1
+        assert await _status_of(db_session, payment) == PaymentStatus.EXPIRED
+
+    @pytest.mark.parametrize(
+        "settled",
+        [PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED],
+    )
+    async def test_never_touches_a_settled_payment(
+        self, db_session, demo_merchant, settled,
+    ):
+        """A payment that got its verdict must survive its own expiry date."""
+        payment = await _make_payment(db_session, demo_merchant, settled, -600)
+
+        assert await expire_once() == 0
+        assert await _status_of(db_session, payment) == settled
+
+    async def test_ignores_payments_without_an_expiry(self, db_session, demo_merchant):
+        payment = await _make_payment(
+            db_session, demo_merchant, PaymentStatus.PENDING, -30,
+        )
+        payment.expires_at = None
+        await db_session.commit()
+
+        assert await expire_once() == 0
+        assert await _status_of(db_session, payment) == PaymentStatus.PENDING
+
+    async def test_second_sweep_is_a_no_op(self, db_session, demo_merchant):
+        await _make_payment(db_session, demo_merchant, PaymentStatus.PENDING, -30)
+
+        assert await expire_once() == 1
+        assert await expire_once() == 0
+
+
+class TestDuplicateWindow:
+    """The 5-minute guard mirrored from TouchPay."""
+
+    def _cache(self, ttl: int = -2):
+        """Stand in for the cache service; its `redis` is a read-only property."""
+        fake = MagicMock()
+        fake.ttl.return_value = ttl
+        return SimpleNamespace(redis=fake), fake
+
+    def test_no_wait_when_the_window_was_never_opened(self):
+        cache, _ = self._cache(ttl=-2)
+        with patch.object(velocity, "cache", cache):
+            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 0
+
+    def test_returns_remaining_seconds_while_the_window_is_open(self):
+        cache, _ = self._cache(ttl=212)
+        with patch.object(velocity, "cache", cache):
+            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 212
+
+    def test_window_is_scoped_to_operator_phone_and_amount(self):
+        """A different order for the same customer must not be blocked."""
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.record_payin_attempt("MTN", "670000000", 5000)
+            velocity.duplicate_payin_wait("MTN", "670000000", 7500)
+
+        opened = fake.set.call_args[0][0]
+        checked = fake.ttl.call_args[0][0]
+        assert opened != checked
+        assert opened.endswith(":MTN:670000000:5000")
+
+    def test_fails_open_without_redis(self):
+        """TouchPay's own guard stays the backstop when Redis is down."""
+        with patch.object(velocity, "cache", SimpleNamespace(redis=None)):
+            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 0
+            velocity.record_payin_attempt("MTN", "670000000", 5000)  # no raise
+
+    def test_recording_sets_the_five_minute_ttl(self):
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.record_payin_attempt("ORANGE", "690000000", 1200)
+
+        assert fake.set.call_args.kwargs["ex"] == velocity.DUPLICATE_WINDOW_SECONDS
+
+
+class TestDuplicateRejectionSurface:
+    """How the pre-flight rejection reaches the customer and the merchant."""
+
+    def _preflight_error(self, wait: int) -> TouchPayDirectError:
+        return TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            status_code=300,
+            raw_response={"retry_after": wait},
+        )
+
+    def test_message_states_the_remaining_delay(self):
+        message = friendly_initiation_error(self._preflight_error(212))
+        assert "3 min 32 s" in message
+
+    def test_message_under_a_minute_is_in_seconds(self):
+        message = friendly_initiation_error(self._preflight_error(45))
+        assert "45 secondes" in message
+
+    def test_touchpays_own_rejection_keeps_the_generic_message(self):
+        """TouchPay never tells us how much of its window is left."""
+        exc = TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            status_code=300,
+        )
+        assert duplicate_retry_after(exc) is None
+        assert "Patientez 5 minutes" in friendly_initiation_error(exc)
+
+    def test_rejection_stays_classified_as_customer_caused(self):
+        """It must not count toward the operator-outage alert nor fail over."""
+        assert is_customer_error(self._preflight_error(212)) is True
+
+    def test_retry_after_is_read_back_as_an_int(self):
+        assert duplicate_retry_after(self._preflight_error(212)) == 212

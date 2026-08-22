@@ -35,7 +35,7 @@ from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
 from app.core.velocity import PaymentVelocityError, record_payment_failure
 from app.services.touchpay_direct_service import (
     touchpay_direct_service, TouchPayDirectError, OperatorMismatchError,
-    friendly_initiation_error, is_customer_error,
+    friendly_initiation_error, is_customer_error, duplicate_retry_after,
 )
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
@@ -566,6 +566,15 @@ async def create_payment(
             await db.commit()
             if not customer_caused:
                 record_payment_failure(reference)
+            # Blocked by the 5-minute duplicate window: the merchant should
+            # back off and retry, not treat it as a gateway outage.
+            retry_after = duplicate_retry_after(exc)
+            if retry_after:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=friendly_initiation_error(exc),
+                    headers={"Retry-After": str(retry_after)},
+                )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=friendly_initiation_error(exc),

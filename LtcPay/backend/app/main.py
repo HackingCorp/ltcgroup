@@ -119,9 +119,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Provider seed skipped: %s", exc)
     from app.services.enkap_reconciler import reconciliation_loop
-    sweep_task = _asyncio.create_task(reconciliation_loop())
+    from app.services.payment_expirer import expiry_loop
+    background_tasks = [
+        _asyncio.create_task(reconciliation_loop()),
+        _asyncio.create_task(expiry_loop()),
+    ]
     yield
-    sweep_task.cancel()
+    for task in background_tasks:
+        task.cancel()
     logger.info("Shutting down LtcPay...")
 
 
@@ -661,7 +666,7 @@ async def submit_payment(reference: str, request: Request):
     from app.models.payment import Payment, PaymentStatus, PaymentMode
     from app.services.touchpay_direct_service import (
         touchpay_direct_service, TouchPayDirectError, OperatorMismatchError,
-        friendly_initiation_error, is_customer_error,
+        friendly_initiation_error, is_customer_error, duplicate_retry_after,
     )
     from app.core.velocity import PaymentVelocityError, record_payment_failure
     from app.services.country_service import country_service
@@ -754,6 +759,15 @@ async def submit_payment(reference: str, request: Request):
             )
             if not customer_caused:
                 record_payment_failure(reference)
+            # Blocked by the 5-minute duplicate window: the payment stays
+            # PENDING so the customer can simply retry once it elapses.
+            retry_after = duplicate_retry_after(exc)
+            if retry_after:
+                raise HTTPException(
+                    status_code=429,
+                    detail=friendly_initiation_error(exc),
+                    headers={"Retry-After": str(retry_after)},
+                )
             raise HTTPException(
                 status_code=502,
                 detail=friendly_initiation_error(exc),

@@ -23,6 +23,13 @@ PHONE_WINDOW_SECONDS = 30 * 60
 ALERT_FAILURE_THRESHOLD = 20
 ALERT_WINDOW_SECONDS = 10 * 60
 
+# TouchPay refuses "une operation similaire" sent less than 5 minutes after
+# the previous one for the same recipient. Customers hit this constantly by
+# retrying immediately after a failed payment (9 times over 2026-08-19..22),
+# and the call is wasted: we mirror the window locally so the checkout can
+# say how long is left instead of firing a request that cannot succeed.
+DUPLICATE_WINDOW_SECONDS = 5 * 60
+
 
 class PaymentVelocityError(Exception):
     """Raised when a phone number exceeds the allowed payment attempts."""
@@ -56,6 +63,45 @@ def check_phone_velocity(normalized_phone: str) -> None:
             raise PaymentVelocityError(normalized_phone, retry_after)
     except RedisError as exc:
         logger.warning("Velocity check unavailable (Redis error): %s", exc)
+
+
+def _duplicate_key(operator: str, normalized_phone: str, amount: int) -> str:
+    return f"velocity:dup:{operator}:{normalized_phone}:{amount}"
+
+
+def duplicate_payin_wait(operator: str, normalized_phone: str, amount: int) -> int:
+    """Seconds left before this exact payin may be retried (0 = go ahead).
+
+    Fails open: with Redis down we let the request through and TouchPay's own
+    guard remains the backstop.
+    """
+    redis = cache.redis
+    if not redis or not normalized_phone:
+        return 0
+
+    try:
+        ttl = redis.ttl(_duplicate_key(operator, normalized_phone, amount))
+    except RedisError as exc:
+        logger.warning("Duplicate check unavailable (Redis error): %s", exc)
+        return 0
+
+    return ttl if ttl and ttl > 0 else 0
+
+
+def record_payin_attempt(operator: str, normalized_phone: str, amount: int) -> None:
+    """Open the 5-minute duplicate window for this recipient/amount."""
+    redis = cache.redis
+    if not redis or not normalized_phone:
+        return
+
+    try:
+        redis.set(
+            _duplicate_key(operator, normalized_phone, amount),
+            "1",
+            ex=DUPLICATE_WINDOW_SECONDS,
+        )
+    except RedisError as exc:
+        logger.warning("Duplicate window not recorded (Redis error): %s", exc)
 
 
 def record_payment_failure(reference: str) -> None:
