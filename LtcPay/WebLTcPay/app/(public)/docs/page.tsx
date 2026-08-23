@@ -850,7 +850,7 @@ function EventsSection() {
       />
 
       <FieldTable fields={[
-        { name: "payment.status_changed", type: "webhook", desc: "Envoyé chaque fois que le statut d'un paiement change (PENDING → COMPLETED, PENDING → FAILED, etc.)." },
+        { name: "payment.status_changed", type: "webhook", desc: "Envoyé chaque fois qu'un paiement atteint COMPLETED, FAILED ou CANCELLED. Le passage à EXPIRED ne déclenche PAS de webhook : détectez-le en pollant GET /payments/{reference}, ou fiez-vous à votre propre délai d'attente." },
       ]} />
 
       <H2><T fr="Transitions de statut" en="Status transitions" /></H2>
@@ -861,6 +861,7 @@ function EventsSection() {
         <div>PENDING → FAILED <span style={{ color: "var(--muted)" }}>(erreur de paiement)</span></div>
         <div>PROCESSING → FAILED <span style={{ color: "var(--muted)" }}>(client a refusé ou timeout)</span></div>
         <div>PENDING → EXPIRED <span style={{ color: "var(--muted)" }}>(session expirée, 30 min par défaut)</span></div>
+        <div>PROCESSING → EXPIRED <span style={{ color: "var(--muted)" }}>(sans réponse de l&apos;opérateur, 30 min après expiration)</span></div>
         <div>PENDING → CANCELLED <span style={{ color: "var(--muted)" }}>(annulé par le client ou le marchand)</span></div>
         <div>COMPLETED → REFUNDED <span style={{ color: "var(--muted)" }}>(remboursement effectué)</span></div>
       </div>
@@ -897,15 +898,15 @@ function StatusesSection() {
         { name: "PROCESSING", type: "transitional", desc: "Paiement en cours de traitement (Direct API uniquement — le client a reçu la notification push)." },
         { name: "COMPLETED", type: "terminal", desc: "Paiement réussi. Les fonds ont été collectés." },
         { name: "FAILED", type: "terminal", desc: "Paiement échoué (refus opérateur, solde insuffisant, erreur technique)." },
-        { name: "EXPIRED", type: "terminal", desc: "Session de paiement expirée (30 minutes par défaut)." },
+        { name: "EXPIRED", type: "terminal", desc: "Session de paiement expirée (30 minutes par défaut). Le client n'a pas payé dans les temps. Aucun webhook n'est envoyé pour ce statut." },
         { name: "CANCELLED", type: "terminal", desc: "Paiement annulé par le client ou le marchand." },
         { name: "REFUNDED", type: "terminal", desc: "Paiement remboursé." },
       ]} />
 
       <InfoBox>
         <T
-          fr="Les statuts 'terminal' (COMPLETED, FAILED, EXPIRED, CANCELLED, REFUNDED) sont définitifs et ne changent plus."
-          en="Terminal statuses (COMPLETED, FAILED, EXPIRED, CANCELLED, REFUNDED) are final and won't change."
+          fr="Les statuts COMPLETED, FAILED, CANCELLED et REFUNDED sont définitifs. Seule exception : un paiement EXPIRED peut encore passer à COMPLETED si l'opérateur confirme le débit après coup — vous recevez alors le webhook payment.status_changed. Traitez donc EXPIRED comme un abandon probable, pas comme une certitude."
+          en="COMPLETED, FAILED, CANCELLED and REFUNDED are final. One exception: an EXPIRED payment can still turn COMPLETED if the operator confirms the debit late — you then receive the payment.status_changed webhook. Treat EXPIRED as a likely abandonment, not a certainty."
         />
       </InfoBox>
     </>
@@ -943,8 +944,8 @@ function ErrorsSection() {
         { name: "403", type: "Forbidden", desc: "Accès refusé (ex: paiement d'un autre marchand)." },
         { name: "404", type: "Not Found", desc: "Ressource introuvable (référence de paiement invalide)." },
         { name: "422", type: "Validation Error", desc: "Erreur de validation des données (détails dans le corps)." },
-        { name: "429", type: "Rate Limited", desc: "Trop de requêtes. Attendez avant de réessayer." },
-        { name: "502", type: "Bad Gateway", desc: "Erreur du fournisseur de paiement (TouchPay ou Stripe)." },
+        { name: "429", type: "Rate Limited", desc: "Réessayez plus tard : quota d'API dépassé, ou paiement refusé par un garde-fou de fréquence (DUPLICATE_PAYMENT, TOO_MANY_ATTEMPTS). L'en-tête Retry-After donne le délai exact en secondes." },
+        { name: "502", type: "Bad Gateway", desc: "Erreur du fournisseur de paiement (TouchPay ou Stripe). Réservé aux pannes réelles : un refus lié au client renvoie 400 ou 429." },
         { name: "500", type: "Server Error", desc: "Erreur interne du serveur." },
       ]} />
 
@@ -972,10 +973,10 @@ function ErrorsSection() {
         { name: "ACCOUNT_NOT_FOUND", type: "client", desc: "Aucun compte Mobile Money n'existe pour ce numéro. Le client doit vérifier le numéro saisi." },
         { name: "NOT_AUTHORIZED", type: "client", desc: "Le client n'a pas autorisé le paiement : demande de confirmation (push USSD) refusée ou non validée." },
         { name: "REJECTED_BY_OPERATOR", type: "client", desc: "Paiement rejeté par l'opérateur : demande non validée à temps, expirée ou refusée. Le client peut réessayer." },
-        { name: "DUPLICATE_PAYMENT", type: "client", desc: "Une opération identique (même numéro, même montant) a été envoyée il y a moins de 5 minutes. Le client doit patienter 5 minutes." },
+        { name: "DUPLICATE_PAYMENT", type: "client", desc: "Une opération identique (même numéro, même opérateur, même montant) a été envoyée il y a moins de 5 minutes. L'opérateur refuse jusqu'à la fin de cette fenêtre, même si le paiement précédent a déjà échoué. Le refus arrive en HTTP 429 : failure_reason indique le temps restant exact et rappelle la raison de l'échec précédent." },
         { name: "WRONG_OPERATOR", type: "client", desc: "Le numéro n'appartient pas à l'opérateur sélectionné (ex: numéro Orange avec MTN MoMo sélectionné)." },
         { name: "INVALID_PHONE", type: "client", desc: "Numéro de téléphone invalide. Format attendu : 9 chiffres sans indicatif pays." },
-        { name: "TOO_MANY_ATTEMPTS", type: "client", desc: "Trop de tentatives de paiement pour ce numéro. Le client doit attendre 30 minutes." },
+        { name: "TOO_MANY_ATTEMPTS", type: "client", desc: "Trop de tentatives de paiement pour ce numéro (5 par 30 minutes). Le refus arrive en HTTP 429 avec le délai restant exact dans l'en-tête Retry-After. Les tentatives bloquées par DUPLICATE_PAYMENT ne sont pas comptées." },
         { name: "OPERATOR_UNAVAILABLE", type: "operator", desc: "L'opérateur Mobile Money est momentanément indisponible (panne, maintenance). Réessayez dans quelques minutes." },
         { name: "PAYMENT_FAILED", type: "generic", desc: "Échec non catégorisé. Le client peut réessayer ou utiliser un autre moyen de paiement." },
       ]} />
