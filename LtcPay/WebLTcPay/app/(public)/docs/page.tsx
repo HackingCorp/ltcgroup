@@ -260,7 +260,7 @@ function CreatePaymentSection() {
       <H2><T fr="Corps de la requête" en="Request body" /></H2>
       <FieldTable fields={[
         { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100. Les limites dependent du pays et de l'operateur. Carte bancaire : pas de limite.", required: true },
-        { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. XAF, XOF, EUR ou USD." },
+        { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. Doit etre une devise que le fournisseur choisi sait encaisser : la devise du pays pour le Mobile Money, XAF pour la carte via E-nkap, XAF/XOF/EUR/USD pour Stripe. LtcPay ne convertit rien — convertissez avant l'envoi. Sinon : 400 CURRENCY_NOT_SUPPORTED." },
         { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
         { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
         { name: "payment_method", type: "string", desc: "MOBILE_MONEY ou BANK_CARD. Omettez pour laisser le client choisir." },
@@ -948,6 +948,19 @@ function ErrorsSection() {
         { name: "502", type: "Bad Gateway", desc: "Erreur du fournisseur de paiement (TouchPay ou Stripe). Réservé aux pannes réelles : un refus lié au client renvoie 400 ou 429." },
         { name: "500", type: "Server Error", desc: "Erreur interne du serveur." },
       ]} />
+
+      <H2><T fr="Devise non supportee (400)" en="Currency not supported (400)" /></H2>
+      <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+        <T
+          fr="LtcPay n'effectue aucune conversion de devise : le montant est encaisse tel quel. Chaque fournisseur n'accepte donc que les devises qu'il sait reellement traiter — la devise du pays pour le Mobile Money, XAF uniquement pour la carte via E-nkap. Si vous facturez dans une autre devise, convertissez le montant avant d'appeler l'API. La reponse liste les devises acceptees."
+          en="LtcPay performs no currency conversion: the amount is collected as sent. Each provider therefore only accepts the currencies it can actually settle — the country currency for Mobile Money, XAF only for cards via E-nkap. If you price in another currency, convert before calling the API. The response lists the accepted currencies."
+        />
+      </p>
+      <CodeBlock lang="json">{`{
+  "detail": "Le fournisseur ENKAP n'accepte que XAF pour le pays 'CM'. Convertissez le montant en XAF avant l'envoi : LtcPay n'effectue aucune conversion de devise.",
+  "failure_code": "CURRENCY_NOT_SUPPORTED",
+  "supported_currencies": ["XAF"]
+}`}</CodeBlock>
 
       <H2><T fr="Erreur de validation (422)" en="Validation error (422)" /></H2>
       <CodeBlock lang="json">{`{

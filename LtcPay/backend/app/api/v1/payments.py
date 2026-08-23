@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -380,6 +381,36 @@ async def create_payment(
     if not currency and country_obj:
         currency = country_obj.currency
     currency = currency or settings.default_currency
+
+    # The currency has to be one the provider that will handle this payment
+    # can actually settle. LtcPay converts nothing: mobile providers take a
+    # bare integer read in the country's own currency, and E-nkap only knows
+    # XAF — so an unchecked "EUR" would collect that many XAF instead of
+    # failing, losing ~99% of the payment in silence.
+    provider_row = (
+        await provider_service.get_provider(db, provider.value) if provider else None
+    )
+    allowed_currencies = provider_service.supported_currencies(
+        provider.value if provider else "TOUCHPAY",
+        country_obj.currency if country_obj else None,
+        provider_row,
+    )
+    if allowed_currencies and currency not in allowed_currencies:
+        supported = sorted(allowed_currencies)
+        where = f" pour le pays '{country_code}'" if country_code else ""
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "detail": (
+                    f"Le fournisseur {provider.value if provider else 'mobile'} "
+                    f"n'accepte que {', '.join(supported)}{where}. "
+                    f"Convertissez le montant en {supported[0]} avant l'envoi : "
+                    "LtcPay n'effectue aucune conversion de devise."
+                ),
+                "failure_code": "CURRENCY_NOT_SUPPORTED",
+                "supported_currencies": supported,
+            },
+        )
 
     payment_token = generate_payment_token(reference, customer_amount)
 

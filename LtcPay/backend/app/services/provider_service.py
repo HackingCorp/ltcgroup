@@ -30,12 +30,42 @@ logger = logging.getLogger(__name__)
 # Config keys whose values are stored Fernet-encrypted.
 _SENSITIVE_CONFIG_KEYS = {"api_key", "webhook_secret", "password", "secret", "consumer_key", "consumer_secret"}
 
+# Currencies each provider can actually settle, overridable per provider via
+# config["currencies"]. Providers absent from this map take the country's own
+# currency and nothing else: TouchPay and AccountPE receive a bare integer
+# with no currency field at all, so a "EUR" label would not convert anything —
+# it would quietly collect that many XAF.
+_PROVIDER_CURRENCIES = {
+    "ENKAP": {"XAF"},
+    "STRIPE": {"XAF", "XOF", "EUR", "USD"},
+}
+
 
 class ProviderRoutingError(Exception):
     """No usable provider for the requested country/operator."""
 
 
 class ProviderService:
+
+    @staticmethod
+    def supported_currencies(
+        provider_code: str,
+        country_currency: str | None,
+        provider: ProviderConfig | None = None,
+    ) -> set[str]:
+        """Currencies this provider can settle for a country.
+
+        An empty set means "unknown" — callers must not reject on it.
+        """
+        override = ((provider.config if provider else None) or {}).get("currencies")
+        if override:
+            return {str(c).upper() for c in override}
+
+        declared = _PROVIDER_CURRENCIES.get(provider_code.upper())
+        if declared is not None:
+            return set(declared)
+
+        return {country_currency.upper()} if country_currency else set()
 
     async def get_provider(self, db: AsyncSession, code: str) -> ProviderConfig | None:
         result = await db.execute(
