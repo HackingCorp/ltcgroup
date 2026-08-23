@@ -27,6 +27,10 @@ class PaymentInitiate(BaseModel):
     """Schema for initiating a new payment (sent by merchant via API)."""
     amount: Decimal = Field(..., gt=0, le=5000000, decimal_places=2)
     currency: Optional[str] = Field(default=None, max_length=3)
+    # Indicative equivalent for merchants who price in a foreign currency.
+    # Shown on the checkout next to the real total; never charged.
+    display_amount: Optional[Decimal] = Field(default=None, gt=0, decimal_places=2)
+    display_currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
     merchant_reference: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = Field(None, max_length=500)
     customer_info: Optional[CustomerInfo] = None
@@ -64,6 +68,26 @@ class PaymentInitiate(BaseModel):
             raise ValueError("Le montant minimum est 100")
         return v.quantize(Decimal("0.01"))
 
+    @field_validator("display_currency")
+    @classmethod
+    def validate_display_currency(cls, v: str | None) -> str | None:
+        """Any ISO-4217-shaped code: it is only ever displayed, never settled."""
+        if v is None:
+            return v
+        v = v.upper()
+        if not v.isalpha():
+            raise ValueError("display_currency doit etre un code ISO 4217 (3 lettres)")
+        return v
+
+    @model_validator(mode="after")
+    def validate_display_pair(self):
+        """An amount without its currency (or the reverse) would show nothing."""
+        if (self.display_amount is None) != (self.display_currency is None):
+            raise ValueError(
+                "display_amount et display_currency doivent etre fournis ensemble"
+            )
+        return self
+
     @field_validator("currency")
     @classmethod
     def validate_currency(cls, v: str | None) -> str | None:
@@ -85,6 +109,8 @@ class PaymentInitiateResponse(BaseModel):
     fee: Decimal = Decimal("0")
     fee_bearer: str = "MERCHANT"
     currency: str
+    display_amount: Optional[Decimal] = None
+    display_currency: Optional[str] = None
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK
     country: Optional[str] = None
@@ -105,6 +131,8 @@ class PaymentResponse(BaseModel):
     fee: Decimal = Decimal("0")
     fee_bearer: str = "MERCHANT"
     currency: str
+    display_amount: Optional[Decimal] = None
+    display_currency: Optional[str] = None
     method: Optional[PaymentMethod] = None
     status: PaymentStatus
     payment_mode: PaymentMode = PaymentMode.SDK

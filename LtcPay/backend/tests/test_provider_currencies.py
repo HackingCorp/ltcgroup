@@ -115,3 +115,71 @@ class TestRejectionContract:
         )
 
         assert response.status_code != 400, response.text
+
+
+class TestDisplayCurrency:
+    """Cosmetic foreign-currency pair: shown, never charged."""
+
+    async def test_display_pair_is_stored_and_returned(
+        self, client, auth_headers, cameroon,
+    ):
+        response = await client.post(
+            "/api/v1/payments",
+            headers=auth_headers,
+            json={
+                "amount": 32800,
+                "currency": "XAF",
+                "country": "CM",
+                "display_amount": 50,
+                "display_currency": "eur",
+                "description": "Commande internationale",
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        body = response.json()
+        assert body["currency"] == "XAF"
+        assert float(body["amount"]) == 32800
+        assert float(body["display_amount"]) == 50
+        assert body["display_currency"] == "EUR"
+
+    async def test_display_currency_is_not_checked_against_the_provider(
+        self, client, auth_headers, cameroon,
+    ):
+        """EUR is refused as a settlement currency but fine as a label."""
+        response = await client.post(
+            "/api/v1/payments",
+            headers=auth_headers,
+            json={
+                "amount": 32800, "currency": "XAF", "country": "CM",
+                "display_amount": 50, "display_currency": "EUR",
+            },
+        )
+        assert response.status_code == 201, response.text
+
+    @pytest.mark.parametrize("partial", [
+        {"display_amount": 50},
+        {"display_currency": "EUR"},
+    ])
+    async def test_half_a_pair_is_rejected(
+        self, client, auth_headers, cameroon, partial,
+    ):
+        """One without the other would render nothing on the checkout."""
+        response = await client.post(
+            "/api/v1/payments",
+            headers=auth_headers,
+            json={"amount": 32800, "currency": "XAF", "country": "CM", **partial},
+        )
+        assert response.status_code == 422
+
+    async def test_omitting_the_pair_leaves_it_null(
+        self, client, auth_headers, cameroon,
+    ):
+        response = await client.post(
+            "/api/v1/payments",
+            headers=auth_headers,
+            json={"amount": 32800, "currency": "XAF", "country": "CM"},
+        )
+        body = response.json()
+        assert body["display_amount"] is None
+        assert body["display_currency"] is None

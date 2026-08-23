@@ -145,6 +145,19 @@
             letter-spacing: 0.08em;
             position: relative;
         }
+        .ck-amount-display {
+            margin-top: 6px;
+            font-size: 13px;
+            color: rgba(250,250,247,0.55);
+            letter-spacing: 0.04em;
+        }
+        .ck-amount-display-note {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(250,250,247,0.35);
+            margin-left: 6px;
+        }
         .ck-amount {
             font-family: var(--display);
             font-weight: 500;
@@ -875,6 +888,15 @@
                 <span id="ck-amount-main">{{ mobile_total_str }}</span><small>{{ payment.currency }}</small>
             </div>
             <div id="ck-card-fee-note" class="mono" style="display:none; font-size:11px; color: var(--accent); letter-spacing: 0.05em;">FRAIS CARTE INCLUS</div>
+
+            {% if payment.display_amount and payment.display_currency %}
+            {# Indicative only: the merchant priced in another currency. The
+               amount above is the one actually debited -- nothing converts. #}
+            <div class="ck-amount-display mono" title="Montant indicatif fourni par le marchand. Le debit reste en {{ payment.currency }}.">
+                &asymp; {{ "{:,.2f}".format(payment.display_amount).replace(",", " ") }} {{ payment.display_currency }}
+                <span class="ck-amount-display-note">indicatif</span>
+            </div>
+            {% endif %}
 
             {% if payment.description %}
             <p class="ck-amount-desc">{{ payment.description }}</p>

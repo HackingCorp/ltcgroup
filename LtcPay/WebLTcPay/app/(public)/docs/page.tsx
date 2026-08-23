@@ -169,8 +169,8 @@ function AuthSection() {
       <H2><T fr="Limite de requêtes" en="Rate limiting" /></H2>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
         <T
-          fr="L'API est limitée à 60 requêtes par minute par adresse IP. Les réponses incluent les headers X-RateLimit-Limit et X-RateLimit-Remaining."
-          en="The API is rate-limited to 60 requests per minute per IP address. Responses include X-RateLimit-Limit and X-RateLimit-Remaining headers."
+          fr="La création de paiement est limitée à 60 requêtes par minute par adresse IP ; les autres endpoints à 100 par minute. Les réponses incluent les headers X-RateLimit-Limit et X-RateLimit-Remaining."
+          en="Payment creation is limited to 60 requests per minute per IP address; other endpoints to 100 per minute. Responses include X-RateLimit-Limit and X-RateLimit-Remaining headers."
         />
       </p>
     </>
@@ -259,7 +259,9 @@ function CreatePaymentSection() {
 
       <H2><T fr="Corps de la requête" en="Request body" /></H2>
       <FieldTable fields={[
-        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100. Les limites dependent du pays et de l'operateur. Carte bancaire : pas de limite.", required: true },
+        { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100, max: 5 000 000 (toutes methodes). Sous ce plafond, les limites dependent du pays et de l'operateur ; la carte bancaire n'a pas de limite par operateur.", required: true },
+        { name: "display_amount", type: "number", desc: "Optionnel. Montant equivalent dans votre devise de facturation, affiche a titre indicatif sur le checkout sous le total reel. Jamais debite, jamais recalcule. A fournir avec display_currency." },
+        { name: "display_currency", type: "string", desc: "Optionnel. Code ISO 4217 du montant indicatif (ex: EUR, USD). A fournir avec display_amount." },
         { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. Doit etre une devise que le fournisseur choisi sait encaisser : la devise du pays pour le Mobile Money, XAF pour la carte via E-nkap, XAF/XOF/EUR/USD pour Stripe. LtcPay ne convertit rien — convertissez avant l'envoi. Sinon : 400 CURRENCY_NOT_SUPPORTED." },
         { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
         { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
@@ -302,8 +304,10 @@ function CreatePaymentSection() {
         { name: "fee", type: "decimal", desc: "Montant des frais de transaction calculés." },
         { name: "fee_bearer", type: "string", desc: "Qui supporte les frais : MERCHANT (défaut) ou CLIENT." },
         { name: "currency", type: "string", desc: "Devise du paiement." },
-        { name: "status", type: "string", desc: "PENDING (SDK/Stripe) ou PROCESSING (Direct API)." },
-        { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API ou STRIPE." },
+        { name: "display_amount", type: "number|null", desc: "Montant indicatif renvoye tel que fourni. Null si non fourni." },
+        { name: "display_currency", type: "string|null", desc: "Devise du montant indicatif. Null si non fournie." },
+        { name: "status", type: "string", desc: "PENDING (SDK, Stripe, REDIRECT) ou PROCESSING (Direct API)." },
+        { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page hebergee du fournisseur carte)." },
         { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 (ex: CM)." },
         { name: "payment_url", type: "string", desc: "URL de checkout (mode SDK/Stripe). Redirigez le client ici." },
         { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe (mode BANK_CARD uniquement). Null sinon." },
@@ -439,7 +443,9 @@ function GetPaymentSection() {
         { name: "amount", type: "decimal", desc: "Montant du paiement." },
         { name: "fee", type: "decimal", desc: "Frais de transaction calculés." },
         { name: "fee_bearer", type: "string", desc: "Qui supporte les frais : MERCHANT ou CLIENT." },
-        { name: "currency", type: "string", desc: "Devise (XAF, XOF, EUR, USD)." },
+        { name: "currency", type: "string", desc: "Devise reellement debitee." },
+        { name: "display_amount", type: "number|null", desc: "Montant indicatif fourni a la creation. Null sinon." },
+        { name: "display_currency", type: "string|null", desc: "Devise du montant indicatif. Null sinon." },
         { name: "method", type: "string|null", desc: "MOBILE_MONEY ou BANK_CARD." },
         { name: "status", type: "string", desc: "Statut actuel du paiement." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page de paiement hébergée, ex: carte via E-nkap)." },
@@ -960,6 +966,20 @@ function ErrorsSection() {
   "detail": "Le fournisseur ENKAP n'accepte que XAF pour le pays 'CM'. Convertissez le montant en XAF avant l'envoi : LtcPay n'effectue aucune conversion de devise.",
   "failure_code": "CURRENCY_NOT_SUPPORTED",
   "supported_currencies": ["XAF"]
+}`}</CodeBlock>
+
+      <H2><T fr="Afficher votre devise au client" en="Showing your own currency" /></H2>
+      <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+        <T
+          fr="Si vous facturez en euros ou en dollars, envoyez le montant converti en devise de reglement et joignez display_amount / display_currency : le checkout affiche votre prix d'origine sous le total, marque « indicatif ». Ce couple n'est jamais debite ni recalcule — si le client bascule sur la carte et que les frais changent, le total reel bouge mais pas le montant indicatif."
+          en="If you price in euros or dollars, send the converted amount in the settlement currency and attach display_amount / display_currency: the checkout shows your original price under the total, flagged as indicative. The pair is never charged nor recomputed — if the customer switches to card and fees change, the real total moves but the indicative amount does not."
+        />
+      </p>
+      <CodeBlock lang="json">{`{
+  "amount": 32800,          // XAF -- le seul montant debite
+  "currency": "XAF",
+  "display_amount": 50,     // cosmetique
+  "display_currency": "EUR"
 }`}</CodeBlock>
 
       <H2><T fr="Erreur de validation (422)" en="Validation error (422)" /></H2>

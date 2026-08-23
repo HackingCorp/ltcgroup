@@ -88,6 +88,12 @@ class Payment(Base):
     )
     currency: Mapped[str] = mapped_column(String(3), default="XAF", nullable=False)
 
+    # Indicative equivalent shown on the checkout for merchants who price in a
+    # foreign currency. Never charged, never settled, never repriced: `amount`
+    # and `currency` above stay the only authoritative values.
+    display_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    display_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+
     # Country code (ISO 3166-1 alpha-2, resolved from phone prefix or explicit)
     country: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
 

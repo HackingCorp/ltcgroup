@@ -39,4 +39,7 @@ limiter = Limiter(
     key_func=client_ip,
     default_limits=["100/minute"],
     storage_uri=storage_uri,
+    # The public docs promise X-RateLimit-Limit / X-RateLimit-Remaining on
+    # every response; without this slowapi never emits them.
+    headers_enabled=True,
 )
