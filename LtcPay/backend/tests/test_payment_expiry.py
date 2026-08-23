@@ -153,19 +153,39 @@ class TestDuplicateWindow:
     def test_no_wait_when_the_window_was_never_opened(self):
         cache, _ = self._cache(ttl=-2)
         with patch.object(velocity, "cache", cache):
-            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 0
+            assert velocity.duplicate_payin_status("MTN", "670000000", 5000) == (0, None)
 
     def test_returns_remaining_seconds_while_the_window_is_open(self):
-        cache, _ = self._cache(ttl=212)
+        cache, fake = self._cache(ttl=212)
+        fake.get.return_value = "1"
         with patch.object(velocity, "cache", cache):
-            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 212
+            assert velocity.duplicate_payin_status("MTN", "670000000", 5000) == (212, None)
+
+    def test_carries_the_previous_rejection_reason(self):
+        cache, fake = self._cache(ttl=180)
+        fake.get.return_value = "Le solde du compte du payeur est insuffisant"
+        with patch.object(velocity, "cache", cache):
+            wait, reason = velocity.duplicate_payin_status("ORANGE", "690000000", 5000)
+        assert wait == 180
+        assert "insuffisant" in reason
+
+    def test_annotation_keeps_the_original_ttl(self):
+        """The window must not be extended by learning why it failed."""
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.annotate_payin_attempt("MTN", "670000000", 5000, "solde insuffisant")
+
+        kwargs = fake.set.call_args.kwargs
+        assert kwargs["keepttl"] is True
+        assert kwargs["xx"] is True
+        assert "ex" not in kwargs
 
     def test_window_is_scoped_to_operator_phone_and_amount(self):
         """A different order for the same customer must not be blocked."""
         cache, fake = self._cache()
         with patch.object(velocity, "cache", cache):
             velocity.record_payin_attempt("MTN", "670000000", 5000)
-            velocity.duplicate_payin_wait("MTN", "670000000", 7500)
+            velocity.duplicate_payin_status("MTN", "670000000", 7500)
 
         opened = fake.set.call_args[0][0]
         checked = fake.ttl.call_args[0][0]
@@ -175,7 +195,7 @@ class TestDuplicateWindow:
     def test_fails_open_without_redis(self):
         """TouchPay's own guard stays the backstop when Redis is down."""
         with patch.object(velocity, "cache", SimpleNamespace(redis=None)):
-            assert velocity.duplicate_payin_wait("MTN", "670000000", 5000) == 0
+            assert velocity.duplicate_payin_status("MTN", "670000000", 5000) == (0, None)
             velocity.record_payin_attempt("MTN", "670000000", 5000)  # no raise
 
     def test_recording_sets_the_five_minute_ttl(self):
@@ -219,3 +239,61 @@ class TestDuplicateRejectionSurface:
 
     def test_retry_after_is_read_back_as_an_int(self):
         assert duplicate_retry_after(self._preflight_error(212)) == 212
+
+
+class TestRetryIsNotPunished:
+    """The 2026-08-23 partner complaint: customers locked out while retrying.
+
+    A shopper with an empty Orange wallet retried 7 times in 11 minutes and hit
+    three different walls — TouchPay's duplicate window, then our own 30-minute
+    velocity lockout — without ever being told their balance was the problem.
+    """
+
+    def test_the_window_opens_even_when_the_operator_rejects_outright(self):
+        """Orange refuses 'solde insuffisant' synchronously (HTTP 300) and
+        still holds its window: opening ours only on success missed the most
+        common case entirely."""
+        import inspect
+        from app.services.touchpay_direct_service import TouchPayDirectService
+
+        source = inspect.getsource(TouchPayDirectService.initiate_payment)
+        opened = source.index("record_payin_attempt(")
+        sent = source.index("client.put(")
+        assert opened < sent, "the window must open before the request leaves"
+
+    def test_local_refusal_does_not_consume_a_velocity_slot(self):
+        """Ordering matters: a retry we block ourselves never reached TouchPay,
+        so counting it as an attempt is what produced the 30-minute lockout."""
+        import inspect
+        from app.services.touchpay_direct_service import TouchPayDirectService
+
+        source = inspect.getsource(TouchPayDirectService.initiate_payment)
+        assert source.index("duplicate_payin_status(") < source.index("check_phone_velocity(")
+
+    def test_customer_is_told_the_real_problem_not_the_duplicate(self):
+        exc = TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            status_code=300,
+            raw_response={
+                "retry_after": 200,
+                "previous_error": "Le solde du compte du payeur est insuffisant| MP2608",
+            },
+        )
+        message = friendly_initiation_error(exc)
+
+        assert "Solde insuffisant" in message
+        assert "Rechargez" in message
+        assert "3 min 20 s" in message
+
+    def test_unknown_previous_reason_falls_back_to_the_plain_wait(self):
+        exc = TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            status_code=300,
+            raw_response={"retry_after": 200, "previous_error": None},
+        )
+        assert "Patientez encore 3 min 20 s" in friendly_initiation_error(exc)
+
+    def test_lockout_message_states_the_real_remaining_time(self):
+        from app.core.velocity import velocity_lockout_message
+
+        assert "2 min 05 s" in velocity_lockout_message(125)

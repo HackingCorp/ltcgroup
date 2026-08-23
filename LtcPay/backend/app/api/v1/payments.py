@@ -32,7 +32,9 @@ from app.schemas.payment import (
     PaymentListResponse,
 )
 from app.schemas.country import PublicCountryInfo, PublicOperatorInfo
-from app.core.velocity import PaymentVelocityError, record_payment_failure
+from app.core.velocity import (
+    PaymentVelocityError, record_payment_failure, velocity_lockout_message,
+)
 from app.services.touchpay_direct_service import (
     touchpay_direct_service, TouchPayDirectError, OperatorMismatchError,
     friendly_initiation_error, is_customer_error, duplicate_retry_after,
@@ -552,7 +554,8 @@ async def create_payment(
             await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Trop de tentatives pour ce numero. Reessayez dans 30 minutes.",
+                detail=velocity_lockout_message(exc.retry_after),
+                headers={"Retry-After": str(exc.retry_after)},
             )
         except TouchPayDirectError as exc:
             customer_caused = is_customer_error(exc)

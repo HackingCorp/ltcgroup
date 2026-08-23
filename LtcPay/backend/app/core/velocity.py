@@ -65,31 +65,65 @@ def check_phone_velocity(normalized_phone: str) -> None:
         logger.warning("Velocity check unavailable (Redis error): %s", exc)
 
 
+# Placeholder value for a window opened before we know the outcome.
+_WINDOW_OPEN = "1"
+
+
+def format_delay(seconds: int) -> str:
+    """Human French delay: '3 min 32 s' / '45 secondes'."""
+    minutes, secs = divmod(max(int(seconds), 0), 60)
+    return f"{minutes} min {secs:02d} s" if minutes else f"{secs} secondes"
+
+
+def velocity_lockout_message(retry_after: int) -> str:
+    """Customer-facing message for the per-phone attempt cap."""
+    return (
+        "Trop de tentatives de paiement pour ce numero. "
+        f"Reessayez dans {format_delay(retry_after)}."
+    )
+
+
 def _duplicate_key(operator: str, normalized_phone: str, amount: int) -> str:
     return f"velocity:dup:{operator}:{normalized_phone}:{amount}"
 
 
-def duplicate_payin_wait(operator: str, normalized_phone: str, amount: int) -> int:
-    """Seconds left before this exact payin may be retried (0 = go ahead).
+def duplicate_payin_status(
+    operator: str, normalized_phone: str, amount: int,
+) -> tuple[int, str | None]:
+    """Seconds left before this exact payin may be retried, and why it failed.
+
+    Returns (0, None) when the window is closed. The second item is the
+    previous attempt's rejection message when we know it — that is the thing
+    the customer actually needs to hear, not "operation similaire".
 
     Fails open: with Redis down we let the request through and TouchPay's own
     guard remains the backstop.
     """
     redis = cache.redis
     if not redis or not normalized_phone:
-        return 0
+        return 0, None
 
+    key = _duplicate_key(operator, normalized_phone, amount)
     try:
-        ttl = redis.ttl(_duplicate_key(operator, normalized_phone, amount))
+        ttl = redis.ttl(key)
+        if not ttl or ttl <= 0:
+            return 0, None
+        reason = redis.get(key)
     except RedisError as exc:
         logger.warning("Duplicate check unavailable (Redis error): %s", exc)
-        return 0
+        return 0, None
 
-    return ttl if ttl and ttl > 0 else 0
+    return ttl, (reason if reason and reason != _WINDOW_OPEN else None)
 
 
 def record_payin_attempt(operator: str, normalized_phone: str, amount: int) -> None:
-    """Open the 5-minute duplicate window for this recipient/amount."""
+    """Open the 5-minute duplicate window for this recipient/amount.
+
+    Called before the request leaves, not after it succeeds: TouchPay opens
+    its own window on the attempt itself. Orange in particular rejects
+    "solde insuffisant" synchronously with HTTP 300 and still refuses the
+    next try for five minutes.
+    """
     redis = cache.redis
     if not redis or not normalized_phone:
         return
@@ -97,11 +131,30 @@ def record_payin_attempt(operator: str, normalized_phone: str, amount: int) -> N
     try:
         redis.set(
             _duplicate_key(operator, normalized_phone, amount),
-            "1",
+            _WINDOW_OPEN,
             ex=DUPLICATE_WINDOW_SECONDS,
         )
     except RedisError as exc:
         logger.warning("Duplicate window not recorded (Redis error): %s", exc)
+
+
+def annotate_payin_attempt(
+    operator: str, normalized_phone: str, amount: int, reason: str,
+) -> None:
+    """Attach the rejection message to an already-open window, keeping its TTL."""
+    redis = cache.redis
+    if not redis or not normalized_phone:
+        return
+
+    try:
+        redis.set(
+            _duplicate_key(operator, normalized_phone, amount),
+            reason,
+            xx=True,
+            keepttl=True,
+        )
+    except RedisError as exc:
+        logger.warning("Duplicate window not annotated (Redis error): %s", exc)
 
 
 def record_payment_failure(reference: str) -> None:
