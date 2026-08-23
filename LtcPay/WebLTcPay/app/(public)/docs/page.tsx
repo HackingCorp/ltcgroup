@@ -169,8 +169,8 @@ function AuthSection() {
       <H2><T fr="Limite de requêtes" en="Rate limiting" /></H2>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
         <T
-          fr="La création de paiement est limitée à 60 requêtes par minute par adresse IP ; les autres endpoints à 100 par minute. Les réponses incluent les headers X-RateLimit-Limit et X-RateLimit-Remaining."
-          en="Payment creation is limited to 60 requests per minute per IP address; other endpoints to 100 per minute. Responses include X-RateLimit-Limit and X-RateLimit-Remaining headers."
+          fr="La création de paiement est limitée à 60 requêtes par minute par adresse IP. Au-delà, l'API répond 429 : espacez vos appels puis réessayez. Le polling de GET /payments/{reference} toutes les 3-5 secondes reste dans cette limite."
+          en="Payment creation is limited to 60 requests per minute per IP address. Beyond that the API returns 429: space out your calls and retry. Polling GET /payments/{reference} every 3-5 seconds stays within this limit."
         />
       </p>
     </>

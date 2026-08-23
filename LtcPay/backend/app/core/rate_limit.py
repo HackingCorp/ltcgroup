@@ -39,7 +39,10 @@ limiter = Limiter(
     key_func=client_ip,
     default_limits=["100/minute"],
     storage_uri=storage_uri,
-    # The public docs promise X-RateLimit-Limit / X-RateLimit-Remaining on
-    # every response; without this slowapi never emits them.
-    headers_enabled=True,
 )
+
+# No X-RateLimit-* headers: slowapi only emits them through SlowAPIMiddleware,
+# which would also start enforcing default_limits on every route -- including
+# the checkout page and the GET /payments/{ref} polling the docs recommend at
+# 3-5s. Customers behind a carrier NAT share one IP, so that would refuse real
+# payments to publish a courtesy header. The docs state the limits instead.
