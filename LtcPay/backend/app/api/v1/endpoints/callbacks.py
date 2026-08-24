@@ -41,6 +41,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.velocity import record_payment_failure
 from app.models.payment import Payment, PaymentStatus
+from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -507,10 +508,21 @@ async def touchpay_direct_callback(
     if payment:
         direct_data = payment.direct_api_data or {}
         direct_data["callback"] = body
+        values: dict = {"direct_api_data": direct_data}
+
+        # Record the provider/operator references even when _process_callback
+        # skipped the row as already terminal — Orange rejects synchronously,
+        # so its callback lands on a FAILED payment and used to be dropped
+        # entirely, leaving support with nothing to escalate.
+        if transaction_id and not payment.provider_transaction_id:
+            values["provider_transaction_id"] = transaction_id
+        if not payment.operator_transaction_id:
+            operator_ref = extract_operator_reference(body.get("message"))
+            if operator_ref:
+                values["operator_transaction_id"] = operator_ref
+
         await db.execute(
-            update(Payment)
-            .where(Payment.id == payment.id)
-            .values(direct_api_data=direct_data)
+            update(Payment).where(Payment.id == payment.id).values(**values)
         )
         await db.commit()
 

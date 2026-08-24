@@ -65,6 +65,9 @@ def _build_webhook_payload(payment: Payment) -> dict:
             "provider": payment.provider.value if payment.provider else None,
             "failure_code": payment.failure_code,
             "failure_reason": payment.failure_reason,
+            # The operator's own transaction reference — what a merchant hands
+            # to Orange support when a customer disputes a refusal.
+            "operator_reference": payment.operator_reference,
             "completed_at": (
                 payment.completed_at.isoformat()
                 if payment.completed_at

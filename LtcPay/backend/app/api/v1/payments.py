@@ -13,7 +13,7 @@ Endpoints:
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
@@ -45,6 +45,7 @@ from app.services.country_service import country_service
 from app.services.provider_service import ProviderRoutingError, provider_service
 from app.services.payment_router import initiate_mobile_payment
 from app.services.enkap_service import enkap_service, EnkapError
+from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,29 @@ def effective_card_rate(merchant) -> Decimal:
     return max(Decimal(base), CARD_MIN_FEE_RATE)
 
 
-def _compute_fee(amount: Decimal, fee_rate: Decimal) -> Decimal:
-    """Compute merchant fee based on their configured rate."""
-    return (amount * fee_rate / Decimal("100")).quantize(Decimal("0.01"))
+# Currencies with no minor unit (ISO 4217 exponent 0). Every currency LtcPay
+# settles in Central and West Africa is one of these; only EUR/USD, reachable
+# through Stripe, have cents.
+ZERO_DECIMAL_CURRENCIES = {
+    "XAF", "XOF", "XPF", "GNF", "UGX", "CDF", "BIF", "DJF", "KMF", "RWF",
+    "CLP", "ISK", "JPY", "KRW", "PYG", "VND", "VUV",
+}
+
+
+def money_step(currency: str | None) -> Decimal:
+    """Smallest real unit of a currency: 1 XAF, 0.01 EUR."""
+    return Decimal("1") if (currency or "XAF").upper() in ZERO_DECIMAL_CURRENCIES else Decimal("0.01")
+
+
+def _compute_fee(amount: Decimal, fee_rate: Decimal, currency: str | None = None) -> Decimal:
+    """Compute merchant fee, rounded to a unit the currency actually has.
+
+    XAF has no centimes: a 34.12 fee produced a 1984.12 total that we then
+    sent to TouchPay as int(1984.12) = 1984. The customer paid 1984 while our
+    books — and the merchant balance computed from them — recorded 1984.12.
+    """
+    raw = amount * fee_rate / Decimal("100")
+    return raw.quantize(money_step(currency), rounding=ROUND_HALF_UP)
 
 
 def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal]:
@@ -89,9 +110,10 @@ def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal
     if base <= 0:
         base = amount
     rate = effective_card_rate(merchant) if method == "CARD" else Decimal(merchant.fee_rate)
-    new_fee = _compute_fee(base, rate)
+    new_fee = _compute_fee(base, rate, payment.currency)
     new_amount = (base + new_fee) if client_borne else base
-    return new_amount, new_fee
+    step = money_step(payment.currency)
+    return new_amount.quantize(step, rounding=ROUND_HALF_UP), new_fee
 
 
 @router.get("/countries", response_model=list[PublicCountryInfo])
@@ -336,17 +358,27 @@ async def create_payment(
                     )
 
     reference = _generate_reference()
+
+    # Currency: use explicit value, else country default, else global default.
+    # Resolved before the fee so both can be rounded to a unit the currency
+    # actually has — XAF has no centimes.
+    currency = payload.currency
+    if not currency and country_obj:
+        currency = country_obj.currency
+    currency = currency or settings.default_currency
+
     base_amount = payload.amount
     effective_fee_rate = merchant.fee_rate
     if payload.payment_method == PaymentMethod.BANK_CARD:
         effective_fee_rate = effective_card_rate(merchant)
-    fee = _compute_fee(base_amount, effective_fee_rate)
+    fee = _compute_fee(base_amount, effective_fee_rate, currency)
 
     # If customer bears the fee, add it to the amount they pay
+    step = money_step(currency)
     if merchant.fee_bearer == FeeBearer.CLIENT:
-        customer_amount = base_amount + fee
+        customer_amount = (base_amount + fee).quantize(step, rounding=ROUND_HALF_UP)
     else:
-        customer_amount = base_amount
+        customer_amount = base_amount.quantize(step, rounding=ROUND_HALF_UP)
 
     # Transaction limit: use operator-specific limits, fallback to country
     if provider == PaymentProvider.TOUCHPAY and country_obj:
@@ -375,12 +407,6 @@ async def create_payment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Le montant maximum par transaction {op_label} pour {country_obj.name} est de {max_amount:,} {country_obj.currency} (frais compris). Utilisez payment_method: BANK_CARD pour les montants superieurs.",
             )
-
-    # Currency: use explicit value, else country default, else global default
-    currency = payload.currency
-    if not currency and country_obj:
-        currency = country_obj.currency
-    currency = currency or settings.default_currency
 
     # The currency has to be one the provider that will handle this payment
     # can actually settle. LtcPay converts nothing: mobile providers take a
@@ -599,6 +625,9 @@ async def create_payment(
             )
             payment.status = PaymentStatus.FAILED
             payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
+            # Keep the operator's own reference reachable: it is what Orange
+            # support needs, and it would otherwise stay buried in the blob.
+            payment.operator_transaction_id = extract_operator_reference(str(exc))
             await db.commit()
             if not customer_caused:
                 record_payment_failure(reference)

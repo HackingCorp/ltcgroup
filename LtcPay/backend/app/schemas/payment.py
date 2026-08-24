@@ -146,6 +146,7 @@ class PaymentResponse(BaseModel):
     touchpay_data: Optional[dict] = None
     failure_code: Optional[str] = None
     failure_reason: Optional[str] = None
+    operator_reference: Optional[str] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -169,6 +170,7 @@ class PaymentStatusResponse(BaseModel):
     currency: str
     failure_code: Optional[str] = None
     failure_reason: Optional[str] = None
+    operator_reference: Optional[str] = None
     completed_at: Optional[datetime] = None
 
 
@@ -250,4 +252,5 @@ class WebhookPayload(BaseModel):
     completed_at: Optional[datetime] = None
     failure_code: Optional[str] = None
     failure_reason: Optional[str] = None
+    operator_reference: Optional[str] = None
     timestamp: datetime

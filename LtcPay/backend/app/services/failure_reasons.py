@@ -82,6 +82,26 @@ def classify_failure(raw_message: Optional[str]) -> tuple[str, str]:
     return _FALLBACK
 
 
+def extract_operator_reference(raw_message: Optional[str]) -> Optional[str]:
+    """Pull the operator's own transaction reference out of a raw message.
+
+    Orange Money appends it after a pipe, e.g.
+    "Le solde du compte du payeur est insuffisant| MP260824FD3C4BF9D397491AE59C".
+    It is the only handle Orange support can act on, so it must survive into
+    the API and the merchant webhook instead of dying inside the raw blob.
+    MTN sends bracketed codes with no reference — None then.
+    """
+    if not raw_message or "|" not in raw_message:
+        return None
+
+    candidate = raw_message.rsplit("|", 1)[1].strip()
+    # Guard against a pipe used as ordinary punctuation: operator references
+    # are a single alphanumeric run, no spaces.
+    if not candidate or not candidate.isalnum() or len(candidate) < 6:
+        return None
+    return candidate
+
+
 def payment_failure_raw_message(payment) -> Optional[str]:
     """Extract the raw operator failure message stored on a payment.
 

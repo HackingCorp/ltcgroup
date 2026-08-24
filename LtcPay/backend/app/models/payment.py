@@ -212,5 +212,19 @@ class Payment(Base):
         from app.services.failure_reasons import classify_failure, payment_failure_raw_message
         return classify_failure(payment_failure_raw_message(self))[1]
 
+    @property
+    def operator_reference(self) -> str | None:
+        """The operator's own transaction reference (Orange Money "MP...").
+
+        Falls back to parsing the stored failure message so payments that
+        predate the column still expose it.
+        """
+        if self.operator_transaction_id:
+            return self.operator_transaction_id
+        from app.services.failure_reasons import (
+            extract_operator_reference, payment_failure_raw_message,
+        )
+        return extract_operator_reference(payment_failure_raw_message(self))
+
     def __repr__(self):
         return f"<Payment {self.reference} {self.amount} {self.currency} [{self.status}]>"

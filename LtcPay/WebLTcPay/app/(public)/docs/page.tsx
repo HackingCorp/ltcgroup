@@ -457,6 +457,7 @@ function GetPaymentSection() {
         { name: "description", type: "string|null", desc: "Description du paiement." },
         { name: "failure_code", type: "string|null", desc: "Code d'échec stable si status=FAILED (ex: INSUFFICIENT_FUNDS, ACCOUNT_BLOCKED). Voir Error codes." },
         { name: "failure_reason", type: "string|null", desc: "Message d'échec prêt à afficher au client si status=FAILED." },
+        { name: "operator_reference", type: "string|null", desc: "Reference de transaction de l'operateur (ex: Orange Money \"MP2608...\"). C'est l'identifiant a fournir au support de l'operateur pour faire tracer un refus conteste par le client. Null si l'operateur n'en renvoie pas (MTN)." },
         { name: "completed_at", type: "datetime|null", desc: "Date de complétion (null si non terminé)." },
         { name: "created_at", type: "datetime", desc: "Date de création." },
         { name: "updated_at", type: "datetime", desc: "Date de dernière mise à jour." },
@@ -1022,6 +1023,7 @@ function ErrorsSection() {
     "status": "FAILED",
     "failure_code": "INSUFFICIENT_FUNDS",
     "failure_reason": "Solde insuffisant sur le compte Mobile Money du client.",
+    "operator_reference": "MP260824FD3C4BF9D397491AE59C",
     ...
   },
   "timestamp": "2026-08-14T20:13:50Z"
