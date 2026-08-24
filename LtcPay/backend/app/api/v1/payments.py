@@ -18,7 +18,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update as sa_update
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -92,6 +92,51 @@ def _compute_fee(amount: Decimal, fee_rate: Decimal, currency: str | None = None
     """
     raw = amount * fee_rate / Decimal("100")
     return raw.quantize(money_step(currency), rounding=ROUND_HALF_UP)
+
+
+async def record_initiation_outcome(
+    db: AsyncSession,
+    payment: Payment,
+    *,
+    status_if_pending: PaymentStatus,
+    values: dict | None = None,
+) -> bool:
+    """Write an initiation result without ever overwriting a callback verdict.
+
+    TouchPay can call back while the initiation request is still running —
+    on 2026-08-24 the callback landed at 14:26:42 with the failover still in
+    flight at 14:26:43. Assigning onto the ORM object and committing, as this
+    endpoint used to, would then push a settled payment back to PROCESSING
+    (or mark FAILED one the operator had just confirmed). The callback
+    handler updates atomically on the expected status; so does this now.
+
+    Returns True when this call is the one that decided the status.
+    """
+    result = await db.execute(
+        sa_update(Payment)
+        .where(Payment.id == payment.id, Payment.status == PaymentStatus.PENDING)
+        .values(status=status_if_pending, **(values or {}))
+        .returning(Payment.id)
+    )
+    decided = result.first() is not None
+
+    if not decided:
+        # A callback got there first: its verdict is the operator's, ours is
+        # only what our own request saw. Keep theirs, backfill the provider.
+        logger.warning(
+            "Initiation outcome %s for %s dropped: already settled by a callback",
+            status_if_pending.value, payment.reference,
+        )
+        if (values or {}).get("provider"):
+            await db.execute(
+                sa_update(Payment)
+                .where(Payment.id == payment.id, Payment.provider.is_(None))
+                .values(provider=values["provider"])
+            )
+
+    await db.commit()
+    await db.refresh(payment)
+    return decided
 
 
 def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal]:
@@ -583,34 +628,40 @@ async def create_payment(
                 description=payload.description,
                 merchant=merchant,
             )
-            payment.provider = PaymentProvider(provider_used)
-            payment.direct_api_data = direct_response
-            payment.status = PaymentStatus.PROCESSING
-            await db.commit()
-            await db.refresh(payment)
+            await record_initiation_outcome(
+                db, payment,
+                status_if_pending=PaymentStatus.PROCESSING,
+                values={
+                    "provider": PaymentProvider(provider_used),
+                    "direct_api_data": direct_response,
+                },
+            )
         except ProviderRoutingError as exc:
             logger.warning("No provider for %s: %s", reference, exc)
-            payment.status = PaymentStatus.FAILED
-            payment.direct_api_data = {"error": "no_provider_available", "detail": str(exc)}
-            await db.commit()
+            await record_initiation_outcome(
+                db, payment, status_if_pending=PaymentStatus.FAILED,
+                values={"direct_api_data": {"error": "no_provider_available", "detail": str(exc)}},
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             )
         except OperatorMismatchError as exc:
             logger.info("Operator mismatch on creation for %s: %s", reference, exc)
-            payment.status = PaymentStatus.FAILED
-            payment.direct_api_data = {"error": "operator_mismatch", "detail": str(exc)}
-            await db.commit()
+            await record_initiation_outcome(
+                db, payment, status_if_pending=PaymentStatus.FAILED,
+                values={"direct_api_data": {"error": "operator_mismatch", "detail": str(exc)}},
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             )
         except PaymentVelocityError as exc:
             logger.warning("Velocity limit on creation for %s: %s", reference, exc)
-            payment.status = PaymentStatus.FAILED
-            payment.direct_api_data = {"error": "velocity_limit", "detail": str(exc)}
-            await db.commit()
+            await record_initiation_outcome(
+                db, payment, status_if_pending=PaymentStatus.FAILED,
+                values={"direct_api_data": {"error": "velocity_limit", "detail": str(exc)}},
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=velocity_lockout_message(exc.retry_after),
@@ -623,12 +674,15 @@ async def create_payment(
                 "Direct API initiation %s for %s: %s",
                 "rejected" if customer_caused else "failed", reference, exc,
             )
-            payment.status = PaymentStatus.FAILED
-            payment.direct_api_data = {"error": str(exc), "raw": exc.raw_response}
             # Keep the operator's own reference reachable: it is what Orange
             # support needs, and it would otherwise stay buried in the blob.
-            payment.operator_transaction_id = extract_operator_reference(str(exc))
-            await db.commit()
+            await record_initiation_outcome(
+                db, payment, status_if_pending=PaymentStatus.FAILED,
+                values={
+                    "direct_api_data": {"error": str(exc), "raw": exc.raw_response},
+                    "operator_transaction_id": extract_operator_reference(str(exc)),
+                },
+            )
             if not customer_caused:
                 record_payment_failure(reference)
             # Blocked by the 5-minute duplicate window: the merchant should

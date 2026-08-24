@@ -37,6 +37,7 @@ from app.services.touchpay_direct_service import (
     touchpay_direct_service,
 )
 from app.core.velocity import PaymentVelocityError
+from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,19 @@ async def initiate_mobile_payment(
         except (OperatorMismatchError, PaymentVelocityError):
             raise  # pre-flight rejections: identical outcome on any provider
         except TouchPayDirectError as exc:
-            if is_customer_error(exc) or is_last:
+            # An operator reference in the error means the operator opened a
+            # transaction before refusing. Every provider fronts the same
+            # operator, so the next one is bounced for "operation similaire"
+            # (seen 2026-08-24) — a wasted call that also replaces the real
+            # cause with a misleading duplicate error.
+            operator_took_it = extract_operator_reference(str(exc)) is not None
+            if is_customer_error(exc) or is_last or operator_took_it:
+                if operator_took_it and not is_last:
+                    logger.info(
+                        "Provider %s failed for %s but the operator already "
+                        "registered the transaction (%s) — not failing over",
+                        provider.code, reference, extract_operator_reference(str(exc)),
+                    )
                 if failover_trail:
                     exc.raw_response = dict(exc.raw_response or {})
                     exc.raw_response["failover_trail"] = failover_trail
