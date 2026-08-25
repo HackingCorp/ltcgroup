@@ -106,6 +106,48 @@ class TestFailoverStopsAtTheOperator:
         assert dispatch.await_count == 1
 
 
+    async def test_a_customer_rejection_is_not_credited_to_the_guard(
+        self, two_providers, caplog,
+    ):
+        """"Solde insuffisant" carries an MP reference but aborts on its own.
+
+        Logging the operator-reference guard there claimed credit for a
+        failover that was never going to happen, and it fired on most Orange
+        traffic (7 times in 14 hours on 2026-08-25).
+        """
+        import logging as _logging
+
+        dispatch = AsyncMock(side_effect=TouchPayDirectError(
+            "Le solde du compte du payeur est insuffisant| MP260825E9CBF8B619206F1E0540"
+        ))
+
+        with caplog.at_level(_logging.INFO, logger="app.services.payment_router"):
+            with patch("app.services.payment_router._dispatch", dispatch):
+                with pytest.raises(TouchPayDirectError):
+                    await _initiate()
+
+        assert dispatch.await_count == 1
+        assert "not failing over" not in caplog.text
+
+    async def test_the_guard_is_logged_when_it_is_the_deciding_factor(
+        self, two_providers, caplog,
+    ):
+        """A provider-side error carrying a reference: only the guard stops it."""
+        import logging as _logging
+
+        dispatch = AsyncMock(side_effect=TouchPayDirectError(
+            "Aucun frais de service defini.| MP260824A2A717E84FC4D0597E00"
+        ))
+
+        with caplog.at_level(_logging.INFO, logger="app.services.payment_router"):
+            with patch("app.services.payment_router._dispatch", dispatch):
+                with pytest.raises(TouchPayDirectError):
+                    await _initiate()
+
+        assert dispatch.await_count == 1
+        assert "not failing over" in caplog.text
+
+
 class TestInitiationNeverClobbersACallback:
 
     async def _payment(self, db, merchant, status=PaymentStatus.PENDING):

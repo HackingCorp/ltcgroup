@@ -144,13 +144,17 @@ async def initiate_mobile_payment(
             # operator, so the next one is bounced for "operation similaire"
             # (seen 2026-08-24) — a wasted call that also replaces the real
             # cause with a misleading duplicate error.
-            operator_took_it = extract_operator_reference(str(exc)) is not None
-            if is_customer_error(exc) or is_last or operator_took_it:
-                if operator_took_it and not is_last:
+            customer_caused = is_customer_error(exc)
+            operator_reference = extract_operator_reference(str(exc))
+            if customer_caused or is_last or operator_reference:
+                # Log only when this check is what stopped the failover:
+                # customer rejections already abort on their own, and saying
+                # otherwise would credit the guard with work it did not do.
+                if operator_reference and not customer_caused and not is_last:
                     logger.info(
                         "Provider %s failed for %s but the operator already "
                         "registered the transaction (%s) — not failing over",
-                        provider.code, reference, extract_operator_reference(str(exc)),
+                        provider.code, reference, operator_reference,
                     )
                 if failover_trail:
                     exc.raw_response = dict(exc.raw_response or {})
