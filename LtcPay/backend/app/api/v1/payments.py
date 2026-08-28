@@ -43,7 +43,7 @@ from app.services.touchpay_direct_service import (
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
 from app.services.provider_service import ProviderRoutingError, provider_service
-from app.services.payment_router import initiate_mobile_payment
+from app.services.payment_router import initiate_mobile_payment, extract_transaction_ids
 from app.services.enkap_service import enkap_service, EnkapError
 from app.services.failure_reasons import extract_operator_reference
 
@@ -634,6 +634,7 @@ async def create_payment(
                 values={
                     "provider": PaymentProvider(provider_used),
                     "direct_api_data": direct_response,
+                    **extract_transaction_ids(direct_response),
                 },
             )
         except ProviderRoutingError as exc:

@@ -18,6 +18,7 @@ import pytest
 
 from app.api.v1.payments import _compute_fee, money_step, reprice_for_method
 from app.services.failure_reasons import extract_operator_reference
+from app.services.payment_router import extract_transaction_ids
 
 
 class TestMoneyRounding:
@@ -100,3 +101,43 @@ class TestOperatorReference:
     def test_only_the_last_segment_is_read(self):
         message = "a| b| MP260824FD3C4BF9D397491AE59C"
         assert extract_operator_reference(message) == "MP260824FD3C4BF9D397491AE59C"
+
+
+class TestTransactionIdsAreKeptAtInitiation:
+    """Both ids must land in their columns before any callback exists.
+
+    PAY-3433A41AF4E24354 sat 40 minutes in PROCESSING with no callback: its
+    TouchPay id and its Orange reference were only inside the response JSON,
+    unreachable to anyone without database access — on precisely the payment
+    that needed escalating.
+    """
+
+    def test_orange_keeps_both_ids(self):
+        response = {
+            "idFromGU": "1787925525281",
+            "numTransaction": "MP260828.1458.A39708",
+            "status": "INITIATED",
+        }
+        assert extract_transaction_ids(response) == {
+            "provider_transaction_id": "1787925525281",
+            "operator_transaction_id": "MP260828.1458.A39708",
+        }
+
+    def test_mtn_repeats_its_id_and_must_not_fake_an_operator_reference(self):
+        """On MTN numTransaction is just idFromGU again."""
+        response = {"idFromGU": "1787927084784", "numTransaction": "1787927084784"}
+        assert extract_transaction_ids(response) == {
+            "provider_transaction_id": "1787927084784",
+        }
+
+    def test_accountpe_id_is_read_from_data(self):
+        """AccountPE's transaction_id echoes our own reference back."""
+        response = {"data": {"id": 71006, "transaction_id": "PAY-CAA1190DDCC74581"}}
+        assert extract_transaction_ids(response) == {"provider_transaction_id": "71006"}
+
+    def test_an_empty_response_yields_nothing(self):
+        assert extract_transaction_ids({}) == {}
+
+    def test_numbers_are_stored_as_strings(self):
+        ids = extract_transaction_ids({"idFromGU": 1787925525281})
+        assert ids["provider_transaction_id"] == "1787925525281"

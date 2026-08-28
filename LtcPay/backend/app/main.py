@@ -718,7 +718,9 @@ async def submit_payment(reference: str, request: Request):
                 detail=f"Operateur '{operator_str}' non disponible pour le pays '{country_code}'. Disponibles: {', '.join(sorted(valid_ops))}",
             )
 
-        from app.services.payment_router import initiate_mobile_payment
+        from app.services.payment_router import (
+            initiate_mobile_payment, extract_transaction_ids,
+        )
         from app.services.provider_service import ProviderRoutingError
         from app.models.payment import PaymentProvider
 
@@ -790,6 +792,7 @@ async def submit_payment(reference: str, request: Request):
                 customer_info=customer_info,
                 provider=PaymentProvider(provider_used),
                 direct_api_data=direct_response,
+                **extract_transaction_ids(direct_response),
             )
         )
         await db.commit()

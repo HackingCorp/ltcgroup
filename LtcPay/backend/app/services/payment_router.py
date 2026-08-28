@@ -42,6 +42,35 @@ from app.services.failure_reasons import extract_operator_reference
 logger = logging.getLogger(__name__)
 
 
+def extract_transaction_ids(response: dict) -> dict:
+    """Provider and operator transaction ids from an accepted initiation.
+
+    Both columns used to be filled from the callback only — so they stayed
+    NULL on exactly the payments that never get one, which are the payments
+    support has to look up (PAY-3433A41AF4E24354, stuck 40 minutes with both
+    ids sitting unreachable inside the response JSON).
+
+    TouchPay returns its own id as idFromGU. numTransaction is the operator's
+    reference on Orange ("MP260828.1458.A39708") but merely repeats idFromGU
+    on MTN, so it is kept only when it differs. AccountPE returns its id under
+    data.id; its transaction_id field is our own reference echoed back.
+    """
+    ids: dict = {}
+    provider_id = response.get("idFromGU") or response.get("transactionId")
+    if not provider_id:
+        data = response.get("data")
+        if isinstance(data, dict) and data.get("id") is not None:
+            provider_id = data["id"]
+
+    operator_reference = response.get("numTransaction")
+
+    if provider_id:
+        ids["provider_transaction_id"] = str(provider_id)
+    if operator_reference and str(operator_reference) != str(provider_id):
+        ids["operator_transaction_id"] = str(operator_reference)
+    return ids
+
+
 async def _dispatch(
     db: AsyncSession,
     provider,

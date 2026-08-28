@@ -516,10 +516,12 @@ async def touchpay_direct_callback(
         # entirely, leaving support with nothing to escalate.
         if transaction_id and not payment.provider_transaction_id:
             values["provider_transaction_id"] = transaction_id
-        if not payment.operator_transaction_id:
-            operator_ref = extract_operator_reference(body.get("message"))
-            if operator_ref:
-                values["operator_transaction_id"] = operator_ref
+        # The verdict-time reference wins over the one kept at initiation:
+        # it is the one the operator's support quotes back. The initiation
+        # value stays visible in direct_api_data either way.
+        operator_ref = extract_operator_reference(body.get("message"))
+        if operator_ref:
+            values["operator_transaction_id"] = operator_ref
 
         await db.execute(
             update(Payment).where(Payment.id == payment.id).values(**values)
