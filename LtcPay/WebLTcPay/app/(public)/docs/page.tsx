@@ -7,6 +7,7 @@ import { T } from "@/lib/i18n";
 
 const SECTIONS = [
   { id: "intro", label: "Introduction", cat: "Getting started" },
+  { id: "scope", label: "What the API covers", cat: "Getting started" },
   { id: "auth", label: "Authentication", cat: "Getting started" },
   { id: "merchant-info", label: "Merchant info", cat: "Account" },
   { id: "create", label: "Create payment", cat: "Payments" },
@@ -105,11 +106,19 @@ function IntroSection() {
 
       <H2><T fr="Devises supportées" en="Supported currencies" /></H2>
       <FieldTable fields={[
-        { name: "XAF", type: "Franc CFA (CEMAC)", desc: "Cameroun, Gabon, Congo, Tchad, RCA, Guinée Équatoriale" },
-        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Sénégal, Côte d'Ivoire, Mali, Burkina Faso, etc." },
-        { name: "EUR", type: "Euro", desc: "Paiements par carte bancaire uniquement" },
-        { name: "USD", type: "US Dollar", desc: "Paiements par carte bancaire uniquement" },
+        { name: "XAF", type: "Franc CFA (CEMAC)", desc: "Cameroun, Gabon, Congo" },
+        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Côte d'Ivoire" },
+        { name: "CDF", type: "Franc congolais", desc: "RD Congo" },
+        { name: "GNF", type: "Franc guinéen", desc: "Guinée" },
+        { name: "UGX", type: "Shilling ougandais", desc: "Ouganda" },
+        { name: "EUR / USD", type: "Carte via Stripe", desc: "Uniquement quand Stripe traite le paiement carte. Le fournisseur carte par défaut au Cameroun est E-nkap, qui n'encaisse qu'en XAF : un paiement carte en EUR y est rejeté en 400." },
       ]} />
+      <InfoBox>
+        <T
+          fr="Un paiement Mobile Money se fait TOUJOURS dans la devise du pays : il n'y a aucune conversion. Envoyer XAF pour la RD Congo est rejeté en 400. La devise de chaque pays est donnée par GET /payments/countries — fiez-vous à elle plutôt qu'à cette liste, qui évolue avec les pays ouverts."
+          en="A Mobile Money payment is ALWAYS in the country's own currency: there is no conversion. Sending XAF for DR Congo is rejected with a 400. Each country's currency is returned by GET /payments/countries — rely on that rather than this list, which changes as countries are opened."
+        />
+      </InfoBox>
 
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
@@ -125,6 +134,54 @@ function IntroSection() {
         <div>4. <T fr="Nkap Pay envoie un webhook à votre" en="Nkap Pay sends a webhook to your" /> callback_url</div>
         <div>5. <T fr="Vérifier la signature et mettre à jour votre système" en="Verify signature and update your system" /></div>
       </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════ */
+/*  Section: API scope                             */
+/* ═══════════════════════════════════════════════ */
+function ScopeSection() {
+  return (
+    <>
+      <SectionTitle
+        cat="Getting started"
+        title="What the API covers"
+        desc={
+          <T
+            fr="Cette documentation couvre l'encaissement. Le reste de la plateforme existe, mais passe par le tableau de bord — mieux vaut le savoir avant de chercher un endpoint qui n'existe pas."
+            en="These docs cover collecting payments. The rest of the platform exists, but goes through the dashboard — better to know that before hunting for an endpoint that does not exist."
+          />
+        }
+      />
+
+      <H2><T fr="Disponible via l'API (clé + secret)" en="Available via the API (key + secret)" /></H2>
+      <FieldTable fields={[
+        { name: "Créer un paiement", type: "POST /payments", desc: "Mobile Money (SDK, Direct API) et canal hébergé carte + Mobile Money." },
+        { name: "Suivre un paiement", type: "GET /payments/{reference}", desc: "Statut, motif d'échec normalisé, référence opérateur. Re-vérifié en direct chez le fournisseur à chaque appel pour les paiements hébergés." },
+        { name: "Lister les paiements", type: "GET /payments", desc: "Filtres par statut et par date, pagination." },
+        { name: "Pays et opérateurs", type: "GET /payments/countries", desc: "Devise, limites, opérateurs actifs, préfixes téléphoniques." },
+        { name: "Votre configuration", type: "GET /payments/me", desc: "Taux de frais par méthode, porteur des frais, mode par défaut." },
+        { name: "Webhooks", type: "payment.status_changed", desc: "Signé HMAC-SHA256, 5 tentatives avec backoff." },
+      ]} />
+
+      <H2><T fr="Tableau de bord uniquement (pas d'API)" en="Dashboard only (no API)" /></H2>
+      <FieldTable fields={[
+        { name: "Retraits", type: "dashboard", desc: "Demander le versement de votre solde vers un compte Mobile Money ou bancaire, et suivre l'état des demandes. Aucun endpoint par clé API : un retrait ne peut pas être déclenché par programme." },
+        { name: "Solde", type: "dashboard", desc: "Solde disponible, global et par pays." },
+        { name: "Remboursements", type: "manuel", desc: "Un remboursement se demande depuis le tableau de bord et se traite hors plateforme. Il ne change pas le statut du paiement et ne déclenche aucun webhook." },
+        { name: "Liens de paiement", type: "dashboard", desc: "Liens réutilisables à envoyer à un client, sans intégration." },
+        { name: "Rapports et factures", type: "dashboard", desc: "Exports de transactions et facturation de vos frais." },
+        { name: "KYC et équipe", type: "dashboard", desc: "Vérification d'identité de l'entreprise, membres et rôles." },
+        { name: "Clés API", type: "dashboard", desc: "Création et rotation de la clé et du secret. Une rotation invalide immédiatement l'ancien secret." },
+      ]} />
+
+      <InfoBox>
+        <T
+          fr="Conséquence pratique la plus fréquente : votre argent ne part pas tout seul. Un paiement COMPLETED crédite votre solde LtcPay ; le virement vers votre compte se demande depuis le tableau de bord, et il n'y a aucun moyen de l'automatiser aujourd'hui. Prévoyez-le dans votre exploitation."
+          en="The most common practical consequence: your money does not move on its own. A COMPLETED payment credits your LtcPay balance; the transfer to your own account is requested from the dashboard, and there is no way to automate it today. Plan your operations accordingly."
+        />
+      </InfoBox>
     </>
   );
 }
@@ -309,8 +366,8 @@ function CreatePaymentSection() {
         { name: "status", type: "string", desc: "PENDING (SDK, Stripe, REDIRECT) ou PROCESSING (Direct API)." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page hebergee du fournisseur carte)." },
         { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 (ex: CM)." },
-        { name: "payment_url", type: "string", desc: "URL de checkout (mode SDK/Stripe). Redirigez le client ici." },
-        { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe (mode BANK_CARD uniquement). Null sinon." },
+        { name: "payment_url", type: "string", desc: "URL vers laquelle envoyer le client : page de checkout LtcPay en mode SDK, page hébergée du fournisseur en mode REDIRECT. Non utilisée en DIRECT_API (le client répond sur son téléphone)." },
+        { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe, renseigné uniquement en payment_mode STRIPE. Null partout ailleurs — notamment en REDIRECT, où c'est le fournisseur qui héberge le formulaire." },
         { name: "created_at", type: "datetime", desc: "Date de création ISO 8601." },
       ]} />
 
@@ -872,7 +929,8 @@ function EventsSection() {
         <div>PENDING → EXPIRED <span style={{ color: "var(--muted)" }}>(session expirée, 30 min par défaut)</span></div>
         <div>PROCESSING → EXPIRED <span style={{ color: "var(--muted)" }}>(sans réponse de l&apos;opérateur, 30 min après expiration)</span></div>
         <div>PENDING → CANCELLED <span style={{ color: "var(--muted)" }}>(annulé par le client ou le marchand)</span></div>
-        <div>COMPLETED → REFUNDED <span style={{ color: "var(--muted)" }}>(remboursement effectué)</span></div>
+        <div>EXPIRED → COMPLETED <span style={{ color: "var(--muted)" }}>(l&apos;opérateur confirme le débit après expiration)</span></div>
+        <div>EXPIRED → FAILED <span style={{ color: "var(--muted)" }}>(verdict tardif de l&apos;opérateur)</span></div>
       </div>
 
       <InfoBox>
@@ -909,13 +967,13 @@ function StatusesSection() {
         { name: "FAILED", type: "terminal", desc: "Paiement échoué (refus opérateur, solde insuffisant, erreur technique)." },
         { name: "EXPIRED", type: "terminal", desc: "Session de paiement expirée (30 minutes par défaut). Le client n'a pas payé dans les temps. Aucun webhook n'est envoyé pour ce statut." },
         { name: "CANCELLED", type: "terminal", desc: "Paiement annulé par le client ou le marchand." },
-        { name: "REFUNDED", type: "terminal", desc: "Paiement remboursé." },
+        { name: "REFUNDED", type: "réservé", desc: "Valeur réservée pour le remboursement. Aucun paiement ne prend ce statut aujourd'hui : les remboursements se traitent hors API, en nous contactant. N'attendez pas de webhook REFUNDED." },
       ]} />
 
       <InfoBox>
         <T
-          fr="Les statuts COMPLETED, FAILED, CANCELLED et REFUNDED sont définitifs. Seule exception : un paiement EXPIRED peut encore passer à COMPLETED si l'opérateur confirme le débit après coup — vous recevez alors le webhook payment.status_changed. Traitez donc EXPIRED comme un abandon probable, pas comme une certitude."
-          en="COMPLETED, FAILED, CANCELLED and REFUNDED are final. One exception: an EXPIRED payment can still turn COMPLETED if the operator confirms the debit late — you then receive the payment.status_changed webhook. Treat EXPIRED as a likely abandonment, not a certainty."
+          fr="Les statuts COMPLETED, FAILED et CANCELLED sont définitifs. EXPIRED ne l'est pas : un opérateur peut rendre son verdict longtemps après l'expiration (jusqu'à 18 heures observées sur Orange), et le paiement bascule alors en COMPLETED ou en FAILED, avec le webhook payment.status_changed correspondant. Traitez EXPIRED comme un abandon probable, jamais comme une certitude — n'annulez pas la commande sur cette seule base."
+          en="COMPLETED, FAILED and CANCELLED are final. EXPIRED is not: an operator can return its verdict long after expiry (up to 18 hours observed on Orange), and the payment then turns COMPLETED or FAILED, with the matching payment.status_changed webhook. Treat EXPIRED as a likely abandonment, never as a certainty — do not cancel the order on that basis alone."
         />
       </InfoBox>
     </>
@@ -1047,6 +1105,7 @@ function ErrorsSection() {
 /* ═══════════════════════════════════════════════ */
 const SECTION_MAP: Record<string, () => React.ReactElement> = {
   intro: IntroSection,
+  scope: ScopeSection,
   auth: AuthSection,
   "merchant-info": MerchantInfoSection,
   create: CreatePaymentSection,
