@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.payment import Payment, PaymentProvider, PaymentStatus
 from app.services.enkap_service import EnkapError, enkap_service
+from app.services.failure_reasons import classify_enkap_code
 from app.services.provider_service import provider_service
 
 logger = logging.getLogger(__name__)
@@ -80,17 +81,38 @@ async def verify_and_settle(db: AsyncSession, payment: Payment) -> PaymentStatus
         # session (create-intent opens one). Payment links stay payable
         # until confirmed, matching the platform-wide behavior where
         # expires_at is informative, never enforced.
+        outcome_code = status_info.get("outcome_code")
+        classified = classify_enkap_code(outcome_code)
+        # E-nkap's own wording is just the status word, so the numeric code
+        # is what tells the customer whether to top up, confirm faster, or
+        # give up. Keep the retry hint: the hosted link is still payable.
+        if classified:
+            message = f"{classified[1]} Une nouvelle tentative est possible."
+        else:
+            message = (
+                f"E-nkap: tentative {(payment_status or '').lower()}"
+                + (f" ({status_info.get('provider_name')})"
+                   if status_info.get("provider_name") else "")
+                + " — nouvelle tentative possible"
+            )
         merged = dict(payment.touchpay_data or {})
         merged.update({
             "provider": "ENKAP",
             "last_attempt_status": payment_status,
-            "message": f"E-nkap: tentative {(payment_status or '').lower()}"
-                       + (f" ({status_info.get('provider_name')})"
-                          if status_info.get("provider_name") else "")
-                       + " — nouvelle tentative possible",
+            "enkap_code": outcome_code,
+            "message": message,
         })
         payment.touchpay_data = merged
+        # Retain the payload that produced the verdict: E-nkap does not
+        # document which field carries the code, so this is how the mapping
+        # gets confirmed (or corrected) against a real failure.
+        payment.direct_api_data = {**dad, "last_failed_status_raw": status_info.get("raw")}
         await db.commit()
+        logger.info(
+            "E-nkap: attempt failed for %s (status %s, code %s, mapped %s)",
+            payment.reference, payment_status, outcome_code,
+            classified[0] if classified else "-",
+        )
         return payment.status
     else:
         return payment.status  # CREATED / PENDING / PROCESSING / unknown

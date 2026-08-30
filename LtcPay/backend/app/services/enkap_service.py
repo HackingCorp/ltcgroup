@@ -49,6 +49,47 @@ CANCELLED_STATUSES = {"CANCELED", "CANCELLED"}
 EXPIRED_STATUSES = {"EXPIRED"}
 PENDING_STATUSES = {"CREATED", "PENDING", "PROCESSING", "INITIALISED", "INITIALIZED"}
 
+# E-nkap publishes the numeric outcome codes (703202, 703108, ...) but not
+# the field that carries them, and no failed order has ever been captured
+# with its payload retained — so every plausible spelling is probed, plus
+# one level of nesting. check_order_status persists the raw payload on
+# failures, which makes the real field name observable on the next one.
+_OUTCOME_CODE_FIELDS = (
+    "errorCode", "error_code", "paymentErrorCode", "payment_error_code",
+    "responseCode", "response_code", "statusCode", "status_code", "code",
+)
+_OUTCOME_CODE_CONTAINERS = ("payment", "transaction", "order", "status", "error", "data")
+
+
+def extract_outcome_code(data: Any) -> str | None:
+    """E-nkap's numeric outcome code from an order payload, as a string.
+
+    "0" is success and is returned as-is; the caller decides what it means.
+    Values that are not a bare number are ignored — "statusCode" and "code"
+    are generic enough to also hold HTTP statuses or WSO2 strings, and a
+    wrong code maps to a wrong customer message.
+    """
+    def _clean(value: Any) -> str | None:
+        if value is None or isinstance(value, bool):
+            return None
+        text = str(value).strip()
+        return text if text.isdigit() else None
+
+    if not isinstance(data, dict):
+        return None
+    for field in _OUTCOME_CODE_FIELDS:
+        found = _clean(data.get(field))
+        if found is not None:
+            return found
+    for container in _OUTCOME_CODE_CONTAINERS:
+        nested = data.get(container)
+        if isinstance(nested, dict):
+            for field in _OUTCOME_CODE_FIELDS:
+                found = _clean(nested.get(field))
+                if found is not None:
+                    return found
+    return None
+
 
 class EnkapError(TouchPayDirectError):
     """E-nkap API error. Subclasses TouchPayDirectError so the shared card
@@ -243,8 +284,8 @@ class EnkapService:
         """Server-side status check — the only source of truth.
 
         Returns {payment_status, is_paid, is_failed, is_cancelled, is_expired,
-        provider_name, raw}. Raises EnkapError on transport errors; returns
-        payment_status=None when the order is unknown (404).
+        provider_name, outcome_code, raw}. Raises EnkapError on transport
+        errors; returns payment_status=None when the order is unknown (404).
         """
         config = provider_service.decrypted_config(provider)
         params = {"txid": txid} if txid else {"orderMerchantId": merchant_reference}
@@ -273,6 +314,7 @@ class EnkapService:
             "is_cancelled": payment_status in CANCELLED_STATUSES,
             "is_expired": payment_status in EXPIRED_STATUSES,
             "provider_name": data.get("paymentProviderName"),
+            "outcome_code": extract_outcome_code(data),
             "raw": data,
         }
 

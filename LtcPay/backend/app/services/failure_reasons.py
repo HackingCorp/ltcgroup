@@ -61,6 +61,11 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         "L'operateur Mobile Money est momentanement indisponible. Reessayez dans quelques minutes.",
     ),
     (
+        "CONFIRMATION_TIMEOUT",
+        ("not confirmed", "non confirme", "does not confirm"),
+        "Le client n'a pas confirme le paiement a temps sur son telephone. Il peut relancer immediatement.",
+    ),
+    (
         "REJECTED_BY_OPERATOR",
         ("echec chez le partenaire", "invalid transaction", "rejected"),
         "Le paiement a ete rejete par l'operateur (demande non validee, expiree ou refusee).",
@@ -72,6 +77,24 @@ _FALLBACK = (
     "Le paiement a echoue. Le client peut reessayer ou utiliser un autre moyen de paiement.",
 )
 
+_MESSAGE_BY_CODE: dict[str, str] = {code: message for code, _, message in _FAILURE_RULES}
+_MESSAGE_BY_CODE[_FALLBACK[0]] = _FALLBACK[1]
+
+# E-nkap (Maviance S3P) numeric outcome codes, from E-nkap's test-scenario
+# sheet. Unlike TouchPay, E-nkap gives no usable failure text — the order
+# payload only says "FAILED" — so the code is the *only* thing that
+# distinguishes a refusal from a timeout from an empty wallet.
+# 703xxx are returned on Orange Money, 704xxx on MTN; the customer-caused
+# codes (703201/703202) are shared by both.
+ENKAP_SUCCESS_CODE = "0"
+_ENKAP_CODES: dict[str, str] = {
+    "703000": "REJECTED_BY_OPERATOR",   # Orange: transaction failed
+    "703108": "INSUFFICIENT_FUNDS",     # Orange: customer has low balance
+    "703201": "CONFIRMATION_TIMEOUT",   # customer never confirmed
+    "703202": "NOT_AUTHORIZED",         # customer rejected the transaction
+    "704005": "REJECTED_BY_OPERATOR",   # MTN: transaction failed
+}
+
 
 def classify_failure(raw_message: Optional[str]) -> tuple[str, str]:
     """Return (failure_code, customer_message) for a raw operator message."""
@@ -80,6 +103,23 @@ def classify_failure(raw_message: Optional[str]) -> tuple[str, str]:
         if any(marker in raw for marker in markers):
             return code, message
     return _FALLBACK
+
+
+def classify_enkap_code(code) -> Optional[tuple[str, str]]:
+    """Return (failure_code, customer_message) for an E-nkap outcome code.
+
+    None when there is nothing to report: no code, the success code "0", or
+    a code E-nkap has not published — the caller then falls back to
+    ``classify_failure`` on the textual message rather than inventing a
+    reason from a number nobody has documented.
+    """
+    raw = str(code).strip() if code is not None else ""
+    if not raw or raw == ENKAP_SUCCESS_CODE:
+        return None
+    failure_code = _ENKAP_CODES.get(raw)
+    if failure_code is None:
+        return None
+    return failure_code, _MESSAGE_BY_CODE[failure_code]
 
 
 def extract_operator_reference(raw_message: Optional[str]) -> Optional[str]:

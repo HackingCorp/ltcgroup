@@ -455,8 +455,8 @@ function GetPaymentSection() {
         { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
         { name: "customer_info", type: "object|null", desc: "Infos client (name, email, phone)." },
         { name: "description", type: "string|null", desc: "Description du paiement." },
-        { name: "failure_code", type: "string|null", desc: "Code d'échec stable si status=FAILED (ex: INSUFFICIENT_FUNDS, ACCOUNT_BLOCKED). Voir Error codes." },
-        { name: "failure_reason", type: "string|null", desc: "Message d'échec prêt à afficher au client si status=FAILED." },
+        { name: "failure_code", type: "string|null", desc: "Code d'échec stable (ex: INSUFFICIENT_FUNDS, ACCOUNT_BLOCKED). Renseigné si status=FAILED, et aussi sur un paiement par carte encore payable dont la dernière tentative a échoué. Voir Error codes." },
+        { name: "failure_reason", type: "string|null", desc: "Message d'échec prêt à afficher au client, renseigné en même temps que failure_code." },
         { name: "operator_reference", type: "string|null", desc: "Reference de transaction de l'operateur (ex: Orange Money \"MP2608...\"). C'est l'identifiant a fournir au support de l'operateur pour faire tracer un refus conteste par le client. Null si l'operateur n'en renvoie pas (MTN)." },
         { name: "completed_at", type: "datetime|null", desc: "Date de complétion (null si non terminé)." },
         { name: "created_at", type: "datetime", desc: "Date de création." },
@@ -824,8 +824,8 @@ function verifySignature(body, signature, secret) {
 
       <InfoBox>
         <T
-          fr="Pour un paiement FAILED, failure_code et failure_reason indiquent la cause exacte de l'échec (solde insuffisant, compte bloqué, refus du client...). Affichez failure_reason à votre client pour qu'il sache quoi corriger. Voir la liste complète dans Error codes."
-          en="For a FAILED payment, failure_code and failure_reason give the exact cause of the failure (insufficient balance, blocked account, customer refusal...). Show failure_reason to your customer so they know what to fix. See the full list in Error codes."
+          fr="failure_code et failure_reason indiquent la cause exacte de l'échec (solde insuffisant, compte bloqué, refus du client...). Ils sont renseignés sur tout paiement FAILED, et aussi sur un paiement par carte encore payable dont la dernière tentative a échoué : le lien reste valable, le client peut réessayer. Affichez failure_reason à votre client pour qu'il sache quoi corriger. Voir la liste complète dans Error codes."
+          en="failure_code and failure_reason give the exact cause of the failure (insufficient balance, blocked account, customer refusal...). They are set on any FAILED payment, and also on a still-payable card payment whose last attempt failed: the link stays valid and the customer can retry. Show failure_reason to your customer so they know what to fix. See the full list in Error codes."
         />
       </InfoBox>
 
@@ -1006,6 +1006,7 @@ function ErrorsSection() {
         { name: "ACCOUNT_BLOCKED", type: "client", desc: "Le compte Mobile Money du client est bloqué par l'opérateur. Le client doit contacter son opérateur (Orange/MTN)." },
         { name: "ACCOUNT_NOT_FOUND", type: "client", desc: "Aucun compte Mobile Money n'existe pour ce numéro. Le client doit vérifier le numéro saisi." },
         { name: "NOT_AUTHORIZED", type: "client", desc: "Le client n'a pas autorisé le paiement : demande de confirmation (push USSD) refusée ou non validée." },
+        { name: "CONFIRMATION_TIMEOUT", type: "client", desc: "Le client n'a pas confirmé le paiement à temps sur son téléphone. À la différence de NOT_AUTHORIZED, il n'y a pas eu de refus : relancer immédiatement le paiement aboutit souvent." },
         { name: "REJECTED_BY_OPERATOR", type: "client", desc: "Paiement rejeté par l'opérateur : demande non validée à temps, expirée ou refusée. Le client peut réessayer." },
         { name: "DUPLICATE_PAYMENT", type: "client", desc: "Une opération identique (même numéro, même opérateur, même montant) a été envoyée il y a moins de 5 minutes. L'opérateur refuse jusqu'à la fin de cette fenêtre, même si le paiement précédent a déjà échoué. Le refus arrive en HTTP 429 : failure_reason indique le temps restant exact et rappelle la raison de l'échec précédent." },
         { name: "WRONG_OPERATOR", type: "client", desc: "Le numéro n'appartient pas à l'opérateur sélectionné (ex: numéro Orange avec MTN MoMo sélectionné)." },

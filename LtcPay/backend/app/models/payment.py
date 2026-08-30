@@ -197,20 +197,34 @@ class Payment(Base):
         return (self.customer_info or {}).get("phone")
 
     # Normalized failure info, derived from the stored operator messages.
-    # None unless the payment is FAILED.
-    @property
-    def failure_code(self) -> str | None:
+    def _classified_failure(self) -> tuple[str, str] | None:
+        """(failure_code, customer message), or None when nothing failed.
+
+        A failed E-nkap attempt never moves the payment to FAILED — the
+        hosted link stays payable — so its outcome code is reported on any
+        payment that is not COMPLETED. Reporting it only on FAILED would
+        make the E-nkap mapping unreachable.
+        """
+        from app.services.failure_reasons import (
+            classify_enkap_code, classify_failure, payment_failure_raw_message,
+        )
+        if self.status != PaymentStatus.COMPLETED:
+            enkap = classify_enkap_code((self.touchpay_data or {}).get("enkap_code"))
+            if enkap:
+                return enkap
         if self.status != PaymentStatus.FAILED:
             return None
-        from app.services.failure_reasons import classify_failure, payment_failure_raw_message
-        return classify_failure(payment_failure_raw_message(self))[0]
+        return classify_failure(payment_failure_raw_message(self))
+
+    @property
+    def failure_code(self) -> str | None:
+        classified = self._classified_failure()
+        return classified[0] if classified else None
 
     @property
     def failure_reason(self) -> str | None:
-        if self.status != PaymentStatus.FAILED:
-            return None
-        from app.services.failure_reasons import classify_failure, payment_failure_raw_message
-        return classify_failure(payment_failure_raw_message(self))[1]
+        classified = self._classified_failure()
+        return classified[1] if classified else None
 
     @property
     def operator_reference(self) -> str | None:
