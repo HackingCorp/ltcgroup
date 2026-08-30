@@ -18,6 +18,21 @@ const GROUP_LABEL: Record<string, { fr: string; en: string }> = {
   CARD: { fr: "Carte bancaire", en: "Bank card" },
 };
 
+// The rail a provider is routed on is not always what it accepts. E-nkap is
+// routed as CARD, but its hosted page also collects Mobile Money across the
+// 10 countries it covers — the customer picks the country and the method
+// there, we never send either. Showing only "Carte bancaire" understates it.
+const ACCEPTS_LABEL: Record<string, { fr: string; en: string }> = {
+  ENKAP: { fr: "Carte bancaire + Mobile Money", en: "Bank card + Mobile Money" },
+};
+
+function methodsLabel(p: Provider): { fr: string; en: string } {
+  return (
+    ACCEPTS_LABEL[p.code] ??
+    GROUP_LABEL[p.provider_group] ?? { fr: p.provider_group, en: p.provider_group }
+  );
+}
+
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -169,8 +184,8 @@ export default function ProvidersPage() {
       title={<T fr="Fournisseurs de paiement" en="Payment providers" />}
       sub={
         <T
-          fr="Activez les fournisseurs et choisissez, pays par pays, le défaut et le secours pour le Mobile Money et la carte."
-          en="Toggle providers and pick, per country, the default and fallback for Mobile Money and cards."
+          fr="Activez les fournisseurs et choisissez, pays par pays, le défaut et le secours. Deux canaux : le Mobile Money en push (on envoie la demande sur le téléphone) et la page hébergée (le client est redirigé et choisit lui-même carte ou Mobile Money)."
+          en="Toggle providers and pick, per country, the default and fallback. Two channels: push Mobile Money (we send the prompt to the phone) and the hosted page (the customer is redirected and picks card or Mobile Money themselves)."
         />
       }
     >
@@ -191,7 +206,7 @@ export default function ProvidersPage() {
               </Pill>
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0 12px" }}>
-              <T fr={GROUP_LABEL[p.provider_group].fr} en={GROUP_LABEL[p.provider_group].en} />
+              <T fr={methodsLabel(p).fr} en={methodsLabel(p).en} />
               {" · "}
               {p.countries.length} <T fr="pays" en="countries" />
               {" · "}
@@ -229,8 +244,8 @@ export default function ProvidersPage() {
           <thead>
             <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 11, textTransform: "uppercase" }}>
               <th style={cellStyle}><T fr="Pays" en="Country" /></th>
-              <th style={cellStyle}>Mobile Money</th>
-              <th style={cellStyle}><T fr="Carte" en="Card" /></th>
+              <th style={cellStyle}><T fr="Mobile Money (push)" en="Mobile Money (push)" /></th>
+              <th style={cellStyle}><T fr="Page hébergée" en="Hosted page" /></th>
             </tr>
           </thead>
           <tbody>

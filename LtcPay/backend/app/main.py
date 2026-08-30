@@ -77,7 +77,9 @@ async def seed_payment_providers():
         ("TOUCHPAY", "TouchPay (InTouch)", ProviderGroup.MOBILE, True),
         ("STRIPE", "Stripe", ProviderGroup.CARD, True),
         ("ACCOUNTPE", "AccountPE (Swychr)", ProviderGroup.MOBILE, False),
-        ("ENKAP", "E-nkap (Maviance)", ProviderGroup.CARD, False),
+        # Routed on the CARD rail, but its hosted page collects cards AND
+        # Mobile Money across 10 countries — the customer picks both there.
+        ("ENKAP", "E-nkap (carte + Mobile Money)", ProviderGroup.CARD, False),
     ]
     async with async_session() as db:
         existing = {

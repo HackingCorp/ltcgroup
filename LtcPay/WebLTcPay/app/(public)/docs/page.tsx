@@ -114,7 +114,7 @@ function IntroSection() {
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
         { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money via TouchPay (SDK ou Direct API). Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
-        { name: "BANK_CARD", type: "Visa, Mastercard", desc: "Carte bancaire via Stripe Payment Intents. Pas de limite de montant." },
+        { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant." },
       ]} />
 
       <H2><T fr="Flux de paiement" en="Payment flow" /></H2>
@@ -353,8 +353,8 @@ function CreatePaymentSection() {
       <H2><T fr="Détection automatique du mode" en="Automatic mode detection" /></H2>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
         <T
-          fr="Si vous envoyez operator et customer_phone sans spécifier payment_mode, le mode DIRECT_API est automatiquement sélectionné. Si vous envoyez payment_method: BANK_CARD, le mode STRIPE est automatiquement sélectionné."
-          en="If you send operator and customer_phone without specifying payment_mode, DIRECT_API mode is automatically selected. If you send payment_method: BANK_CARD, STRIPE mode is automatically selected."
+          fr="Si vous envoyez operator et customer_phone sans spécifier payment_mode, le mode DIRECT_API est automatiquement sélectionné. Si vous envoyez payment_method: BANK_CARD, le fournisseur du pays décide du mode : REDIRECT avec une page hébergée (E-nkap, défaut au Cameroun) ou STRIPE avec un PaymentIntent. Lisez payment_mode dans la réponse plutôt que de le supposer."
+          en="If you send operator and customer_phone without specifying payment_mode, DIRECT_API mode is automatically selected. If you send payment_method: BANK_CARD, the country's provider decides the mode: REDIRECT with a hosted page (E-nkap, default in Cameroon) or STRIPE with a PaymentIntent. Read payment_mode from the response rather than assuming it."
         />
       </p>
 
@@ -709,14 +709,16 @@ function PaymentModesSection() {
         </ul>
       </div>
 
-      <H2>REDIRECT <T fr="(Carte bancaire via API)" en="(Bank card via API)" /></H2>
+      <H2>REDIRECT <T fr="(Carte bancaire et Mobile Money via API)" en="(Bank card and Mobile Money via API)" /></H2>
       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, fontSize: 13, lineHeight: 1.8, marginBottom: 24 }}>
-        <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Paiement carte en intégration API pure — recommandé web et mobile" en="Card payment as a pure API integration — recommended for web and mobile" /></p>
+        <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Page hébergée en intégration API pure — recommandé web et mobile" en="Hosted page as a pure API integration — recommended for web and mobile" /></p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><T fr="Envoyez payment_method: BANK_CARD et country dans la requête" en='Send payment_method: "BANK_CARD" and country in the request' /></li>
+          <li><T fr="Sur la page E-nkap, le client choisit lui-même carte OU Mobile Money, et son pays parmi les 10 couverts. Vous n'avez rien à envoyer pour ça : ni operator, ni customer_phone, ni la devise du pays du client — vous créez toujours la commande en XAF." en="On the E-nkap page the customer picks card OR Mobile Money themselves, and their country among the 10 covered. You send nothing for this: no operator, no customer_phone, no local currency — you always create the order in XAF." /></li>
           <li><T fr="La réponse contient payment_mode: REDIRECT et payment_url = la page de paiement sécurisée du fournisseur carte (pas la page Nkap Pay)" en="Response contains payment_mode: REDIRECT and payment_url = the card provider's secure payment page (not the Nkap Pay page)" /></li>
           <li><T fr="Ouvrez payment_url dans une WebView (app mobile) ou une redirection (web)" en="Open payment_url in a WebView (mobile app) or a redirect (web)" /></li>
-          <li><T fr="3-D Secure géré automatiquement — l'étape navigateur est imposée par la sécurité carte, mais votre intégration reste 100% API" en="3-D Secure handled automatically — the browser step is mandated by card security, but your integration stays 100% API" /></li>
+          <li><T fr="3-D Secure géré automatiquement pour la carte — l'étape navigateur est imposée par la sécurité carte, mais votre intégration reste 100% API" en="3-D Secure handled automatically for cards — the browser step is mandated by card security, but your integration stays 100% API" /></li>
+          <li><T fr="Le suivi est identique quel que soit le moyen choisi par le client : même statut, même webhook, même failure_code. Vous n'avez pas à traiter la carte et le Mobile Money différemment." en="Tracking is identical whichever method the customer picks: same status, same webhook, same failure_code. You do not have to handle card and Mobile Money differently." /></li>
           <li><T fr="Pollez GET /payments/{'{reference}'} comme en Direct API : le statut y est re-vérifié en direct chez le fournisseur à chaque appel — et recevez aussi le webhook" en="Poll GET /payments/{'{reference}'} like Direct API: the status is live re-verified with the provider on each call — plus the webhook" /></li>
           <li><T fr="Session de paiement de 10 minutes ; en cas de carte refusée, le paiement reste ouvert et un nouvel appel du client à payment_url... recrée une session automatiquement" en="10-minute payment session; on a declined card the payment stays open and a new session is created automatically" /></li>
         </ul>

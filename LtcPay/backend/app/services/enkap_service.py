@@ -1,5 +1,14 @@
 """
-E-nkap (Maviance) Card/Aggregator Payment Service
+E-nkap (Maviance) hosted payment service — cards AND Mobile Money.
+
+Routed on the CARD rail, but that name is historical: the hosted page lets
+the customer pick a Visa/Mastercard or a Mobile Money wallet, and pick their
+country among the 10 E-nkap covers (BJ BF CM CF CI GA ML SN TD TG). None of
+that is programmatic — we always create the order in XAF and send neither
+an operator nor a phone-based country. Cards settle in XAF; a Mobile Money
+payment settles in the customer's country currency, on E-nkap's side. So
+nothing here varies by method: one create_order, one status check, one set
+of outcome codes.
 
 Hosted-page payment flow: create an order server-side, redirect the
 customer to E-nkap's checkout page, then confirm server-side.

@@ -311,6 +311,8 @@ async def create_payment(
     # - payment_method == BANK_CARD -> CARD-group routing per country
     #   (country_providers priority; legacy fallback: Stripe), REDIRECT mode
     #   for hosted-page providers (E-nkap), STRIPE mode for PaymentIntents.
+    #   BANK_CARD names the rail, not what the customer ends up paying with:
+    #   E-nkap's hosted page also collects Mobile Money.
     # - Otherwise -> mobile money (SDK or DIRECT_API), provider decided by
     #   the mobile routing at initiation time.
     provider = PaymentProvider.TOUCHPAY
@@ -527,9 +529,12 @@ async def create_payment(
     await db.commit()
     await db.refresh(payment)
 
-    # For E-nkap provider (hosted card page), create the order and hand the
-    # merchant the redirect URL as payment_url. On E-nkap failure, fail over
-    # to Stripe when it is configured.
+    # For E-nkap, create the order and hand the merchant the redirect URL as
+    # payment_url. The page is not card-only: the customer picks a card or a
+    # Mobile Money wallet, and their country, there — which is why nothing
+    # below varies by method. On E-nkap failure, fail over to Stripe when it
+    # is configured (Stripe IS card-only, so that failover narrows what the
+    # customer can pay with).
     if provider == PaymentProvider.ENKAP:
         enkap_provider = await provider_service.get_provider(db, "ENKAP")
         info = customer_info or {}
