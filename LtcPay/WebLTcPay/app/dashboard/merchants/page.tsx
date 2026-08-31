@@ -64,13 +64,21 @@ export default function MerchantsPage() {
     loadBalances();
   }, []);
 
-  const activeCount = merchants.filter((m) => m.is_active).length;
+  // "Live" used to mean is_active alone, so 18 self-registered accounts that
+  // had never been verified and could not collect anything were displayed as
+  // live. Verification is what actually authorises collecting.
+  const isLive = (m: Merchant) => m.is_active && m.is_verified;
+  const isUnverified = (m: Merchant) => m.is_active && !m.is_verified;
+
+  const liveCount = merchants.filter(isLive).length;
+  const unverifiedCount = merchants.filter(isUnverified).length;
   const suspendedCount = merchants.filter((m) => !m.is_active).length;
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return merchants.filter((m) => {
-      if (filter === "live" && !m.is_active) return false;
+      if (filter === "live" && !isLive(m)) return false;
+      if (filter === "unverified" && !isUnverified(m)) return false;
       if (filter === "suspended" && m.is_active) return false;
       if (!q) return true;
       return [m.name, m.email, m.id, m.phone, m.website]
@@ -79,11 +87,12 @@ export default function MerchantsPage() {
   }, [merchants, filter, search]);
 
   const exportCsv = () => {
-    const header = ["id", "name", "email", "phone", "website", "fee_rate", "status", "created_at"];
+    const header = ["id", "name", "email", "phone", "website", "fee_rate", "status", "mode", "created_at"];
     const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = visible.map((m) => [
       m.id, m.name, m.email, m.phone, m.website, m.fee_rate,
-      m.is_active ? "live" : "suspended", m.created_at,
+      !m.is_active ? "suspended" : m.is_verified ? "live" : "unverified",
+      m.is_test_mode ? "test" : "live", m.created_at,
     ].map(escape).join(","));
     const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -96,7 +105,8 @@ export default function MerchantsPage() {
 
   const FILTERS = [
     { id: "all", label: <T fr="Tous" en="All" />, count: merchants.length },
-    { id: "live", label: "Live", count: activeCount },
+    { id: "live", label: "Live", count: liveCount },
+    { id: "unverified", label: <T fr="Non vérifiés" en="Unverified" />, count: unverifiedCount, tone: "warn" as const },
     { id: "suspended", label: <T fr="Suspendus" en="Suspended" />, count: suspendedCount, tone: "fail" as const },
   ];
 
@@ -104,7 +114,12 @@ export default function MerchantsPage() {
     <PageWrapper
       crumb={[<T key="c1" fr="Plateforme" en="Platform" />, <T key="c2" fr="Marchands" en="Merchants" />]}
       title={<T fr="Marchands" en="Merchants" />}
-      sub={<T fr={`${activeCount} actifs · ${suspendedCount} suspendus`} en={`${activeCount} active · ${suspendedCount} suspended`} />}
+      sub={
+        <T
+          fr={`${liveCount} live · ${unverifiedCount} non vérifiés · ${suspendedCount} suspendus`}
+          en={`${liveCount} live · ${unverifiedCount} unverified · ${suspendedCount} suspended`}
+        />
+      }
       actions={<>
         <button className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={visible.length === 0}>
           <Icon name="download" size={13} /> CSV
@@ -199,7 +214,16 @@ export default function MerchantsPage() {
                           {m.created_at ? new Date(m.created_at).toLocaleDateString("fr-FR", { month: "short", year: "numeric" }) : "—"}
                         </div>
                         <div>
-                          <Pill tone={m.is_active ? "success" : "fail"}>{m.is_active ? "live" : "suspended"}</Pill>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "flex-end" }}>
+                            {!m.is_active ? (
+                              <Pill tone="fail">suspended</Pill>
+                            ) : m.is_verified ? (
+                              <Pill tone="success">live</Pill>
+                            ) : (
+                              <Pill tone="warn"><T fr="non vérifié" en="unverified" /></Pill>
+                            )}
+                            {m.is_test_mode && <Pill tone="test">test</Pill>}
+                          </div>
                         </div>
                         <Icon name="chevR" size={14} color="var(--muted)" />
                       </div>
@@ -459,6 +483,8 @@ function EditMerchantModal({
     description: merchant.description || "",
     logo_url: merchant.logo_url || "",
     is_active: merchant.is_active,
+    is_verified: merchant.is_verified,
+    is_test_mode: merchant.is_test_mode,
     default_payment_mode: merchant.default_payment_mode,
     fee_rate: merchant.fee_rate,
   });
@@ -608,6 +634,23 @@ function EditMerchantModal({
                 {form.is_active
                   ? <T fr="Le marchand peut utiliser l'API" en="Merchant can use the API" />
                   : <T fr="Acces API desactive" en="API access disabled" />
+                }
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 8, border: "1px solid var(--line)" }}>
+            <input
+              type="checkbox"
+              checked={form.is_verified ?? false}
+              onChange={(e) => setForm((prev) => ({ ...prev, is_verified: e.target.checked, is_test_mode: !e.target.checked }))}
+              style={{ width: 16, height: 16 }}
+            />
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 500 }}><T fr="Marchand vérifié" en="Verified merchant" /></span>
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
+                {form.is_verified
+                  ? <T fr="Clé live active — le marchand peut encaisser de l'argent réel" en="Live key active — the merchant can collect real money" />
+                  : <T fr="Clé live inactive, création de paiement refusée. À cocher seulement après vérification de l'identité du marchand." en="Live key inert, payment creation refused. Tick only after verifying the merchant's identity." />
                 }
               </p>
             </div>

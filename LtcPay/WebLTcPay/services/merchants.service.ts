@@ -76,6 +76,8 @@ export interface UpdateMerchantData {
   description?: string;
   logo_url?: string;
   is_active?: boolean;
+  is_verified?: boolean;
+  is_test_mode?: boolean;
   default_payment_mode?: "SDK" | "DIRECT_API";
   fee_rate?: number;
   fee_rate_card?: number | null;

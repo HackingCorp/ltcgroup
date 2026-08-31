@@ -39,6 +39,11 @@ class MerchantUpdate(BaseModel):
     description: Optional[str] = None
     logo_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
+    # Verification is what authorises collecting real money: the live API key
+    # stays inert and POST /payments is refused until this is true. Admin-only,
+    # like the rest of this schema — a merchant cannot verify itself.
+    is_verified: Optional[bool] = None
+    is_test_mode: Optional[bool] = None
     default_payment_mode: Optional[PaymentMode] = None
     fee_rate: Optional[Decimal] = Field(None, ge=Decimal("1.75"), le=Decimal("20.00"))
     fee_rate_card: Optional[Decimal] = Field(

@@ -103,7 +103,10 @@ async def merchant_credentials(db_session: AsyncSession) -> dict:
         api_key_test=api_key_test,
         api_secret_hash=hashed_secret,
         is_active=True,
-        is_verified=False,
+        # A merchant allowed to collect: creating a payment now requires
+        # verification. Tests for the unverified case build their own.
+        is_verified=True,
+        is_test_mode=False,
     )
     db_session.add(merchant)
     await db_session.commit()

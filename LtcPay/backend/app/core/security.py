@@ -139,6 +139,39 @@ async def get_current_merchant(
             detail="Merchant account is deactivated",
         )
 
+    # The live key stays inert until the account is verified. Registration is
+    # open and self-service and hands out both keys immediately, so without
+    # this an unknown signup could collect real money through our operator
+    # agency the minute it fills in the form.
+    if api_key == merchant.api_key_live and not merchant.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Compte non verifie : la cle API live est inactive. "
+                   "Utilisez votre cle de test, et faites verifier votre "
+                   "compte pour encaisser des paiements reels.",
+        )
+
+    return merchant
+
+
+async def get_verified_merchant(
+    merchant: Merchant = Depends(get_current_merchant),
+) -> Merchant:
+    """A merchant allowed to move real money.
+
+    Separate from get_current_merchant so an unverified account can still
+    authenticate and read (its configuration, the countries, its past
+    payments) instead of hitting a wall on every call — only collection is
+    gated. is_test_mode is not consulted: it selects which key is shown in
+    the dashboard and has never gated anything, so trusting it here would
+    re-create the same illusion of protection.
+    """
+    if not merchant.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Compte non verifie : la creation de paiements est "
+                   "desactivee tant que votre compte n'a pas ete verifie.",
+        )
     return merchant
 
 

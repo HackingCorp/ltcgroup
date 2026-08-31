@@ -23,7 +23,10 @@ from sqlalchemy import select, func, update as sa_update
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.rate_limit import limiter
-from app.core.security import get_current_merchant, get_optional_merchant, generate_payment_token
+from app.core.security import (
+    get_current_merchant, get_optional_merchant, get_verified_merchant,
+    generate_payment_token,
+)
 from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
@@ -255,7 +258,7 @@ async def get_merchant_info(
 async def create_payment(
     request: Request,
     payload: PaymentInitiate,
-    merchant: Merchant = Depends(get_current_merchant),
+    merchant: Merchant = Depends(get_verified_merchant),
     db: AsyncSession = Depends(get_db),
 ):
     """
