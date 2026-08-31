@@ -22,9 +22,14 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.database import init_models, async_session
 from app.core.rate_limit import limiter
+from app.core import log_redaction
 from app.api.v1.router import api_router
 
 logging.basicConfig(level=logging.INFO)
+# Right after basicConfig created the root handler, and before any provider
+# call can be logged: TouchPay takes its agent password in the query string,
+# so httpx's request line would otherwise print it in clear on every payment.
+log_redaction.install()
 logger = logging.getLogger(__name__)
 
 # Initialize Sentry if DSN is configured
