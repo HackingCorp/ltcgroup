@@ -916,7 +916,7 @@ function EventsSection() {
       />
 
       <FieldTable fields={[
-        { name: "payment.status_changed", type: "webhook", desc: "Envoyé chaque fois qu'un paiement atteint COMPLETED, FAILED ou CANCELLED. Le passage à EXPIRED ne déclenche PAS de webhook : détectez-le en pollant GET /payments/{reference}, ou fiez-vous à votre propre délai d'attente." },
+        { name: "payment.status_changed", type: "webhook", desc: "Envoyé chaque fois qu'un paiement atteint COMPLETED, FAILED ou CANCELLED — y compris quand ce verdict arrive après l'expiration. Le passage à EXPIRED lui-même n'est PAS notifié par défaut : activez « Notifier les expirations » dans Réglages › Webhooks pour le recevoir, sinon détectez-le en pollant GET /payments/{reference}." },
       ]} />
 
       <H2><T fr="Transitions de statut" en="Status transitions" /></H2>
@@ -965,7 +965,7 @@ function StatusesSection() {
         { name: "PROCESSING", type: "transitional", desc: "Paiement en cours de traitement (Direct API uniquement — le client a reçu la notification push)." },
         { name: "COMPLETED", type: "terminal", desc: "Paiement réussi. Les fonds ont été collectés." },
         { name: "FAILED", type: "terminal", desc: "Paiement échoué (refus opérateur, solde insuffisant, erreur technique)." },
-        { name: "EXPIRED", type: "terminal", desc: "Session de paiement expirée (30 minutes par défaut). Le client n'a pas payé dans les temps. Aucun webhook n'est envoyé pour ce statut." },
+        { name: "EXPIRED", type: "non définitif", desc: "Session de paiement expirée (30 minutes par défaut). Le client n'a pas payé dans les temps. Aucun webhook n'est envoyé pour ce passage, sauf si vous activez « Notifier les expirations » dans Réglages › Webhooks. Un verdict tardif de l'opérateur peut encore faire basculer le paiement en COMPLETED ou FAILED." },
         { name: "CANCELLED", type: "terminal", desc: "Paiement annulé par le client ou le marchand." },
         { name: "REFUNDED", type: "réservé", desc: "Valeur réservée pour le remboursement. Aucun paiement ne prend ce statut aujourd'hui : les remboursements se traitent hors API, en nous contactant. N'attendez pas de webhook REFUNDED." },
       ]} />

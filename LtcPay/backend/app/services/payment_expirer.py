@@ -13,6 +13,12 @@ A PROCESSING payment was already pushed to an operator, so it gets an extra
 grace period before we give up on it; a late callback still wins, because
 EXPIRED is not one of the terminal states `_process_callback` skips on.
 
+Expiry sends a merchant webhook only to merchants that opted in
+(`webhook_on_expiry`). It is our own timeout rather than an operator
+verdict, and firing it for everyone would push an event existing
+integrations do not expect — but without it a merchant has no way to
+notice an abandoned checkout except by polling.
+
 Started from the app lifespan, cancelled on shutdown.
 """
 import asyncio
@@ -22,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, or_, select, update
 
 from app.core.database import async_session
+from app.models.merchant import Merchant
 from app.models.payment import Payment, PaymentStatus
 
 logger = logging.getLogger(__name__)
@@ -45,6 +52,53 @@ def _expired_predicate(now: datetime):
     )
 
 
+async def _notify_opted_in(expired: list[tuple]) -> int:
+    """Send payment.status_changed for merchants that asked for expiries.
+
+    Off by default, so this is a no-op for everyone who has not opted in —
+    the event would otherwise reach integrations that never expected it.
+    Delivery failures are the notifier's business (it retries with backoff);
+    they must never abort the sweep, whose job is the status write.
+    """
+    if not expired:
+        return 0
+
+    merchant_ids = {row[2] for row in expired if row[2] is not None}
+    if not merchant_ids:
+        return 0
+
+    async with async_session() as db:
+        opted_in = set(
+            (
+                await db.execute(
+                    select(Merchant.id).where(
+                        Merchant.id.in_(merchant_ids),
+                        Merchant.webhook_on_expiry.is_(True),
+                    )
+                )
+            ).scalars().all()
+        )
+    if not opted_in:
+        return 0
+
+    from app.services.notification import notify_merchant
+
+    sent = 0
+    for payment_id, reference, merchant_id in expired:
+        if merchant_id not in opted_in:
+            continue
+        try:
+            await notify_merchant(str(payment_id))
+            sent += 1
+        except Exception as exc:  # noqa: BLE001 - never break the sweep
+            logger.warning(
+                "Expiry sweep: webhook failed for %s: %s", reference, exc,
+            )
+    if sent:
+        logger.info("Expiry sweep: %d expiry webhook(s) sent", sent)
+    return sent
+
+
 async def expire_once() -> int:
     """Expire one batch of past-due payments. Returns the number updated."""
     now = datetime.now(timezone.utc)
@@ -63,11 +117,12 @@ async def expire_once() -> int:
             update(Payment)
             .where(Payment.id.in_(due), predicate)
             .values(status=PaymentStatus.EXPIRED)
-            .returning(Payment.reference)
+            .returning(Payment.id, Payment.reference, Payment.merchant_id)
         )
-        references = [row[0] for row in result.all()]
+        expired = list(result.all())
         await db.commit()
 
+    references = [row[1] for row in expired]
     if references:
         logger.info(
             "Expiry sweep: %d payment(s) marked EXPIRED (%s%s)",
@@ -75,6 +130,9 @@ async def expire_once() -> int:
             ", ".join(references[:10]),
             ", ..." if len(references) > 10 else "",
         )
+        # After the commit: the webhook must describe a payment already
+        # written, or a merchant could call back and read the old status.
+        await _notify_opted_in(expired)
     return len(references)
 
 

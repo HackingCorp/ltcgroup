@@ -36,6 +36,11 @@ class UpdateSecurityRequest(BaseModel):
     email_confirm_withdrawals: bool | None = None
 
 
+class UpdateWebhooksRequest(BaseModel):
+    callback_url: str | None = None
+    webhook_on_expiry: bool | None = None
+
+
 class UpdateBrandingRequest(BaseModel):
     logo_url: str | None = None
     checkout_primary_color: str | None = None
@@ -67,6 +72,13 @@ def _build_settings(merchant: Merchant) -> dict:
             "ip_whitelist": getattr(merchant, "ip_whitelist", []),
             "sms_alerts_enabled": getattr(merchant, "sms_alerts_enabled", False),
             "email_confirm_withdrawals": getattr(merchant, "email_confirm_withdrawals", False),
+        },
+        "webhooks": {
+            "callback_url": merchant.callback_url,
+            # Entering EXPIRED sends no webhook unless this is on: it is our
+            # own timeout, not an operator verdict, and a late callback can
+            # still turn the payment into COMPLETED.
+            "webhook_on_expiry": getattr(merchant, "webhook_on_expiry", False),
         },
         "branding": {
             "logo_url": merchant.logo_url,
@@ -123,6 +135,22 @@ async def update_security(
     db: AsyncSession = Depends(get_db),
 ):
     """Update security settings."""
+    updates = body.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        if hasattr(merchant, field):
+            setattr(merchant, field, value)
+    await db.commit()
+    await db.refresh(merchant)
+    return _build_settings(merchant)
+
+
+@router.patch("/webhooks")
+async def update_webhooks(
+    body: UpdateWebhooksRequest,
+    merchant: Merchant = Depends(get_current_merchant_jwt),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update webhook delivery settings."""
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         if hasattr(merchant, field):

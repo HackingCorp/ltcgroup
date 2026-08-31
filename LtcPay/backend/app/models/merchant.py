@@ -106,6 +106,12 @@ class Merchant(Base):
     ip_whitelist: Mapped[str | None] = mapped_column(Text, nullable=True)
     sms_alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     email_confirm_withdrawals: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+    # Send payment.status_changed when a payment expires. Off by default:
+    # existing integrations do not expect the event, and EXPIRED is our own
+    # timeout rather than an operator verdict — a late callback can still
+    # turn it into COMPLETED. Merchants who would otherwise have to poll to
+    # notice an abandoned checkout can opt in.
+    webhook_on_expiry: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
     # Branding
     checkout_primary_color: Mapped[str | None] = mapped_column(String(7), nullable=True)

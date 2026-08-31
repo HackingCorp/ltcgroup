@@ -110,6 +110,11 @@ export const merchantDashboardService = {
     return response.data;
   },
 
+  async updateWebhooks(data: { callback_url?: string; webhook_on_expiry?: boolean }) {
+    const response = await api.patch("/merchant-dashboard/settings/webhooks", data);
+    return response.data;
+  },
+
   // ── Billing ──────────────────────────────────────
   async getBillingInvoices(params?: { page?: number }) {
     const response = await api.get("/merchant-dashboard/billing/invoices", { params });

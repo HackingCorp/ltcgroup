@@ -8,12 +8,13 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
 
-type Tab = "account" | "payouts" | "security" | "branding" | "danger";
+type Tab = "account" | "payouts" | "security" | "webhooks" | "branding" | "danger";
 
 const TABS: { key: Tab; fr: string; en: string; icon: string }[] = [
   { key: "account", fr: "Compte", en: "Account", icon: "building" },
   { key: "payouts", fr: "Reglements", en: "Payouts", icon: "bank" },
   { key: "security", fr: "Securite", en: "Security", icon: "shield" },
+  { key: "webhooks", fr: "Webhooks", en: "Webhooks", icon: "bolt" },
   { key: "branding", fr: "Branding checkout", en: "Checkout branding", icon: "star" },
   { key: "danger", fr: "Zone rouge", en: "Danger zone", icon: "alert" },
 ];
@@ -29,6 +30,8 @@ export default function MerchantSettingsPage() {
   const [twoFA, setTwoFA] = useState(false);
   const [ipWhitelist, setIpWhitelist] = useState(false);
   const [smsAlerts, setSmsAlerts] = useState(false);
+  const [expiryWebhook, setExpiryWebhook] = useState(false);
+  const [savingWebhooks, setSavingWebhooks] = useState(false);
   const [emailConfirm, setEmailConfirm] = useState(false);
   const [payoutSchedule, setPayoutSchedule] = useState("daily");
   const [feeBearer, setFeeBearer] = useState("MERCHANT");
@@ -55,6 +58,10 @@ export default function MerchantSettingsPage() {
         }
         if (res.payouts?.fee_bearer) {
           setFeeBearer(res.payouts.fee_bearer);
+        }
+
+        if (res.webhooks) {
+          setExpiryWebhook(res.webhooks.webhook_on_expiry ?? false);
         }
 
         // Initialize branding color
@@ -291,6 +298,50 @@ export default function MerchantSettingsPage() {
                   <Toggle on={s.on} onChange={s.toggle} />
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Webhooks tab */}
+          {tab === "webhooks" && (
+            <div className="nk-card">
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 20, margin: "0 0 4px" }}>
+                Webhooks
+              </h3>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 20px" }}>
+                <T
+                  fr="Un paiement expire au bout de 30 minutes sans action du client. Ce passage n'est pas notifie par defaut : l'expiration est notre propre delai, pas un verdict de l'operateur, et un verdict tardif peut encore faire basculer le paiement en COMPLETED ou FAILED."
+                  en="A payment expires after 30 minutes without customer action. That transition is not notified by default: expiry is our own timeout, not an operator verdict, and a late verdict can still turn the payment into COMPLETED or FAILED."
+                />
+              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: "1px solid var(--line)" }}>
+                <div style={{ paddingRight: 16 }}>
+                  <div style={{ fontWeight: 500, fontSize: 14 }}>
+                    <T fr="Notifier les expirations" en="Notify on expiry" />
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                    <T
+                      fr="Recevoir payment.status_changed avec status EXPIRED. Evite d'avoir a interroger l'API pour reperer un paiement abandonne."
+                      en="Receive payment.status_changed with status EXPIRED. Removes the need to poll the API to spot an abandoned payment."
+                    />
+                  </div>
+                </div>
+                <Toggle
+                  on={expiryWebhook}
+                  onChange={(on: boolean) => {
+                    setExpiryWebhook(on);
+                    setSavingWebhooks(true);
+                    merchantDashboardService
+                      .updateWebhooks({ webhook_on_expiry: on })
+                      .catch(() => setExpiryWebhook(!on))
+                      .finally(() => setSavingWebhooks(false));
+                  }}
+                />
+              </div>
+              {savingWebhooks && (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                  <T fr="Enregistrement..." en="Saving..." />
+                </div>
+              )}
             </div>
           )}
 
