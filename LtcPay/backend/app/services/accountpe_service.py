@@ -87,6 +87,9 @@ class AccountPEService:
         normalized_phone = country_service.normalize_phone(
             phone_number, country.phone_prefix, country.phone_digits,
         )
+        length_error = country_service.phone_length_error(normalized_phone, country)
+        if length_error:
+            raise InvalidPhoneNumberError(length_error)
 
         # AccountPE's payment_method is case-sensitive ("Moov", "Airtel",
         # "Mpesa", ...) — use the exact value stored as service_code on the

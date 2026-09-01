@@ -243,5 +243,24 @@ class CountryService:
 
         return digits
 
+    @staticmethod
+    def phone_length_error(normalized: str, country) -> str | None:
+        """Message when a normalized number has the wrong digit count.
+
+        Every country carries phone_digits and we publish it, but nothing
+        used it: normalize_phone only consults it to decide whether to strip
+        the country prefix, so a number missing a digit was truncated and
+        forwarded to the operator. Returns None when the length is right, or
+        when the country declares no expected length.
+        """
+        expected = getattr(country, "phone_digits", None)
+        if not expected or len(normalized) == expected:
+            return None
+        return (
+            f"Numero de telephone invalide : {len(normalized)} chiffres recus, "
+            f"{expected} attendus pour {getattr(country, 'name', '')} "
+            f"(sans l'indicatif +{getattr(country, 'phone_prefix', '')})."
+        ).replace("  ", " ")
+
 
 country_service = CountryService()

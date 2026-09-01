@@ -55,6 +55,22 @@ class OperatorMismatchError(TouchPayDirectError):
     """
 
 
+class InvalidPhoneNumberError(OperatorMismatchError):
+    """The number does not have the digit count the country requires.
+
+    Every country carries a phone_digits, we publish it in the API and the
+    docs tell merchants to respect it — but nothing checked it, so a number
+    missing a digit was silently truncated by normalize_phone and sent to
+    the operator anyway. Seen 2026-09-01: 241 74452464 (8 digits) reached
+    AccountPE, which answered "Invalid phone number"; the customer retried
+    44 seconds later with the ninth digit and it went through.
+
+    Subclasses OperatorMismatchError so the callers that already map that to
+    HTTP 400 — and the router, which never fails over on it — treat this
+    identically without touching every call site.
+    """
+
+
 def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
     """Customer-facing French message for a TouchPay initiation rejection."""
     raw = str(exc).lower()
@@ -208,6 +224,13 @@ class TouchPayDirectService:
         normalized_phone = self._normalize_phone(
             phone_number, country.phone_prefix, country.phone_digits,
         )
+
+        # A wrong digit count is a typo, not an operator problem: catch it
+        # here rather than letting normalize_phone truncate it and spending
+        # a round-trip to have the operator say "invalid phone number".
+        length_error = country_service.phone_length_error(normalized_phone, country)
+        if length_error:
+            raise InvalidPhoneNumberError(length_error)
 
         # Reject numbers that provably belong to another operator before
         # sending anything to TouchPay (mismatch-only: unknown ranges pass).
