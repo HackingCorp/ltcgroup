@@ -99,7 +99,12 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
     if "tec-internal" in raw or "erreur interne" in raw:
         return "L'operateur est momentanement indisponible. Reessayez dans quelques minutes."
     if "numero de telephone" in raw or "indicatif" in raw:
-        return "Numero de telephone invalide. Saisissez 9 chiffres sans indicatif pays."
+        # Our own length check already names both counts and the country;
+        # replacing it with a generic "9 digits" would be wrong outside
+        # Cameroon — Ivory Coast expects 10, Benin/Mali/Togo 8.
+        if "chiffres recus" in raw:
+            return str(exc)
+        return "Numero de telephone invalide pour ce pays. Saisissez le numero sans indicatif pays."
     if "insuffisant" in raw:
         return "Solde insuffisant sur le compte Mobile Money. Rechargez votre compte et reessayez."
     if "bloque" in raw or "blocked" in raw:

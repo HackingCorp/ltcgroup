@@ -48,7 +48,7 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     (
         "INVALID_PHONE",
         ("numero de telephone", "indicatif"),
-        "Numero de telephone invalide (9 chiffres sans indicatif pays attendus).",
+        "Numero de telephone invalide : le nombre de chiffres ne correspond pas a ce pays. La longueur attendue est donnee par phone_digits dans GET /payments/countries.",
     ),
     (
         "TOO_MANY_ATTEMPTS",
