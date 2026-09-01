@@ -27,7 +27,7 @@ from app.core.database import get_db
 from app.models.payment import Payment, PaymentStatus
 from app.services.accountpe_service import (
     STATUS_EXPIRED, STATUS_FAILED, STATUS_PENDING, STATUS_SUCCESS,
-    verify_webhook_signature,
+    accountpe_service, verify_webhook_signature,
 )
 from app.services.provider_service import provider_service
 
@@ -120,23 +120,36 @@ async def accountpe_webhook(
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     # --- Map status ---
-    # Prefer the payload status (account-level webhook). Per-request
-    # callbacks may carry no status at all: fall back to the outcome query
-    # param we bake into the two callback URLs at initiation
-    # (outcome=success on callback_url, outcome=failed on failed_callback_url).
+    # The payload status is authoritative only on the signed account-level
+    # webhook. Per-request callbacks arrive with an empty body, and their
+    # verdict used to be inferred from which of our two URLs was called
+    # (?outcome=success / ?outcome=failed). AccountPE called the success URL
+    # on 2026-09-01 for two payments their own dashboard shows as FAILED:
+    # 8 252 XAF were credited to a merchant who had not been paid. So a
+    # body without a status is now only a wake-up signal — the verdict comes
+    # from asking AccountPE directly, exactly as E-nkap is handled.
     raw_status = attrs.get("status")
     if raw_status is None:
-        outcome = (request.query_params.get("outcome") or "").lower()
-        if outcome == "success":
-            raw_status = 1
-        elif outcome == "failed":
-            raw_status = 2
-        else:
+        provider = await provider_service.get_provider(db, "ACCOUNTPE")
+        checked = (
+            await accountpe_service.check_payment_status(provider, payment.reference)
+            if provider else None
+        )
+        if checked is None or checked.get("status") is None:
             logger.warning(
-                "AccountPE webhook: no status for %s (outcome=%r) body=%s",
-                transaction_id, outcome, raw_body[:500],
+                "AccountPE webhook: no status for %s and status check unavailable "
+                "— leaving it untouched (outcome=%r)",
+                transaction_id, request.query_params.get("outcome"),
             )
-            raise HTTPException(status_code=400, detail="Missing or invalid status")
+            # 200, not 4xx: their retries would not make the answer any better,
+            # and the reconciliation path still has the payment to pick up.
+            return {"status": "ok", "message": "Status unverified, ignored"}
+        attrs = {**checked, **{k: v for k, v in attrs.items() if k not in checked}}
+        raw_status = checked["status"]
+        logger.info(
+            "AccountPE webhook: body carried no status for %s, provider says %r",
+            transaction_id, raw_status,
+        )
     try:
         provider_status = int(raw_status)
     except (TypeError, ValueError):

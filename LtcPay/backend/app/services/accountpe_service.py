@@ -58,6 +58,65 @@ class AccountPEService:
     def _url(base_url: str, path: str) -> str:
         return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
+    async def check_payment_status(
+        self, provider: ProviderConfig, transaction_id: str,
+    ) -> dict | None:
+        """Server-side status of a payin — the only trustworthy verdict.
+
+        AccountPE's per-request callbacks carry an empty body, so the outcome
+        used to be read from which of our two URLs they called
+        (?outcome=success / ?outcome=failed). On 2026-09-01 they called the
+        success URL for two payments their own dashboard shows as FAILED, and
+        8 252 XAF were credited to a merchant who was never paid.
+
+        Undocumented but live: POST payin/payment_link_status answers with the
+        same envelope as the account webhook (data.data.attributes), except
+        that `status` is a label ("successful", "failed") rather than the
+        numeric code the webhook uses.
+
+        Returns the attributes dict, or None when the answer is unusable —
+        callers must then leave the payment untouched rather than guess.
+        """
+        config = provider_service.decrypted_config(provider)
+        api_key = config.get("api_key")
+        if not api_key:
+            return None
+        url = self._url(config.get("base_url") or DEFAULT_BASE_URL, "payin/payment_link_status")
+
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.post(
+                    url,
+                    headers={"Api-Key": api_key, "Content-Type": "application/json"},
+                    json={"transaction_id": transaction_id},
+                )
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "AccountPE status check failed for %s: %s", transaction_id, exc,
+            )
+            return None
+
+        if response.status_code != 200:
+            logger.warning(
+                "AccountPE status check for %s: HTTP %s", transaction_id, response.status_code,
+            )
+            return None
+        try:
+            body = response.json()
+        except ValueError:
+            return None
+
+        outer = (body or {}).get("data") or {}
+        inner = outer.get("data") or outer
+        attrs = inner.get("attributes") if isinstance(inner, dict) else None
+        if not isinstance(attrs, dict) or attrs.get("status") is None:
+            logger.warning(
+                "AccountPE status check for %s: no status in %s",
+                transaction_id, str(body)[:300],
+            )
+            return None
+        return attrs
+
     async def initiate_payment(
         self,
         db: AsyncSession,
