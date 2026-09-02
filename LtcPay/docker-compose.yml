@@ -1,3 +1,9 @@
+# Paths are relative to the REPOSITORY ROOT, not to this file's directory.
+# Dokploy deploys with `--project-directory <repo root> -f LtcPay/docker-compose.yml`
+# and offers no base-directory setting (v0.30.3), so `./backend` would resolve to
+# the sibling project at the root and `./WebLTcPay` would not exist at all — the
+# build failed on exactly that. Run it locally the same way, from the repo root:
+#   docker compose -f LtcPay/docker-compose.yml up -d
 services:
   db:
     image: postgres:16-alpine
@@ -29,7 +35,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./LtcPay/backend
       dockerfile: Dockerfile
     container_name: ltcpay-backend
     restart: unless-stopped
@@ -68,7 +74,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://ltcpay:ltcpay_secret@db:5432/ltcpay}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
     volumes:
-      - ./backend/app:/app/app
+      - ./LtcPay/backend/app:/app/app
       - ltcpay_operator_logos:/app/app/static/operators
     depends_on:
       db:
@@ -78,7 +84,7 @@ services:
 
   web:
     build:
-      context: ./WebLTcPay
+      context: ./LtcPay/WebLTcPay
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
