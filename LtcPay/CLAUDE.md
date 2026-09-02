@@ -14,21 +14,22 @@ A payment gateway built on TouchPay for Central African mobile money (Orange Mon
 ### Docker (full stack)
 
 ```bash
-# Run from the REPOSITORY ROOT (one level above LtcPay/), not from here:
-docker compose -f docker-compose.ltcpay.yml up -d                     # Start all
-docker compose -f docker-compose.ltcpay.yml up -d --force-recreate backend
-docker compose -f docker-compose.ltcpay.yml logs -f backend
-docker compose -f docker-compose.ltcpay.yml down -v                   # Stop + wipe volumes
+docker-compose up -d                              # Start all: backend, db, redis, web
+docker-compose up -d --force-recreate backend      # Reload backend code changes
+docker-compose logs -f backend                     # Tail backend logs
+docker-compose down -v                             # Stop + wipe volumes
 ```
 
-The compose file is `docker-compose.ltcpay.yml` at the REPOSITORY ROOT, not in
-`LtcPay/`. Dokploy (v0.30.3) has no base-directory setting: it always uses the
-repo root as the project directory, and it writes its Environment Settings to a
-`.env` beside the compose file. Compose only auto-loads `.env` from the project
-directory, so the compose file has to sit at the root too — otherwise every
-`${VAR:-default}` falls back and WEBHOOK_BASE_URL becomes http://localhost:8001.
-
 `docker-compose restart` does NOT pick up code changes — always use `--force-recreate`.
+
+**Do not move `docker-compose.yml`.** Dokploy deploys it in place, with
+`--env-file LtcPay/.env -f LtcPay/docker-compose.yml` and no `--project-directory`,
+so Compose derives the project directory from the file's own location — which is
+what makes `./backend` and `./WebLTcPay` resolve. Moving the file to the repo root
+breaks both the build contexts and the `.env` lookup, and every `${VAR:-default}`
+then silently falls back (WEBHOOK_BASE_URL becomes http://localhost:8001, all
+secrets empty). Dokploy changed this invocation twice on 2026-09-01/02, so if a
+deploy suddenly fails, read the command it printed before touching the repo.
 
 Backend source is volume-mounted (`./backend/app:/app/app`), so file edits are visible inside the container after recreate.
 
