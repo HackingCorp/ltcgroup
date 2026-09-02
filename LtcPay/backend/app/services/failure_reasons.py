@@ -57,7 +57,13 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     ),
     (
         "OPERATOR_UNAVAILABLE",
-        ("tec-internal", "erreur interne", "unable to process", "timed out", "timeout"),
+        # "Vous n'etes pas autorise a effectuer cette operation" reads like a
+        # permissions problem and is not one: TouchPay confirmed on 2026-09-02
+        # that it signals an unstable or unavailable service on their side,
+        # normally cleared within minutes. Matched before it can be mistaken
+        # for a customer refusal.
+        ("tec-internal", "erreur interne", "unable to process", "timed out",
+         "timeout", "pas autorise a effectuer"),
         "L'operateur Mobile Money est momentanement indisponible. Reessayez dans quelques minutes.",
     ),
     (

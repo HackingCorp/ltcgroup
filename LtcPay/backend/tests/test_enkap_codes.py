@@ -163,3 +163,38 @@ def test_pending_payment_without_an_enkap_code_reports_nothing():
 def test_touchpay_classification_is_unchanged():
     payment = _payment(PaymentStatus.FAILED, {"message": "[27] Unauthorized"})
     assert payment.failure_code == "NOT_AUTHORIZED"
+
+
+# --------------------------------------------------------------------------
+# TouchPay: "Vous n'etes pas autorise a effectuer cette operation"
+# --------------------------------------------------------------------------
+# TouchPay confirmed on 2026-09-02 that this HTTP 300 signals an unstable or
+# unavailable service on their side, cleared within minutes — not a
+# permissions problem, despite the wording. It is what every Gabon initiation
+# returns, and what the failover to AccountPE rescues.
+
+TOUCHPAY_UNAVAILABLE = "Vous n'etes pas autorise a effectuer cette operation."
+
+
+def test_touchpay_unavailability_is_not_a_customer_error():
+    # A customer error aborts instead of failing over; this one must fail over.
+    from app.services.touchpay_direct_service import TouchPayDirectError, is_customer_error
+    assert not is_customer_error(TouchPayDirectError(TOUCHPAY_UNAVAILABLE, status_code=300))
+
+
+def test_touchpay_unavailability_maps_to_operator_unavailable():
+    from app.services.failure_reasons import classify_failure
+    assert classify_failure(TOUCHPAY_UNAVAILABLE)[0] == "OPERATOR_UNAVAILABLE"
+
+
+def test_the_customer_is_never_told_they_are_unauthorised():
+    from app.services.touchpay_direct_service import TouchPayDirectError, friendly_initiation_error
+    message = friendly_initiation_error(TouchPayDirectError(TOUCHPAY_UNAVAILABLE, status_code=300))
+    assert "autorise" not in message.lower()
+    assert "indisponible" in message.lower()
+
+
+def test_a_real_customer_refusal_is_still_not_an_outage():
+    from app.services.failure_reasons import classify_failure
+    assert classify_failure("[27] Unauthorized")[0] == "NOT_AUTHORIZED"
+    assert classify_failure("Le solde du compte du payeur est insuffisant")[0] == "INSUFFICIENT_FUNDS"

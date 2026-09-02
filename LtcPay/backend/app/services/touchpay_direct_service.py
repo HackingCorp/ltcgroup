@@ -96,7 +96,10 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
             "Une operation similaire a deja ete envoyee pour ce numero. "
             f"Patientez encore {delay} avant de reessayer."
         )
-    if "tec-internal" in raw or "erreur interne" in raw:
+    if "tec-internal" in raw or "erreur interne" in raw or "pas autorise a effectuer" in raw:
+        # Never echo "Vous n'etes pas autorise a effectuer cette operation" to
+        # the customer: it accuses them of a permissions problem, when TouchPay
+        # says it means their own service is momentarily unavailable.
         return "L'operateur est momentanement indisponible. Reessayez dans quelques minutes."
     if "numero de telephone" in raw or "indicatif" in raw:
         # Our own length check already names both counts and the country;
