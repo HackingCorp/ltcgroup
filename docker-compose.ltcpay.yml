@@ -1,9 +1,15 @@
-# Paths are relative to the REPOSITORY ROOT, not to this file's directory.
-# Dokploy deploys with `--project-directory <repo root> -f LtcPay/docker-compose.yml`
-# and offers no base-directory setting (v0.30.3), so `./backend` would resolve to
-# the sibling project at the root and `./WebLTcPay` would not exist at all — the
-# build failed on exactly that. Run it locally the same way, from the repo root:
-#   docker compose -f LtcPay/docker-compose.yml up -d
+# LtcPay stack. This file lives at the REPOSITORY ROOT on purpose.
+#
+# Dokploy runs `docker compose --project-directory <repo root> -f <this file>`
+# and writes its Environment Settings to a `.env` NEXT TO THE COMPOSE FILE.
+# Compose auto-loads `.env` from the project directory only, so the two must be
+# the same directory — otherwise every ${VAR:-default} silently falls back and
+# WEBHOOK_BASE_URL becomes http://localhost:8001, which providers cannot reach.
+# That is why the file is here and not in LtcPay/, and why paths are ./LtcPay/...
+#
+# Local use, from the repository root:
+#   docker compose -f docker-compose.ltcpay.yml up -d
+
 services:
   db:
     image: postgres:16-alpine

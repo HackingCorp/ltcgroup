@@ -15,15 +15,18 @@ A payment gateway built on TouchPay for Central African mobile money (Orange Mon
 
 ```bash
 # Run from the REPOSITORY ROOT (one level above LtcPay/), not from here:
-docker compose -f LtcPay/docker-compose.yml up -d                     # Start all
-docker compose -f LtcPay/docker-compose.yml up -d --force-recreate backend
-docker compose -f LtcPay/docker-compose.yml logs -f backend
-docker compose -f LtcPay/docker-compose.yml down -v                   # Stop + wipe volumes
+docker compose -f docker-compose.ltcpay.yml up -d                     # Start all
+docker compose -f docker-compose.ltcpay.yml up -d --force-recreate backend
+docker compose -f docker-compose.ltcpay.yml logs -f backend
+docker compose -f docker-compose.ltcpay.yml down -v                   # Stop + wipe volumes
 ```
 
-The compose file's paths are relative to the repository root because that is the
-only place Dokploy can run it from (v0.30.3 has no base-directory setting), so
-running it from inside `LtcPay/` no longer resolves `./LtcPay/backend`.
+The compose file is `docker-compose.ltcpay.yml` at the REPOSITORY ROOT, not in
+`LtcPay/`. Dokploy (v0.30.3) has no base-directory setting: it always uses the
+repo root as the project directory, and it writes its Environment Settings to a
+`.env` beside the compose file. Compose only auto-loads `.env` from the project
+directory, so the compose file has to sit at the root too — otherwise every
+`${VAR:-default}` falls back and WEBHOOK_BASE_URL becomes http://localhost:8001.
 
 `docker-compose restart` does NOT pick up code changes — always use `--force-recreate`.
 
