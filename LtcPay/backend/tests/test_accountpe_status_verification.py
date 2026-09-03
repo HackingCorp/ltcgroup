@@ -157,3 +157,54 @@ async def test_an_unauthenticated_callback_is_still_refused(client, db_session, 
     assert response.status_code in (401, 404)
     check.assert_not_awaited()
     assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING
+
+
+# --------------------------------------------------------------------------
+# Payload shapes the account-level webhook actually sends
+# --------------------------------------------------------------------------
+
+def test_a_string_data_field_does_not_crash():
+    # Seen twice in production on 2026-09-03 once the account-level webhook
+    # went live: "'str' object has no attribute 'get'", a 500 that AccountPE
+    # then retried five times.
+    from app.api.v1.endpoints.accountpe_callbacks import _extract_attributes
+    assert _extract_attributes({"data": "anything"}) == {}
+    assert _extract_attributes({"data": {"data": "anything"}}) == {}
+    assert _extract_attributes("not a dict at all") == {}
+    assert _extract_attributes({}) == {}
+
+
+def test_the_documented_shape_still_parses():
+    from app.api.v1.endpoints.accountpe_callbacks import _extract_attributes
+    payload = {"data": {"data": {"attributes": {"transaction_id": "PAY-1", "status": 1}}}}
+    assert _extract_attributes(payload) == {"transaction_id": "PAY-1", "status": 1}
+
+
+def test_a_flat_payload_still_parses():
+    from app.api.v1.endpoints.accountpe_callbacks import _extract_attributes
+    assert _extract_attributes({"transaction_id": "PAY-2", "status": 2})["status"] == 2
+
+
+async def test_payout_events_are_ignored_not_looked_up(client, db_session, payment):
+    # AccountPE sends payout_status_updated on the same webhook. Its
+    # transaction_id is a payout reference (LTC1008), so searching the
+    # payments table only produced "payment not found" warnings.
+    check = AsyncMock(return_value={"status": "successful"})
+    with patch(
+        "app.services.accountpe_service.accountpe_service.check_payment_status", new=check,
+    ):
+        response = await client.post(
+            "/api/v1/callbacks/accountpe",
+            json={"event": "payout_status_updated", "status": "failed",
+                  "data": {"data": {"attributes": {"transaction_id": "LTC1008", "status": 2}}}},
+        )
+
+    assert response.status_code == 200
+    check.assert_not_awaited()
+    assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING
+
+
+async def test_an_unreadable_payload_is_acked_rather_than_500(client):
+    response = await client.post("/api/v1/callbacks/accountpe", json={"data": "garbage"})
+    # 404 (no payment found) is fine; a 500 is not — AccountPE retries those.
+    assert response.status_code != 500

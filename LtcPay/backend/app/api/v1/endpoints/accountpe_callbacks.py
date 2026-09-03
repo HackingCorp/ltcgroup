@@ -43,14 +43,32 @@ _STATUS_LABELS = {
 _TERMINAL = (PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED)
 
 
+# Events AccountPE sends on the account-level webhook that have nothing to do
+# with collecting money. Their transaction_id is a payout reference, so looking
+# it up among payments only produces "payment not found" noise.
+_IGNORED_EVENTS = {"payout_status_updated"}
+
+
 def _extract_attributes(payload: dict) -> dict:
-    """Locate the attribute dict across AccountPE payload shapes."""
-    data = payload.get("data") or {}
-    inner = data.get("data") or data
-    attrs = inner.get("attributes") if isinstance(inner, dict) else None
+    """Locate the attribute dict across AccountPE payload shapes.
+
+    Every level is type-checked: the account-level webhook has been observed
+    sending payloads whose "data" is a plain string, which made this raise
+    'str' object has no attribute 'get' — a 500 that AccountPE then retried
+    five times. An unrecognised shape must degrade to {}, never crash.
+    """
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        data = {}
+    inner = data.get("data")
+    if not isinstance(inner, dict):
+        inner = data
+    attrs = inner.get("attributes")
     if isinstance(attrs, dict):
         return attrs
-    if isinstance(inner, dict) and "transaction_id" in inner:
+    if "transaction_id" in inner:
         return inner
     if "transaction_id" in payload:
         return payload
@@ -77,8 +95,21 @@ async def accountpe_webhook(
             except Exception:
                 payload = {}
 
+    event = payload.get("event") if isinstance(payload, dict) else None
+    if event in _IGNORED_EVENTS:
+        # Payouts are LTC Group's own transfers out, not merchant collections.
+        logger.info("AccountPE webhook: ignoring %s event", event)
+        return {"status": "ok", "message": f"Ignored {event}"}
+
     attrs = _extract_attributes(payload)
     transaction_id = attrs.get("transaction_id")
+    if not attrs and raw_body:
+        # Keep the shape we could not read: this is how the next unknown
+        # payload gets recognised instead of silently doing nothing.
+        logger.warning(
+            "AccountPE webhook: unrecognised payload shape (event=%r) body=%s",
+            event, raw_body[:400],
+        )
     token = request.query_params.get("token")
 
     payment = None
