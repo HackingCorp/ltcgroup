@@ -1,0 +1,15 @@
+# Build context is the repo root (see backend/Dockerfile) — ship only backend/.
+# backend/.dockerignore no longer applies since the context moved up here.
+*
+!backend/
+backend/__pycache__
+**/__pycache__
+**/*.pyc
+**/*.pyo
+backend/.env
+backend/.env.*
+backend/tests/
+backend/*.md
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.vscode

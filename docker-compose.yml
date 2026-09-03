@@ -49,8 +49,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: ltc-backend
     restart: unless-stopped
     ports:

@@ -1,13 +1,17 @@
 FROM python:3.12-slim
 
+# Build context is the REPO ROOT, not backend/ — Dokploy builds this file with
+# the repository root as context, so all COPY paths are prefixed with backend/.
+# docker-compose.yml and .github/workflows/deploy.yml use the same context.
+
 WORKDIR /app
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ .
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
