@@ -32,6 +32,27 @@ def redact(text: str) -> str:
     return _SECRET_PARAM.sub(_REPLACEMENT, text)
 
 
+def _redact_record(record: logging.LogRecord) -> None:
+    """Scrub a record in place: message when it is final, arguments always."""
+    # Only rewrite the message when it is the final text. With args it is
+    # a format string — "updated (token=%s)" would lose its %s to the
+    # redaction and every later argument would then be unconvertible.
+    # Format strings are code; secrets only ever live in the arguments.
+    if not record.args and isinstance(record.msg, str) and "=" in record.msg:
+        record.msg = redact(record.msg)
+
+    args = record.args
+    if isinstance(args, tuple):
+        record.args = tuple(
+            redact(a) if isinstance(a, str) and "=" in a else a for a in args
+        )
+    elif isinstance(args, dict):
+        record.args = {
+            key: redact(value) if isinstance(value, str) and "=" in value else value
+            for key, value in args.items()
+        }
+
+
 class SecretRedactingFilter(logging.Filter):
     """Redact credentials in a record's message and its interpolation args.
 
@@ -41,33 +62,37 @@ class SecretRedactingFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        # Only rewrite the message when it is the final text. With args it is
-        # a format string — "updated (token=%s)" would lose its %s to the
-        # redaction and every later argument would then be unconvertible.
-        # Format strings are code; secrets only ever live in the arguments.
-        if not record.args and isinstance(record.msg, str) and "=" in record.msg:
-            record.msg = redact(record.msg)
-
-        args = record.args
-        if isinstance(args, tuple):
-            record.args = tuple(
-                redact(a) if isinstance(a, str) and "=" in a else a for a in args
-            )
-        elif isinstance(args, dict):
-            record.args = {
-                key: redact(value) if isinstance(value, str) and "=" in value else value
-                for key, value in args.items()
-            }
+        _redact_record(record)
         return True  # never drop the record, only rewrite it
 
 
-def install(logger: logging.Logger | None = None) -> None:
-    """Attach the filter to every handler of the root logger.
+def _redacting_factory(previous):
+    """Wrap a LogRecord factory so every record is scrubbed at creation."""
 
-    Handlers, not the logger: a filter on a logger only sees records logged
-    through that logger, so records propagating up from httpx, uvicorn or
-    any library logger would bypass it.
+    def factory(*args, **kwargs):
+        record = previous(*args, **kwargs)
+        _redact_record(record)
+        return record
+
+    factory._ltcpay_redacting = True  # type: ignore[attr-defined]
+    return factory
+
+
+def install(logger: logging.Logger | None = None) -> None:
+    """Redact at the record factory, and on the current handlers as a backup.
+
+    The handler filter alone was not enough: uvicorn configures logging with
+    dictConfig, which replaces the root handlers our filter was attached to.
+    The result was silent — 95 TouchPay agent passwords sat in the production
+    logs while a freshly imported process showed the filter correctly in
+    place. The record factory is global and survives any later dictConfig,
+    so every record is scrubbed once, at creation, whatever happens to the
+    handlers afterwards.
     """
+    factory = logging.getLogRecordFactory()
+    if not getattr(factory, "_ltcpay_redacting", False):
+        logging.setLogRecordFactory(_redacting_factory(factory))
+
     root = logger or logging.getLogger()
     for handler in root.handlers:
         if not any(isinstance(f, SecretRedactingFilter) for f in handler.filters):

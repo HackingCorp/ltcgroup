@@ -138,3 +138,60 @@ def test_install_is_idempotent():
     install(root)
     install(root)
     assert sum(isinstance(f, SecretRedactingFilter) for f in handler.filters) == 1
+
+
+# --------------------------------------------------------------------------
+# The factory must survive a later logging reconfiguration
+# --------------------------------------------------------------------------
+# The handler filter alone silently stopped working in production: uvicorn
+# configures logging with dictConfig, which replaces the handlers our filter
+# was attached to. 95 TouchPay agent passwords ended up in the logs while a
+# freshly imported process reported the filter correctly installed.
+
+def test_redaction_survives_dictconfig_replacing_the_handlers():
+    import logging.config
+
+    original_factory = logging.getLogRecordFactory()
+    try:
+        install()
+        # Exactly what uvicorn does at startup: rebuild the handlers.
+        logging.config.dictConfig({
+            "version": 1,
+            "disable_existing_loggers": False,
+            "handlers": {"h": {"class": "logging.NullHandler"}},
+            "root": {"handlers": ["h"], "level": "INFO"},
+        })
+        record = logging.getLogRecordFactory()(
+            "httpx", logging.INFO, __file__, 1,
+            "HTTP Request: %s", (TOUCHPAY_URL,), None,
+        )
+        assert "EZrcwCRmeY" not in record.getMessage()
+        assert "passwordAgent=***" in record.getMessage()
+    finally:
+        logging.setLogRecordFactory(original_factory)
+
+
+def test_install_is_idempotent_on_the_factory():
+    original_factory = logging.getLogRecordFactory()
+    try:
+        install()
+        after_first = logging.getLogRecordFactory()
+        install()
+        install()
+        assert logging.getLogRecordFactory() is after_first
+    finally:
+        logging.setLogRecordFactory(original_factory)
+
+
+def test_the_factory_does_not_break_ordinary_records():
+    original_factory = logging.getLogRecordFactory()
+    try:
+        install()
+        record = logging.getLogRecordFactory()(
+            "app", logging.INFO, __file__, 1,
+            "Payment %s updated %s -> %s (token=%s, command=%s)",
+            ("PAY-1", "PENDING", "FAILED", "", "PAY-1"), None,
+        )
+        assert record.getMessage() == "Payment PAY-1 updated PENDING -> FAILED (token=, command=PAY-1)"
+    finally:
+        logging.setLogRecordFactory(original_factory)
