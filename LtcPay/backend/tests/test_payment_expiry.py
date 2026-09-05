@@ -297,3 +297,50 @@ class TestRetryIsNotPunished:
         from app.core.velocity import velocity_lockout_message
 
         assert "2 min 05 s" in velocity_lockout_message(125)
+
+
+class TestDuplicateWindowCleared:
+    """The window must not outlive an attempt the operator never saw.
+
+    Measured 2026-09-05: 7 of 15 duplicate refusals in 24 h followed an
+    attempt that carried no provider transaction id at all — payments the
+    provider would have accepted, refused by our own guard.
+    """
+
+    def _cache(self):
+        fake = MagicMock()
+        return SimpleNamespace(redis=fake), fake
+
+    def test_window_is_cleared_when_nothing_was_registered(self):
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.clear_payin_attempt("MTN", "670000000", 5000)
+        assert fake.delete.called
+        assert fake.delete.call_args[0][0].endswith(":MTN:670000000:5000")
+
+    def test_clearing_targets_the_same_key_that_was_opened(self):
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.record_payin_attempt("ORANGE", "690000000", 1200)
+            velocity.clear_payin_attempt("ORANGE", "690000000", 1200)
+        assert fake.set.call_args[0][0] == fake.delete.call_args[0][0]
+
+    def test_clearing_is_safe_without_redis(self):
+        with patch.object(velocity, "cache", SimpleNamespace(redis=None)):
+            velocity.clear_payin_attempt("MTN", "670000000", 5000)  # must not raise
+
+    def test_clearing_is_safe_without_a_phone(self):
+        cache, fake = self._cache()
+        with patch.object(velocity, "cache", cache):
+            velocity.clear_payin_attempt("MTN", "", 5000)
+        assert not fake.delete.called
+
+    def test_an_operator_reference_means_the_window_is_kept(self):
+        # Orange puts its own reference after a pipe when it registered the
+        # transaction; that is the signal to hold the window.
+        from app.services.failure_reasons import extract_operator_reference
+        assert extract_operator_reference(
+            "Le solde du compte du payeur est insuffisant| MP260905CC74DFC6E52F5D0F7F30"
+        )
+        assert extract_operator_reference("[27] Unauthorized") is None
+        assert extract_operator_reference("FAILED") is None

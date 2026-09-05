@@ -28,12 +28,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.velocity import (
     annotate_payin_attempt,
+    clear_payin_attempt,
     format_delay,
     check_phone_velocity,
     duplicate_payin_status,
     record_payin_attempt,
 )
 from app.services.country_service import country_service
+from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
 
@@ -369,12 +371,19 @@ class TouchPayDirectService:
             return data
 
         except TouchPayDirectError as exc:
-            # Remember why this attempt was refused: the next one lands inside
-            # the duplicate window and must repeat the real reason instead of
-            # the opaque "operation similaire".
-            annotate_payin_attempt(
-                operator_code, normalized_phone, amount, str(exc),
-            )
+            # Keep the window only when the operator actually registered the
+            # transaction — its own reference in the message proves it did.
+            # Otherwise nothing is pending on their side and holding the
+            # window for five minutes just blocks a legitimate retry.
+            if extract_operator_reference(str(exc)):
+                # Remember why this attempt was refused: the next one lands
+                # inside the duplicate window and must repeat the real reason
+                # instead of the opaque "operation similaire".
+                annotate_payin_attempt(
+                    operator_code, normalized_phone, amount, str(exc),
+                )
+            else:
+                clear_payin_attempt(operator_code, normalized_phone, amount)
             raise
         except httpx.TimeoutException as exc:
             logger.error(

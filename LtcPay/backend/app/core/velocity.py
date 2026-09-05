@@ -138,6 +138,26 @@ def record_payin_attempt(operator: str, normalized_phone: str, amount: int) -> N
         logger.warning("Duplicate window not recorded (Redis error): %s", exc)
 
 
+def clear_payin_attempt(operator: str, normalized_phone: str, amount: int) -> None:
+    """Close the duplicate window: the operator never saw this attempt.
+
+    The window is opened before the request leaves, because TouchPay opens
+    its own on the attempt itself. But when the call fails *without* the
+    operator registering anything — our own pre-flight refusals, a transport
+    error, a TouchPay outage — there is no duplicate to protect against, and
+    holding the window for five minutes only blocks a legitimate retry.
+    Measured on 2026-09-05: 7 of 15 duplicate refusals in 24 h were of this
+    kind, i.e. payments the provider would have accepted.
+    """
+    redis = cache.redis
+    if not redis or not normalized_phone:
+        return
+    try:
+        redis.delete(_duplicate_key(operator, normalized_phone, amount))
+    except RedisError as exc:
+        logger.warning("Duplicate window not cleared (Redis error): %s", exc)
+
+
 def annotate_payin_attempt(
     operator: str, normalized_phone: str, amount: int, reason: str,
 ) -> None:
