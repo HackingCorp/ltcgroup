@@ -52,6 +52,14 @@ class SupportedCountry(Base):
         String(500), nullable=False,
         default="https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
     )
+    # Partner API credentials. TouchPay's check_status / get_balance / cashin
+    # endpoints authenticate with a different triple than the Direct payin
+    # API (which uses agency + loginAgent + passwordAgent in the query
+    # string). Same agency, different keys — see the Insomnia collection.
+    tp_partner_id: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    tp_login_api: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    tp_password_api: Mapped[str] = mapped_column(Text, nullable=False, default="")  # encrypted
+
     tp_direct_api_url: Mapped[str] = mapped_column(
         String(500), nullable=False,
         default="https://apidist.gutouch.net/apidist/sec/touchpayapi",

@@ -225,6 +225,14 @@ class CountryService:
             "merchant_website": country.tp_merchant_website or settings.TOUCHPAY_MERCHANT_WEBSITE,
             "sdk_url": country.tp_sdk_url or settings.TOUCHPAY_SDK_URL,
             "direct_api_url": country.tp_direct_api_url or settings.TOUCHPAY_DIRECT_API_URL,
+            # Partner API triple, used by check_status / get_balance / cashin.
+            "partner_id": getattr(country, "tp_partner_id", "") or settings.TOUCHPAY_PARTNER_ID,
+            "login_api": getattr(country, "tp_login_api", "") or settings.TOUCHPAY_LOGIN_API,
+            "password_api": (
+                decrypt_value(country.tp_password_api)
+                if getattr(country, "tp_password_api", "") else ""
+            ) or settings.TOUCHPAY_PASSWORD_API,
+            "partner_api_url": settings.TOUCHPAY_PARTNER_API_URL,
         }
 
     @staticmethod

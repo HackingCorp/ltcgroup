@@ -127,8 +127,12 @@ async def lifespan(app: FastAPI):
         logger.warning("Provider seed skipped: %s", exc)
     from app.services.enkap_reconciler import reconciliation_loop
     from app.services.payment_expirer import expiry_loop
+    from app.services.touchpay_reconciler import (
+        reconciliation_loop as touchpay_reconciliation_loop,
+    )
     background_tasks = [
         _asyncio.create_task(reconciliation_loop()),
+        _asyncio.create_task(touchpay_reconciliation_loop()),
         _asyncio.create_task(expiry_loop()),
     ]
     yield

@@ -317,3 +317,85 @@ async def list_provider_operators(
         }
         for op in result.scalars().all()
     ]
+
+
+# ── TouchPay partner API ─────────────────────────────────────────
+# Three endpoints TouchPay documents but that had no caller here: the agency
+# float, a payin status lookup, and outbound cash-in. The float matters most
+# operationally — a float at zero produces exactly the kind of mass
+# unexplained refusals that took three days to diagnose on Gabon.
+
+class CashinRequest(BaseModel):
+    service_id: str = Field(..., min_length=3, max_length=64)
+    recipient_phone_number: str = Field(..., min_length=6, max_length=20)
+    amount: int = Field(..., gt=0)
+    partner_transaction_id: str = Field(..., min_length=3, max_length=64)
+
+
+@router.get("/touchpay/{country_code}/balance")
+async def touchpay_balance(
+    country_code: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Current TouchPay float for a country's agency."""
+    from app.services.touchpay_partner_service import (
+        TouchPayPartnerError, touchpay_partner_service,
+    )
+    try:
+        return await touchpay_partner_service.get_balance(db, country_code.upper())
+    except TouchPayPartnerError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+
+@router.get("/touchpay/{country_code}/status/{reference}")
+async def touchpay_check_status(
+    country_code: str,
+    reference: str,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Ask TouchPay what it thinks of one payment. Read-only."""
+    from app.services.touchpay_partner_service import (
+        TouchPayPartnerError, touchpay_partner_service,
+    )
+    try:
+        verdict = await touchpay_partner_service.check_status(db, country_code.upper(), reference)
+    except TouchPayPartnerError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+    if verdict is None:
+        raise HTTPException(status_code=404, detail="TouchPay returned no readable status")
+    return verdict
+
+
+@router.post("/touchpay/{country_code}/cashin")
+async def touchpay_cashin(
+    country_code: str,
+    payload: CashinRequest,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send money OUT to a mobile wallet.
+
+    Admin-only and never called automatically: this debits the agency float.
+    partner_transaction_id must be unique and is the caller's to choose, so a
+    retry can be made idempotent on TouchPay's side rather than double-paying.
+    """
+    from app.services.touchpay_partner_service import (
+        TouchPayPartnerError, touchpay_partner_service,
+    )
+    logger.warning(
+        "Admin %s initiating cashin: %s %s to %s (ref=%s)",
+        admin.email, payload.amount, country_code.upper(),
+        payload.recipient_phone_number, payload.partner_transaction_id,
+    )
+    try:
+        return await touchpay_partner_service.cashin(
+            db, country_code.upper(),
+            service_id=payload.service_id,
+            recipient_phone_number=payload.recipient_phone_number,
+            amount=payload.amount,
+            partner_transaction_id=payload.partner_transaction_id,
+        )
+    except TouchPayPartnerError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))

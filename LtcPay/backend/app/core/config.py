@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     TOUCHPAY_DIRECT_AGENCY_CODE: str = ""
     TOUCHPAY_DIRECT_LOGIN: str = ""
     TOUCHPAY_DIRECT_PASSWORD: str = ""
+    # Partner API (check_status / get_balance / cashin) — different keys from
+    # the payin credentials above, same agency. Global fallback; per-country
+    # values on supported_countries win.
+    TOUCHPAY_PARTNER_ID: str = ""
+    TOUCHPAY_LOGIN_API: str = ""
+    TOUCHPAY_PASSWORD_API: str = ""
+    TOUCHPAY_PARTNER_API_URL: str = "https://apidist.gutouch.net/apidist/sec"
     TOUCHPAY_SERVICE_CODE_MTN: str = "PAIEMENTMARCHAND_MTN_CM"
     TOUCHPAY_SERVICE_CODE_ORANGE: str = "CM_PAIEMENTMARCHAND_OM_TP"
 
