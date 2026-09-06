@@ -80,6 +80,12 @@ class CountryCredentials(BaseModel):
         default="https://apidist.gutouch.net/apidist/sec/touchpayapi",
         max_length=500,
     )
+    # Partner API (check_status / get_balance / cashin). A different triple
+    # from the payin credentials above, and each agency has its own — so
+    # these are set per country, not once globally.
+    partner_id: str = Field(default="", max_length=100)
+    login_api: str = Field(default="", max_length=100)
+    password_api: str = Field(default="", max_length=500)
 
 
 class CountryCreate(BaseModel):
@@ -127,6 +133,10 @@ class CountryResponse(BaseModel):
     max_amount: int
     enforce_phone_prefix_check: bool = True
     credentials_configured: bool  # True if agency_code + merchant_id are non-empty
+    # Payin credentials and partner-API credentials are independent: a
+    # country can collect money while check_status/get_balance/cashin
+    # stay unusable, and the reconciliation sweep then skips it.
+    partner_api_configured: bool = False
     is_active: bool
     created_at: datetime
     updated_at: datetime

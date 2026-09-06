@@ -210,3 +210,36 @@ async def test_an_http_error_carries_touchpays_message():
             await service.check_status(None, "GA", "PAY-1")
     assert "pas autorise" in str(exc.value)
     assert exc.value.status_code == 400
+
+
+# --------------------------------------------------------------------------
+# Per-country credentials
+# --------------------------------------------------------------------------
+# Each agency has its own partner_id / login_api / password_api, so the env
+# settings are only a fallback and the per-country values must win.
+
+async def test_country_values_take_priority_over_the_env_fallback():
+    from app.core.config import settings
+    from app.services.country_service import CountryService
+
+    country = SimpleNamespace(
+        tp_agency_code="LTCGA0169", tp_login="", tp_password="", tp_secret="",
+        tp_merchant_id="", tp_secure_code="", tp_merchant_website="",
+        tp_sdk_url="", tp_direct_api_url="",
+        tp_partner_id="PG-GABON", tp_login_api="login-gabon", tp_password_api="",
+    )
+
+    async def fake_get(db, code):
+        return country
+
+    service = CountryService()
+    service.get_active_country = fake_get  # type: ignore[assignment]
+
+    with patch.object(settings, "TOUCHPAY_PARTNER_ID", "PG-GLOBAL"), \
+         patch.object(settings, "TOUCHPAY_LOGIN_API", "login-global"), \
+         patch.object(settings, "TOUCHPAY_PASSWORD_API", "pw-global"):
+        creds = await service.get_decrypted_credentials(None, "GA")
+
+    assert creds["partner_id"] == "PG-GABON"     # the country's own value wins
+    assert creds["login_api"] == "login-gabon"   # idem
+    assert creds["password_api"] == "pw-global"  # empty on the country -> env fallback

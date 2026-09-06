@@ -39,6 +39,13 @@ router = APIRouter(prefix="/admin/countries", tags=["Admin Countries"])
 
 def _country_to_response(country: SupportedCountry) -> CountryResponse:
     creds_ok = bool(country.tp_agency_code and country.tp_merchant_id)
+    # Separate flag: a country can take payins without the partner API
+    # being set up, and then reconciliation silently does nothing.
+    partner_ok = bool(
+        getattr(country, "tp_partner_id", "")
+        and getattr(country, "tp_login_api", "")
+        and getattr(country, "tp_password_api", "")
+    )
     return CountryResponse(
         code=country.code,
         name=country.name,
@@ -52,6 +59,7 @@ def _country_to_response(country: SupportedCountry) -> CountryResponse:
         max_amount=country.max_amount,
         enforce_phone_prefix_check=bool(getattr(country, "enforce_phone_prefix_check", True)),
         credentials_configured=creds_ok,
+        partner_api_configured=partner_ok,
         is_active=country.is_active,
         created_at=country.created_at,
         updated_at=country.updated_at,
@@ -115,6 +123,9 @@ async def create_country(
         enforce_phone_prefix_check=payload.enforce_phone_prefix_check,
         is_active=payload.is_active,
         tp_agency_code=creds.agency_code if creds else "",
+        tp_partner_id=creds.partner_id if creds else "",
+        tp_login_api=creds.login_api if creds else "",
+        tp_password_api=encrypt_value(creds.password_api) if creds and creds.password_api else "",
         tp_login=creds.login if creds else "",
         tp_password=encrypt_value(creds.password) if creds and creds.password else "",
         tp_secret=encrypt_value(creds.secret) if creds and creds.secret else "",
@@ -225,6 +236,12 @@ async def update_country(
             country.tp_sdk_url = creds.sdk_url
         if creds.direct_api_url:
             country.tp_direct_api_url = creds.direct_api_url
+        if creds.partner_id:
+            country.tp_partner_id = creds.partner_id
+        if creds.login_api:
+            country.tp_login_api = creds.login_api
+        if creds.password_api:
+            country.tp_password_api = encrypt_value(creds.password_api)
 
     await db.commit()
     await db.refresh(country, attribute_names=["operators"])
