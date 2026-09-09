@@ -80,6 +80,17 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
         return str(exc)  # already a customer-facing French message
     if "operation similaire" in raw:
         info = exc.raw_response or {}
+        # A failover creates a second attempt for the same number and amount
+        # within seconds, and the second provider refuses it as a duplicate
+        # of our own making. Telling the customer to wait five minutes is
+        # then both false — they tried once — and useless, since the real
+        # cause is whatever made the first provider fail. Seen 2026-09-09:
+        # TouchPay TEC-INTERNAL-001 -> failover -> AccountPE "operation
+        # similaire", reported to the merchant as a duplicate.
+        trail = info.get("failover_trail") or []
+        if trail and trail[0].get("error"):
+            return friendly_initiation_error(TouchPayDirectError(trail[0]["error"]))
+
         wait = info.get("retry_after")
         if not wait:
             return "Une operation similaire a deja ete envoyee. Patientez 5 minutes avant de reessayer."

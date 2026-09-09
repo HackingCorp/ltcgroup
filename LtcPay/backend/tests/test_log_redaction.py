@@ -195,3 +195,71 @@ def test_the_factory_does_not_break_ordinary_records():
         assert record.getMessage() == "Payment PAY-1 updated PENDING -> FAILED (token=, command=PAY-1)"
     finally:
         logging.setLogRecordFactory(original_factory)
+
+
+# --------------------------------------------------------------------------
+# The argument httpx actually passes
+# --------------------------------------------------------------------------
+# Two earlier versions of this filter shipped and did nothing: httpx logs the
+# request URL as an httpx.URL object, not a string, and only str arguments
+# were scrubbed. Every TouchPay agent password went on being written in clear
+# — CM, CG and GA — while the tests, which all used strings, passed.
+
+def test_an_httpx_url_argument_is_redacted():
+    import httpx
+    from app.core.log_redaction import _redact_record
+
+    url = httpx.URL(TOUCHPAY_URL)
+    assert not isinstance(url, str)  # the whole point
+    record = _record('HTTP Request: %s %s "%s"', ("PUT", url, "HTTP/1.1 300"))
+    _redact_record(record)
+    rendered = record.getMessage()
+    assert "EZrcwCRmeY" not in rendered
+    assert "passwordAgent=***" in rendered
+    assert "apidist.gutouch.net" in rendered
+
+
+def test_the_exact_httpx_log_call_is_covered():
+    # Reproduces httpx._client's own logger.info signature.
+    import httpx
+    from app.core.log_redaction import _redact_record
+
+    record = _record(
+        'HTTP Request: %s %s "%s %d %s"',
+        ("PUT", httpx.URL(TOUCHPAY_URL), "HTTP/1.1", 300, "Multiple Choices"),
+    )
+    _redact_record(record)
+    assert "EZrcwCRmeY" not in record.getMessage()
+
+
+def test_ordinary_objects_keep_their_own_repr():
+    from app.core.log_redaction import _redact_record
+
+    class Thing:
+        def __repr__(self):
+            return "<Thing>"
+        __str__ = __repr__
+
+    thing = Thing()
+    record = _record("got %s", (thing,))
+    _redact_record(record)
+    assert record.args[0] is thing  # untouched, not stringified
+
+
+def test_an_object_whose_str_raises_does_not_break_logging():
+    from app.core.log_redaction import _redact_record
+
+    class Hostile:
+        def __str__(self):
+            raise RuntimeError("nope")
+
+    record = _record("got %s", (Hostile(),))
+    _redact_record(record)  # must not raise
+
+
+def test_scalars_are_left_alone():
+    from app.core.log_redaction import _redact_record
+
+    record = _record("status=%d ok=%s ratio=%s", (300, True, 1.5))
+    _redact_record(record)
+    assert record.args == (300, True, 1.5)

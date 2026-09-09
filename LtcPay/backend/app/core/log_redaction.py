@@ -32,6 +32,33 @@ def redact(text: str) -> str:
     return _SECRET_PARAM.sub(_REPLACEMENT, text)
 
 
+_SCALARS = (int, float, bool, type(None))
+
+
+def _scrub(value):
+    """Redact one interpolation argument, whatever its type.
+
+    httpx logs the request URL as an httpx.URL object, not a string — which
+    is why two earlier versions of this filter silently did nothing while
+    every TouchPay agent password went on being written in clear. Anything
+    that is not a plain scalar is rendered and checked, and only replaced
+    when it actually contained a secret, so ordinary objects keep their
+    own repr.
+    """
+    if isinstance(value, str):
+        return redact(value) if "=" in value else value
+    if isinstance(value, _SCALARS):
+        return value
+    try:
+        text = str(value)
+    except Exception:  # noqa: BLE001 - a broken __str__ must not kill logging
+        return value
+    if "=" not in text:
+        return value
+    redacted = redact(text)
+    return redacted if redacted != text else value
+
+
 def _redact_record(record: logging.LogRecord) -> None:
     """Scrub a record in place: message when it is final, arguments always."""
     # Only rewrite the message when it is the final text. With args it is
@@ -43,14 +70,9 @@ def _redact_record(record: logging.LogRecord) -> None:
 
     args = record.args
     if isinstance(args, tuple):
-        record.args = tuple(
-            redact(a) if isinstance(a, str) and "=" in a else a for a in args
-        )
+        record.args = tuple(_scrub(a) for a in args)
     elif isinstance(args, dict):
-        record.args = {
-            key: redact(value) if isinstance(value, str) and "=" in value else value
-            for key, value in args.items()
-        }
+        record.args = {key: _scrub(value) for key, value in args.items()}
 
 
 class SecretRedactingFilter(logging.Filter):

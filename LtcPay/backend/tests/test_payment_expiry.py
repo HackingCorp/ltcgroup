@@ -344,3 +344,62 @@ class TestDuplicateWindowCleared:
         )
         assert extract_operator_reference("[27] Unauthorized") is None
         assert extract_operator_reference("FAILED") is None
+
+
+class TestSelfInflictedDuplicate:
+    """A failover must not report its own duplicate to the customer.
+
+    Seen 2026-09-09 on PAY-ACFA29C52DF84E52 and PAY-4DB3A75B530848C8: the
+    customer tried once, TouchPay answered TEC-INTERNAL-001, the router
+    failed over, and AccountPE refused the second attempt as a duplicate.
+    The merchant was told "operation similaire, patientez 5 minutes" — false,
+    since there was one attempt, and useless, since the cause was TouchPay.
+    """
+
+    def _duplicate_after_failover(self, first_error: str):
+        from app.services.touchpay_direct_service import TouchPayDirectError
+        return TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            status_code=400,
+            raw_response={"failover_trail": [
+                {"provider": "TOUCHPAY", "error": first_error},
+            ]},
+        )
+
+    def test_the_first_providers_cause_is_reported_instead(self):
+        from app.services.touchpay_direct_service import friendly_initiation_error
+        message = friendly_initiation_error(self._duplicate_after_failover(
+            "[GenericError][TEC-INTERNAL-001] Erreur interne. Veuillez reessayer ulterieurement."
+        ))
+        assert "indisponible" in message
+        assert "similaire" not in message
+        assert "5 minutes" not in message
+
+    def test_a_customer_cause_survives_the_failover_too(self):
+        from app.services.touchpay_direct_service import friendly_initiation_error
+        message = friendly_initiation_error(self._duplicate_after_failover(
+            "Le solde du compte du payeur est insuffisant"
+        ))
+        assert "Solde insuffisant" in message
+
+    def test_a_genuine_duplicate_still_says_how_long_to_wait(self):
+        # No failover trail: the customer really did send the same payment
+        # twice, and the wait is the useful thing to tell them.
+        from app.services.touchpay_direct_service import (
+            TouchPayDirectError, friendly_initiation_error,
+        )
+        message = friendly_initiation_error(TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            raw_response={"retry_after": 180},
+        ))
+        assert "similaire" in message and "3 min" in message
+
+    def test_an_empty_trail_falls_back_to_the_duplicate_message(self):
+        from app.services.touchpay_direct_service import (
+            TouchPayDirectError, friendly_initiation_error,
+        )
+        message = friendly_initiation_error(TouchPayDirectError(
+            "Une operation similaire a ete envoyee il y a moins de 5 minutes",
+            raw_response={"failover_trail": []},
+        ))
+        assert "similaire" in message
