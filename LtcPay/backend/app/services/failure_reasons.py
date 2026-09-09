@@ -17,8 +17,22 @@ from typing import Optional
 _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     (
         "INSUFFICIENT_FUNDS",
-        ("insuffisant",),
+        # Each operator words this differently and none of them reuse the
+        # others' phrasing: Orange CM "solde ... insuffisant", MTN CM
+        # "[06] Balance insufficient", Moov GA "n a pas suffisamment de
+        # balance". All three used to fall through to the generic code.
+        ("insuffisant", "balance insufficient", "suffisamment de balance"),
         "Solde insuffisant sur le compte Mobile Money du client.",
+    ),
+    (
+        # MTN Congo answers with three possible causes in one sentence. We
+        # cannot tell which applies, so the message says so instead of
+        # asserting an empty wallet to a customer who may have money.
+        "BALANCE_OR_LIMIT",
+        ("solde du client est faible",),
+        "Le paiement a ete refuse par MTN : solde insuffisant, limite de "
+        "beneficiaires atteinte, ou operation non autorisee sur ce compte. "
+        "Le client doit verifier son solde et contacter MTN si le solde est suffisant.",
     ),
     (
         "ACCOUNT_BLOCKED",
@@ -73,7 +87,8 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     ),
     (
         "REJECTED_BY_OPERATOR",
-        ("echec chez le partenaire", "invalid transaction", "rejected"),
+        ("echec chez le partenaire", "failed at the partner",
+         "invalid transaction", "rejected"),
         "Le paiement a ete rejete par l'operateur (demande non validee, expiree ou refusee).",
     ),
 ]

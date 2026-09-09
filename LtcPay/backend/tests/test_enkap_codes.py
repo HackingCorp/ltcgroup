@@ -198,3 +198,48 @@ def test_a_real_customer_refusal_is_still_not_an_outage():
     from app.services.failure_reasons import classify_failure
     assert classify_failure("[27] Unauthorized")[0] == "NOT_AUTHORIZED"
     assert classify_failure("Le solde du compte du payeur est insuffisant")[0] == "INSUFFICIENT_FUNDS"
+
+
+# --------------------------------------------------------------------------
+# Operator wordings observed in production, per corridor
+# --------------------------------------------------------------------------
+# Each operator words the same refusal differently and none reuse another's
+# phrasing. Four of these fell through to the generic PAYMENT_FAILED until
+# 2026-09-09, including both Gabon's and Congo's — the two corridors we were
+# trying to make diagnosable.
+
+def test_every_insufficient_funds_wording_maps_to_the_same_code():
+    from app.services.failure_reasons import classify_failure
+    for message in (
+        "Le solde du compte du payeur est insuffisant",              # Orange CM
+        "[06] Balance insufficient",                                  # MTN CM
+        "Le compte  client n a pas suffisamment de balance pour effectuer cette transaction.",  # Moov GA
+    ):
+        assert classify_failure(message)[0] == "INSUFFICIENT_FUNDS", message
+
+
+def test_the_english_partner_failure_is_recognised_like_the_french_one():
+    from app.services.failure_reasons import classify_failure
+    assert classify_failure("Transaction failed at the partner")[0] == "REJECTED_BY_OPERATOR"
+    assert classify_failure("Transaction en echec chez le partenaire")[0] == "REJECTED_BY_OPERATOR"
+
+
+def test_mtn_congos_three_causes_are_not_reduced_to_one():
+    # The sentence lists low balance OR beneficiary limit OR not authorised.
+    # Claiming "insufficient funds" would tell a customer with money that
+    # their wallet is empty.
+    from app.services.failure_reasons import classify_failure
+    code, message = classify_failure(
+        "Le solde du client est faible ou la limite de beneficiaires est atteinte "
+        "ou cette transaction n'est pas autorisee par MTN."
+    )
+    assert code == "BALANCE_OR_LIMIT"
+    assert "limite" in message and "solde" in message
+
+
+def test_the_known_codes_are_unchanged():
+    from app.services.failure_reasons import classify_failure
+    assert classify_failure("[27] Unauthorized")[0] == "NOT_AUTHORIZED"
+    assert classify_failure("[04] Account not found")[0] == "ACCOUNT_NOT_FOUND"
+    assert classify_failure("Beneficiaire introuvable")[0] == "ACCOUNT_NOT_FOUND"
+    assert classify_failure("[19] Unable to process payment at this time.")[0] == "OPERATOR_UNAVAILABLE"
