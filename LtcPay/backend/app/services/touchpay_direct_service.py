@@ -41,12 +41,26 @@ logger = logging.getLogger(__name__)
 
 
 class TouchPayDirectError(Exception):
-    """Error from TouchPay Direct API (HTTP or business-level)."""
+    """Error from TouchPay Direct API (HTTP or business-level).
 
-    def __init__(self, message: str, status_code: int | None = None, raw_response: dict | None = None):
+    `outcome_unknown` marks the errors that are not refusals: a timeout or a
+    transport failure means we never read the provider's answer, so the
+    operator may well have accepted the payin. PAY-4DB3A75B530848C8 did
+    exactly that on 2026-09-09 — our request timed out, TouchPay had
+    accepted one second earlier and collected 12 709 XAF.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        raw_response: dict | None = None,
+        outcome_unknown: bool = False,
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.raw_response = raw_response or {}
+        self.outcome_unknown = outcome_unknown
 
 
 class OperatorMismatchError(TouchPayDirectError):
@@ -401,13 +415,17 @@ class TouchPayDirectService:
                 "TouchPay Direct timeout for ref=%s: %s",
                 payment_reference, exc,
             )
-            raise TouchPayDirectError(f"Request timed out: {exc}") from exc
+            raise TouchPayDirectError(
+                f"Request timed out: {exc}", outcome_unknown=True,
+            ) from exc
         except httpx.HTTPError as exc:
             logger.error(
                 "TouchPay Direct HTTP error for ref=%s: %s",
                 payment_reference, exc,
             )
-            raise TouchPayDirectError(f"HTTP error: {exc}") from exc
+            raise TouchPayDirectError(
+                f"HTTP error: {exc}", outcome_unknown=True,
+            ) from exc
 
 
 touchpay_direct_service = TouchPayDirectService()

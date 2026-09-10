@@ -32,7 +32,11 @@ from app.core.velocity import check_phone_velocity
 from app.models.provider import ProviderConfig
 from app.services.country_service import country_service
 from app.services.provider_service import provider_service
-from app.services.touchpay_direct_service import OperatorMismatchError, TouchPayDirectError
+from app.services.touchpay_direct_service import (
+    InvalidPhoneNumberError,
+    OperatorMismatchError,
+    TouchPayDirectError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -211,10 +215,14 @@ class AccountPEService:
                 )
         except httpx.TimeoutException as exc:
             logger.error("AccountPE timeout for ref=%s: %s", payment_reference, exc)
-            raise AccountPEError(f"Request timed out: {exc}") from exc
+            raise AccountPEError(
+                f"Request timed out: {exc}", outcome_unknown=True,
+            ) from exc
         except httpx.HTTPError as exc:
             logger.error("AccountPE HTTP error for ref=%s: %s", payment_reference, exc)
-            raise AccountPEError(f"HTTP error: {exc}") from exc
+            raise AccountPEError(
+                f"HTTP error: {exc}", outcome_unknown=True,
+            ) from exc
 
         try:
             data = response.json()

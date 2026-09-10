@@ -13,6 +13,7 @@ from unittest.mock import patch, AsyncMock
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import generate_payment_token
@@ -126,38 +127,56 @@ async def test_callback_idempotent_on_completed(
     db_session.add(demo_payment)
     await db_session.commit()
 
+    await db_session.refresh(demo_payment)
+    pid, ref = demo_payment.id, demo_payment.reference
+
     # Send another callback - should skip
     response = await client.post(
         "/api/v1/callbacks/touchpay",
-        json={
-            "status": "success",
-            "transaction_id": demo_payment.reference,
-        },
+        json={"status": "failed", "transaction_id": ref},
     )
     assert response.status_code == 200
-    data = response.json()
-    assert data["message"] == "Already processed"
+
+    # The old assertion read response.json()["message"], a field this
+    # endpoint has never returned, so it raised KeyError instead of
+    # checking anything. COMPLETED is the one truly final state.
+    db_session.expire_all()
+    fresh = (await db_session.execute(
+        select(Payment).where(Payment.id == pid)
+    )).scalar_one()
+    assert fresh.status == PaymentStatus.COMPLETED
 
 
 @pytest.mark.asyncio
 async def test_callback_idempotent_on_failed(
     client: AsyncClient, db_session: AsyncSession, demo_payment: Payment
 ):
-    """Test that callback is idempotent - already failed payments are skipped."""
+    """A success callback overturns a FAILED payment.
+
+    This test used to assert the opposite — that the callback was skipped —
+    but the assertion was unreachable: the endpoint has never returned a
+    "message" field, so it raised KeyError before checking anything. The
+    behaviour it described is what cost Sino Sourcing 12 709 XAF on
+    2026-09-09 (PAY-4DB3A75B530848C8): our failover wrote FAILED, TouchPay's
+    SUCCESSFUL callback landed 49 seconds later and was dropped.
+    """
     demo_payment.status = PaymentStatus.FAILED
     db_session.add(demo_payment)
     await db_session.commit()
+    await db_session.refresh(demo_payment)
+    pid, ref = demo_payment.id, demo_payment.reference
 
     response = await client.post(
         "/api/v1/callbacks/touchpay",
-        json={
-            "status": "success",
-            "transaction_id": demo_payment.reference,
-        },
+        json={"status": "success", "transaction_id": ref},
     )
     assert response.status_code == 200
-    data = response.json()
-    assert data["message"] == "Already processed"
+
+    db_session.expire_all()
+    fresh = (await db_session.execute(
+        select(Payment).where(Payment.id == pid)
+    )).scalar_one()
+    assert fresh.status == PaymentStatus.COMPLETED
 
 
 @pytest.mark.asyncio

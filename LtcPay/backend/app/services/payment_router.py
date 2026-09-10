@@ -175,7 +175,20 @@ async def initiate_mobile_payment(
             # cause with a misleading duplicate error.
             customer_caused = is_customer_error(exc)
             operator_reference = extract_operator_reference(str(exc))
-            if customer_caused or is_last or operator_reference:
+            # A timeout is not a refusal. We never read the answer, so the
+            # operator may have accepted and be about to debit the customer;
+            # sending the same payin to the next provider would either double
+            # it or — what actually happened to PAY-4DB3A75B530848C8 on
+            # 2026-09-09 — come back "operation similaire", mark the payment
+            # FAILED, and bury a real 12 709 XAF collection.
+            outcome_unknown = getattr(exc, "outcome_unknown", False)
+            if customer_caused or is_last or operator_reference or outcome_unknown:
+                if outcome_unknown and not is_last:
+                    logger.warning(
+                        "Provider %s gave no answer for %s (%s) — not failing "
+                        "over: the payin may already be live at the operator",
+                        provider.code, reference, exc,
+                    )
                 # Log only when this check is what stopped the failover:
                 # customer rejections already abort on their own, and saying
                 # otherwise would credit the guard with work it did not do.

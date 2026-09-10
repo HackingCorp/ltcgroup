@@ -295,7 +295,16 @@ async def _process_callback(
     new_status = _map_touchpay_status(callback.status)
 
     terminal_states = (PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED)
-    if payment.status in terminal_states:
+    # A success verdict always wins, even over a FAILED we wrote ourselves:
+    # only the operator knows whether money moved, and every status but
+    # COMPLETED is at best our own inference. PAY-4DB3A75B530848C8 was
+    # marked FAILED by a failover, then TouchPay's SUCCESSFUL callback
+    # arrived 49 seconds later and was discarded here — 12 709 XAF collected
+    # from the customer and declared failed to the merchant.
+    settled = payment.status == PaymentStatus.COMPLETED or (
+        payment.status in terminal_states and new_status != PaymentStatus.COMPLETED
+    )
+    if settled:
         logger.info(
             "TouchPay callback: Payment %s already %s, skipping",
             payment.reference,
@@ -311,6 +320,12 @@ async def _process_callback(
 
     # 3. Build update values
     old_status = payment.status
+    if old_status in terminal_states:
+        logger.warning(
+            "TouchPay callback: %s was %s and the operator reports success — "
+            "overturning to COMPLETED",
+            payment.reference, old_status.value,
+        )
     update_values: dict = {
         "status": new_status,
     }
