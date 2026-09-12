@@ -41,7 +41,9 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
     ),
     (
         "ACCOUNT_NOT_FOUND",
-        ("introuvable", "not found"),
+        # MTN Congo answers "FAILED - PAYER_NOT_FOUND" with an underscore,
+        # so the "not found" marker did not catch it (seen 2026-09-11).
+        ("introuvable", "not found", "not_found"),
         "Aucun compte Mobile Money trouve pour ce numero. Verifiez le numero saisi.",
     ),
     (

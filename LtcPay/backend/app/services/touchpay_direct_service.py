@@ -278,9 +278,13 @@ class TouchPayDirectService:
             )
             if mismatch:
                 raise OperatorMismatchError(
-                    f"Ce numero appartient a {mismatch.operator_name}, pas a {op.operator_name}. "
-                    "Verifiez le numero saisi ou changez d'operateur.",
-                    raw_response={"detected_operator": mismatch.operator_code},
+                    country_service.operator_mismatch_message(all_operators, mismatch),
+                    raw_response={
+                        "detected_operator": mismatch.operator_code,
+                        "detected_operator_available": country_service.operator_is_available(
+                            all_operators, mismatch.operator_code,
+                        ),
+                    },
                 )
 
         # TouchPay rejects a repeat of the same payin within 5 minutes. Answer

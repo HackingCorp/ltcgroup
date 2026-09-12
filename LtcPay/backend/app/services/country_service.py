@@ -127,6 +127,44 @@ class CountryService:
             return None
         return detected
 
+    @staticmethod
+    def operator_is_available(
+        operators: list[CountryOperator], operator_code: str,
+    ) -> bool:
+        """True when at least one provider still serves this operator.
+
+        An operator has one row per provider, so a single row's is_active
+        says nothing on its own — Gabon Airtel is inactive on TouchPay and
+        on AccountPE, Gabon Moov is active on both.
+        """
+        code = operator_code.upper()
+        return any(
+            op.operator_code == code and op.is_active for op in operators
+        )
+
+    @classmethod
+    def operator_mismatch_message(
+        cls, operators: list[CountryOperator], mismatch: CountryOperator,
+    ) -> str:
+        """Why the number was refused — and only suggest what is possible.
+
+        Telling a Gabonese Airtel customer to "change operator" is a dead
+        end: Airtel is not offered there, so Moov is the only choice on the
+        checkout page and it is the one they already picked. Six of the ten
+        Gabon attempts on 2026-09-11/12 ended on this message.
+        """
+        if cls.operator_is_available(operators, mismatch.operator_code):
+            return (
+                f"Ce numero appartient a {mismatch.operator_name}, pas a "
+                "l'operateur selectionne. Verifiez le numero saisi ou "
+                "changez d'operateur."
+            )
+        return (
+            f"Ce numero appartient a {mismatch.operator_name}, qui n'est pas "
+            "disponible dans ce pays pour le moment. Utilisez un numero d'un "
+            "operateur propose sur la page de paiement."
+        )
+
     async def get_operators(
         self, db: AsyncSession, country_code: str,
     ) -> list[CountryOperator]:

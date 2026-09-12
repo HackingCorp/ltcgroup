@@ -176,9 +176,13 @@ class AccountPEService:
             )
             if mismatch:
                 raise OperatorMismatchError(
-                    f"Ce numero appartient a {mismatch.operator_name}, pas a l'operateur selectionne. "
-                    "Verifiez le numero saisi ou changez d'operateur.",
-                    raw_response={"detected_operator": mismatch.operator_code},
+                    country_service.operator_mismatch_message(all_operators, mismatch),
+                    raw_response={
+                        "detected_operator": mismatch.operator_code,
+                        "detected_operator_available": country_service.operator_is_available(
+                            all_operators, mismatch.operator_code,
+                        ),
+                    },
                 )
         check_phone_velocity(normalized_phone)
 
