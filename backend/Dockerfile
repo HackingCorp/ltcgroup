@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+# Build context is backend/ itself — Dokploy's "Docker Context Path" for
+# ltc-group-backend points here (verified 2026-09-12), and docker-compose.yml
+# builds with context ./backend. Keep COPY paths relative to backend/; do NOT
+# prefix them with backend/ or the Dokploy deploy breaks.
+
 WORKDIR /app
 
 COPY requirements.txt .
