@@ -423,6 +423,16 @@ export default function CountriesPage() {
                               ) : null}
                               <span style={{ width: 10, height: 10, borderRadius: "50%", background: op.color, flexShrink: 0, display: op.logo_url ? "none" : "" }} />
                               <span style={{ fontWeight: 500, minWidth: 100 }}>{op.operator_name}</span>
+                              <span
+                                className="mono"
+                                style={{
+                                  fontSize: 9, padding: "1px 6px", borderRadius: 4, flexShrink: 0,
+                                  background: op.provider_code === "TOUCHPAY" ? "rgba(59,130,246,.12)" : "rgba(168,85,247,.12)",
+                                  color: op.provider_code === "TOUCHPAY" ? "#3b82f6" : "#a855f7",
+                                }}
+                              >
+                                {op.provider_code}
+                              </span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{op.service_code}</span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fmt(op.min_amount)} – {fmt(op.max_amount)}</span>
                               <Pill tone={op.is_active ? "success" : "fail"}>
@@ -881,6 +891,7 @@ function OperatorModal({
 }) {
   const isEdit = !!operator;
   const [form, setForm] = useState<CreateOperatorData>({
+    provider_code: operator?.provider_code || "TOUCHPAY",
     operator_code: operator?.operator_code || "",
     operator_name: operator?.operator_name || "",
     service_code: operator?.service_code || "",
@@ -978,7 +989,28 @@ function OperatorModal({
 
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
-              <T fr="Code service TouchPay *" en="TouchPay Service Code *" />
+              <T fr="Fournisseur *" en="Provider *" />
+            </label>
+            {isEdit ? (
+              <Input value={form.provider_code || "TOUCHPAY"} disabled />
+            ) : (
+              <select
+                value={form.provider_code || "TOUCHPAY"}
+                onChange={(e) => set("provider_code", e.target.value)}
+                style={{
+                  width: "100%", padding: "8px 12px", borderRadius: 8, fontSize: 14,
+                  border: "1px solid var(--border)", background: "var(--surface)", color: "inherit",
+                }}
+              >
+                <option value="TOUCHPAY">TOUCHPAY</option>
+                <option value="ACCOUNTPE">ACCOUNTPE</option>
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+              <T fr="Code service (propre au fournisseur) *" en="Service Code (provider-specific) *" />
             </label>
             <Input value={form.service_code} onChange={(e) => set("service_code", e.target.value)} placeholder="PAIEMENTMARCHAND_MTN_CM" required />
           </div>

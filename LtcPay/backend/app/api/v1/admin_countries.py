@@ -451,22 +451,25 @@ async def test_country_integration(
         ))
 
     # -- Check 5: Operators configured --
+    # This is a TouchPay integration test: only TouchPay operator rows count.
+    # Another provider's rows (e.g. AccountPE) once made this pass while
+    # TouchPay itself had no operator and could never be routed to.
     active_ops = [
         op for op in (country.operators or [])
-        if op.is_active and op.service_code
+        if op.is_active and op.service_code and op.provider_code == "TOUCHPAY"
     ]
     if active_ops:
         op_names = ", ".join(op.operator_code for op in active_ops)
         checks.append(CountryTestCheck(
             name="operators_configured",
             status="pass",
-            message=f"{len(active_ops)} active operator(s) with service codes ({op_names})",
+            message=f"{len(active_ops)} active TouchPay operator(s) with service codes ({op_names})",
         ))
     else:
         checks.append(CountryTestCheck(
             name="operators_configured",
             status="fail",
-            message="No active operators with service codes configured",
+            message="No active TouchPay operators with service codes configured",
         ))
 
     # Compute overall status

@@ -5,6 +5,7 @@ import api from "@/lib/api";
 export interface CountryOperator {
   id: string;
   country_code: string;
+  provider_code: string;
   operator_code: string;
   operator_name: string;
   service_code: string;
@@ -78,6 +79,7 @@ export interface UpdateCountryData {
 }
 
 export interface CreateOperatorData {
+  provider_code?: string;
   operator_code: string;
   operator_name: string;
   service_code: string;
@@ -90,6 +92,7 @@ export interface CreateOperatorData {
 }
 
 export interface UpdateOperatorData {
+  provider_code?: string;
   operator_code?: string;
   operator_name?: string;
   service_code?: string;
