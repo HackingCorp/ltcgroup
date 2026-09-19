@@ -71,7 +71,7 @@ export function Footer() {
           </div>
           <div className="lv-footer-bottom">
             <span>© 2026 LTC Group SARL</span>
-            <span>XAF · XOF · NGN · KES · UGX · EUR · USD</span>
+            <span>XAF · XOF · CDF · GNF · UGX · KES · NGN · EUR · USD</span>
           </div>
         </div>
       </footer>

@@ -11,6 +11,21 @@ from app.models.payment import PaymentStatus, PaymentMethod, PaymentMode, Paymen
 # MobileMoneyOperator is kept as a Python enum for backwards compatibility
 # but the DB column is now VARCHAR(20) to support dynamic operators.
 
+# Currencies a merchant may name on a payment: the currency of every country
+# we support, plus the two Stripe also settles. This is a shape check only —
+# whether the chosen provider can settle that currency *for that country* is
+# decided later, against the country and provider rows, and answered with
+# 400 CURRENCY_NOT_SUPPORTED.
+#
+# Keeping this list to XAF/XOF/EUR/USD locked out Guinea (GNF), DRC (CDF) and
+# Uganda (UGX) — all three active, credentialed and with live operators — at
+# the door with a 422, while our own docs told merchants to send those codes.
+SETTLEMENT_CURRENCIES = {
+    "XAF", "XOF",                                  # CEMAC / UEMOA
+    "CDF", "GHS", "GNF", "KES", "NGN", "RWF", "TZS", "UGX",
+    "EUR", "USD",                                  # Stripe only
+}
+
 
 # ---------------------------------------------------------------------------
 # Merchant Payment API schemas (used by api/v1/payments.py)
@@ -93,10 +108,11 @@ class PaymentInitiate(BaseModel):
     def validate_currency(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        supported = {"XAF", "XOF", "EUR", "USD"}
         v = v.upper()
-        if v not in supported:
-            raise ValueError(f"Currency {v} not supported. Supported: {', '.join(sorted(supported))}")
+        if v not in SETTLEMENT_CURRENCIES:
+            raise ValueError(
+                f"Currency {v} not supported. Supported: {', '.join(sorted(SETTLEMENT_CURRENCIES))}"
+            )
         return v
 
 

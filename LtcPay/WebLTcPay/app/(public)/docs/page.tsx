@@ -107,7 +107,7 @@ function IntroSection() {
       <H2><T fr="Devises supportées" en="Supported currencies" /></H2>
       <FieldTable fields={[
         { name: "XAF", type: "Franc CFA (CEMAC)", desc: "Cameroun, Gabon, Congo" },
-        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Côte d'Ivoire" },
+        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Côte d'Ivoire, Mali" },
         { name: "CDF", type: "Franc congolais", desc: "RD Congo" },
         { name: "GNF", type: "Franc guinéen", desc: "Guinée" },
         { name: "UGX", type: "Shilling ougandais", desc: "Ouganda" },

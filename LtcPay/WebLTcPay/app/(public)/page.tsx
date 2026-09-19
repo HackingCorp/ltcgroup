@@ -689,7 +689,7 @@ export default function LandingPage() {
               <div className="feat-card">
                 <Icon name="globe" size={22} />
                 <h4><T fr="Multi-devises native." en="Native multi-currency." /></h4>
-                <p><T fr="XAF, XOF, NGN, KES, UGX, EUR, USD. Conversion au taux du jour." en="XAF, XOF, NGN, KES, UGX, EUR, USD. Daily market rates." /></p>
+                <p><T fr="XAF, XOF, CDF, GNF, UGX, KES, NGN, EUR, USD. Chaque pays encaisse dans sa devise." en="XAF, XOF, CDF, GNF, UGX, KES, NGN, EUR, USD. Each country settles in its own currency." /></p>
               </div>
             </div>
           </Reveal>
