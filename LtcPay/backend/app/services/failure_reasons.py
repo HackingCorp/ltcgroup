@@ -103,6 +103,42 @@ _FALLBACK = (
 _MESSAGE_BY_CODE: dict[str, str] = {code: message for code, _, message in _FAILURE_RULES}
 _MESSAGE_BY_CODE[_FALLBACK[0]] = _FALLBACK[1]
 
+#: Failure codes that describe the payer's situation rather than a fault on
+#: our side or the provider's. They decide three things at once: no failover
+#: (the next provider fronts the same operator and the customer is no better
+#: off there), no contribution to the operator-outage alert, and HTTP 402
+#: instead of 502.
+#:
+#: This is the single source of truth. It used to be a second list of string
+#: markers inside touchpay_direct_service, which drifted: Moov's "n a pas
+#: suffisamment de balance" and MTN's "[27] Unauthorized" were classified
+#: INSUFFICIENT_FUNDS and NOT_AUTHORIZED here, documented as customer causes,
+#: and still failed over as if the provider had broken.
+CUSTOMER_FAILURE_CODES = frozenset({
+    "INSUFFICIENT_FUNDS",
+    "BALANCE_OR_LIMIT",
+    "ACCOUNT_BLOCKED",
+    "ACCOUNT_NOT_FOUND",
+    "NOT_AUTHORIZED",
+    "CONFIRMATION_TIMEOUT",
+    "REJECTED_BY_OPERATOR",
+    "DUPLICATE_PAYMENT",
+    "WRONG_OPERATOR",
+    "INVALID_PHONE",
+    "TOO_MANY_ATTEMPTS",
+})
+
+
+def is_customer_failure(raw_message) -> bool:
+    """True when the refusal is the payer's situation, not an incident.
+
+    PAYMENT_FAILED — the fallback for a message we do not recognise — is
+    deliberately absent: an unknown failure is treated as ours, so it still
+    fails over and still raises the alert.
+    """
+    code, _ = classify_failure(raw_message)
+    return code in CUSTOMER_FAILURE_CODES
+
 # E-nkap (Maviance S3P) numeric outcome codes, from E-nkap's test-scenario
 # sheet. Unlike TouchPay, E-nkap gives no usable failure text — the order
 # payload only says "FAILED" — so the code is the *only* thing that

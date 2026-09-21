@@ -33,6 +33,12 @@ class TestTheCustomerIsNotAnOutage:
         "[11] Account is disabled or blocked",
         "Ce numero appartient a Moov Money, pas a l'operateur selectionne.",
         "Numero de telephone invalide : 8 chiffres recus",
+        # The payer never validated the PIN prompt. TouchPay confirmed this
+        # is the subscriber, not our credentials: bursts on one service code
+        # return different per-subscriber diagnostics minutes apart.
+        "[27] Unauthorized",
+        "Le solde du client est faible ou limite de beneficiaires atteinte",
+        "The transaction was not confirmed in time",
     ])
     def test_a_customer_rejection_answers_402(self, message):
         assert _status_for(message) == 402
@@ -55,6 +61,23 @@ class TestTheCustomerIsNotAnOutage:
         assert _status_for(raw) == 402
         code, _ = classify_failure(raw)
         assert code == "INSUFFICIENT_FUNDS"
+
+    def test_an_unrecognised_message_is_treated_as_our_problem(self):
+        """A message nobody has seen before must keep failing over and keep
+        raising the alert — assuming it is the customer would bury a real
+        outage behind a wall of 402s."""
+        assert _status_for("Une panne que personne n a encore vue") == 502
+
+    def test_the_two_classifiers_cannot_drift_apart_again(self):
+        """is_customer_error used to keep its own marker list. Everything
+        the docs call a customer cause must now answer 402."""
+        from app.services.failure_reasons import _FAILURE_RULES, CUSTOMER_FAILURE_CODES
+
+        for code, markers, _ in _FAILURE_RULES:
+            expected = 402 if code in CUSTOMER_FAILURE_CODES else 502
+            assert _status_for(markers[0]) == expected, (
+                f"{code} classified one way and billed the other"
+            )
 
     def test_every_rejection_carries_a_machine_readable_code(self):
         """The merchant should never have to parse the French message."""
