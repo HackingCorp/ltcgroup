@@ -9,6 +9,7 @@ import { T, useLang } from "@/lib/i18n";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { formatCurrency } from "@/lib/utils";
 import { merchantDashboardService } from "@/services/merchant-dashboard.service";
+import { useOperatorLogos } from "@/lib/use-operator-logos";
 import type { Payment, PaginatedResponse } from "@/types";
 
 /* ------------------------------------------------------------------ */
@@ -346,6 +347,7 @@ function DetailPanel({ payment, onClose }: { payment: Payment; onClose: () => vo
 /*  Main page component                                                */
 /* ------------------------------------------------------------------ */
 export default function MerchantPaymentsPage() {
+  const operatorLogo = useOperatorLogos();
   const { lang } = useLang();
   const [selected, setSelected] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
@@ -629,7 +631,10 @@ export default function MerchantPaymentsPage() {
 
                   {/* Method */}
                   <div>
-                    <MethodChip kind={methodKind(p.payment_method, (p as any).operator)} />
+                    <MethodChip
+                      kind={methodKind(p.payment_method, (p as any).operator)}
+                      logoUrl={operatorLogo((p as any).country, (p as any).operator)}
+                    />
                   </div>
 
                   {/* Status */}

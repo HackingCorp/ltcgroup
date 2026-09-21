@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { Pill } from "@/components/ui/pill";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { T } from "@/lib/i18n";
+import { backendUrl } from "@/lib/backend-url";
 import { Input } from "@/components/ui";
 import { fmt } from "@/lib/format";
 import {
@@ -17,17 +18,6 @@ import {
   type CreateOperatorData,
   type UpdateOperatorData,
 } from "@/services/countries.service";
-
-/* ── Helper: backend static URL ──────────────────────────── */
-
-function backendUrl(path: string): string {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-    return `${window.location.protocol}//pay.ltcgroup.site${path}`;
-  }
-  return `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"}${path}`;
-}
 
 /* ── Country presets (auto-fill metadata) ──────────────────── */
 

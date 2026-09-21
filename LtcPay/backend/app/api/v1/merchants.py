@@ -17,6 +17,7 @@ from app.core.security import hash_api_secret, get_current_merchant, generate_ap
 from app.models.merchant import Merchant, generate_api_key_live, generate_api_key_test
 from app.models.payment import Payment, PaymentStatus
 from app.models.withdrawal import Withdrawal, WithdrawalStatus
+from app.services.country_service import operator_logos_for
 from app.schemas.merchant import (
     MerchantCreate,
     MerchantResponse,
@@ -519,6 +520,14 @@ async def get_merchant_payments(
     )
     payments = result.scalars().all()
 
+    # The operator logo an admin uploaded, resolved here rather than guessed
+    # in the browser: the dashboard only knows an operator code, and the same
+    # code carries a different logo per country (MTN Cameroon is not MTN
+    # Uganda). One query covers the page.
+    logos = await operator_logos_for(
+        db, {(p.country, p.operator) for p in payments if p.operator},
+    )
+
     items = []
     for p in payments:
         items.append({
@@ -531,6 +540,8 @@ async def get_merchant_payments(
             "description": p.description,
             "payment_method": p.method.value if p.method else None,
             "operator": p.operator if p.operator else None,
+            "country": p.country,
+            "operator_logo_url": logos.get((p.country, p.operator)),
             "customer_email": p.customer_info.get("email") if p.customer_info else None,
             "customer_phone": p.customer_info.get("phone") if p.customer_info else None,
             "customer_name": p.customer_info.get("name") if p.customer_info else None,

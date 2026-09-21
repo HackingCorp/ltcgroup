@@ -18,6 +18,9 @@ export interface MerchantPaymentItem {
   description?: string;
   payment_method?: string;
   operator?: string;
+  country?: string | null;
+  /** Logo registered for this operator in Pays & Operateurs, if any. */
+  operator_logo_url?: string | null;
   customer_email?: string;
   customer_phone?: string;
   customer_name?: string;

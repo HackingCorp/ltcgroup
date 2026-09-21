@@ -310,3 +310,44 @@ class CountryService:
 
 
 country_service = CountryService()
+
+
+async def operator_logos_for(
+    db: AsyncSession, pairs: set[tuple[str | None, str | None]],
+) -> dict[tuple[str | None, str | None], str | None]:
+    """Logo URL for each (country, operator) pair, in one query.
+
+    The same operator code carries a different logo per country, so the pair
+    is the key. When the country is unknown — legacy payments recorded before
+    the column existed — any country's logo for that operator is better than
+    the generic icon the dashboard would otherwise draw.
+    """
+    from app.models.country import CountryOperator
+
+    if not pairs:
+        return {}
+
+    operators = {op for _, op in pairs if op}
+    rows = (await db.execute(
+        select(
+            CountryOperator.country_code,
+            CountryOperator.operator_code,
+            CountryOperator.logo_url,
+        ).where(
+            CountryOperator.operator_code.in_(operators),
+            CountryOperator.logo_url != "",
+        )
+    )).all()
+
+    exact: dict[tuple[str, str], str] = {}
+    any_country: dict[str, str] = {}
+    for country_code, operator_code, logo_url in rows:
+        exact.setdefault((country_code, operator_code), logo_url)
+        any_country.setdefault(operator_code, logo_url)
+
+    return {
+        (country, operator): (
+            exact.get((country, operator)) or any_country.get(operator)
+        )
+        for country, operator in pairs
+    }

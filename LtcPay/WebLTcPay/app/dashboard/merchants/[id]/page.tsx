@@ -287,7 +287,7 @@ export default function MerchantDetailPage() {
                 <div className="row" key={tx.reference} style={{ gridTemplateColumns: "1fr 1.4fr 0.7fr 0.8fr 1fr 24px", paddingTop: 10, paddingBottom: 10 }}>
                   <div className="mono" style={{ fontSize: 12 }}>{tx.reference}</div>
                   <div style={{ fontSize: 13 }}>{tx.customer_name || tx.customer_phone || "—"}</div>
-                  <div><MethodChip kind={(tx.operator || tx.payment_method || "").toLowerCase()} /></div>
+                  <div><MethodChip kind={(tx.operator || tx.payment_method || "").toLowerCase()} logoUrl={tx.operator_logo_url} /></div>
                   <Pill tone={paymentStatusTone(tx.status)}>{tx.status === "COMPLETED" ? "paid" : tx.status.toLowerCase()}</Pill>
                   <div className="display" style={{ fontWeight: 500, fontSize: 14, textAlign: "right" }}>{fmtXAF(tx.amount)}</div>
                   <Icon name="chevR" size={13} color="var(--muted)" />
