@@ -13,6 +13,7 @@ import { T } from "@/lib/i18n";
 import { fmtXAF, fmtDate, fmtCompact } from "@/lib/format";
 import { merchantsService } from "@/services/merchants.service";
 import { countriesService, type Country, type MerchantCountryInfo } from "@/services/countries.service";
+import { NegotiatedRates } from "@/components/merchants/negotiated-rates";
 import type {
   MerchantBalanceInfo,
   MerchantPaymentItem,
@@ -440,6 +441,10 @@ export default function MerchantDetailPage() {
                   {actionLoading ? "..." : <T fr="Enregistrer" en="Save" />}
                 </button>
               </div>
+
+              {/* Saved on their own as they are entered, so they survive a
+                  Cancel on the rates above. */}
+              <NegotiatedRates merchantId={merchantId} />
             </>)}
 
             {adminAction === "payout" && (<>

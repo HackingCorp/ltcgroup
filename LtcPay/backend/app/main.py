@@ -747,10 +747,12 @@ async def submit_payment(reference: str, request: Request):
         # dearer operator is absorbed rather than charged after the fact.
         if merchant_row is not None:
             from decimal import Decimal
-            from app.api.v1.payments import mobile_rate_floor, reprice_for_method
-            floor = await mobile_rate_floor(db, country_code, operator_str)
+            from app.api.v1.payments import resolve_mobile_rate, reprice_for_method
+            rate = await resolve_mobile_rate(
+                db, merchant_row, country_code, operator_str,
+            )
             new_amount, new_fee = reprice_for_method(
-                payment, merchant_row, "MOBILE", mobile_floor=floor,
+                payment, merchant_row, "MOBILE", mobile_rate=rate,
             )
             if new_amount < Decimal(payment.amount):
                 payment.amount, payment.fee = new_amount, new_fee

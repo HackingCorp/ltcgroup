@@ -169,3 +169,39 @@ class MerchantCountry(Base):
 
     def __repr__(self):
         return f"<MerchantCountry merchant={self.merchant_id} country={self.country_code}>"
+
+
+class MerchantOperatorRate(Base):
+    """A Mobile Money rate agreed with one merchant for one country.
+
+    `operator_code` NULL covers every operator of the country; a row naming
+    an operator wins over it. What the merchant is billed is this rate when
+    a row matches, and their own `fee_rate` — floored at the platform
+    minimum — when none does.
+    """
+    __tablename__ = "merchant_operator_rates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+    )
+    merchant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("payment_merchants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    country_code: Mapped[str] = mapped_column(String(2), nullable=False)
+    operator_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fee_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self):
+        target = f"{self.country_code}/{self.operator_code or '*'}"
+        return f"<MerchantOperatorRate {target} {self.fee_rate}%>"

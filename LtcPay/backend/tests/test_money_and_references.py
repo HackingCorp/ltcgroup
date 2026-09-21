@@ -104,7 +104,7 @@ class TestMobileRateFloor:
         # 5 000 XAF on Congo Airtel: TouchPay takes 4%, we billed 1.75%.
         payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
         _, fee = reprice_for_method(
-            payment, self.MERCHANT, "MOBILE", mobile_floor=Decimal("4.25"),
+            payment, self.MERCHANT, "MOBILE", mobile_rate=Decimal("4.25"),
         )
         assert fee > Decimal("5000") * Decimal("0.04")
 
@@ -121,7 +121,7 @@ class TestMobileRateFloor:
     def test_the_floor_reaches_the_total_the_customer_pays(self):
         payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
         amount, fee = reprice_for_method(
-            payment, self.MERCHANT, "MOBILE", mobile_floor=Decimal("2.75"),
+            payment, self.MERCHANT, "MOBILE", mobile_rate=Decimal("2.75"),
         )
         assert amount == Decimal("5000") + fee  # CLIENT bears it
         assert amount == amount.to_integral_value()
@@ -193,3 +193,42 @@ class TestTransactionIdsAreKeptAtInitiation:
     def test_numbers_are_stored_as_strings(self):
         ids = extract_transaction_ids({"idFromGU": 1787925525281})
         assert ids["provider_transaction_id"] == "1787925525281"
+
+
+class TestNegotiatedRatePrecedence:
+    """A rate agreed with one merchant for one country (or one operator in
+    it) is what gets billed — the platform floor exists to stop an operator
+    being sold below cost by default, not to override a deliberate price."""
+
+    MERCHANT = SimpleNamespace(
+        fee_bearer="CLIENT", fee_rate=Decimal("1.75"), fee_rate_card=None,
+    )
+
+    def test_a_negotiated_rate_is_billed_as_agreed(self):
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        _, fee = reprice_for_method(
+            payment, self.MERCHANT, "MOBILE", mobile_rate=Decimal("3.00"),
+        )
+        assert fee == _compute_fee(Decimal("5000"), Decimal("3.00"), "XAF")
+
+    def test_a_negotiated_rate_below_the_base_rate_is_not_lifted_back_up(self):
+        """The regression this guards: reprice used to take max(), so a
+        discount agreed under the merchant's own rate was silently ignored."""
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        _, fee = reprice_for_method(
+            payment, self.MERCHANT, "MOBILE", mobile_rate=Decimal("1.00"),
+        )
+        assert fee == _compute_fee(Decimal("5000"), Decimal("1.00"), "XAF")
+        assert fee < _compute_fee(Decimal("5000"), Decimal("1.75"), "XAF")
+
+    def test_without_a_negotiated_rate_the_merchant_rate_still_applies(self):
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        _, fee = reprice_for_method(payment, self.MERCHANT, "MOBILE")
+        assert fee == _compute_fee(Decimal("5000"), Decimal("1.75"), "XAF")
+
+    def test_a_card_payment_ignores_the_mobile_rate(self):
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        _, fee = reprice_for_method(
+            payment, self.MERCHANT, "CARD", mobile_rate=Decimal("1.00"),
+        )
+        assert fee == _compute_fee(Decimal("5000"), Decimal("5"), "XAF")

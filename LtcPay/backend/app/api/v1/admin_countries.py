@@ -8,11 +8,14 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
+from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from sqlalchemy import select, delete
+from pydantic import BaseModel, Field
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,7 +24,10 @@ from app.core.database import get_db
 from app.core.encryption import encrypt_value, decrypt_value
 from app.api.v1.auth import get_current_admin
 from app.models.admin_user import AdminUser
-from app.models.country import SupportedCountry, CountryOperator, MerchantCountry
+from app.models.country import (
+    SupportedCountry, CountryOperator, MerchantCountry, MerchantOperatorRate,
+)
+from app.models.merchant import Merchant
 from app.models.payment import Payment
 from app.schemas.country import (
     CountryCreate, CountryUpdate, CountryResponse, CountryDetailResponse,
@@ -768,3 +774,195 @@ async def remove_merchant_country(
     await db.delete(mc)
     await db.commit()
     logger.info("Merchant %s country restriction %s removed by admin %s", merchant_id, code, admin.email)
+
+
+# ---------------------------------------------------------------------------
+# Negotiated Mobile Money rates per merchant, country and operator
+# ---------------------------------------------------------------------------
+
+class MerchantRateUpsert(BaseModel):
+    country_code: str = Field(..., min_length=2, max_length=2)
+    # None = the whole country; a code narrows it to that operator.
+    operator_code: Optional[str] = Field(None, min_length=1, max_length=20)
+    fee_rate: Decimal = Field(..., ge=0, le=100)
+    note: Optional[str] = Field(None, max_length=500)
+
+
+class MerchantRateResponse(BaseModel):
+    id: uuid.UUID
+    country_code: str
+    operator_code: Optional[str] = None
+    fee_rate: Decimal
+    note: Optional[str] = None
+    # What the provider costs us there, so the screen can flag a rate sold
+    # below cost without a second call.
+    provider_fee_rate: Optional[Decimal] = None
+
+    class Config:
+        from_attributes = True
+
+
+@merchant_router.get("/{merchant_id}/rates", response_model=list[MerchantRateResponse])
+async def list_merchant_rates(
+    merchant_id: uuid.UUID,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Rates agreed with this merchant, dearest provider cost first."""
+    rows = (await db.execute(
+        select(MerchantOperatorRate)
+        .where(MerchantOperatorRate.merchant_id == merchant_id)
+        .order_by(
+            MerchantOperatorRate.country_code,
+            MerchantOperatorRate.operator_code.nulls_first(),
+        )
+    )).scalars().all()
+
+    costs = {
+        (cc, oc): cost
+        for cc, oc, cost in (await db.execute(
+            select(
+                CountryOperator.country_code,
+                CountryOperator.operator_code,
+                func.max(CountryOperator.provider_fee_rate),
+            ).group_by(
+                CountryOperator.country_code, CountryOperator.operator_code,
+            )
+        )).all()
+    }
+    return [
+        MerchantRateResponse(
+            id=r.id,
+            country_code=r.country_code,
+            operator_code=r.operator_code,
+            fee_rate=r.fee_rate,
+            note=r.note,
+            provider_fee_rate=(
+                costs.get((r.country_code, r.operator_code))
+                if r.operator_code
+                # Country-wide row: the dearest operator is what can bite.
+                else max(
+                    (c for (cc, _), c in costs.items()
+                     if cc == r.country_code and c is not None),
+                    default=None,
+                )
+            ),
+        )
+        for r in rows
+    ]
+
+
+@merchant_router.put("/{merchant_id}/rates", response_model=MerchantRateResponse)
+async def upsert_merchant_rate(
+    merchant_id: uuid.UUID,
+    payload: MerchantRateUpsert,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Agree a rate with this merchant for a country, or one of its operators.
+
+    Replaces the rate already agreed for the same target. The rate is billed
+    as given — a negotiated rate is a deliberate decision, so the platform
+    floor does not lift it back up — and the response carries the provider's
+    cost so the caller can show what it leaves on the table.
+    """
+    merchant = (await db.execute(
+        select(Merchant).where(Merchant.id == merchant_id)
+    )).scalar_one_or_none()
+    if merchant is None:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    code = payload.country_code.upper()
+    country = (await db.execute(
+        select(SupportedCountry).where(SupportedCountry.code == code)
+    )).scalar_one_or_none()
+    if country is None:
+        raise HTTPException(status_code=404, detail=f"Country '{code}' not found")
+
+    operator = payload.operator_code.upper() if payload.operator_code else None
+    if operator is not None:
+        known = (await db.execute(
+            select(CountryOperator.id).where(
+                CountryOperator.country_code == code,
+                CountryOperator.operator_code == operator,
+            ).limit(1)
+        )).first()
+        if known is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Operator '{operator}' is not configured for {code}",
+            )
+
+    existing = (await db.execute(
+        select(MerchantOperatorRate).where(
+            MerchantOperatorRate.merchant_id == merchant_id,
+            MerchantOperatorRate.country_code == code,
+            MerchantOperatorRate.operator_code.is_(None) if operator is None
+            else MerchantOperatorRate.operator_code == operator,
+        )
+    )).scalar_one_or_none()
+
+    if existing is not None:
+        existing.fee_rate = payload.fee_rate
+        existing.note = payload.note
+        row = existing
+    else:
+        row = MerchantOperatorRate(
+            merchant_id=merchant_id,
+            country_code=code,
+            operator_code=operator,
+            fee_rate=payload.fee_rate,
+            note=payload.note,
+        )
+        db.add(row)
+
+    await db.commit()
+    await db.refresh(row)
+
+    cost = (await db.execute(
+        select(func.max(CountryOperator.provider_fee_rate)).where(
+            CountryOperator.country_code == code,
+            *([CountryOperator.operator_code == operator] if operator else []),
+        )
+    )).scalar()
+
+    logger.info(
+        "Merchant %s rate for %s/%s set to %s%% by admin %s",
+        merchant_id, code, operator or "*", payload.fee_rate, admin.email,
+    )
+    return MerchantRateResponse(
+        id=row.id,
+        country_code=row.country_code,
+        operator_code=row.operator_code,
+        fee_rate=row.fee_rate,
+        note=row.note,
+        provider_fee_rate=cost,
+    )
+
+
+@merchant_router.delete(
+    "/{merchant_id}/rates/{rate_id}", status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_merchant_rate(
+    merchant_id: uuid.UUID,
+    rate_id: uuid.UUID,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Drop an agreed rate: the merchant returns to their own rate and the
+    platform floor for that country."""
+    row = (await db.execute(
+        select(MerchantOperatorRate).where(
+            MerchantOperatorRate.id == rate_id,
+            MerchantOperatorRate.merchant_id == merchant_id,
+        )
+    )).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Rate not found")
+
+    await db.delete(row)
+    await db.commit()
+    logger.info(
+        "Merchant %s rate for %s/%s removed by admin %s",
+        merchant_id, row.country_code, row.operator_code or "*", admin.email,
+    )

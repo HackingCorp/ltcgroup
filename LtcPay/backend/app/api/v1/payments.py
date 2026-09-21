@@ -18,7 +18,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update as sa_update
+from sqlalchemy import select, func, or_, update as sa_update
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -27,7 +27,9 @@ from app.core.security import (
     get_current_merchant, get_optional_merchant, get_verified_merchant,
     generate_payment_token,
 )
-from app.models.country import CountryOperator, SupportedCountry
+from app.models.country import (
+    CountryOperator, MerchantOperatorRate, SupportedCountry,
+)
 from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
@@ -95,6 +97,40 @@ _OPERATOR_FLOOR = func.coalesce(
 )
 
 
+async def merchant_negotiated_rate(
+    db: AsyncSession, merchant, country_code: str | None, operator_code: str | None,
+) -> Decimal | None:
+    """Rate agreed with this merchant for a country, or None if there is none.
+
+    A row naming the operator wins over a country-wide one. The rate is used
+    as agreed, floor included: it is an explicit commercial decision, so it
+    must be what gets billed rather than something the platform overrides —
+    the admin screen flags one set below the provider's own cost.
+    """
+    if not country_code:
+        return None
+    rows = (await db.execute(
+        select(
+            MerchantOperatorRate.operator_code,
+            MerchantOperatorRate.fee_rate,
+        ).where(
+            MerchantOperatorRate.merchant_id == merchant.id,
+            MerchantOperatorRate.country_code == country_code.upper(),
+            or_(
+                MerchantOperatorRate.operator_code.is_(None),
+                MerchantOperatorRate.operator_code == (
+                    operator_code.upper() if operator_code else None
+                ),
+            ),
+        )
+    )).all()
+    if not rows:
+        return None
+    # Operator-specific first, country-wide as the fallback.
+    by_specificity = sorted(rows, key=lambda r: r[0] is None)
+    return Decimal(by_specificity[0][1])
+
+
 async def mobile_rate_floor(
     db: AsyncSession, country_code: str | None, operator_code: str | None,
 ) -> Decimal | None:
@@ -115,6 +151,43 @@ async def mobile_rate_floor(
     if operator_code:
         query = query.where(CountryOperator.operator_code == operator_code.upper())
     return (await db.execute(query)).scalar()
+
+
+async def _negotiated_rates(
+    db: AsyncSession, merchant,
+) -> dict[tuple[str, str | None], Decimal]:
+    """Every rate agreed with this merchant, keyed by (country, operator).
+
+    One query, for the listings that price a whole catalogue at once.
+    """
+    return {
+        (cc, oc): Decimal(rate)
+        for cc, oc, rate in (await db.execute(
+            select(
+                MerchantOperatorRate.country_code,
+                MerchantOperatorRate.operator_code,
+                MerchantOperatorRate.fee_rate,
+            ).where(MerchantOperatorRate.merchant_id == merchant.id)
+        )).all()
+    }
+
+
+async def resolve_mobile_rate(
+    db: AsyncSession, merchant, country_code: str | None, operator_code: str | None,
+) -> Decimal:
+    """The Mobile Money rate actually billed, all rules applied.
+
+    A rate negotiated for this merchant on this country (and possibly this
+    operator) wins outright. Otherwise the merchant's own rate applies,
+    lifted to the operator's floor. Every path that prices a Mobile Money
+    payment goes through here so they cannot drift apart.
+    """
+    agreed = await merchant_negotiated_rate(db, merchant, country_code, operator_code)
+    if agreed is not None:
+        return agreed
+    return effective_mobile_rate(
+        merchant, await mobile_rate_floor(db, country_code, operator_code),
+    )
 
 
 # Currencies with no minor unit (ISO 4217 exponent 0). Every currency LtcPay
@@ -188,7 +261,7 @@ async def record_initiation_outcome(
 
 
 def reprice_for_method(
-    payment, merchant, method: str, mobile_floor: Decimal | None = None,
+    payment, merchant, method: str, mobile_rate: Decimal | None = None,
 ) -> tuple[Decimal, Decimal]:
     """Recompute (amount, fee) for the method the customer actually picked.
 
@@ -198,8 +271,10 @@ def reprice_for_method(
     total charged — must follow. Derives the net base from the stored
     values, so calling it repeatedly or switching back and forth is stable.
 
-    `mobile_floor` is the operator's billing floor once the customer has
-    chosen one; without it the mobile rate is the merchant's own.
+    `mobile_rate` is the rate resolved for the operator the customer chose
+    (see resolve_mobile_rate) and is used as given — a rate negotiated below
+    the merchant's own must not be lifted back up. Without it, the mobile
+    rate is the merchant's own.
     """
     amount = Decimal(payment.amount)
     fee = Decimal(payment.fee or 0)
@@ -207,10 +282,12 @@ def reprice_for_method(
     base = (amount - fee) if client_borne else amount
     if base <= 0:
         base = amount
-    rate = (
-        effective_card_rate(merchant) if method == "CARD"
-        else effective_mobile_rate(merchant, mobile_floor)
-    )
+    if method == "CARD":
+        rate = effective_card_rate(merchant)
+    elif mobile_rate is not None:
+        rate = Decimal(mobile_rate)
+    else:
+        rate = Decimal(merchant.fee_rate)
     new_fee = _compute_fee(base, rate, payment.currency)
     new_amount = (base + new_fee) if client_borne else base
     step = money_step(payment.currency)
@@ -239,6 +316,7 @@ async def list_available_countries(
     # operator, so quoting the merchant's base rate everywhere would
     # understate what Congo or Mali actually cost them.
     floors: dict[tuple[str, str], Decimal] = {}
+    agreed: dict[tuple[str, str | None], Decimal] = {}
     if merchant is not None:
         floors = {
             (cc, oc): floor
@@ -253,6 +331,18 @@ async def list_available_countries(
             )).all()
             if floor is not None
         }
+        agreed = await _negotiated_rates(db, merchant)
+
+    def _billed_rate(country_code: str, operator_code: str) -> float:
+        negotiated = (
+            agreed.get((country_code, operator_code))
+            or agreed.get((country_code, None))
+        )
+        if negotiated is not None:
+            return float(negotiated)
+        return float(effective_mobile_rate(
+            merchant, floors.get((country_code, operator_code)),
+        ))
 
     result = []
     for c in countries:
@@ -276,9 +366,8 @@ async def list_available_countries(
                 phone_prefixes=list(op.phone_prefixes or []),
                 available=bool(op.is_active),
                 fee_rate=(
-                    float(effective_mobile_rate(
-                        merchant, floors.get((c.code, op.operator_code)),
-                    )) if merchant is not None else None
+                    _billed_rate(c.code, op.operator_code)
+                    if merchant is not None else None
                 ),
             )
         ops = [
@@ -385,6 +474,7 @@ async def get_fee_schedule(
         .order_by(CountryOperator.country_code, CountryOperator.operator_code)
     )).all()
 
+    agreed = await _negotiated_rates(db, merchant)
     allowed = {
         c.code for c in
         await country_service.get_available_countries(db, merchant_id=merchant.id)
@@ -393,8 +483,13 @@ async def get_fee_schedule(
     for country_code, operator_code, floor in rows:
         if country_code not in allowed:
             continue
+        negotiated = (
+            agreed.get((country_code, operator_code))
+            or agreed.get((country_code, None))
+        )
         mobile.setdefault(country_code, {})[operator_code] = float(
-            effective_mobile_rate(merchant, floor)
+            negotiated if negotiated is not None
+            else effective_mobile_rate(merchant, floor)
         )
 
     bearer = getattr(merchant.fee_bearer, "value", merchant.fee_bearer)
@@ -575,8 +670,8 @@ async def create_payment(
     if payload.payment_method == PaymentMethod.BANK_CARD:
         effective_fee_rate = effective_card_rate(merchant)
     else:
-        effective_fee_rate = effective_mobile_rate(
-            merchant, await mobile_rate_floor(db, country_code, payload.operator),
+        effective_fee_rate = await resolve_mobile_rate(
+            db, merchant, country_code, payload.operator,
         )
     fee = _compute_fee(base_amount, effective_fee_rate, currency)
 

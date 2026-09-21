@@ -215,3 +215,38 @@ export const countriesService = {
     await api.delete(`/admin/merchants/${merchantId}/countries/${countryCode}`);
   },
 };
+
+/* ── Negotiated Mobile Money rates per merchant ─────────────── */
+
+export interface MerchantRate {
+  id: string;
+  country_code: string;
+  operator_code: string | null;
+  fee_rate: number;
+  note: string | null;
+  /** What the provider charges us there — null when unknown. */
+  provider_fee_rate: number | null;
+}
+
+export interface MerchantRateUpsert {
+  country_code: string;
+  operator_code?: string | null;
+  fee_rate: number;
+  note?: string | null;
+}
+
+export const merchantRatesService = {
+  async list(merchantId: string): Promise<MerchantRate[]> {
+    const r = await api.get<MerchantRate[]>(`/admin/merchants/${merchantId}/rates`);
+    return r.data;
+  },
+
+  async upsert(merchantId: string, data: MerchantRateUpsert): Promise<MerchantRate> {
+    const r = await api.put<MerchantRate>(`/admin/merchants/${merchantId}/rates`, data);
+    return r.data;
+  },
+
+  async remove(merchantId: string, rateId: string): Promise<void> {
+    await api.delete(`/admin/merchants/${merchantId}/rates/${rateId}`);
+  },
+};
