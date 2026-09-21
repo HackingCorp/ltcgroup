@@ -744,7 +744,8 @@ function CountriesSection() {
         "max_amount": 500000,
         "ussd_code": "*126#",
         "phone_prefixes": ["67", "650", "651", "652", "653", "654"],
-        "available": true
+        "available": true,
+        "fee_rate": 2.0
       },
       {
         "code": "ORANGE",
@@ -755,7 +756,8 @@ function CountriesSection() {
         "max_amount": 500000,
         "ussd_code": "#150*50#",
         "phone_prefixes": ["69", "655", "656", "657", "658", "659"],
-        "available": true
+        "available": true,
+        "fee_rate": 2.0
       }
     ]
   }
@@ -772,6 +774,7 @@ function CountriesSection() {
         { name: "flag_emoji", type: "string", desc: "Emoji drapeau du pays." },
         { name: "min_amount", type: "integer", desc: "Montant minimum par transaction." },
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction." },
+        { name: "enforce_phone_prefix_check", type: "boolean", desc: "False = les phone_prefixes des opérateurs sont indicatifs (portabilité des numéros) : l'API ne rejette pas un paiement sur un préfixe qui ne correspond pas. True = un numéro appartenant visiblement à un autre opérateur est refusé avant l'appel au fournisseur." },
         { name: "operators", type: "array", desc: "Liste des operateurs disponibles pour ce pays (tous les operateurs, y compris desactives, avec include_unavailable=true)." },
       ]} />
 
@@ -785,6 +788,7 @@ function CountriesSection() {
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction pour cet operateur, frais compris lorsque le client les supporte. Un paiement hors limites est rejete en 400." },
         { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
         { name: "phone_prefixes", type: "string[]", desc: "Prefixes de numeros nationaux appartenant a cet operateur (ex: [\"69\", \"655\"]). Utilisez-les pour preselectionner l'operateur ou avertir le client d'une incoherence numero/operateur avant soumission. Si le numero appartient de facon averee a un autre operateur du meme pays, l'API rejette le paiement en 400 avant tout appel a l'operateur. Une liste vide = plages inconnues, aucun blocage." },
+        { name: "fee_rate", type: "number", desc: "Pourcentage facturé sur cet opérateur pour le marchand authentifié — null sans authentification. Les frais Mobile Money varient par pays et par opérateur : fiez-vous à ce champ plutôt qu'à fee_rates.MOBILE_MONEY." },
         { name: "available", type: "boolean", desc: "false si l'operateur est temporairement desactive par la plateforme (panne, maintenance). Les operateurs indisponibles n'apparaissent qu'avec include_unavailable=true. Un paiement soumis sur un operateur indisponible est rejete en 400." },
       ]} />
 
@@ -946,6 +950,7 @@ function verifySignature(body, signature, secret) {
     "provider": "TOUCHPAY",
     "failure_code": null,
     "failure_reason": null,
+    "operator_reference": null,
     "completed_at": "2026-06-10T14:45:30Z",
     "created_at": "2026-06-10T14:42:00Z"
   },
@@ -961,8 +966,8 @@ function verifySignature(body, signature, secret) {
 
       <InfoBox>
         <T
-          fr="Les webhooks sont envoyés avec un mécanisme de retry (5 tentatives max) avec backoff exponentiel (2s, 4s, 8s, 16s, 32s). Votre endpoint doit répondre avec un code HTTP 2xx."
-          en="Webhooks are sent with a retry mechanism (5 attempts max) with exponential backoff (2s, 4s, 8s, 16s, 32s). Your endpoint must respond with an HTTP 2xx code."
+          fr="Les webhooks sont envoyés avec un mécanisme de retry (5 tentatives max) espacées par un backoff exponentiel : 2s, 4s, 8s puis 16s. Votre endpoint doit répondre avec un code HTTP 2xx."
+          en="Webhooks are sent with a retry mechanism (5 attempts max) spaced by exponential backoff: 2s, 4s, 8s then 16s. Your endpoint must respond with an HTTP 2xx code."
         />
       </InfoBox>
     </>

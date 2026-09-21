@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = settings.merchant_webhook_max_retries
 TIMEOUT = settings.merchant_webhook_timeout
-BACKOFF_BASE = 2  # seconds; retries at 2s, 4s, 8s, 16s, 32s
+BACKOFF_BASE = 2  # seconds; MAX_RETRIES attempts spaced 2s, 4s, 8s, 16s
 
 
 def _sign_payload(payload: str, secret: str) -> str:
