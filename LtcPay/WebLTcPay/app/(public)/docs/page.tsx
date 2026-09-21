@@ -1225,9 +1225,11 @@ export default function DocsPage() {
   };
 
   return (
-    <div style={{ background: "var(--bg)", display: "grid", gridTemplateColumns: "232px 1fr", minHeight: "calc(100vh - 110px)" }}>
-      {/* Sidebar */}
-      <aside style={{ background: "var(--bg)", borderRight: "1px solid var(--line)", padding: "24px 16px", overflowY: "auto", position: "sticky", top: 0, height: "calc(100vh - 110px)" }}>
+    <div style={{ background: "var(--bg)", display: "grid", gridTemplateColumns: "232px 1fr", alignItems: "start", minHeight: "calc(100vh - var(--nav-h))" }}>
+      {/* Sidebar — sticky under the nav. align-self:start is what makes that
+          work at all: a grid child stretches to the row height by default,
+          and a stretched box has nothing to stick against. */}
+      <aside style={{ background: "var(--bg)", borderRight: "1px solid var(--line)", padding: "24px 16px", overflowY: "auto", position: "sticky", top: "var(--nav-h)", alignSelf: "start", maxHeight: "calc(100vh - var(--nav-h))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 10px 12px", borderBottom: "1px solid var(--line)" }}>
           <Icon name="book" size={14} color="var(--ink)" />
           <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 500 }}>API v2.0</span>
@@ -1254,12 +1256,15 @@ export default function DocsPage() {
         ))}
       </aside>
 
-      {/* Main content */}
-      <main style={{ padding: "40px 48px", maxWidth: 920, overflowY: "auto", height: "calc(100vh - 110px)", position: "relative" }}>
+      {/* Main content — scrolls with the document. It used to be a fixed
+          calc(100vh) box with its own overflow, which put a second scrollbar
+          inside the page: the footer came up while the text inside was still
+          cut off, and the page ended in a screen of blank space. */}
+      <main style={{ padding: "40px 48px", maxWidth: 920, position: "relative" }}>
         <button
           onClick={handleCopyDocs}
           style={{
-            position: "sticky", top: 0, float: "right", zIndex: 10,
+            position: "sticky", top: "calc(var(--nav-h) + 12px)", float: "right", zIndex: 10,
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: "6px 12px", borderRadius: 6, fontSize: 12, fontFamily: "var(--mono)",
             background: copied ? "var(--success)" : "var(--surface)",

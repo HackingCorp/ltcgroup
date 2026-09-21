@@ -4,6 +4,10 @@
 
 /* === Nkap Pay v2 — Design tokens === */
 :root {
+  /* Height of the sticky public nav. Anything that sticks below it reads
+     this instead of guessing — the docs sidebar did, and drifted. */
+  --nav-h: 62px;
+
   /* Neutrals */
   --bg: #FAFAF7;
   --bg-2: #F3F3EF;

@@ -25,7 +25,11 @@ export function PublicNav() {
         }
         .lv-nav.scrolled { border-bottom-color: var(--line); background: rgba(250,250,247,0.92); }
         .lv-nav-inner {
-          max-width: 1240px; margin: 0 auto; padding: 14px 32px;
+          /* Fixed height rather than padding + tallest child: --nav-h is what
+             the docs sidebar sticks below, so the bar has to be exactly that
+             tall, not approximately. Content is centred inside it. */
+          max-width: 1240px; margin: 0 auto; padding: 0 32px;
+          height: calc(var(--nav-h) - 1px);  /* 1px for the bottom border */
           display: flex; align-items: center; gap: 32px;
         }
         .lv-nav-brand {
