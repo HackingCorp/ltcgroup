@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.velocity import check_phone_velocity
 from app.models.provider import ProviderConfig
 from app.services.country_service import country_service
+from app.services.failure_reasons import is_customer_failure
 from app.services.provider_service import provider_service
 from app.services.touchpay_direct_service import (
     InvalidPhoneNumberError,
@@ -265,9 +266,12 @@ class AccountPEService:
 
 
 def _looks_customer_caused(message: str) -> bool:
-    from app.services.touchpay_direct_service import _CUSTOMER_ERROR_MARKERS
-    raw = (message or "").lower()
-    return any(marker in raw for marker in _CUSTOMER_ERROR_MARKERS)
+    """Whether an AccountPE business error is the payer's situation.
+
+    Same classifier as every other provider, so the answer cannot differ by
+    which one happened to take the payment.
+    """
+    return is_customer_failure(message)
 
 
 def verify_webhook_signature(
