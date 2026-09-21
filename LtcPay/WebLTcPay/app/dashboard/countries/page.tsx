@@ -442,11 +442,19 @@ export default function CountriesPage() {
                                     color: op.min_fee_rate != null && op.provider_fee_rate != null
                                       && op.min_fee_rate < op.provider_fee_rate ? "var(--rose)" : "var(--muted)",
                                   }}
-                                  title="Coût fournisseur → taux minimum facturé"
+                                  title={
+                                    op.min_fee_rate != null
+                                      ? "Coût fournisseur → taux minimum facturé"
+                                      : "Coût fournisseur, appliqué comme plancher faute de taux facturé"
+                                  }
                                 >
                                   {op.provider_fee_rate != null ? `${op.provider_fee_rate}%` : "?"}
                                   {" → "}
-                                  {op.min_fee_rate != null ? `${op.min_fee_rate}%` : "—"}
+                                  {op.min_fee_rate != null
+                                    ? `${op.min_fee_rate}%`
+                                    : op.provider_fee_rate != null
+                                      ? `${op.provider_fee_rate}% (coût)`
+                                      : "—"}
                                 </span>
                               )}
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fmt(op.min_amount)} – {fmt(op.max_amount)}</span>
@@ -1083,8 +1091,8 @@ function OperatorModal({
               </span>
             ) : (
               <T
-                fr="Le coût fournisseur est indicatif. Le taux minimum s'applique quand il dépasse celui du marchand ; vide = taux du marchand."
-                en="Provider cost is informative. The minimum rate applies when it exceeds the merchant's own; empty = merchant's rate."
+                fr="Taux minimum vide : le coût fournisseur sert de plancher, pour ne jamais vendre à perte. Les deux vides : le taux du marchand s'applique seul."
+                en="Minimum rate empty: the provider cost acts as the floor, so nothing is ever sold below cost. Both empty: the merchant's own rate applies."
               />
             )}
           </p>

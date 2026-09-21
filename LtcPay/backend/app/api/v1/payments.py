@@ -79,11 +79,20 @@ def effective_mobile_rate(merchant, floor: Decimal | None = None) -> Decimal:
     Mobile costs are not one rate: TouchPay takes 1.5% in Cameroon but 4% on
     Congo Airtel, while a merchant carries a single rate. Without the floor,
     every country above the merchant's rate is sold at a loss — measured at
-    -10 070 XAF over 30 days in Congo alone. The floor lives on the operator
-    row (`min_fee_rate`), so an admin sets it per country and operator.
+    -10 070 XAF over 30 days in Congo alone. The floor comes from the
+    operator row: its `min_fee_rate`, or failing that the `provider_fee_rate`
+    it costs us, so a known cost is never undersold for want of a setting.
     """
     base = Decimal(merchant.fee_rate)
     return max(base, Decimal(floor)) if floor is not None else base
+
+
+#: Floor billed for an operator: the rate set for it, and failing that what
+#: the provider charges us — so an operator whose cost is known is never
+#: sold below it just because nobody set a rate. Null on both = no floor.
+_OPERATOR_FLOOR = func.coalesce(
+    CountryOperator.min_fee_rate, CountryOperator.provider_fee_rate,
+)
 
 
 async def mobile_rate_floor(
@@ -94,15 +103,14 @@ async def mobile_rate_floor(
     With no operator — the customer has not chosen one yet on the checkout —
     the highest floor in the country is used: the payment is priced before
     that choice, and pricing it below the dearest operator would sell that
-    operator at a loss. `reprice_for_operator` narrows it down once the
-    customer picks.
+    operator at a loss. The checkout narrows it down once the customer picks.
     """
     if not country_code:
         return None
-    query = select(func.max(CountryOperator.min_fee_rate)).where(
+    query = select(func.max(_OPERATOR_FLOOR)).where(
         CountryOperator.country_code == country_code.upper(),
         CountryOperator.is_active == True,  # noqa: E712
-        CountryOperator.min_fee_rate.isnot(None),
+        _OPERATOR_FLOOR.isnot(None),
     )
     if operator_code:
         query = query.where(CountryOperator.operator_code == operator_code.upper())
@@ -291,10 +299,10 @@ async def get_merchant_info(
         select(
             CountryOperator.country_code,
             CountryOperator.operator_code,
-            CountryOperator.min_fee_rate,
+            _OPERATOR_FLOOR,
         ).where(
             CountryOperator.is_active == True,  # noqa: E712
-            CountryOperator.min_fee_rate > Decimal(merchant.fee_rate),
+            _OPERATOR_FLOOR > Decimal(merchant.fee_rate),
         )
     )).all()
     by_country: dict[str, dict[str, float]] = {}

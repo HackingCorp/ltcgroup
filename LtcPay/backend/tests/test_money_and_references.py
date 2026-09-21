@@ -108,6 +108,16 @@ class TestMobileRateFloor:
         )
         assert fee > Decimal("5000") * Decimal("0.04")
 
+    def test_the_provider_cost_is_the_floor_when_no_rate_is_set(self):
+        # An operator whose cost is known must not be sold below it just
+        # because nobody filled in a billed rate.
+        from sqlalchemy import Column, Numeric, select
+        from app.api.v1.payments import _OPERATOR_FLOOR
+
+        sql = str(select(_OPERATOR_FLOOR))
+        assert "coalesce" in sql.lower()
+        assert sql.lower().index("min_fee_rate") < sql.lower().index("provider_fee_rate")
+
     def test_the_floor_reaches_the_total_the_customer_pays(self):
         payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
         amount, fee = reprice_for_method(
