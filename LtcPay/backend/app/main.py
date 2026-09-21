@@ -803,8 +803,12 @@ async def submit_payment(reference: str, request: Request):
                     detail=friendly_initiation_error(exc),
                     headers={"Retry-After": str(retry_after)},
                 )
+            # Same reasoning as the merchant API: an operator that answered
+            # "insufficient balance" is not a bad gateway. The checkout shows
+            # the message either way, but the status code is what the page's
+            # fetch — and anything proxying it — reacts to.
             raise HTTPException(
-                status_code=502,
+                status_code=402 if customer_caused else 502,
                 detail=friendly_initiation_error(exc),
             )
 

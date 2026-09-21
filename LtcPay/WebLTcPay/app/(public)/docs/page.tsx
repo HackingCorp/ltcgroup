@@ -1087,10 +1087,30 @@ function ErrorsSection() {
         { name: "403", type: "Forbidden", desc: "Accès refusé (ex: paiement d'un autre marchand)." },
         { name: "404", type: "Not Found", desc: "Ressource introuvable (référence de paiement invalide)." },
         { name: "422", type: "Validation Error", desc: "Erreur de validation des données (détails dans le corps)." },
+        { name: "402", type: "Payment Required", desc: "L'opérateur a refusé le paiement pour une raison qui tient au client : solde insuffisant, compte bloqué ou introuvable, numéro d'un autre opérateur. Le fournisseur a répondu normalement — NE RÉESSAYEZ PAS automatiquement, rien ne changera tant que le client n'a pas corrigé la cause. La réponse porte failure_code, un message à afficher dans detail, et operator_reference quand l'opérateur en fournit une." },
         { name: "429", type: "Rate Limited", desc: "Réessayez plus tard : quota d'API dépassé, ou paiement refusé par un garde-fou de fréquence (DUPLICATE_PAYMENT, TOO_MANY_ATTEMPTS). L'en-tête Retry-After donne le délai exact en secondes." },
-        { name: "502", type: "Bad Gateway", desc: "Erreur du fournisseur de paiement (TouchPay ou Stripe). Réservé aux pannes réelles : un refus lié au client renvoie 400 ou 429." },
+        { name: "502", type: "Bad Gateway", desc: "Panne réelle du fournisseur (TouchPay, E-nkap ou Stripe indisponible ou en erreur interne). C'est le seul cas où un nouvel essai a du sens. Un refus lié au client renvoie 402, jamais 502." },
         { name: "500", type: "Server Error", desc: "Erreur interne du serveur." },
       ]} />
+
+      <H2><T fr="Paiement refuse par l'operateur (402)" en="Payment refused by the operator (402)" /></H2>
+      <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+        <T
+          fr="Le fournisseur a fonctionné : c'est le client qui ne peut pas payer. Affichez detail tel quel, et branchez votre logique sur failure_code."
+          en="The provider worked fine: it is the customer who cannot pay. Show detail as-is, and branch your logic on failure_code."
+        />
+      </p>
+      <CodeBlock lang="json">{`{
+  "detail": "Solde insuffisant sur le compte Mobile Money. Rechargez votre compte et reessayez.",
+  "failure_code": "INSUFFICIENT_FUNDS",
+  "operator_reference": "MP260921BCD8F33A6D5BB60CDE2F"
+}`}</CodeBlock>
+      <InfoBox>
+        <T
+          fr="operator_reference est la référence de la transaction chez l'opérateur. C'est le seul identifiant que le support Orange ou MTN peut exploiter si votre client affirme avoir été débité. Conservez-la."
+          en="operator_reference is the operator's own transaction reference. It is the only identifier Orange or MTN support can act on if your customer says they were debited. Keep it."
+        />
+      </InfoBox>
 
       <H2><T fr="Devise non supportee (400)" en="Currency not supported (400)" /></H2>
       <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>

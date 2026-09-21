@@ -51,7 +51,7 @@ from app.services.country_service import country_service
 from app.services.provider_service import ProviderRoutingError, provider_service
 from app.services.payment_router import initiate_mobile_payment, extract_transaction_ids
 from app.services.enkap_service import enkap_service, EnkapError
-from app.services.failure_reasons import extract_operator_reference
+from app.services.failure_reasons import classify_failure, extract_operator_reference
 
 logger = logging.getLogger(__name__)
 
@@ -955,9 +955,25 @@ async def create_payment(
                     detail=friendly_initiation_error(exc),
                     headers={"Retry-After": str(retry_after)},
                 )
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=friendly_initiation_error(exc),
+            # 502 says the provider is broken. When it answered perfectly and
+            # the answer was "this customer has no money", that is wrong twice
+            # over: the merchant reads an outage where there is none, and most
+            # HTTP clients retry 5xx automatically — re-sending a payin the
+            # operator already refused, straight into its duplicate window.
+            failure_code, _ = classify_failure(str(exc))
+            # JSONResponse rather than HTTPException so failure_code sits
+            # beside detail instead of nested inside it: detail stays the
+            # plain string every existing integration already reads.
+            return JSONResponse(
+                status_code=(
+                    status.HTTP_402_PAYMENT_REQUIRED if customer_caused
+                    else status.HTTP_502_BAD_GATEWAY
+                ),
+                content={
+                    "detail": friendly_initiation_error(exc),
+                    "failure_code": failure_code,
+                    "operator_reference": extract_operator_reference(str(exc)),
+                },
             )
 
     return PaymentInitiateResponse(

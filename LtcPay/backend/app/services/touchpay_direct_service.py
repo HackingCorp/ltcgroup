@@ -150,6 +150,12 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
 # normal afternoon of shoppers with empty wallets trips it.
 _CUSTOMER_ERROR_MARKERS = (
     "insuffisant",          # OM: solde du compte du payeur est insuffisant
+    "pas suffisamment",     # Moov: "n a pas suffisamment de balance" — same
+                            # refusal worded the other way round. Missing it
+                            # cost more than a status code: the payin was
+                            # failed over to the next provider, where the
+                            # customer was just as broke, and it counted
+                            # toward the operator-outage alert.
     "introuvable",          # OM: beneficiaire introuvable
     "not found",            # MTN: [04] Account not found
     "operation similaire",  # TouchPay 5-minute duplicate guard
