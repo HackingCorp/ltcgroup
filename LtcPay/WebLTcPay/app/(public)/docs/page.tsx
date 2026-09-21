@@ -10,6 +10,7 @@ const SECTIONS = [
   { id: "scope", label: "What the API covers", cat: "Getting started" },
   { id: "auth", label: "Authentication", cat: "Getting started" },
   { id: "merchant-info", label: "Merchant info", cat: "Account" },
+  { id: "fees", label: "Fee schedule", cat: "Account" },
   { id: "create", label: "Create payment", cat: "Payments" },
   { id: "get", label: "Get payment", cat: "Payments" },
   { id: "list", label: "List payments", cat: "Payments" },
@@ -162,6 +163,7 @@ function ScopeSection() {
         { name: "Lister les paiements", type: "GET /payments", desc: "Filtres par statut et par date, pagination." },
         { name: "Pays et opérateurs", type: "GET /payments/countries", desc: "Devise, limites, opérateurs actifs, préfixes téléphoniques." },
         { name: "Votre configuration", type: "GET /payments/me", desc: "Taux de frais par méthode, porteur des frais, mode par défaut." },
+        { name: "Grille de frais", type: "GET /payments/fees", desc: "Pourcentage exact facturé par pays et par opérateur — les frais Mobile Money ne sont pas uniformes." },
         { name: "Webhooks", type: "payment.status_changed", desc: "Signé HMAC-SHA256, 5 tentatives avec backoff." },
       ]} />
 
@@ -262,7 +264,8 @@ function MerchantInfoSection() {
         { name: "name", type: "string", desc: "Nom du marchand." },
         { name: "email", type: "string", desc: "Email du marchand." },
         { name: "fee_rate", type: "number", desc: "Taux de frais de base en pourcentage (ex: 1.75)." },
-        { name: "fee_rates", type: "object", desc: "Taux EFFECTIF par méthode : MOBILE_MONEY (taux de base) et BANK_CARD (max entre votre taux et le plancher carte). Utilisez ces valeurs pour calculer les frais avant de créer le paiement." },
+        { name: "fee_rates", type: "object", desc: "Taux par méthode : MOBILE_MONEY (votre taux de base) et BANK_CARD (max entre votre taux et le plancher carte). ATTENTION : MOBILE_MONEY est un plancher bas, pas le taux final — certains pays et opérateurs coûtent plus cher. Pour le taux exact par opérateur, utilisez GET /payments/fees." },
+        { name: "mobile_rates_by_country", type: "object", desc: "Pays et opérateurs facturés AU-DESSUS de votre taux de base, ex: { \"CG\": { \"AIRTEL\": 4.5, \"MTN\": 4.0 } }. Objet vide = votre taux de base s'applique partout." },
         { name: "card_min_fee_rate", type: "number", desc: "Plancher de frais appliqué aux paiements par carte pour tous les marchands (actuellement 5)." },
         { name: "fee_bearer", type: "string", desc: "Qui supporte les frais : MERCHANT ou CLIENT." },
         { name: "default_payment_mode", type: "string", desc: "Mode de paiement par défaut : SDK ou DIRECT_API." },
@@ -279,6 +282,11 @@ function MerchantInfoSection() {
     "MOBILE_MONEY": 1.75,
     "BANK_CARD": 5.0
   },
+  "mobile_rates_by_country": {
+    "CG": { "AIRTEL": 4.5, "MTN": 4.0 },
+    "GA": { "MOOV": 3.0 },
+    "ML": { "ORANGE": 3.0 }
+  },
   "card_min_fee_rate": 5.0,
   "fee_bearer": "MERCHANT",
   "default_payment_mode": "SDK",
@@ -287,8 +295,8 @@ function MerchantInfoSection() {
 
       <InfoBox>
         <T
-          fr="Cet endpoint vous permet de vérifier votre configuration de frais à tout moment, sans initier de paiement."
-          en="This endpoint lets you check your fee configuration at any time, without initiating a payment."
+          fr="Cet endpoint vous permet de vérifier votre configuration de frais à tout moment, sans initier de paiement. Le taux Mobile Money n'est pas uniforme : voyez GET /payments/fees ci-dessous pour le pourcentage exact par opérateur."
+          en="This endpoint lets you check your fee configuration at any time, without initiating a payment. The Mobile Money rate is not uniform: see GET /payments/fees below for the exact percentage per operator."
         />
       </InfoBox>
     </>
@@ -298,6 +306,69 @@ function MerchantInfoSection() {
 /* ═══════════════════════════════════════════════ */
 /*  Section: Create Payment                        */
 /* ═══════════════════════════════════════════════ */
+function FeeScheduleSection() {
+  return (
+    <>
+      <SectionTitle
+        cat="Account"
+        title="Grille de frais"
+        desc={
+          <T
+            fr="Le pourcentage exact facturé sur chaque opérateur. Les frais Mobile Money ne sont pas uniformes : le fournisseur coûte plus cher dans certains pays, donc un seul taux ne suffit pas à décrire ce que coûtera un paiement."
+            en="The exact percentage billed on each operator. Mobile Money fees are not uniform: the provider costs more in some countries, so a single rate cannot describe what a payment will cost."
+          />
+        }
+      />
+      <EndpointBar method="GET" path="/api/v1/payments/fees" color="#2563eb" />
+      <H2><T fr="Exemple" en="Example" /></H2>
+      <CodeBlock lang="curl">{`curl ${BASE_URL}/api/v1/payments/fees \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..."`}</CodeBlock>
+
+      <H2><T fr="Champs de la réponse" en="Response fields" /></H2>
+      <FieldTable fields={[
+        { name: "fee_bearer", type: "string", desc: "Qui supporte les frais. CLIENT : les frais sont AJOUTÉS au montant, votre client paie montant + frais. MERCHANT : les frais sont déduits, votre client paie exactement le montant demandé." },
+        { name: "base_rate", type: "number", desc: "Votre taux de base en pourcentage. C'est un plancher bas : il s'applique là où aucun taux supérieur n'est défini." },
+        { name: "mobile_money", type: "object", desc: "Taux facturé par pays puis par opérateur, ex: { \"CG\": { \"AIRTEL\": 4.5 } }. C'est le taux RÉELLEMENT appliqué : utilisez-le pour annoncer le total à votre client." },
+        { name: "bank_card", type: "number", desc: "Taux carte effectif : max entre votre taux carte et le plancher plateforme." },
+        { name: "card_min_fee_rate", type: "number", desc: "Plancher carte appliqué à tous les marchands (actuellement 5)." },
+      ]} />
+
+      <H2><T fr="Exemple de réponse" en="Response example" /></H2>
+      <CodeBlock lang="json">{`{
+  "fee_bearer": "CLIENT",
+  "base_rate": 1.75,
+  "mobile_money": {
+    "CM": { "MTN": 1.75, "ORANGE": 1.75 },
+    "CG": { "AIRTEL": 4.5, "MTN": 4.0 },
+    "GA": { "MOOV": 3.0 },
+    "ML": { "ORANGE": 3.0, "MOOV": 1.75, "WAVE": 1.75 }
+  },
+  "bank_card": 5.0,
+  "card_min_fee_rate": 5.0
+}`}</CodeBlock>
+
+      <H2><T fr="Calculer ce que paie votre client" en="Working out what your customer pays" /></H2>
+      <CodeBlock lang="js">{`// fee_bearer = CLIENT : les frais s'ajoutent au montant
+const grille = await fetch(BASE + "/payments/fees", { headers }).then(r => r.json());
+const taux = grille.mobile_money["CG"]["AIRTEL"];   // 4.5
+
+const base = 5000;
+const frais = Math.round(base * taux / 100);        // 225 (XAF n'a pas de centimes)
+const total = base + frais;                          // 5225 -> ce que paie le client
+
+// fee_bearer = MERCHANT : le client paie 5000, vous recevez 5000 - 225 = 4775`}</CodeBlock>
+
+      <InfoBox>
+        <T
+          fr="Interrogez cet endpoint au moment d'afficher le prix, pas une fois pour toutes : les taux suivent les coûts des fournisseurs et peuvent changer. Un opérateur absent de mobile_money est facturé à base_rate."
+          en="Call this endpoint when you display the price, not once and for all: rates follow provider costs and can change. An operator missing from mobile_money is billed at base_rate."
+        />
+      </InfoBox>
+    </>
+  );
+}
+
 function CreatePaymentSection() {
   return (
     <>
@@ -1109,6 +1180,7 @@ const SECTION_MAP: Record<string, () => React.ReactElement> = {
   scope: ScopeSection,
   auth: AuthSection,
   "merchant-info": MerchantInfoSection,
+  fees: FeeScheduleSection,
   create: CreatePaymentSection,
   get: GetPaymentSection,
   list: ListPaymentsSection,

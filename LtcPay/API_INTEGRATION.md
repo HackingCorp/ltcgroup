@@ -40,9 +40,51 @@ Headers:
 
 | Champ | Description |
 |-------|-------------|
-| `fee_rate` | Taux de commission en pourcentage (ex: 1.75%) |
+| `fee_rate` | Taux de commission de base en pourcentage (ex: 1.75%) |
+| `fee_rates` | Taux par méthode. ⚠️ `MOBILE_MONEY` est un plancher bas, pas le taux final |
+| `mobile_rates_by_country` | Pays/opérateurs facturés au-dessus du taux de base |
 | `fee_bearer` | Qui supporte les frais : `MERCHANT` (déduits du solde marchand) ou `CLIENT` (ajoutés au montant client) |
 | `default_payment_mode` | Mode de paiement par défaut : `SDK` ou `DIRECT_API` |
+
+---
+
+## Grille de frais par opérateur
+
+```
+GET /api/v1/payments/fees
+```
+
+Les frais Mobile Money **ne sont pas uniformes** : le fournisseur coûte plus cher
+dans certains pays et sur certains opérateurs, donc `fee_rates.MOBILE_MONEY` ne
+suffit pas à calculer ce que coûtera un paiement. Cet endpoint donne le taux
+réellement appliqué, opérateur par opérateur.
+
+```json
+{
+  "fee_bearer": "CLIENT",
+  "base_rate": 1.75,
+  "mobile_money": {
+    "CM": { "MTN": 1.75, "ORANGE": 1.75 },
+    "CG": { "AIRTEL": 4.5, "MTN": 4.0 },
+    "GA": { "MOOV": 3.0 },
+    "ML": { "ORANGE": 3.0, "MOOV": 1.75, "WAVE": 1.75 }
+  },
+  "bank_card": 5.0,
+  "card_min_fee_rate": 5.0
+}
+```
+
+Avec `fee_bearer: CLIENT`, les frais s'**ajoutent** au montant :
+
+```js
+const taux = grille.mobile_money["CG"]["AIRTEL"];  // 4.5
+const base = 5000;
+const frais = Math.round(base * taux / 100);       // 225
+const total = base + frais;                        // 5225 payés par le client
+```
+
+Un opérateur absent de `mobile_money` est facturé à `base_rate`. Interrogez cet
+endpoint au moment d'afficher le prix : les taux suivent les coûts fournisseurs.
 
 ---
 

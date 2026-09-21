@@ -27,7 +27,7 @@ from app.core.security import (
     get_current_merchant, get_optional_merchant, get_verified_merchant,
     generate_payment_token,
 )
-from app.models.country import CountryOperator
+from app.models.country import CountryOperator, SupportedCountry
 from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
@@ -235,6 +235,25 @@ async def list_available_countries(
     merchant_id = merchant.id if merchant else None
     countries = await country_service.get_available_countries(db, merchant_id=merchant_id)
 
+    # Billed rate per operator, in one query: the floor is per country and
+    # operator, so quoting the merchant's base rate everywhere would
+    # understate what Congo or Mali actually cost them.
+    floors: dict[tuple[str, str], Decimal] = {}
+    if merchant is not None:
+        floors = {
+            (cc, oc): floor
+            for cc, oc, floor in (await db.execute(
+                select(
+                    CountryOperator.country_code,
+                    CountryOperator.operator_code,
+                    func.max(_OPERATOR_FLOOR),
+                )
+                .where(CountryOperator.is_active == True)  # noqa: E712
+                .group_by(CountryOperator.country_code, CountryOperator.operator_code)
+            )).all()
+            if floor is not None
+        }
+
     result = []
     for c in countries:
         # The same operator may exist once per provider (e.g. MTN via
@@ -256,6 +275,11 @@ async def list_available_countries(
                 ussd_code=op.ussd_code,
                 phone_prefixes=list(op.phone_prefixes or []),
                 available=bool(op.is_active),
+                fee_rate=(
+                    float(effective_mobile_rate(
+                        merchant, floors.get((c.code, op.operator_code)),
+                    )) if merchant is not None else None
+                ),
             )
         ops = [
             o for o in sorted(by_code.values(), key=lambda o: o.code)
@@ -323,6 +347,63 @@ async def get_merchant_info(
         "fee_bearer": merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
         "default_payment_mode": merchant.default_payment_mode.value if hasattr(merchant.default_payment_mode, "value") else str(merchant.default_payment_mode),
         "is_active": merchant.is_active,
+    }
+
+
+@router.get("/fees")
+async def get_fee_schedule(
+    merchant: Merchant = Depends(get_current_merchant),
+    db: AsyncSession = Depends(get_db),
+):
+    """The exact percentage billed on every operator, for this merchant.
+
+    Mobile Money does not cost the same everywhere — the provider charges
+    more in some countries and on some operators — so one rate cannot
+    describe what a payment will cost. This lists every active operator
+    with the rate that will actually be applied, which is what to quote to
+    a customer before creating the payment.
+
+    `fee_bearer` says who pays it: CLIENT means the fee is added on top and
+    the customer pays amount + fee, MERCHANT that it is deducted from the
+    amount and the customer pays exactly what you asked for.
+    """
+    rows = (await db.execute(
+        select(
+            CountryOperator.country_code,
+            CountryOperator.operator_code,
+            func.max(_OPERATOR_FLOOR),
+        )
+        .join(
+            SupportedCountry,
+            SupportedCountry.code == CountryOperator.country_code,
+        )
+        .where(
+            CountryOperator.is_active == True,  # noqa: E712
+            SupportedCountry.is_active == True,  # noqa: E712
+        )
+        .group_by(CountryOperator.country_code, CountryOperator.operator_code)
+        .order_by(CountryOperator.country_code, CountryOperator.operator_code)
+    )).all()
+
+    allowed = {
+        c.code for c in
+        await country_service.get_available_countries(db, merchant_id=merchant.id)
+    }
+    mobile: dict[str, dict[str, float]] = {}
+    for country_code, operator_code, floor in rows:
+        if country_code not in allowed:
+            continue
+        mobile.setdefault(country_code, {})[operator_code] = float(
+            effective_mobile_rate(merchant, floor)
+        )
+
+    bearer = getattr(merchant.fee_bearer, "value", merchant.fee_bearer)
+    return {
+        "fee_bearer": str(bearer),
+        "base_rate": float(merchant.fee_rate),
+        "mobile_money": mobile,
+        "bank_card": float(effective_card_rate(merchant)),
+        "card_min_fee_rate": float(CARD_MIN_FEE_RATE),
     }
 
 

@@ -177,6 +177,10 @@ class PublicOperatorInfo(BaseModel):
     # Only present in responses when include_unavailable=true is requested;
     # default listings contain available operators only.
     available: bool = True
+    # Percentage actually billed on this operator for the authenticated
+    # merchant — provider costs differ per country and operator, so this is
+    # not always the merchant's base rate. Null when unauthenticated.
+    fee_rate: Optional[float] = None
 
 
 class PublicCountryInfo(BaseModel):
