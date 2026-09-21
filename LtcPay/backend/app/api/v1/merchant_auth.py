@@ -1,6 +1,7 @@
 """
 Merchant portal authentication endpoints.
 """
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -40,6 +41,12 @@ def _hash_password(password: str) -> str:
 
 def _verify_password(plain: str, hashed: str) -> bool:
     return _bcrypt.checkpw(plain.encode(), hashed.encode())
+
+
+async def _verify_password_async(plain: str, hashed: str) -> bool:
+    """bcrypt off the event loop — it burns ~235 ms and uvicorn runs one
+    worker, so an inline check stalls every other request in flight."""
+    return await asyncio.to_thread(_verify_password, plain, hashed)
 
 
 async def get_current_merchant_jwt(
@@ -140,7 +147,7 @@ async def login_merchant(
     if not merchant or not merchant.password_hash:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not _verify_password(data.password, merchant.password_hash):
+    if not await _verify_password_async(data.password, merchant.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not merchant.is_active:
@@ -186,7 +193,7 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
 ):
     """Change merchant password."""
-    if not merchant.password_hash or not _verify_password(data.current_password, merchant.password_hash):
+    if not merchant.password_hash or not await _verify_password_async(data.current_password, merchant.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     merchant.password_hash = _hash_password(data.new_password)

@@ -1,6 +1,7 @@
 """
 Admin authentication endpoints for the LtcPay dashboard.
 """
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt
@@ -48,6 +49,11 @@ def verify_password(plain: str, hashed: str) -> bool:
     return _bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
+async def verify_password_async(plain: str, hashed: str) -> bool:
+    """bcrypt off the event loop — see verify_api_secret_async."""
+    return await asyncio.to_thread(verify_password, plain, hashed)
+
+
 def create_access_token(user_id: str, email: str, role: str = "admin") -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=7)
     return jwt.encode(
@@ -85,7 +91,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(AdminUser).where(AdminUser.email == data.email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(data.password, user.password_hash):
+    if not user or not await verify_password_async(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_active:

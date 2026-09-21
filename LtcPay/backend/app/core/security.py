@@ -8,9 +8,11 @@ Merchants authenticate using:
 The API key is stored in plaintext (for lookup), the secret is bcrypt-hashed.
 """
 
+import asyncio
 import hmac
 import hashlib
 import secrets
+import time
 import uuid
 import bcrypt as _bcrypt
 from fastapi import Depends, HTTPException, Security, status
@@ -35,6 +37,47 @@ def hash_api_secret(secret: str) -> str:
 def verify_api_secret(plain_secret: str, hashed_secret: str) -> bool:
     """Verify an API secret against its bcrypt hash."""
     return _bcrypt.checkpw(plain_secret.encode("utf-8"), hashed_secret.encode("utf-8"))
+
+
+#: Merchant credentials verified in the last few seconds, keyed by the API key
+#: and a digest of the secret. Callers poll a payment's status in a tight loop
+#: and every call re-ran bcrypt, so the same secret was being hashed hundreds
+#: of times a minute for no new information. Successes only: a wrong secret is
+#: always re-checked, and the entry expires quickly so a rotated key stops
+#: working within seconds rather than at the next restart.
+_SECRET_CACHE: dict[tuple[str, str], float] = {}
+_SECRET_CACHE_TTL = 30.0
+_SECRET_CACHE_MAX = 512
+
+
+async def verify_api_secret_async(plain_secret: str, hashed_secret: str) -> bool:
+    """Verify an API secret without blocking the event loop.
+
+    bcrypt at cost 12 burns ~235 ms of CPU, and it ran inline in the request
+    coroutine on a single-worker uvicorn: the whole gateway could serve about
+    four requests a second, whatever the load. Under CPU starvation — a
+    neighbour container pinning every core — that ceiling turned into 502s
+    from the proxy on roughly one payment creation in ten.
+    """
+    key = (plain_secret[:8], hashlib.sha256(
+        f"{plain_secret}:{hashed_secret}".encode("utf-8")
+    ).hexdigest())
+    now = time.monotonic()
+    seen = _SECRET_CACHE.get(key)
+    if seen is not None and now - seen < _SECRET_CACHE_TTL:
+        return True
+
+    ok = await asyncio.to_thread(verify_api_secret, plain_secret, hashed_secret)
+    if ok:
+        if len(_SECRET_CACHE) >= _SECRET_CACHE_MAX:
+            cutoff = now - _SECRET_CACHE_TTL
+            for k, seen_at in list(_SECRET_CACHE.items()):
+                if seen_at < cutoff:
+                    _SECRET_CACHE.pop(k, None)
+            if len(_SECRET_CACHE) >= _SECRET_CACHE_MAX:
+                _SECRET_CACHE.clear()
+        _SECRET_CACHE[key] = now
+    return ok
 
 
 def generate_webhook_signature(payload: bytes, secret: str) -> str:
@@ -129,7 +172,7 @@ async def get_current_merchant(
         raise credentials_exception
 
     # Verify the API secret
-    if not verify_api_secret(api_secret, merchant.api_secret_hash):
+    if not await verify_api_secret_async(api_secret, merchant.api_secret_hash):
         raise credentials_exception
 
     # Check if merchant is active
