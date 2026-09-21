@@ -27,6 +27,7 @@ from app.core.security import (
     get_current_merchant, get_optional_merchant, get_verified_merchant,
     generate_payment_token,
 )
+from app.models.country import CountryOperator
 from app.models.merchant import Merchant, FeeBearer
 from app.models.payment import Payment, PaymentStatus, PaymentMode, PaymentMethod, PaymentProvider
 from app.schemas.payment import (
@@ -70,6 +71,42 @@ def effective_card_rate(merchant) -> Decimal:
     at the platform card minimum."""
     base = getattr(merchant, "fee_rate_card", None) or merchant.fee_rate
     return max(Decimal(base), CARD_MIN_FEE_RATE)
+
+
+def effective_mobile_rate(merchant, floor: Decimal | None = None) -> Decimal:
+    """Mobile Money rate for a merchant, floored at the operator's minimum.
+
+    Mobile costs are not one rate: TouchPay takes 1.5% in Cameroon but 4% on
+    Congo Airtel, while a merchant carries a single rate. Without the floor,
+    every country above the merchant's rate is sold at a loss — measured at
+    -10 070 XAF over 30 days in Congo alone. The floor lives on the operator
+    row (`min_fee_rate`), so an admin sets it per country and operator.
+    """
+    base = Decimal(merchant.fee_rate)
+    return max(base, Decimal(floor)) if floor is not None else base
+
+
+async def mobile_rate_floor(
+    db: AsyncSession, country_code: str | None, operator_code: str | None,
+) -> Decimal | None:
+    """Billing floor for a country/operator pair, or None when unknown.
+
+    With no operator — the customer has not chosen one yet on the checkout —
+    the highest floor in the country is used: the payment is priced before
+    that choice, and pricing it below the dearest operator would sell that
+    operator at a loss. `reprice_for_operator` narrows it down once the
+    customer picks.
+    """
+    if not country_code:
+        return None
+    query = select(func.max(CountryOperator.min_fee_rate)).where(
+        CountryOperator.country_code == country_code.upper(),
+        CountryOperator.is_active == True,  # noqa: E712
+        CountryOperator.min_fee_rate.isnot(None),
+    )
+    if operator_code:
+        query = query.where(CountryOperator.operator_code == operator_code.upper())
+    return (await db.execute(query)).scalar()
 
 
 # Currencies with no minor unit (ISO 4217 exponent 0). Every currency LtcPay
@@ -142,7 +179,9 @@ async def record_initiation_outcome(
     return decided
 
 
-def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal]:
+def reprice_for_method(
+    payment, merchant, method: str, mobile_floor: Decimal | None = None,
+) -> tuple[Decimal, Decimal]:
     """Recompute (amount, fee) for the method the customer actually picked.
 
     A payment is created before the customer chooses mobile or card on the
@@ -150,6 +189,9 @@ def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal
     when the customer switches, the fee — and, for CLIENT-borne fees, the
     total charged — must follow. Derives the net base from the stored
     values, so calling it repeatedly or switching back and forth is stable.
+
+    `mobile_floor` is the operator's billing floor once the customer has
+    chosen one; without it the mobile rate is the merchant's own.
     """
     amount = Decimal(payment.amount)
     fee = Decimal(payment.fee or 0)
@@ -157,7 +199,10 @@ def reprice_for_method(payment, merchant, method: str) -> tuple[Decimal, Decimal
     base = (amount - fee) if client_borne else amount
     if base <= 0:
         base = amount
-    rate = effective_card_rate(merchant) if method == "CARD" else Decimal(merchant.fee_rate)
+    rate = (
+        effective_card_rate(merchant) if method == "CARD"
+        else effective_mobile_rate(merchant, mobile_floor)
+    )
     new_fee = _compute_fee(base, rate, payment.currency)
     new_amount = (base + new_fee) if client_borne else base
     step = money_step(payment.currency)
@@ -227,6 +272,7 @@ async def list_available_countries(
 @router.get("/me")
 async def get_merchant_info(
     merchant: Merchant = Depends(get_current_merchant),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return the authenticated merchant's public configuration (fee rate, fee bearer, etc.).
 
@@ -235,8 +281,26 @@ async def get_merchant_info(
     fee_rates.BANK_CARD = max(fee_rate, card_min_fee_rate) while
     fee_rates.MOBILE_MONEY is the merchant's own rate. Use these to display
     fees to your customer before creating the payment.
+
+    mobile_rates_by_country lists the countries where Mobile Money costs more
+    than that base rate — the provider charges more there, so a floor applies.
+    A country absent from it bills at fee_rates.MOBILE_MONEY.
     """
     base_rate = float(merchant.fee_rate)
+    floors = (await db.execute(
+        select(
+            CountryOperator.country_code,
+            CountryOperator.operator_code,
+            CountryOperator.min_fee_rate,
+        ).where(
+            CountryOperator.is_active == True,  # noqa: E712
+            CountryOperator.min_fee_rate > Decimal(merchant.fee_rate),
+        )
+    )).all()
+    by_country: dict[str, dict[str, float]] = {}
+    for country_code, operator_code, floor in floors:
+        by_country.setdefault(country_code, {})[operator_code] = float(floor)
+
     return {
         "merchant_id": str(merchant.id),
         "name": merchant.name,
@@ -246,6 +310,7 @@ async def get_merchant_info(
             "MOBILE_MONEY": base_rate,
             "BANK_CARD": float(effective_card_rate(merchant)),
         },
+        "mobile_rates_by_country": by_country,
         "card_min_fee_rate": float(CARD_MIN_FEE_RATE),
         "fee_bearer": merchant.fee_bearer.value if hasattr(merchant.fee_bearer, "value") else str(merchant.fee_bearer),
         "default_payment_mode": merchant.default_payment_mode.value if hasattr(merchant.default_payment_mode, "value") else str(merchant.default_payment_mode),
@@ -418,9 +483,12 @@ async def create_payment(
     currency = currency or settings.default_currency
 
     base_amount = payload.amount
-    effective_fee_rate = merchant.fee_rate
     if payload.payment_method == PaymentMethod.BANK_CARD:
         effective_fee_rate = effective_card_rate(merchant)
+    else:
+        effective_fee_rate = effective_mobile_rate(
+            merchant, await mobile_rate_floor(db, country_code, payload.operator),
+        )
     fee = _compute_fee(base_amount, effective_fee_rate, currency)
 
     # If customer bears the fee, add it to the amount they pay

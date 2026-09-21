@@ -740,6 +740,23 @@ async def submit_payment(reference: str, request: Request):
             select(MerchantModel).where(MerchantModel.id == payment.merchant_id)
         )).scalar_one_or_none()
 
+        # The payment was priced at the dearest operator of the country,
+        # before this choice was made. Now that we know which one it is, a
+        # cheaper operator gives the customer its lower price. Only ever
+        # downwards: the total shown on the checkout is a promise, so a
+        # dearer operator is absorbed rather than charged after the fact.
+        if merchant_row is not None:
+            from decimal import Decimal
+            from app.api.v1.payments import mobile_rate_floor, reprice_for_method
+            floor = await mobile_rate_floor(db, country_code, operator_str)
+            new_amount, new_fee = reprice_for_method(
+                payment, merchant_row, "MOBILE", mobile_floor=floor,
+            )
+            if new_amount < Decimal(payment.amount):
+                payment.amount, payment.fee = new_amount, new_fee
+                await db.commit()
+                await db.refresh(payment)
+
         try:
             provider_used, direct_response = await initiate_mobile_payment(
                 db=db,

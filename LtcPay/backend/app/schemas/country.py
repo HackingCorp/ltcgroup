@@ -2,6 +2,7 @@
 LtcPay - Country & Operator Schemas (Admin CRUD + Public API)
 """
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field, UUID4
 
@@ -21,6 +22,11 @@ class OperatorCreate(BaseModel):
     max_amount: int = Field(default=500_000, ge=1)
     ussd_code: str = Field(default="", max_length=20)
     phone_prefixes: list[str] = Field(default_factory=list)
+    # Percent. provider_fee_rate is what the PSP charges us (documentation);
+    # min_fee_rate is the floor we bill, applied when it beats the merchant's
+    # own rate. Null on either = unknown / no floor.
+    provider_fee_rate: Optional[Decimal] = Field(None, ge=0, le=100)
+    min_fee_rate: Optional[Decimal] = Field(None, ge=0, le=100)
     is_active: bool = True
 
 
@@ -35,6 +41,8 @@ class OperatorUpdate(BaseModel):
     max_amount: Optional[int] = Field(None, ge=1)
     ussd_code: Optional[str] = Field(None, max_length=20)
     phone_prefixes: Optional[list[str]] = None
+    provider_fee_rate: Optional[Decimal] = Field(None, ge=0, le=100)
+    min_fee_rate: Optional[Decimal] = Field(None, ge=0, le=100)
     is_active: Optional[bool] = None
 
 
@@ -51,6 +59,8 @@ class OperatorResponse(BaseModel):
     max_amount: int
     ussd_code: str
     phone_prefixes: Optional[list[str]] = None
+    provider_fee_rate: Optional[Decimal] = None
+    min_fee_rate: Optional[Decimal] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

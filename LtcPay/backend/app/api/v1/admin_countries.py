@@ -553,6 +553,8 @@ async def create_operator(
         max_amount=payload.max_amount,
         ussd_code=payload.ussd_code,
         phone_prefixes=payload.phone_prefixes,
+        provider_fee_rate=payload.provider_fee_rate,
+        min_fee_rate=payload.min_fee_rate,
         is_active=payload.is_active,
     )
     db.add(op)
@@ -582,7 +584,7 @@ async def update_operator(
     if not op:
         raise HTTPException(status_code=404, detail="Operator not found")
 
-    for field in ("operator_code", "operator_name", "service_code", "color", "logo_url", "min_amount", "max_amount", "ussd_code", "phone_prefixes", "is_active"):
+    for field in ("operator_code", "operator_name", "service_code", "color", "logo_url", "min_amount", "max_amount", "ussd_code", "phone_prefixes", "provider_fee_rate", "min_fee_rate", "is_active"):
         val = getattr(payload, field, None)
         if val is not None:
             if field == "operator_code":

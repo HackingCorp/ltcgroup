@@ -8,9 +8,10 @@ Tables:
 """
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, JSON, String, Text,
+    Boolean, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -117,6 +118,12 @@ class CountryOperator(Base):
     # Used to detect operator/number mismatches before calling the PSP.
     # Empty/null = no prefix knowledge; numbers are never blocked on it.
     phone_prefixes: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    # What the provider charges us for this operator, in percent — read off
+    # the `fees` it returns at initiation. Documentation, never billing.
+    provider_fee_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    # Floor we bill for this operator, in percent. The merchant's own rate
+    # applies when it is higher; null means no floor (legacy behaviour).
+    min_fee_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,

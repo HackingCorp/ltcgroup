@@ -434,6 +434,21 @@ export default function CountriesPage() {
                                 {op.provider_code}
                               </span>
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)", flex: 1 }}>{op.service_code}</span>
+                              {(op.provider_fee_rate != null || op.min_fee_rate != null) && (
+                                <span
+                                  className="mono"
+                                  style={{
+                                    fontSize: 10, flexShrink: 0,
+                                    color: op.min_fee_rate != null && op.provider_fee_rate != null
+                                      && op.min_fee_rate < op.provider_fee_rate ? "var(--rose)" : "var(--muted)",
+                                  }}
+                                  title="Coût fournisseur → taux minimum facturé"
+                                >
+                                  {op.provider_fee_rate != null ? `${op.provider_fee_rate}%` : "?"}
+                                  {" → "}
+                                  {op.min_fee_rate != null ? `${op.min_fee_rate}%` : "—"}
+                                </span>
+                              )}
                               <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{fmt(op.min_amount)} – {fmt(op.max_amount)}</span>
                               <Pill tone={op.is_active ? "success" : "fail"}>
                                 {op.is_active ? "ON" : "OFF"}
@@ -892,6 +907,8 @@ function OperatorModal({
   const isEdit = !!operator;
   const [form, setForm] = useState<CreateOperatorData>({
     provider_code: operator?.provider_code || "TOUCHPAY",
+    provider_fee_rate: operator?.provider_fee_rate ?? null,
+    min_fee_rate: operator?.min_fee_rate ?? null,
     operator_code: operator?.operator_code || "",
     operator_name: operator?.operator_name || "",
     service_code: operator?.service_code || "",
@@ -907,7 +924,7 @@ function OperatorModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (field: string, value: string | number | boolean) =>
+  const set = (field: string, value: string | number | boolean | null) =>
     setForm((p) => ({ ...p, [field]: value }));
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1030,6 +1047,47 @@ function OperatorModal({
               <Input type="number" value={form.max_amount} onChange={(e) => set("max_amount", parseInt(e.target.value) || 500000)} min={1} />
             </div>
           </div>
+
+          {/* Row: provider cost vs billed floor */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Coût fournisseur %" en="Provider cost %" />
+              </label>
+              <Input
+                type="number" step="0.01" min={0} max={100}
+                value={form.provider_fee_rate ?? ""}
+                onChange={(e) => set("provider_fee_rate", e.target.value === "" ? null : parseFloat(e.target.value))}
+                placeholder="1.50"
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 4 }}>
+                <T fr="Taux minimum facturé %" en="Minimum billed rate %" />
+              </label>
+              <Input
+                type="number" step="0.01" min={0} max={100}
+                value={form.min_fee_rate ?? ""}
+                onChange={(e) => set("min_fee_rate", e.target.value === "" ? null : parseFloat(e.target.value))}
+                placeholder="1.75"
+              />
+            </div>
+          </div>
+          <p style={{ fontSize: 11, color: "var(--muted)", margin: "-6px 0 0" }}>
+            {form.provider_fee_rate != null && form.min_fee_rate != null && form.min_fee_rate < form.provider_fee_rate ? (
+              <span style={{ color: "var(--rose)" }}>
+                <T
+                  fr="⚠ Le taux facturé est sous le coût fournisseur : chaque paiement sur cet opérateur perd de l'argent."
+                  en="⚠ The billed rate is below the provider cost: every payment on this operator loses money."
+                />
+              </span>
+            ) : (
+              <T
+                fr="Le coût fournisseur est indicatif. Le taux minimum s'applique quand il dépasse celui du marchand ; vide = taux du marchand."
+                en="Provider cost is informative. The minimum rate applies when it exceeds the merchant's own; empty = merchant's rate."
+              />
+            )}
+          </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 12 }}>
             <div>

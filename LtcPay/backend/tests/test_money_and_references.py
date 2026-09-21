@@ -16,7 +16,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.api.v1.payments import _compute_fee, money_step, reprice_for_method
+from app.api.v1.payments import (
+    _compute_fee, effective_mobile_rate, money_step, reprice_for_method,
+)
 from app.services.failure_reasons import extract_operator_reference
 from app.services.payment_router import extract_transaction_ids
 
@@ -73,6 +75,46 @@ class TestMoneyRounding:
 
         assert fee == Decimal("17.50")
         assert amount == Decimal("1017.50")
+
+
+class TestMobileRateFloor:
+    """TouchPay charges 1.5% in Cameroon but 4% on Congo Airtel, while a
+    merchant carries a single rate. Without a per-operator floor, every
+    country above that rate was sold at a loss: -10 070 XAF in Congo over
+    the 30 days to 2026-09-21, paid for out of Cameroon's margin."""
+
+    MERCHANT = SimpleNamespace(
+        fee_bearer="CLIENT", fee_rate=Decimal("1.75"), fee_rate_card=None,
+    )
+
+    def test_no_floor_leaves_the_merchant_rate_alone(self):
+        assert effective_mobile_rate(self.MERCHANT, None) == Decimal("1.75")
+
+    def test_a_dearer_country_lifts_the_rate_to_its_floor(self):
+        assert effective_mobile_rate(self.MERCHANT, Decimal("4.25")) == Decimal("4.25")
+
+    def test_a_floor_below_the_merchant_rate_never_lowers_it(self):
+        assert effective_mobile_rate(self.MERCHANT, Decimal("1.00")) == Decimal("1.75")
+
+    def test_a_merchant_above_every_floor_keeps_their_own_rate(self):
+        rich = SimpleNamespace(fee_bearer="CLIENT", fee_rate=Decimal("5"), fee_rate_card=None)
+        assert effective_mobile_rate(rich, Decimal("2.75")) == Decimal("5")
+
+    def test_the_congo_payment_now_covers_what_touchpay_takes(self):
+        # 5 000 XAF on Congo Airtel: TouchPay takes 4%, we billed 1.75%.
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        _, fee = reprice_for_method(
+            payment, self.MERCHANT, "MOBILE", mobile_floor=Decimal("4.25"),
+        )
+        assert fee > Decimal("5000") * Decimal("0.04")
+
+    def test_the_floor_reaches_the_total_the_customer_pays(self):
+        payment = SimpleNamespace(amount=Decimal("5088"), fee=Decimal("88"), currency="XAF")
+        amount, fee = reprice_for_method(
+            payment, self.MERCHANT, "MOBILE", mobile_floor=Decimal("2.75"),
+        )
+        assert amount == Decimal("5000") + fee  # CLIENT bears it
+        assert amount == amount.to_integral_value()
 
 
 class TestOperatorReference:

@@ -14,6 +14,8 @@ export interface CountryOperator {
   min_amount: number;
   max_amount: number;
   ussd_code: string;
+  provider_fee_rate: number | null;
+  min_fee_rate: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -80,6 +82,8 @@ export interface UpdateCountryData {
 
 export interface CreateOperatorData {
   provider_code?: string;
+  provider_fee_rate?: number | null;
+  min_fee_rate?: number | null;
   operator_code: string;
   operator_name: string;
   service_code: string;
@@ -93,6 +97,8 @@ export interface CreateOperatorData {
 
 export interface UpdateOperatorData {
   provider_code?: string;
+  provider_fee_rate?: number | null;
+  min_fee_rate?: number | null;
   operator_code?: string;
   operator_name?: string;
   service_code?: string;
