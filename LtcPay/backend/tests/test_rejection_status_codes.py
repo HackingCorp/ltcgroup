@@ -90,3 +90,31 @@ class TestTheCustomerIsNotAnOutage:
             code, customer_message = classify_failure(message)
             assert code and code.isupper()
             assert customer_message
+
+
+class TestTimeoutIsNotAlwaysTheOperator:
+    """`[60] TIMEOUT` is the operator reporting that the payer let the USSD
+    prompt lapse. It used to be swallowed by OPERATOR_UNAVAILABLE's generic
+    "timeout" marker, so the customer read that the network was down and was
+    invited to retry — on 2026-09-21 one Gabon number did exactly that four
+    times in seven minutes, each attempt waiting for a confirmation he was
+    never told to give."""
+
+    def test_code_60_is_the_customer_not_confirming(self):
+        code, message = classify_failure("[60] TIMEOUT")
+        assert code == "CONFIRMATION_TIMEOUT"
+        assert "confirme" in message.lower()
+        assert _status_for("[60] TIMEOUT") == 402
+
+    def test_our_own_http_timeout_is_still_the_provider(self):
+        """At initiation we never read the answer, so it is not the payer's
+        doing and the payment must still fail over."""
+        for message in ["timed out", "Request timeout", "Read timeout"]:
+            code, _ = classify_failure(message)
+            assert code == "OPERATOR_UNAVAILABLE", message
+            assert _status_for(message) == 502, message
+
+    def test_the_message_tells_the_customer_what_to_do(self):
+        """The old one blamed the network and said to wait a few minutes."""
+        _, message = classify_failure("[60] TIMEOUT")
+        assert "indisponible" not in message.lower()

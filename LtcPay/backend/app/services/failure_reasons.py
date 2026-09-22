@@ -72,20 +72,30 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         "Trop de tentatives de paiement pour ce numero. Le client doit reessayer dans 30 minutes.",
     ),
     (
+        # Placed ahead of OPERATOR_UNAVAILABLE, whose generic "timeout" marker
+        # used to swallow "[60] TIMEOUT". That code is the operator saying the
+        # payer let the USSD prompt lapse, so the customer was told the network
+        # was down and invited to retry: on 2026-09-21 one Gabon number did
+        # exactly that four times in seven minutes. "[60]" only ever arrives in
+        # a callback — never at initiation — so reading it as the customer's
+        # doing cannot suppress a failover.
+        "CONFIRMATION_TIMEOUT",
+        ("[60]", "not confirmed", "non confirme", "does not confirm"),
+        "Vous n'avez pas confirme le paiement a temps sur votre telephone. Relancez le paiement et validez la demande de confirmation.",
+    ),
+    (
         "OPERATOR_UNAVAILABLE",
         # "Vous n'etes pas autorise a effectuer cette operation" reads like a
         # permissions problem and is not one: TouchPay confirmed on 2026-09-02
         # that it signals an unstable or unavailable service on their side,
         # normally cleared within minutes. Matched before it can be mistaken
         # for a customer refusal.
+        #
+        # "timed out" stays here: that one is our own HTTP client giving up at
+        # initiation, where we never read the provider's answer.
         ("tec-internal", "erreur interne", "unable to process", "timed out",
          "timeout", "pas autorise a effectuer"),
         "L'operateur Mobile Money est momentanement indisponible. Reessayez dans quelques minutes.",
-    ),
-    (
-        "CONFIRMATION_TIMEOUT",
-        ("not confirmed", "non confirme", "does not confirm"),
-        "Le client n'a pas confirme le paiement a temps sur son telephone. Il peut relancer immediatement.",
     ),
     (
         "REJECTED_BY_OPERATOR",
