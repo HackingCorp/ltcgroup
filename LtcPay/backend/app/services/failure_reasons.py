@@ -80,7 +80,14 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         # a callback — never at initiation — so reading it as the customer's
         # doing cannot suppress a failover.
         "CONFIRMATION_TIMEOUT",
-        ("[60]", "not confirmed", "non confirme", "does not confirm"),
+        # "enter the pin": Airtel RDC via TouchPay dit la cause en clair —
+        # « Transaction ID is invalid - User didn't enter the pin ». Sans ce
+        # marqueur le message partait au fallback, donc lu comme une panne :
+        # failover inutile, alerte opérateur faussée, et le client invité à
+        # « réessayer ou changer de moyen de paiement » au lieu de saisir son
+        # code. Vu 2 fois le 23/09/2026 sur les premiers paiements RDC.
+        ("[60]", "not confirmed", "non confirme", "does not confirm",
+         "enter the pin", "enter pin", "saisir le code", "saisi le code"),
         "Vous n'avez pas confirme le paiement a temps sur votre telephone. Relancez le paiement et validez la demande de confirmation.",
     ),
     (
@@ -102,6 +109,17 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         ("echec chez le partenaire", "failed at the partner",
          "invalid transaction", "rejected"),
         "Le paiement a ete rejete par l'operateur (demande non validee, expiree ou refusee).",
+    ),
+    (
+        # Le fournisseur ne dessert pas cet operateur dans ce pays. Ce n'est ni
+        # le client ni une indisponibilite passagere : reessayer ne changera
+        # rien tant que la configuration n'a pas bouge. Distingue pour que le
+        # marchand ne conseille pas d'attendre, et pour que ce soit reperable
+        # cote plateforme. Vu 2026-09-22 : AccountPE a refuse Moov Cote
+        # d'Ivoire avec « Payment method not supported », HTTP 404.
+        "METHOD_NOT_SUPPORTED",
+        ("method not supported", "methode non supportee", "not supported"),
+        "Ce moyen de paiement n'est pas disponible pour ce pays. Choisissez un autre operateur.",
     ),
 ]
 

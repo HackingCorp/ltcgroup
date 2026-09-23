@@ -118,3 +118,44 @@ class TestTimeoutIsNotAlwaysTheOperator:
         """The old one blamed the network and said to wait a few minutes."""
         _, message = classify_failure("[60] TIMEOUT")
         assert "indisponible" not in message.lower()
+
+
+class TestMessagesFromTheNewlyOpenedCountries:
+    """Opening Mali, Guinea, DRC and Ivory Coast surfaced wordings no rule
+    covered. Each fell through to PAYMENT_FAILED, which means "we do not
+    know": failover, operator alert, and a customer told to try another
+    payment method when the real instruction was on his own screen."""
+
+    RDC_PIN = (
+        "Payment ID: TJ1OW-P202609231733438GFIMQ ended FAILED. "
+        "Reason: Transaction ID is invalid - User didn't enter the pin."
+    )
+
+    def test_the_drc_message_says_the_payer_skipped_the_pin(self):
+        code, message = classify_failure(self.RDC_PIN)
+        assert code == "CONFIRMATION_TIMEOUT"
+        assert _status_for(self.RDC_PIN) == 402
+        assert "confirme" in message.lower()
+
+    def test_the_pin_wording_is_not_read_as_an_invalid_transaction(self):
+        """It also contains 'Transaction ID is invalid'; the payer's own
+        action is the more specific — and more useful — reading."""
+        code, _ = classify_failure(self.RDC_PIN)
+        assert code != "REJECTED_BY_OPERATOR"
+
+    def test_an_unsupported_method_is_neither_the_payer_nor_an_outage(self):
+        """AccountPE on Moov Ivory Coast, 2026-09-22. Retrying changes
+        nothing until the configuration does, so the customer must not be
+        told to wait a few minutes."""
+        code, message = classify_failure("Payment method not supported")
+        assert code == "METHOD_NOT_SUPPORTED"
+        assert _status_for("Payment method not supported") == 502
+        assert "indisponible" not in message.lower()
+        assert "autre operateur" in message.lower()
+
+    def test_a_bare_FAILED_stays_unknown(self):
+        """MTN Guinea returns just 'FAILED'. Nothing in it identifies a
+        cause, so inventing one would be worse than the honest fallback."""
+        code, _ = classify_failure("FAILED")
+        assert code == "PAYMENT_FAILED"
+        assert _status_for("FAILED") == 502

@@ -1169,6 +1169,7 @@ function ErrorsSection() {
         { name: "WRONG_OPERATOR", type: "client", desc: "Le numéro n'appartient pas à l'opérateur sélectionné (ex: numéro Orange avec MTN MoMo sélectionné)." },
         { name: "INVALID_PHONE", type: "client", desc: "Numéro de téléphone invalide : le nombre de chiffres ne correspond pas au pays. La longueur n'est pas la même partout — 9 au Cameroun, au Gabon et au Congo, 10 en Côte d'Ivoire, 8 au Bénin, au Mali et au Togo. Lisez phone_digits dans GET /payments/countries plutôt que de coder une longueur en dur ; le numéro est rejeté en 400 avant tout appel à l'opérateur." },
         { name: "TOO_MANY_ATTEMPTS", type: "client", desc: "Trop de tentatives de paiement pour ce numéro (5 par 30 minutes). Le refus arrive en HTTP 429 avec le délai restant exact dans l'en-tête Retry-After. Les tentatives bloquées par DUPLICATE_PAYMENT ne sont pas comptées." },
+        { name: "METHOD_NOT_SUPPORTED", type: "plateforme", desc: "Le fournisseur ne dessert pas cet opérateur dans ce pays. Contrairement à OPERATOR_UNAVAILABLE, réessayer ne changera rien tant que la configuration n'a pas évolué : proposez un autre opérateur à votre client, et signalez-nous le cas. Renvoyé en 502." },
         { name: "OPERATOR_UNAVAILABLE", type: "operator", desc: "L'opérateur Mobile Money est momentanément indisponible (panne, maintenance). Réessayez dans quelques minutes." },
         { name: "PAYMENT_FAILED", type: "generic", desc: "Échec non catégorisé. Le client peut réessayer ou utiliser un autre moyen de paiement." },
       ]} />
