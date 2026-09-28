@@ -82,6 +82,9 @@ export interface TouchPayBalance {
   agency_code: string | null;
   amount: number | null;
   configured: boolean;
+  /** TouchPay answered and rejected us — distinct from an unreadable reply. */
+  refused: boolean;
+  status_code: number | null;
   error: string | null;
 }
 

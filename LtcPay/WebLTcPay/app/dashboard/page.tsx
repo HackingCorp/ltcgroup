@@ -10,7 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { T } from "@/lib/i18n";
 import { fmtCompact } from "@/lib/format";
 import { dashboardService } from "@/services/dashboard.service";
-import { adminDashboardService } from "@/services/admin-dashboard.service";
+import { adminDashboardService, type PlatformOverview } from "@/services/admin-dashboard.service";
 import { providersService, type TouchPayBalance } from "@/services/providers.service";
 import type { DashboardStats } from "@/types";
 
@@ -31,55 +31,34 @@ function timeAgo(dateStr: string): string {
   return `il y a ${diffW} sem`;
 }
 
-/* ── platform chart ────────────────────────────────────────── */
+/* ── GMV by operator ─────────────────────────────────────────── */
+// This used to take one revenue series and multiply it by fixed shares —
+// 48% Orange, 31% MTN, 14% card, 7% Wave — under a "Realtime" badge. The
+// proportions were invented. These are the amounts actually collected.
 
-function PlatformChart({ data }: { data: number[] }) {
-  const w = 700, h = 220, pad = 24;
-  if (!data || data.length < 2) return null;
-  const series = [
-    { name: "Orange Money", c: "var(--orange-money)", data: data.map(v => v * 0.48) },
-    { name: "MTN MoMo", c: "var(--mtn)", data: data.map(v => v * 0.31) },
-    { name: "Card", c: "var(--ink)", data: data.map(v => v * 0.14) },
-    { name: "Wave", c: "var(--wave)", data: data.map(v => v * 0.07) },
-  ];
-  const totals = data.map(v => v);
-  const max = Math.max(...totals) * 1.1;
-  const step = (w - pad * 2) / (totals.length - 1);
-
-  const stacks = totals.map((_, i) => {
-    let cum = 0;
-    return series.map(s => {
-      const v = s.data[i];
-      const r = { y0: cum, y1: cum + v };
-      cum += v;
-      return r;
-    });
-  });
-
+function OperatorBars({ rows }: { rows: { country: string; operator: string; provider: string; count: number; amount: number }[] }) {
+  const max = Math.max(...rows.map(r => r.amount), 1);
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }}>
-      {[0, 1, 2, 3].map(i => (
-        <line key={i} x1={pad} x2={w - pad} y1={pad + i * ((h - pad * 2) / 3)} y2={pad + i * ((h - pad * 2) / 3)} stroke="var(--line)" strokeDasharray="2,4" />
+    <div style={{ display: "grid", gap: 10 }}>
+      {rows.map((r, i) => (
+        <div key={`${r.country}-${r.operator}-${r.provider}-${i}`}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, minWidth: 0 }}>
+              <span className="mono" style={{ color: "var(--muted-2)", fontSize: 10 }}>{r.country}</span>{" "}
+              <span style={{ fontWeight: 500 }}>{r.operator}</span>{" "}
+              <span style={{ color: "var(--muted)", fontSize: 11 }}>{r.provider.toLowerCase()}</span>
+            </span>
+            <span className="mono" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+              {fmtCompact(r.amount)}{" "}
+              <span style={{ color: "var(--muted)", fontSize: 10 }}>· {r.count}</span>
+            </span>
+          </div>
+          <div style={{ height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ width: `${(r.amount / max) * 100}%`, height: "100%", background: "var(--primary)" }} />
+          </div>
+        </div>
       ))}
-      {series.map((s, si) => {
-        const pathParts = stacks.map((stack, i) => {
-          const x = pad + i * step;
-          const y = h - pad - (stack[si].y1 / max) * (h - pad * 2);
-          return (i === 0 ? "M" : "L") + x + "," + y;
-        });
-        const bot = stacks.map((stack, i) => {
-          const x = pad + (totals.length - 1 - i) * step;
-          const y = h - pad - (stacks[totals.length - 1 - i][si].y0 / max) * (h - pad * 2);
-          return "L" + x + "," + y;
-        });
-        return <path key={si} d={pathParts.join(" ") + " " + bot.join(" ") + " Z"} fill={s.c} opacity={0.85} />;
-      })}
-      <g style={{ fontFamily: "var(--mono)", fontSize: 9, fill: "var(--muted)" }}>
-        <text x={pad} y={h - 6}>26 avr</text>
-        <text x={w / 2 - 16} y={h - 6}>10 mai</text>
-        <text x={w - pad - 30} y={h - 6}>26 mai</text>
-      </g>
-    </svg>
+    </div>
   );
 }
 
@@ -92,6 +71,7 @@ export default function DashboardPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [financeStats, setFinanceStats] = useState<any>(null);
   const [balances, setBalances] = useState<TouchPayBalance[] | null>(null);
+  const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -100,14 +80,25 @@ export default function DashboardPage() {
       adminDashboardService.getHealth().catch(() => null),
       adminDashboardService.getAuditLogs({ page: 1, page_size: 5 }).catch(() => ({ items: [] })),
       adminDashboardService.getFinanceStats().catch(() => null),
+      adminDashboardService.getPlatformOverview(30).catch(() => null),
     ])
-      .then(([s, health, logs, finance]) => {
+      .then(([s, health, logs, finance, ov]) => {
+        if (ov) setOverview(ov);
         if (s) setStats(s);
         if (health) {
+          // Read the shape the endpoint actually returns. This used to look
+          // for db_ok / redis_ok, which it has never sent, so both rendered
+          // "down" on a platform that was collecting payments throughout.
+          const dbStatus = health.db?.status ?? (health.db_ok ? "operational" : "down");
+          const redisStatus = health.redis?.status ?? (health.redis_ok ? "operational" : "down");
+          const tone = (st: string) =>
+            st === "operational" ? "var(--success)" : st === "disabled" ? "var(--muted)" : "var(--rose)";
+          const label = (st: string, ms?: number) =>
+            st === "operational" ? `${ms ?? 0}ms` : st === "disabled" ? "desactive" : "down";
           const services = [
             { name: "API Gateway", v: health.status === "healthy" ? "99.99%" : "degraded", c: health.status === "healthy" ? "var(--success)" : "var(--warn)" },
-            { name: "Database", v: health.db_ok ? `${health.db_latency_ms}ms p99` : "down", c: health.db_ok ? "var(--success)" : "var(--rose)" },
-            { name: "Redis", v: health.redis_ok ? `${health.redis_latency_ms}ms p99` : "down", c: health.redis_ok ? "var(--success)" : "var(--rose)" },
+            { name: "Database", v: label(dbStatus, health.db?.latency_ms), c: tone(dbStatus) },
+            { name: "Redis", v: label(redisStatus, health.redis?.latency_ms), c: tone(redisStatus) },
           ];
           setHealthServices(services);
         }
@@ -139,7 +130,9 @@ export default function DashboardPage() {
   }
 
   const sparklineData = financeStats?.revenue_sparkline || [];
-  const topMerchants = [...merchants].sort((a: any, b: any) => (b.total_revenue || 0) - (a.total_revenue || 0)).slice(0, 5);
+  // Ranked on what they actually collected, not on a total_revenue field
+  // the merchant list does not carry.
+  const topMerchants = overview?.top_merchants ?? [];
 
   return (
     <PageWrapper
@@ -189,8 +182,8 @@ export default function DashboardPage() {
             </div>
             <Pill tone="live">Realtime</Pill>
           </div>
-          {sparklineData.length > 0 ? (
-            <PlatformChart data={sparklineData} />
+          {overview && overview.gmv_by_operator.length > 0 ? (
+            <OperatorBars rows={overview.gmv_by_operator} />
           ) : (
             <div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
               <T fr="Donnees graphiques non disponibles" en="Chart data unavailable" />
@@ -201,12 +194,14 @@ export default function DashboardPage() {
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 6px" }}><T fr="Pays" en="Countries" /></h3>
           <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 18px" }}><T fr="Repartition des marchands actifs" en="Active merchant split" /></p>
-          {(stats as any)?.countries && ((stats as any).countries as any[]).length > 0 ? (
-            ((stats as any).countries as any[]).map((c: any, i: number) => (
+          {overview && overview.countries.length > 0 ? (
+            overview.countries.map((c, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
                 <span style={{ fontSize: 18 }}>{c.flag || "\u{1F30D}"}</span>
                 <span style={{ flex: 1, fontSize: 13 }}>{c.name}</span>
-                <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>{c.count}</span>
+                <span className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {c.completed}/{c.attempts}
+                </span>
                 <div style={{ width: 60, height: 6, background: "var(--bg-2)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${c.pct}%`, height: "100%", background: "var(--primary)" }} />
                 </div>
@@ -225,15 +220,17 @@ export default function DashboardPage() {
         {/* Top 5 merchants */}
         <div className="nk-card">
           <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 14px" }}><T fr="Top 5 marchands" en="Top 5 merchants" /></h3>
-          {topMerchants.length > 0 ? topMerchants.map((m: any, i: number) => (
+          {topMerchants.length > 0 ? topMerchants.map((m, i) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
               <span className="mono" style={{ fontSize: 10, color: "var(--muted-2)", width: 16 }}>{i + 1}.</span>
               <Avatar name={m.name} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{m.country || "CM"} · {m.plan || "Starter"}</div>
+                <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
+                  {m.count} <T fr="encaisses" en="collected" />
+                </div>
               </div>
-              <div className="mono" style={{ fontSize: 11 }}>{fmtCompact(m.total_revenue || 0)} F</div>
+              <div className="mono" style={{ fontSize: 11 }}>{fmtCompact(m.amount)} F</div>
             </div>
           )) : (
             <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
@@ -302,9 +299,11 @@ export default function DashboardPage() {
                     style={{ color: b.configured ? "var(--rose)" : "var(--muted)", fontSize: 11, textAlign: "right" }}
                     title={b.error || undefined}
                   >
-                    {b.configured
-                      ? <T fr="illisible" en="unreadable" />
-                      : <T fr="non configure" en="not configured" />}
+                    {!b.configured
+                      ? <T fr="non configure" en="not configured" />
+                      : b.refused
+                        ? <><T fr="refuse" en="refused" />{b.status_code ? ` ${b.status_code}` : ""}</>
+                        : <T fr="illisible" en="unreadable" />}
                   </span>
                 )}
               </div>

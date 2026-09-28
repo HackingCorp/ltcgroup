@@ -45,6 +45,11 @@ export const adminDashboardService = {
   },
 
   // ── Health ──────────────────────────────────────────────────
+  async getPlatformOverview(days = 30): Promise<PlatformOverview> {
+    const r = await api.get<PlatformOverview>("/dashboard/overview", { params: { days } });
+    return r.data;
+  },
+
   async getHealth() {
     const response = await api.get("/admin/health/");
     return response.data;
@@ -103,3 +108,17 @@ export const adminDashboardService = {
     return response.data;
   },
 };
+
+/** Real figures behind the overview panels — no invented shares. */
+export interface PlatformOverview {
+  days: number;
+  gmv_by_operator: {
+    country: string; operator: string; provider: string;
+    count: number; amount: number;
+  }[];
+  countries: {
+    code: string; name: string; flag: string; currency: string;
+    attempts: number; completed: number; amount: number; pct: number;
+  }[];
+  top_merchants: { id: string; name: string; count: number; amount: number }[];
+}

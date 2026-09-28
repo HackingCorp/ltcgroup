@@ -368,6 +368,8 @@ async def touchpay_balances(
             "agency_code": country.tp_agency_code or None,
             "amount": None,
             "configured": True,
+            "refused": False,
+            "status_code": None,
             "error": None,
         }
         try:
@@ -377,8 +379,13 @@ async def touchpay_balances(
             # country's own rather than showing an amount with no unit.
             entry["currency"] = result["currency"] or country.currency
         except TouchPayPartnerError as exc:
+            # "Refused" and "unreadable" call for different reactions, and
+            # showing both as "illisible" told nobody anything: the
+            # credentials were saved and TouchPay was rejecting them.
             entry["error"] = str(exc)
             entry["configured"] = "not configured" not in str(exc)
+            entry["status_code"] = exc.status_code
+            entry["refused"] = entry["configured"] and exc.status_code is not None
         except Exception as exc:  # noqa: BLE001 - one country must not sink the page
             logger.warning("Balance lookup failed for %s: %s", country.code, exc)
             entry["error"] = f"{type(exc).__name__}: {exc}"
