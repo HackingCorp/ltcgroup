@@ -502,11 +502,35 @@ async def test_country_integration(
     }
     missing_partner = [name for name, value in partner_fields.items() if not value]
     if not missing_partner:
-        checks.append(CountryTestCheck(
-            name="partner_api_configured",
-            status="pass",
-            message="Partner API credentials configured (check_status, get_balance, cashin)",
-        ))
+        # Three filled boxes are not a working integration. Four countries
+        # had their agency code sitting in partner_id — Gabon's with a typo
+        # — and every one of them would have shown a green PASS here while
+        # the API answered 400 or 401. Ask it.
+        from app.services.touchpay_partner_service import (
+            TouchPayPartnerError, touchpay_partner_service,
+        )
+        try:
+            await touchpay_partner_service.get_balance(db, code)
+            checks.append(CountryTestCheck(
+                name="partner_api_configured",
+                status="pass",
+                message="Partner API answers (check_status, get_balance, cashin available)",
+            ))
+        except TouchPayPartnerError as exc:
+            checks.append(CountryTestCheck(
+                name="partner_api_configured",
+                status="warn",
+                message=(
+                    f"Partner API credentials are set but refused: {exc}. "
+                    "Collection works; status reconciliation falls back to the payin API."
+                ),
+            ))
+        except Exception as exc:  # noqa: BLE001 - never sink the whole test
+            checks.append(CountryTestCheck(
+                name="partner_api_configured",
+                status="warn",
+                message=f"Partner API unreachable: {type(exc).__name__}: {exc}",
+            ))
     else:
         checks.append(CountryTestCheck(
             name="partner_api_configured",

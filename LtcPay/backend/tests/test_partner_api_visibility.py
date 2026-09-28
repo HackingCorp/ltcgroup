@@ -29,9 +29,22 @@ def _check(result, name):
 # The integration test's 6th check
 # --------------------------------------------------------------------------
 
-async def _run(monkeypatch, *, partner_id="", login_api="", password_api=""):
-    """Run the country test against a stubbed country and network."""
+async def _run(monkeypatch, *, partner_id="", login_api="", password_api="",
+               balance=None):
+    """Run the country test against a stubbed country and network.
+
+    `balance` is what the partner API answers when the triple is complete:
+    a dict for success, an exception for a refusal.
+    """
     from app.api.v1 import admin_countries as mod
+    import app.services.touchpay_partner_service as partner_mod
+
+    async def fake_balance(db, cc):
+        if isinstance(balance, Exception):
+            raise balance
+        return balance if balance is not None else {"amount": 1.0, "currency": "XAF", "raw": {}}
+
+    monkeypatch.setattr(partner_mod.touchpay_partner_service, "get_balance", fake_balance)
 
     country = SimpleNamespace(
         code="CD", tp_agency_code="LTCCD0035", tp_login="l", tp_password="",
@@ -92,9 +105,34 @@ async def test_a_partial_triple_names_only_what_is_missing(monkeypatch):
     assert "partner_id" not in check.message
 
 
-async def test_a_complete_triple_passes(monkeypatch):
+async def test_a_complete_triple_that_answers_passes(monkeypatch):
     result = await _run(monkeypatch, partner_id="PG1", login_api="lg", password_api="pw")
     assert _check(result, "partner_api_configured").status == "pass"
+
+
+async def test_a_complete_triple_that_is_refused_warns(monkeypatch):
+    """Three filled boxes are not a working integration.
+
+    Benin, Congo, Gabon and Guinea all had their agency code sitting in
+    partner_id and would have shown green here while the API answered 400
+    or 401.
+    """
+    from app.services.touchpay_partner_service import TouchPayPartnerError
+    result = await _run(
+        monkeypatch, partner_id="LTCCG0024", login_api="lg", password_api="pw",
+        balance=TouchPayPartnerError("The request is invalid. Please check the input data."),
+    )
+    check = _check(result, "partner_api_configured")
+    assert check.status == "warn"
+    assert "request is invalid" in check.message
+
+
+async def test_an_unreachable_partner_api_warns_rather_than_crashing(monkeypatch):
+    result = await _run(
+        monkeypatch, partner_id="PG1", login_api="lg", password_api="pw",
+        balance=RuntimeError("kaboom"),
+    )
+    assert _check(result, "partner_api_configured").status == "warn"
 
 
 async def test_a_warning_never_reads_as_a_full_pass(monkeypatch):
