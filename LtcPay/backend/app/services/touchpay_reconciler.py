@@ -27,6 +27,9 @@ from sqlalchemy import select, update
 
 from app.core.database import async_session
 from app.models.payment import Payment, PaymentProvider, PaymentStatus
+from app.services.touchpay_direct_service import (
+    TouchPayDirectError, touchpay_direct_service,
+)
 from app.services.touchpay_partner_service import (
     TouchPayPartnerError, touchpay_partner_service,
 )
@@ -79,6 +82,45 @@ async def _settle(payment_id, reference: str, old_status, new_status, verdict: d
     return True
 
 
+# Sentinel: this country cannot be asked at all this round.
+_SKIP_COUNTRY = object()
+
+
+async def _verdict_for(db, country: str, reference: str, unconfigured: set):
+    """Ask the partner API, and fall back to the payin status endpoint.
+
+    check_status is the better answer but is provisioned per agency: only
+    Cameroon has it, and Benin's own key answers 401. The payin API's
+    GET /{agency}/transaction/{reference} needs nothing but the agent
+    credentials every country already has, so it covers the other ten —
+    including Orange RDC, where TouchPay sends no failure callback at all
+    and 23 verdicts were sitting unread.
+    """
+    try:
+        return await touchpay_partner_service.check_status(db, country, reference)
+    except TouchPayPartnerError as exc:
+        partner_error = str(exc)
+
+    try:
+        verdict = await touchpay_direct_service.check_transaction_status(
+            db, country, reference,
+        )
+    except TouchPayDirectError as exc:
+        # Missing credentials is a per-country fact: stop asking for that
+        # country this round instead of repeating the same failure for
+        # every payment in the batch.
+        if "not configured" in str(exc):
+            unconfigured.add(country)
+            logger.info("TouchPay reconciliation: %s not configured, skipped", country)
+        else:
+            logger.warning(
+                "TouchPay reconciliation: no verdict for %s (partner: %s / payin: %s)",
+                reference, partner_error, exc,
+            )
+        return _SKIP_COUNTRY
+    return verdict
+
+
 async def sweep_once() -> int:
     """Re-verify one batch of unsettled TouchPay payments. Returns settled count."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=SWEEP_WINDOW_HOURS)
@@ -106,21 +148,9 @@ async def sweep_once() -> int:
         if country in unconfigured:
             continue
         async with async_session() as db:
-            try:
-                verdict = await touchpay_partner_service.check_status(db, country, reference)
-            except TouchPayPartnerError as exc:
-                # Missing credentials is a per-country fact: stop asking for
-                # that country this round instead of repeating the same
-                # failure for every payment in the batch.
-                if "not configured" in str(exc):
-                    unconfigured.add(country)
-                    logger.info("TouchPay reconciliation: %s not configured, skipped", country)
-                else:
-                    logger.warning(
-                        "TouchPay reconciliation: check_status failed for %s: %s",
-                        reference, exc,
-                    )
-                continue
+            verdict = await _verdict_for(db, country, reference, unconfigured)
+        if verdict is _SKIP_COUNTRY:
+            continue
 
         if verdict is None or verdict["is_pending"]:
             continue

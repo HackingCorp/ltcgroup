@@ -39,6 +39,16 @@ from app.services.failure_reasons import extract_operator_reference, is_customer
 
 logger = logging.getLogger(__name__)
 
+TIMEOUT_SECONDS = 30.0
+
+# The payin status endpoint answers SUCCEED where the partner API answers
+# SUCCESSFUL; both vocabularies are accepted so callers never have to care
+# which route produced a verdict.
+STATUS_SUCCESS = {"SUCCEED", "SUCCESSFUL", "SUCCESS", "COMPLETED"}
+STATUS_FAILED = {"FAILED", "CANCELLED", "CANCELED", "REJECTED", "EXPIRED"}
+STATUS_PENDING = {"PENDING", "INITIATED", "PROCESSING", "INPROGRESS", "IN_PROGRESS"}
+STATUS_UNKNOWN = {"NOTFOUND", "NOT_FOUND"}
+
 
 class TouchPayDirectError(Exception):
     """Error from TouchPay Direct API (HTTP or business-level).
@@ -189,6 +199,86 @@ class TouchPayDirectService:
         """
         return country_service.normalize_phone(phone, phone_prefix, phone_digits)
 
+    async def check_transaction_status(
+        self, db: AsyncSession, country_code: str, payment_reference: str,
+    ) -> dict | None:
+        """What TouchPay's payin API says about one of our references.
+
+            GET {api_url}/{agency}/transaction/{idFromClient}
+                ?loginAgent=...&passwordAgent=...
+
+        Found by probing on 2026-09-02 and documented since in the Benin
+        package. It needs only the agent credentials every country already
+        has, so it works on every agency — unlike the partner API's
+        check_status, which is provisioned per agency and answers 401 on
+        Benin. That makes it the reconciliation fallback for the ten
+        countries with no partner credentials, and the only way to learn a
+        verdict on Orange RDC, where TouchPay sends no failure callback at
+        all.
+
+        Keyed on idFromClient, our own reference. Passing idFromGU 404s.
+
+        Returns the same verdict shape as the partner API, or None when the
+        answer cannot be read. A 404 means TouchPay has never heard of the
+        reference — a basket the customer abandoned — which is reported as
+        pending, never as failed.
+        """
+        try:
+            creds = await country_service.get_decrypted_credentials(db, country_code)
+        except ValueError as exc:
+            raise TouchPayDirectError(
+                f"Country '{country_code}' not available: {exc}"
+            ) from exc
+
+        missing = [k for k in ("agency_code", "login", "password", "direct_api_url")
+                   if not creds.get(k)]
+        if missing:
+            raise TouchPayDirectError(
+                f"TouchPay not configured for {country_code}: missing {', '.join(missing)}"
+            )
+
+        url = (
+            f"{creds['direct_api_url'].rstrip('/')}/{creds['agency_code']}"
+            f"/transaction/{payment_reference}"
+        )
+        params = {"loginAgent": creds["login"], "passwordAgent": creds["password"]}
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+                response = await client.get(url, params=params)
+        except httpx.HTTPError as exc:
+            raise TouchPayDirectError(
+                f"Status lookup unreachable: {exc}", outcome_unknown=True,
+            ) from exc
+
+        if response.status_code == 404:
+            return {
+                "status": "NOTFOUND", "is_paid": False, "is_failed": False,
+                "is_pending": True, "raw": {},
+            }
+        try:
+            data = response.json()
+        except ValueError:
+            logger.warning(
+                "Status lookup for %s: non-JSON body (HTTP %s)",
+                payment_reference, response.status_code,
+            )
+            return None
+        if not isinstance(data, dict) or data.get("status") is None:
+            logger.warning(
+                "Status lookup for %s: no status in %s",
+                payment_reference, str(data)[:300],
+            )
+            return None
+
+        label = str(data["status"]).strip().upper()
+        return {
+            "status": label,
+            "is_paid": label in STATUS_SUCCESS,
+            "is_failed": label in STATUS_FAILED,
+            "is_pending": label in STATUS_PENDING or label in STATUS_UNKNOWN,
+            "raw": data,
+        }
+
     async def initiate_payment(
         self,
         db: AsyncSession,
@@ -326,7 +416,7 @@ class TouchPayDirectService:
 
         try:
             auth = httpx.DigestAuth(login, password)
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
                 response = await client.put(
                     url,
                     json=payload,

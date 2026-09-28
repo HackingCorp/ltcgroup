@@ -190,3 +190,84 @@ async def test_a_webhook_failure_does_not_undo_the_settlement(db_session):
                    new=AsyncMock(side_effect=RuntimeError("merchant down"))):
             assert await sweep_once() == 1
     assert await _status_of(db_session, payment.id) == PaymentStatus.COMPLETED
+
+
+# --------------------------------------------------------------------------
+# Falling back to the payin status endpoint
+# --------------------------------------------------------------------------
+# check_status is provisioned per agency: only Cameroon has it, and Benin's
+# own key answers 401. GET /{agency}/transaction/{reference} needs nothing
+# but the agent credentials every country already has, so it covers the
+# other ten — including Orange RDC, where TouchPay sends no failure
+# callback at all.
+
+def _payin(return_value=None, side_effect=None):
+    return patch(
+        "app.services.touchpay_direct_service.touchpay_direct_service.check_transaction_status",
+        new=AsyncMock(return_value=return_value, side_effect=side_effect),
+    )
+
+
+def _partner_unavailable(message="Unauthorized."):
+    from app.services.touchpay_partner_service import TouchPayPartnerError
+    return patch(
+        "app.services.touchpay_partner_service.touchpay_partner_service.check_status",
+        new=AsyncMock(side_effect=TouchPayPartnerError(message)),
+    )
+
+
+async def test_the_payin_endpoint_settles_when_the_partner_api_is_unavailable(db_session):
+    payment = await _payment(db_session, PaymentStatus.EXPIRED)
+    with _partner_unavailable(), _payin(_verdict("SUCCEED", paid=True)):
+        assert await sweep_once() == 1
+    assert await _status_of(db_session, payment.id) == PaymentStatus.COMPLETED
+
+
+async def test_the_payin_endpoint_is_not_called_when_the_partner_api_answers(db_session):
+    payment = await _payment(db_session, PaymentStatus.PROCESSING)
+    fallback = AsyncMock(return_value=_verdict("FAILED", failed=True))
+    with _check(_verdict("SUCCEED", paid=True)), patch(
+        "app.services.touchpay_direct_service.touchpay_direct_service.check_transaction_status",
+        new=fallback,
+    ):
+        assert await sweep_once() == 1
+    assert fallback.await_count == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.COMPLETED
+
+
+async def test_notfound_from_the_payin_endpoint_settles_nothing(db_session):
+    """A basket the customer never submitted is not a failure."""
+    payment = await _payment(db_session, PaymentStatus.EXPIRED)
+    verdict = {"status": "NOTFOUND", "is_paid": False, "is_failed": False,
+               "is_pending": True, "raw": {}}
+    with _partner_unavailable(), _payin(verdict):
+        assert await sweep_once() == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+async def test_a_country_missing_agent_credentials_is_skipped(db_session):
+    from app.services.touchpay_direct_service import TouchPayDirectError
+    payment = await _payment(db_session, PaymentStatus.PROCESSING)
+    with _partner_unavailable(), _payin(
+        side_effect=TouchPayDirectError("TouchPay not configured for CM: missing password"),
+    ):
+        assert await sweep_once() == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING
+
+
+async def test_both_routes_failing_leaves_the_payment_alone(db_session):
+    from app.services.touchpay_direct_service import TouchPayDirectError
+    payment = await _payment(db_session, PaymentStatus.EXPIRED)
+    with _partner_unavailable(), _payin(
+        side_effect=TouchPayDirectError("Status lookup unreachable: boom"),
+    ):
+        assert await sweep_once() == 0   # returns, does not raise
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+async def test_a_late_failure_verdict_is_recorded(db_session):
+    """Orange RDC's case: TouchPay holds a FAILED it never sent us."""
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, country="CD")
+    with _partner_unavailable(), _payin(_verdict("FAILED", failed=True)):
+        assert await sweep_once() == 1
+    assert await _status_of(db_session, payment.id) == PaymentStatus.FAILED
