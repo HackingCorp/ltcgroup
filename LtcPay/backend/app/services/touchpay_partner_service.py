@@ -1,16 +1,29 @@
 """
 TouchPay partner API — check_status, get_balance, cashin.
 
-Three endpoints TouchPay documents in its Insomnia collection and that we
-had never used, all POST under {partner_api_url}/{agency}/ and all
-authenticated with a partner_id + login_api + password_api triple that is
-NOT the agency + loginAgent + passwordAgent pair the payin API takes:
+Three endpoints TouchPay documents in its Insomnia collections, all POST
+under {partner_api_url}/{agency}/:
 
     POST /{agency}/check_status   {partner_id, partner_transaction_id, login_api, password_api}
     POST /{agency}/get_balance    {partner_id, login_api, password_api}
     POST /{agency}/cashin         {service_id, recipient_phone_number, amount,
                                    partner_id, partner_transaction_id,
                                    login_api, password_api}
+
+Authentication takes two credentials that are easy to confuse, and getting
+them the wrong way round is what made every live call fail on 2026-09-28:
+
+  HTTP Basic          the API key pair. Identical in the "LTC GROUP GA" and
+                      "SENTINEL CMR" collections, so it is a platform
+                      credential, not a per-agency one. Held in tp_login_api
+                      / tp_password_api.
+  body login_api      the AGENT's login and password — the very pair the
+  body password_api   payin API takes as loginAgent / passwordAgent. Held in
+                      tp_login / tp_password.
+
+Sending the key pair in the body answers 400 "The provided context does not
+match the agent's sale point"; sending the agent pair as Basic answers 401.
+Only the two together work, and then get_balance returns the agency float.
 
 Why each matters here:
 
@@ -47,6 +60,10 @@ TIMEOUT_SECONDS = 30.0
 STATUS_SUCCESS = {"SUCCESSFUL", "SUCCEED", "SUCCESS", "COMPLETED"}
 STATUS_FAILED = {"FAILED", "CANCELLED", "CANCELED", "REJECTED", "EXPIRED"}
 STATUS_PENDING = {"PENDING", "INITIATED", "PROCESSING", "INPROGRESS", "IN_PROGRESS"}
+# TouchPay answers NOTFOUND for a reference it has never seen — a basket the
+# customer abandoned before submitting. It is not a verdict: treated as
+# pending so no caller ever settles a payment on the strength of it.
+STATUS_UNKNOWN = {"NOTFOUND", "NOT_FOUND"}
 
 
 class TouchPayPartnerError(Exception):
@@ -66,8 +83,11 @@ class TouchPayPartnerService:
 
     async def _credentials(self, db: AsyncSession, country_code: str) -> dict:
         creds = await country_service.get_decrypted_credentials(db, country_code)
+        # login/password are the agent pair the body needs; login_api and
+        # password_api are the Basic-auth key pair. All five are required.
         missing = [
-            key for key in ("agency_code", "partner_id", "login_api", "password_api")
+            key for key in
+            ("agency_code", "partner_id", "login_api", "password_api", "login", "password")
             if not creds.get(key)
         ]
         if missing:
@@ -87,16 +107,13 @@ class TouchPayPartnerService:
         "not found" from an outage.
         """
         url = self._url(creds["partner_api_url"], creds["agency_code"], path)
+        # The body carries the AGENT pair, not the Basic-auth key pair.
         body = {
             **payload,
             "partner_id": creds["partner_id"],
-            "login_api": creds["login_api"],
-            "password_api": creds["password_api"],
+            "login_api": creds["login"],
+            "password_api": creds["password"],
         }
-        # The triple goes in the body AND in HTTP Basic auth: login_api is
-        # the username, password_api the password. Sending it in the body
-        # alone answers 401 "The request requires user authentication" —
-        # which is what the first live call did on 2026-09-28.
         auth = httpx.BasicAuth(creds["login_api"], creds["password_api"])
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
@@ -166,7 +183,7 @@ class TouchPayPartnerService:
             "status": label,
             "is_paid": label in STATUS_SUCCESS,
             "is_failed": label in STATUS_FAILED,
-            "is_pending": label in STATUS_PENDING,
+            "is_pending": label in STATUS_PENDING or label in STATUS_UNKNOWN,
             "raw": data,
         }
 

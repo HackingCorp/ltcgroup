@@ -16,11 +16,15 @@ from app.services.touchpay_partner_service import (
     TouchPayPartnerError, TouchPayPartnerService,
 )
 
+# login_api / password_api are the Basic-auth key pair; login / password
+# are the agent pair the request body carries. Both are required.
 FULL_CREDS = {
     "agency_code": "LTCGA0169",
     "partner_id": "PG12345678",
-    "login_api": "login-api",
-    "password_api": "pw-api",
+    "login_api": "3CED9BA7-key-user",
+    "password_api": "F41A61A1-key-pass",
+    "login": "913719226",
+    "password": "agent-password",
     "partner_api_url": "https://apidist.gutouch.net/apidist/sec",
 }
 
@@ -31,7 +35,8 @@ def _service(creds=None, response=None, capture=None):
 
     async def fake_creds(db, country_code):
         resolved = FULL_CREDS if creds is None else creds
-        missing = [k for k in ("agency_code", "partner_id", "login_api", "password_api")
+        missing = [k for k in ("agency_code", "partner_id", "login_api",
+                              "password_api", "login", "password")
                    if not resolved.get(k)]
         if missing:
             raise TouchPayPartnerError(
@@ -44,8 +49,10 @@ def _service(creds=None, response=None, capture=None):
 
     async def fake_post(creds_, path, payload, *, label):
         if capture is not None:
-            capture.append((path, {**payload, **{k: creds_[k] for k in
-                            ("partner_id", "login_api", "password_api")}}))
+            capture.append((path, {**payload,
+                                   "partner_id": creds_["partner_id"],
+                                   "login_api": creds_["login"],
+                                   "password_api": creds_["password"]}))
         if isinstance(response, Exception):
             raise response
         return response
@@ -146,14 +153,17 @@ async def test_cashin_sends_every_documented_field():
     assert body["recipient_phone_number"] == "679711656"
     assert body["amount"] == 500
     assert body["partner_transaction_id"] == "WD-1"
-    assert body["login_api"] and body["password_api"]
+    # The body carries the agent pair, never the Basic-auth key pair.
+    assert body["login_api"] == FULL_CREDS["login"]
+    assert body["password_api"] == FULL_CREDS["password"]
 
 
 # --------------------------------------------------------------------------
 # Credentials
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("missing", ["partner_id", "login_api", "password_api"])
+@pytest.mark.parametrize(
+    "missing", ["partner_id", "login_api", "password_api", "login", "password"])
 async def test_a_missing_credential_is_named(missing):
     creds = {**FULL_CREDS, missing: ""}
     with pytest.raises(TouchPayPartnerError) as exc:
@@ -166,6 +176,7 @@ async def test_payin_credentials_alone_are_not_enough():
     # A country set up for payins has agency_code but none of the partner
     # triple: it must fail loudly rather than send half-authenticated calls.
     creds = {"agency_code": "LTCGA0169", "partner_api_url": FULL_CREDS["partner_api_url"],
+             "login": "913719226", "password": "agent-password",
              "partner_id": "", "login_api": "", "password_api": ""}
     with pytest.raises(TouchPayPartnerError):
         await _service(creds=creds).get_balance(None, "GA")
@@ -280,8 +291,10 @@ async def test_the_triple_is_sent_as_http_basic_auth():
     want = next(expected.auth_flow(httpx.Request("POST", "https://x/"))).headers["authorization"]
     assert sent == want
     # and the body still carries them, as the collection does
-    assert captured["body"]["login_api"] == FULL_CREDS["login_api"]
-    assert captured["body"]["password_api"] == FULL_CREDS["password_api"]
+    # ... while the body carries the AGENT pair. Sending the key pair here
+    # answers 400 "The provided context does not match the agent's sale point".
+    assert captured["body"]["login_api"] == FULL_CREDS["login"]
+    assert captured["body"]["password_api"] == FULL_CREDS["password"]
 
 
 @pytest.mark.parametrize("body,expected", [
@@ -320,3 +333,39 @@ async def test_an_unworded_refusal_still_names_the_status():
         with pytest.raises(TouchPayPartnerError) as exc:
             await service.get_balance(None, "GA")
     assert "503" in str(exc.value)
+
+
+async def test_notfound_is_not_a_verdict():
+    """TouchPay answers NOTFOUND for a basket the customer never submitted.
+
+    Treating it as failed would settle payments the operator has simply
+    never heard of, so it counts as pending and the caller leaves the row
+    alone.
+    """
+    verdict = await _service(response={
+        "status": "NOTFOUND",
+        "description": "No operation/transaction found for this PartnerNum and PartnerId",
+    }).check_status(None, "GA", "PAY-1")
+    assert verdict["is_pending"]
+    assert not verdict["is_paid"] and not verdict["is_failed"]
+
+
+async def test_the_live_success_shape_is_read():
+    """The exact body get_balance/check_status returned on 2026-09-28."""
+    verdict = await _service(response={
+        "service_id": "CM_PAIEMENTMARCHAND_OM_TP",
+        "gu_transaction_id": "1789403681377",
+        "status": "SUCCESSFUL",
+        "transaction_date": "2026/09/14 16:35:20",
+        "recipient_id": "694587659",
+        "amount": 29376.0,
+    }).check_status(None, "CM", "PAY-8DAC17EF19894B0B")
+    assert verdict["is_paid"]
+    assert verdict["raw"]["gu_transaction_id"] == "1789403681377"
+
+
+async def test_the_live_balance_shape_is_read():
+    out = await _service(response={
+        "amount": 290390.1899999993, "errorCode": "200", "errorMessage": "SUCCESSFUL",
+    }).get_balance(None, "CM")
+    assert out["amount"] == pytest.approx(290390.19, rel=1e-9)
