@@ -243,3 +243,80 @@ async def test_country_values_take_priority_over_the_env_fallback():
     assert creds["partner_id"] == "PG-GABON"     # the country's own value wins
     assert creds["login_api"] == "login-gabon"   # idem
     assert creds["password_api"] == "pw-global"  # empty on the country -> env fallback
+
+
+# --------------------------------------------------------------------------
+# Transport: HTTP Basic auth and the partner API's own error wording
+# --------------------------------------------------------------------------
+# First live call, 2026-09-28: sending the triple in the JSON body alone
+# answered 401 "The request requires user authentication". The Insomnia
+# collection authenticates with HTTP Basic, login_api as the username and
+# password_api as the password — the body carries them as well.
+
+
+async def test_the_triple_is_sent_as_http_basic_auth():
+    service = TouchPayPartnerService()
+
+    async def fake_creds(db, cc):
+        return FULL_CREDS
+    service._credentials = fake_creds  # type: ignore[assignment]
+
+    captured = {}
+
+    async def fake_post(self, url, *, json=None, auth=None, **kw):
+        captured["auth"] = auth
+        captured["body"] = json
+        return SimpleNamespace(status_code=200, json=lambda: {"balance": 1})
+
+    with patch("httpx.AsyncClient.post", new=fake_post):
+        await service.get_balance(None, "GA")
+
+    assert isinstance(captured["auth"], httpx.BasicAuth)
+    # Compare the header it would actually send against a reference pair,
+    # rather than reaching into httpx internals by name.
+    expected = httpx.BasicAuth(FULL_CREDS["login_api"], FULL_CREDS["password_api"])
+    request = httpx.Request("POST", "https://x/")
+    sent = next(captured["auth"].auth_flow(request)).headers["authorization"]
+    want = next(expected.auth_flow(httpx.Request("POST", "https://x/"))).headers["authorization"]
+    assert sent == want
+    # and the body still carries them, as the collection does
+    assert captured["body"]["login_api"] == FULL_CREDS["login_api"]
+    assert captured["body"]["password_api"] == FULL_CREDS["password_api"]
+
+
+@pytest.mark.parametrize("body,expected", [
+    ({"errorMessage": "The provided context does not match the agent's sale point."},
+     "sale point"),
+    ({"description": " No agent found with the provided credentials"},
+     "No agent found"),
+    ({"detailMessage": "Vous n'etes pas autorise"}, "pas autorise"),
+    ({"message": "boom"}, "boom"),
+])
+async def test_a_refusal_carries_touchpays_own_wording(body, expected):
+    """The partner API uses errorMessage/description, not detailMessage."""
+    service = TouchPayPartnerService()
+
+    async def fake_creds(db, cc):
+        return FULL_CREDS
+    service._credentials = fake_creds  # type: ignore[assignment]
+
+    response = SimpleNamespace(status_code=400, json=lambda: body)
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=response)):
+        with pytest.raises(TouchPayPartnerError) as exc:
+            await service.get_balance(None, "GA")
+    assert expected in str(exc.value)
+    assert exc.value.status_code == 400
+
+
+async def test_an_unworded_refusal_still_names_the_status():
+    service = TouchPayPartnerService()
+
+    async def fake_creds(db, cc):
+        return FULL_CREDS
+    service._credentials = fake_creds  # type: ignore[assignment]
+
+    response = SimpleNamespace(status_code=503, json=lambda: {})
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=response)):
+        with pytest.raises(TouchPayPartnerError) as exc:
+            await service.get_balance(None, "GA")
+    assert "503" in str(exc.value)

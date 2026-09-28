@@ -93,9 +93,14 @@ class TouchPayPartnerService:
             "login_api": creds["login_api"],
             "password_api": creds["password_api"],
         }
+        # The triple goes in the body AND in HTTP Basic auth: login_api is
+        # the username, password_api the password. Sending it in the body
+        # alone answers 401 "The request requires user authentication" —
+        # which is what the first live call did on 2026-09-28.
+        auth = httpx.BasicAuth(creds["login_api"], creds["password_api"])
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
-                response = await client.post(url, json=body)
+                response = await client.post(url, json=body, auth=auth)
         except httpx.HTTPError as exc:
             raise TouchPayPartnerError(f"{label} unreachable: {exc}") from exc
 
@@ -111,10 +116,18 @@ class TouchPayPartnerService:
                 f"{label} returned an unexpected body", status_code=response.status_code,
             )
         if response.status_code >= 400:
+            # The partner API words its refusals under errorMessage or
+            # description, not the detailMessage the payin API uses — so
+            # every refusal used to surface as a bare "HTTP 400".
+            reason = (
+                data.get("errorMessage")
+                or data.get("detailMessage")
+                or data.get("description")
+                or data.get("message")
+                or f"HTTP {response.status_code}"
+            )
             raise TouchPayPartnerError(
-                str(data.get("detailMessage") or data.get("message") or f"HTTP {response.status_code}"),
-                status_code=response.status_code,
-                raw=data,
+                str(reason).strip(), status_code=response.status_code, raw=data,
             )
         return data
 
