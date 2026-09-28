@@ -17,13 +17,23 @@ from app.services.provider_service import provider_service
 
 @pytest_asyncio.fixture
 async def cameroon(db_session):
-    """A minimal active XAF country — the currency check needs one."""
-    country = SupportedCountry(
-        code="CM", name="Cameroun", currency="XAF",
-        phone_prefix="237", is_active=True,
-    )
-    db_session.add(country)
-    await db_session.commit()
+    """A minimal active XAF country — the currency check needs one.
+
+    conftest now seeds CM for every test, so take the existing row rather
+    than inserting a second one (phone_prefix is unique).
+    """
+    from sqlalchemy import select
+
+    country = (await db_session.execute(
+        select(SupportedCountry).where(SupportedCountry.code == "CM")
+    )).scalar_one_or_none()
+    if country is None:
+        country = SupportedCountry(
+            code="CM", name="Cameroun", currency="XAF",
+            phone_prefix="237", is_active=True,
+        )
+        db_session.add(country)
+        await db_session.commit()
     return country
 
 

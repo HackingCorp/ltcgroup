@@ -55,9 +55,59 @@ async def setup_database():
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _seed_country()
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+async def _seed_country():
+    """One active country, as production always has.
+
+    Payment creation resolves a country before anything else and answers
+    400 "Aucun pays actif disponible pour ce marchand" when none exists.
+    The tables were created empty, so sixteen tests across test_api,
+    test_payments and test_payments_direct_api asserted 201 and got 400 —
+    they had been failing on the fixture, not on the code under test.
+    """
+    from app.models.country import CountryOperator, SupportedCountry
+    from app.models.provider import CountryProvider, ProviderConfig, ProviderGroup
+
+    async with TestSessionLocal() as session:
+        # The router resolves a provider before an operator, so a country
+        # without a TOUCHPAY row answers "Aucun fournisseur de paiement
+        # disponible pour l'operateur ... dans le pays ...".
+        session.add(ProviderConfig(
+            code="TOUCHPAY", name="TouchPay", provider_group=ProviderGroup.MOBILE,
+            is_active=True, config={},
+        ))
+        session.add(SupportedCountry(
+            code="CM", name="Cameroun", currency="XAF",
+            phone_prefix="237", phone_digits=9, phone_pattern="6XX XX XX XX",
+            flag_emoji="", default_city="Douala",
+            min_amount=100, max_amount=500_000,
+            tp_agency_code="TESTAGENCY", tp_login="login", tp_password="",
+            tp_secret="", tp_merchant_id="TESTMERCHANT", tp_secure_code="",
+            tp_merchant_website="", is_active=True,
+        ))
+        session.add_all([
+            CountryOperator(
+                country_code="CM", operator_code="MTN", operator_name="MTN MoMo",
+                service_code="PAIEMENTMARCHAND_MTN_CM", provider_code="TOUCHPAY",
+                phone_prefixes=["67", "650", "651", "652", "653", "654"],
+                is_active=True,
+            ),
+            CountryOperator(
+                country_code="CM", operator_code="ORANGE", operator_name="Orange Money",
+                service_code="CM_PAIEMENTMARCHAND_OM_TP", provider_code="TOUCHPAY",
+                phone_prefixes=["69", "655", "656", "657", "658", "659"],
+                is_active=True,
+            ),
+        ])
+        session.add(CountryProvider(
+            country_code="CM", provider_code="TOUCHPAY", priority=1, is_active=True,
+        ))
+        await session.commit()
 
 
 @pytest_asyncio.fixture

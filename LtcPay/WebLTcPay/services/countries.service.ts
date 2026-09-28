@@ -49,6 +49,11 @@ export interface CountryCredentials {
   merchant_website?: string;
   sdk_url?: string;
   direct_api_url?: string;
+  // Partner API: a different triple from the payin credentials above,
+  // issued per agency. Drives check_status / get_balance / cashin.
+  partner_id?: string;
+  login_api?: string;
+  password_api?: string;
 }
 
 export interface CreateCountryData {
@@ -118,7 +123,7 @@ export interface MerchantCountryInfo {
 
 export interface CountryTestCheck {
   name: string;
-  status: "pass" | "fail";
+  status: "pass" | "warn" | "fail";
   message: string;
   latency_ms: number | null;
 }

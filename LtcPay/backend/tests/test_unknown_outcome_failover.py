@@ -112,12 +112,17 @@ async def test_outcome_unknown_defaults_to_false():
 
 async def test_the_service_marks_its_timeouts():
     """The flag has to be set where httpx raises, not only in tests."""
+    import random
+
     from app.core.velocity import clear_payin_attempt
     from app.services.touchpay_direct_service import touchpay_direct_service
 
-    # The duplicate window is held in Redis and outlives the test process:
-    # without this, a second run is refused before reaching httpx at all.
-    clear_payin_attempt("ORANGE", "656248496", 12709)
+    # Both the duplicate window and the velocity counter live in Redis and
+    # outlive the test process, so a fixed number is refused before reaching
+    # httpx once the suite has run a few times. A fresh number each run
+    # sidesteps both; the window is cleared too in case one collides.
+    phone = f"65{random.randint(1000000, 9999999)}"
+    clear_payin_attempt("ORANGE", phone, 12709)
 
     country = SimpleNamespace(
         phone_prefix="237", phone_digits=9, enforce_phone_prefix_check=False,
@@ -142,7 +147,7 @@ async def test_the_service_marks_its_timeouts():
                     db=None,
                     payment_reference="PAY-4DB3A75B530848C8",
                     amount=12709,
-                    phone_number="656248496",
+                    phone_number=phone,
                     operator_code="ORANGE",
                     country_code="CM",
                     callback_url="https://pay.ltcgroup.site/cb",

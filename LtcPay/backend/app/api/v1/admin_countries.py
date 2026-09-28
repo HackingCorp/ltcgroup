@@ -191,6 +191,13 @@ async def get_country_credentials(
         "merchant_website": country.tp_merchant_website or "",
         "sdk_url": country.tp_sdk_url or "",
         "direct_api_url": country.tp_direct_api_url or "",
+        # The partner API triple (check_status / get_balance / cashin). The
+        # PATCH has stored these since 2026-09-06 but this read never gave
+        # them back, so the dashboard form could not show them and an admin
+        # had no way to tell a configured country from an empty one.
+        "partner_id": country.tp_partner_id or "",
+        "login_api": country.tp_login_api or "",
+        "password_api": decrypt_value(country.tp_password_api) if country.tp_password_api else "",
     }
 
 
@@ -298,8 +305,9 @@ async def test_country_integration(
 ):
     """Test TouchPay integration for a country without making a real payment.
 
-    Runs 5 checks: credentials completeness, Direct API connectivity,
-    Direct API authentication, SDK URL reachability, and operator configuration.
+    Runs 6 checks: credentials completeness, Direct API connectivity,
+    Direct API authentication, SDK URL reachability, operator configuration,
+    and partner API credentials.
     """
     code = code.upper()
 
@@ -478,14 +486,45 @@ async def test_country_integration(
             message="No active TouchPay operators with service codes configured",
         ))
 
+    # -- Check 6: Partner API credentials --
+    # A different triple from the five above: without it check_status,
+    # get_balance, cashin and the reconciliation sweep are all dead, while
+    # payins work perfectly. Reporting only the payin five let this country
+    # page show a green PASS on 2026-09-28 while every one of those was
+    # unconfigured. A warning, not a failure - collection does not need it.
+    partner_fields = {
+        "partner_id": country.tp_partner_id or settings.TOUCHPAY_PARTNER_ID,
+        "login_api": country.tp_login_api or settings.TOUCHPAY_LOGIN_API,
+        "password_api": (
+            (decrypt_value(country.tp_password_api) if country.tp_password_api else "")
+            or settings.TOUCHPAY_PASSWORD_API
+        ),
+    }
+    missing_partner = [name for name, value in partner_fields.items() if not value]
+    if not missing_partner:
+        checks.append(CountryTestCheck(
+            name="partner_api_configured",
+            status="pass",
+            message="Partner API credentials configured (check_status, get_balance, cashin)",
+        ))
+    else:
+        checks.append(CountryTestCheck(
+            name="partner_api_configured",
+            status="warn",
+            message=(
+                f"Partner API not configured: missing {', '.join(missing_partner)}. "
+                "Collection works; status reconciliation and balance are unavailable."
+            ),
+        ))
+
     # Compute overall status
     statuses = [c.status for c in checks]
-    if all(s == "pass" for s in statuses):
-        overall = "pass"
-    elif all(s == "fail" for s in statuses):
-        overall = "fail"
-    else:
+    if any(s == "fail" for s in statuses):
+        overall = "fail" if all(s == "fail" for s in statuses) else "partial"
+    elif any(s == "warn" for s in statuses):
         overall = "partial"
+    else:
+        overall = "pass"
 
     logger.info("Country integration test: %s → %s by admin %s", code, overall, admin.email)
 

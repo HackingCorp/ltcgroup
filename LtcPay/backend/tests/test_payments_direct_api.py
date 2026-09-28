@@ -36,7 +36,7 @@ class TestCreatePaymentDirectAPI:
         }
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
 
@@ -83,7 +83,7 @@ class TestCreatePaymentDirectAPI:
         }
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
 
@@ -115,7 +115,7 @@ class TestCreatePaymentDirectAPI:
         from app.services.touchpay_direct_service import TouchPayDirectError
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(
                 side_effect=TouchPayDirectError("Provider unavailable", status_code=503)
@@ -220,7 +220,7 @@ class TestDirectAPICallback:
         }
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
 
@@ -271,7 +271,7 @@ class TestDirectAPICallback:
         mock_response = {"status": 200, "transactionId": "TP-FAIL-001"}
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
 
@@ -319,7 +319,7 @@ class TestDirectAPICallback:
         mock_response = {"status": 200, "transactionId": "TP-IDEM-001"}
 
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
 
@@ -451,7 +451,7 @@ class TestSDKModeRegression:
     ):
         """Test that SDK mode does NOT call the Direct API service."""
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock()
 
@@ -510,7 +510,7 @@ class TestSDKModeRegression:
         # Create Direct API payment
         mock_response = {"status": 200, "transactionId": "TP-MIX-001"}
         with patch(
-            "app.api.v1.payments.touchpay_direct_service"
+            "app.services.payment_router.touchpay_direct_service"
         ) as mock_service:
             mock_service.initiate_payment = AsyncMock(return_value=mock_response)
             await client.post(

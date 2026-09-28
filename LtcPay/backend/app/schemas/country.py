@@ -222,7 +222,7 @@ class MerchantCountryToggle(BaseModel):
 
 class CountryTestCheck(BaseModel):
     name: str
-    status: str  # "pass" or "fail"
+    status: str  # "pass", "warn" or "fail"
     message: str
     latency_ms: Optional[float] = None
 

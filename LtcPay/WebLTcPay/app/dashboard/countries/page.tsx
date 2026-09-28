@@ -357,23 +357,34 @@ export default function CountriesPage() {
                             </div>
                           ) : testResults[c.code] ? (
                             <div style={{ display: "grid", gap: 4 }}>
-                              {testResults[c.code].checks.map((ch) => (
+                              {testResults[c.code].checks.map((ch) => {
+                                // A warn is not a failure: the country collects
+                                // fine, something optional is missing. Painting
+                                // it red would train the eye to ignore red.
+                                const tone = ch.status === "pass"
+                                  ? "var(--success)"
+                                  : ch.status === "warn" ? "var(--warn)" : "var(--rose)";
+                                const icon = ch.status === "pass"
+                                  ? "check"
+                                  : ch.status === "warn" ? "alert" : "x";
+                                return (
                                 <div
                                   key={ch.name}
                                   style={{
                                     display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
                                     background: "var(--surface)", borderRadius: 8, fontSize: 12,
-                                    borderLeft: `3px solid ${ch.status === "pass" ? "var(--success)" : "var(--rose)"}`,
+                                    borderLeft: `3px solid ${tone}`,
                                   }}
                                 >
-                                  <Icon name={ch.status === "pass" ? "check" : "x"} size={14} color={ch.status === "pass" ? "var(--success)" : "var(--rose)"} />
+                                  <Icon name={icon} size={14} color={tone} />
                                   <span style={{ fontWeight: 500, minWidth: 160 }}>{ch.name.replace(/_/g, " ")}</span>
                                   <span style={{ flex: 1, color: "var(--muted)" }}>{ch.message}</span>
                                   {ch.latency_ms != null && (
                                     <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{ch.latency_ms}ms</span>
                                   )}
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           ) : null}
                         </div>
@@ -575,6 +586,9 @@ function CountryModal({
     merchant_website: "",
     sdk_url: "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
     direct_api_url: "https://apidist.gutouch.net/apidist/sec/touchpayapi",
+    partner_id: "",
+    login_api: "",
+    password_api: "",
   });
   const [showCreds, setShowCreds] = useState(true);
   const [loadingCreds, setLoadingCreds] = useState(false);
@@ -597,6 +611,9 @@ function CountryModal({
             merchant_website: c.merchant_website || "",
             sdk_url: c.sdk_url || "https://touchpay.gutouch.net/touchpayv2/script/prod_touchpay-0.0.1.js",
             direct_api_url: c.direct_api_url || "https://apidist.gutouch.net/apidist/sec/touchpayapi",
+            partner_id: c.partner_id || "",
+            login_api: c.login_api || "",
+            password_api: c.password_api || "",
           });
         })
         .catch(() => { /* credentials not available */ })
@@ -864,6 +881,35 @@ function CountryModal({
                 <div>
                   <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Direct API URL</label>
                   <Input value={creds.direct_api_url} onChange={(e) => setCred("direct_api_url", e.target.value)} style={{ fontSize: 11 }} />
+                </div>
+
+                {/* Partner API: a different triple from the six above. Without
+                    it, payins work but status reconciliation, balance and
+                    payouts do not - and nothing on this page used to say so. */}
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 2px" }}>
+                    <T fr="API Partenaire" en="Partner API" />
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--muted)", margin: "0 0 8px" }}>
+                    <T
+                      fr="Identifiants distincts de ceux ci-dessus, fournis par TouchPay par agence. Sans eux la collecte fonctionne, mais la reconciliation des statuts, le solde et les reversements sont indisponibles."
+                      en="A separate set from the ones above, issued by TouchPay per agency. Without them collection works, but status reconciliation, balance and payouts are unavailable."
+                    />
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Partner ID</label>
+                      <Input value={creds.partner_id} onChange={(e) => setCred("partner_id", e.target.value)} placeholder="PG12345678" />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Login API</label>
+                      <Input value={creds.login_api} onChange={(e) => setCred("login_api", e.target.value)} placeholder="Login API" />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 2 }}>Password API</label>
+                    <Input value={creds.password_api} onChange={(e) => setCred("password_api", e.target.value)} placeholder="Password API" />
+                  </div>
                 </div>
               </div>
             )}
