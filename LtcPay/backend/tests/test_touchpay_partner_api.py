@@ -369,3 +369,85 @@ async def test_the_live_balance_shape_is_read():
         "amount": 290390.1899999993, "errorCode": "200", "errorMessage": "SUCCESSFUL",
     }).get_balance(None, "CM")
     assert out["amount"] == pytest.approx(290390.19, rel=1e-9)
+
+
+# --------------------------------------------------------------------------
+# The all-countries balance view
+# --------------------------------------------------------------------------
+# One agency running dry produces exactly the kind of unexplained mass
+# failure that took three days to read on Gabon, and nothing showed the
+# float at all until 2026-09-28.
+
+async def _balances(monkeypatch, results):
+    """Run the endpoint over a stubbed country list and get_balance."""
+    from app.api.v1 import admin_providers as mod
+
+    countries = [
+        SimpleNamespace(code=cc, name=cc, currency="XAF", tp_agency_code=f"AG{cc}",
+                        is_active=True)
+        for cc in results
+    ]
+
+    class _Scalars:
+        def all(self): return countries
+
+    class _Result:
+        def scalars(self): return _Scalars()
+
+    class _DB:
+        async def execute(self, *a, **k): return _Result()
+
+    async def fake_balance(db, cc):
+        outcome = results[cc]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    import app.services.touchpay_partner_service as svc_mod
+    monkeypatch.setattr(svc_mod.touchpay_partner_service, "get_balance", fake_balance)
+
+    return await mod.touchpay_balances(admin=SimpleNamespace(email="a@b.c"), db=_DB())
+
+
+async def test_every_active_country_is_listed(monkeypatch):
+    out = await _balances(monkeypatch, {
+        "CM": {"amount": 290390.19, "currency": None, "raw": {}},
+        "CG": TouchPayPartnerError("TouchPay partner API not configured for CG: missing partner_id"),
+    })
+    assert [b["country_code"] for b in out["balances"]] == ["CM", "CG"]
+
+
+async def test_a_readable_balance_is_returned(monkeypatch):
+    out = await _balances(monkeypatch, {"CM": {"amount": 290390.19, "currency": None, "raw": {}}})
+    entry = out["balances"][0]
+    assert entry["amount"] == 290390.19
+    assert entry["currency"] == "XAF"      # get_balance sends no currency
+    assert entry["error"] is None and entry["configured"]
+
+
+async def test_an_unconfigured_country_says_so_rather_than_zero(monkeypatch):
+    out = await _balances(monkeypatch, {
+        "CG": TouchPayPartnerError("TouchPay partner API not configured for CG: missing partner_id"),
+    })
+    entry = out["balances"][0]
+    assert entry["amount"] is None        # never 0 — that reads as "empty agency"
+    assert entry["configured"] is False
+
+
+async def test_a_configured_country_that_errors_is_flagged_as_configured(monkeypatch):
+    out = await _balances(monkeypatch, {"CM": TouchPayPartnerError("get_balance unreachable: boom")})
+    entry = out["balances"][0]
+    assert entry["amount"] is None
+    assert entry["configured"] is True    # reachable problem, not a setup gap
+    assert "unreachable" in entry["error"]
+
+
+async def test_one_broken_country_does_not_sink_the_others(monkeypatch):
+    out = await _balances(monkeypatch, {
+        "CM": {"amount": 1000.0, "currency": None, "raw": {}},
+        "CG": RuntimeError("kaboom"),
+        "GA": {"amount": 2000.0, "currency": None, "raw": {}},
+    })
+    amounts = {b["country_code"]: b["amount"] for b in out["balances"]}
+    assert amounts["CM"] == 1000.0 and amounts["GA"] == 2000.0
+    assert amounts["CG"] is None

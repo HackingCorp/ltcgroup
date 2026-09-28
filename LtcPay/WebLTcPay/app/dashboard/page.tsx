@@ -11,6 +11,7 @@ import { T } from "@/lib/i18n";
 import { fmtCompact } from "@/lib/format";
 import { dashboardService } from "@/services/dashboard.service";
 import { adminDashboardService } from "@/services/admin-dashboard.service";
+import { providersService, type TouchPayBalance } from "@/services/providers.service";
 import type { DashboardStats } from "@/types";
 
 /* ── helpers ─────────────────────────────────────────────────── */
@@ -90,6 +91,7 @@ export default function DashboardPage() {
   const [healthServices, setHealthServices] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [financeStats, setFinanceStats] = useState<any>(null);
+  const [balances, setBalances] = useState<TouchPayBalance[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -113,6 +115,12 @@ export default function DashboardPage() {
         if (finance) setFinanceStats(finance);
       })
       .finally(() => setIsLoading(false));
+
+    // Balances call every configured agency in turn, so it is slower than
+    // the rest of the page — loaded on its own so it never delays it.
+    providersService.getTouchPayBalances()
+      .then((r) => setBalances(r.balances))
+      .catch(() => setBalances([]));
 
     // Fetch merchants separately (uses different endpoint pattern)
     import("@/services/merchants.service").then(({ merchantsService }) => {
@@ -249,6 +257,58 @@ export default function DashboardPage() {
             <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
               <T fr="Donnees sante non disponibles" en="Health data unavailable" />
             </div>
+          )}
+        </div>
+
+        {/* TouchPay float per country */}
+        <div className="nk-card">
+          <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 18, margin: "0 0 4px" }}>
+            <T fr="Soldes TouchPay" en="TouchPay float" />
+          </h3>
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 14px" }}>
+            <T fr="Solde de chaque agence, en direct" en="Live float of each agency" />
+          </p>
+          {balances === null ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Lecture des soldes..." en="Reading balances..." />
+            </div>
+          ) : balances.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+              <T fr="Soldes non disponibles" en="Balances unavailable" />
+            </div>
+          ) : (
+            balances.map((b, i) => (
+              <div
+                key={b.country_code}
+                style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                  gap: 8, padding: "9px 0",
+                  borderTop: i > 0 ? "1px solid var(--line)" : "none", fontSize: 12,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "baseline", gap: 8, minWidth: 0 }}>
+                  <span className="mono" style={{ color: "var(--muted-2)", fontSize: 10 }}>{b.country_code}</span>
+                  <span style={{ fontWeight: 500 }}>{b.country_name}</span>
+                </span>
+                {b.amount != null ? (
+                  <span className="mono" style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {b.amount.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}{" "}
+                    <span style={{ color: "var(--muted)", fontWeight: 400 }}>{b.currency}</span>
+                  </span>
+                ) : (
+                  /* Never show 0 for an unreadable balance: an empty agency
+                     and an unconfigured one call for opposite reactions. */
+                  <span
+                    style={{ color: b.configured ? "var(--rose)" : "var(--muted)", fontSize: 11, textAlign: "right" }}
+                    title={b.error || undefined}
+                  >
+                    {b.configured
+                      ? <T fr="illisible" en="unreadable" />
+                      : <T fr="non configure" en="not configured" />}
+                  </span>
+                )}
+              </div>
+            ))
           )}
         </div>
 

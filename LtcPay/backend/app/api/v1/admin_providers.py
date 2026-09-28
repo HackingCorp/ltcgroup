@@ -7,6 +7,7 @@ Admin API - Payment Provider Management
 - Set the default / secondary provider per country via priorities
 """
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -330,6 +331,63 @@ class CashinRequest(BaseModel):
     recipient_phone_number: str = Field(..., min_length=6, max_length=20)
     amount: int = Field(..., gt=0)
     partner_transaction_id: str = Field(..., min_length=3, max_length=64)
+
+
+@router.get("/touchpay/balances")
+async def touchpay_balances(
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """The TouchPay float of every active country, in one call.
+
+    One agency running dry produces exactly the kind of unexplained mass
+    failure that took three days to read on Gabon, and until now nothing
+    showed the float at all. Countries without partner credentials are
+    listed too, saying so — leaving them out would make an unconfigured
+    country look like a healthy one.
+
+    Never raises for a single country: one unreachable agency must not hide
+    the others.
+    """
+    from app.services.touchpay_partner_service import (
+        TouchPayPartnerError, touchpay_partner_service,
+    )
+
+    rows = (await db.execute(
+        select(SupportedCountry)
+        .where(SupportedCountry.is_active == True)  # noqa: E712
+        .order_by(SupportedCountry.code)
+    )).scalars().all()
+
+    balances = []
+    for country in rows:
+        entry = {
+            "country_code": country.code,
+            "country_name": country.name,
+            "currency": country.currency,
+            "agency_code": country.tp_agency_code or None,
+            "amount": None,
+            "configured": True,
+            "error": None,
+        }
+        try:
+            result = await touchpay_partner_service.get_balance(db, country.code)
+            entry["amount"] = result["amount"]
+            # get_balance answers with a figure and no currency, so keep the
+            # country's own rather than showing an amount with no unit.
+            entry["currency"] = result["currency"] or country.currency
+        except TouchPayPartnerError as exc:
+            entry["error"] = str(exc)
+            entry["configured"] = "not configured" not in str(exc)
+        except Exception as exc:  # noqa: BLE001 - one country must not sink the page
+            logger.warning("Balance lookup failed for %s: %s", country.code, exc)
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+        balances.append(entry)
+
+    return {
+        "balances": balances,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/touchpay/{country_code}/balance")
