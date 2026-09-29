@@ -21,6 +21,7 @@ it is safe to run before the credentials land.
 """
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
@@ -94,6 +95,32 @@ async def _settle(payment_id, reference: str, old_status, new_status, verdict: d
 # Sentinel: this country cannot be asked at all this round.
 _SKIP_COUNTRY = object()
 
+# How long to believe a country when its partner API turns us away. Only
+# Cameroon is enrolled: LTCCD0035, LTCGA0169, GRLTC8196 and LTCTG0074
+# answer 401 and LTCCG0024 answers 400, every time. Without this the sweep
+# spent one doomed call per payment per pass before falling back — seven
+# payments, four passes an hour, around 700 refusals a day for nothing.
+PARTNER_REFUSAL_MEMORY_SECONDS = 3600
+_partner_refused_until: dict[str, float] = {}
+
+
+def _partner_api_worth_trying(country: str) -> bool:
+    until = _partner_refused_until.get(country)
+    return until is None or _loop_time() >= until
+
+
+def _remember_partner_refusal(country: str, reason: str) -> None:
+    _partner_refused_until[country] = _loop_time() + PARTNER_REFUSAL_MEMORY_SECONDS
+    logger.info(
+        "TouchPay reconciliation: partner API refused %s (%s), using the payin "
+        "endpoint for the next %ds", country, reason, PARTNER_REFUSAL_MEMORY_SECONDS,
+    )
+
+
+def _loop_time() -> float:
+    """Monotonic clock, indirected so tests can move it."""
+    return time.monotonic()
+
 
 async def _verdict_for(db, country: str, reference: str, unconfigured: set):
     """Ask the partner API, and fall back to the payin status endpoint.
@@ -105,10 +132,13 @@ async def _verdict_for(db, country: str, reference: str, unconfigured: set):
     including Orange RDC, where TouchPay sends no failure callback at all
     and 23 verdicts were sitting unread.
     """
-    try:
-        return await touchpay_partner_service.check_status(db, country, reference)
-    except TouchPayPartnerError as exc:
-        partner_error = str(exc)
+    partner_error = "not attempted"
+    if _partner_api_worth_trying(country):
+        try:
+            return await touchpay_partner_service.check_status(db, country, reference)
+        except TouchPayPartnerError as exc:
+            partner_error = str(exc)
+            _remember_partner_refusal(country, partner_error)
 
     try:
         verdict = await touchpay_direct_service.check_transaction_status(

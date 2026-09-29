@@ -28,6 +28,14 @@ def _use_test_session():
 
 
 @pytest_asyncio.fixture(autouse=True)
+def _forget_partner_refusals():
+    """The refusal memory is module-level and would leak between tests."""
+    touchpay_reconciler._partner_refused_until.clear()
+    yield
+    touchpay_reconciler._partner_refused_until.clear()
+
+
+@pytest_asyncio.fixture(autouse=True)
 def _no_webhooks():
     with patch("app.services.notification.notify_merchant", new=AsyncMock(return_value=True)):
         yield
@@ -320,3 +328,63 @@ async def test_a_pending_verdict_still_settles_nothing_in_the_deep_pass(db_sessi
     with _check(_verdict("PENDING", pending=True)):
         assert await sweep_once(deep=True) == 0
     assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+# --------------------------------------------------------------------------
+# Not asking an API that has already said no
+# --------------------------------------------------------------------------
+# Only Cameroon is enrolled in the partner API. LTCCD0035, LTCGA0169,
+# GRLTC8196 and LTCTG0074 answer 401 and LTCCG0024 answers 400, every
+# time. The sweep was spending one doomed call per payment per pass before
+# falling back — roughly 700 refusals a day for nothing.
+
+from app.services.touchpay_partner_service import TouchPayPartnerError
+
+
+async def test_a_refused_partner_api_is_not_asked_again(db_session):
+    await _payment(db_session, PaymentStatus.PROCESSING)
+    await _payment(db_session, PaymentStatus.PROCESSING)
+    await _payment(db_session, PaymentStatus.PROCESSING)
+
+    partner = AsyncMock(side_effect=TouchPayPartnerError("Unauthorized.", status_code=401))
+    payin = AsyncMock(return_value=_verdict("FAILED", failed=True))
+    with patch("app.services.touchpay_partner_service.touchpay_partner_service.check_status",
+               new=partner), \
+         patch("app.services.touchpay_direct_service.touchpay_direct_service"
+               ".check_transaction_status", new=payin):
+        assert await sweep_once() == 3
+
+    assert partner.await_count == 1    # asked once, then remembered
+    assert payin.await_count == 3      # every payment still got a verdict
+
+
+async def test_the_refusal_is_forgotten_after_its_window(db_session, monkeypatch):
+    await _payment(db_session, PaymentStatus.PROCESSING)
+
+    partner = AsyncMock(side_effect=TouchPayPartnerError("Unauthorized.", status_code=401))
+    payin = AsyncMock(return_value=_verdict("PENDING", pending=True))
+    with patch("app.services.touchpay_partner_service.touchpay_partner_service.check_status",
+               new=partner), \
+         patch("app.services.touchpay_direct_service.touchpay_direct_service"
+               ".check_transaction_status", new=payin):
+        await sweep_once()
+        assert partner.await_count == 1
+
+        # Jump past the window: a country that gets enrolled must be picked
+        # up again without a restart.
+        later = touchpay_reconciler._loop_time() + \
+            touchpay_reconciler.PARTNER_REFUSAL_MEMORY_SECONDS + 1
+        monkeypatch.setattr(touchpay_reconciler, "_loop_time", lambda: later)
+        await sweep_once()
+        assert partner.await_count == 2
+
+
+async def test_a_working_partner_api_is_never_put_aside(db_session):
+    await _payment(db_session, PaymentStatus.PROCESSING)
+    await _payment(db_session, PaymentStatus.PROCESSING)
+
+    partner = AsyncMock(return_value=_verdict("SUCCEED", paid=True))
+    with patch("app.services.touchpay_partner_service.touchpay_partner_service.check_status",
+               new=partner):
+        assert await sweep_once() == 2
+    assert partner.await_count == 2
