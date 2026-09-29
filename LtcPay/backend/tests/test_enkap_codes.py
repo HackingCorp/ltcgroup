@@ -243,3 +243,66 @@ def test_the_known_codes_are_unchanged():
     assert classify_failure("[04] Account not found")[0] == "ACCOUNT_NOT_FOUND"
     assert classify_failure("Beneficiaire introuvable")[0] == "ACCOUNT_NOT_FOUND"
     assert classify_failure("[19] Unable to process payment at this time.")[0] == "OPERATOR_UNAVAILABLE"
+
+
+# --------------------------------------------------------------------------
+# An amount outside the operator's band, and the vaguest last word
+# --------------------------------------------------------------------------
+# Togo, 2026-09-28: two payments of 103 XOF. AccountPE refused them with
+# NO_MATCHING_INTERVAL_RULE_FOUND, the failover reached TouchPay which
+# refused with its catch-all "Vous n'etes pas autorise a effectuer cette
+# operation", and the merchant was told the operator was momentarily
+# unavailable and to retry in a few minutes. Retrying could never work.
+
+from types import SimpleNamespace
+
+from app.services.failure_reasons import (
+    classify_failure as _classify, payment_failure_raw_message,
+)
+
+
+def test_an_amount_outside_the_band_is_named():
+    code, message = _classify("NO_MATCHING_INTERVAL_RULE_FOUND")
+    assert code == "AMOUNT_NOT_ALLOWED"
+    assert "montant" in message.lower()
+    assert "reessayez" not in message.lower()   # retrying is not the advice
+
+
+def test_a_french_amount_refusal_is_named_too():
+    assert _classify("Le montant minimum est de 500 XOF")[0] == "AMOUNT_NOT_ALLOWED"
+
+
+def _failed_over(error, trail=None):
+    """A payment whose last provider said `error`, after `trail`."""
+    return SimpleNamespace(
+        touchpay_data=None,
+        direct_api_data={"error": error, "raw": {"failover_trail": trail or []}},
+    )
+
+
+def test_a_specific_trail_error_beats_a_vague_final_one():
+    payment = _failed_over(
+        "Vous n'etes pas autorise a effectuer cette operation.",
+        [{"provider": "ACCOUNTPE", "error": "NO_MATCHING_INTERVAL_RULE_FOUND"}],
+    )
+    raw = payment_failure_raw_message(payment)
+    assert _classify(raw)[0] == "AMOUNT_NOT_ALLOWED"
+
+
+def test_an_informative_final_message_is_kept():
+    """The last word wins whenever it actually says something."""
+    payment = _failed_over(
+        "Le solde du compte du payeur est insuffisant",
+        [{"provider": "ACCOUNTPE", "error": "NO_MATCHING_INTERVAL_RULE_FOUND"}],
+    )
+    assert _classify(payment_failure_raw_message(payment))[0] == "INSUFFICIENT_FUNDS"
+
+
+def test_a_vague_trail_does_not_replace_a_vague_final():
+    payment = _failed_over("FAILED", [{"provider": "ACCOUNTPE", "error": "PENDING"}])
+    assert payment_failure_raw_message(payment) == "FAILED"
+
+
+def test_no_trail_changes_nothing():
+    payment = _failed_over("Vous n'etes pas autorise a effectuer cette operation.")
+    assert "pas autorise" in payment_failure_raw_message(payment)

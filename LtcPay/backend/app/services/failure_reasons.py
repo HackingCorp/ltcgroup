@@ -91,6 +91,18 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         "Vous n'avez pas confirme le paiement a temps sur votre telephone. Relancez le paiement et validez la demande de confirmation.",
     ),
     (
+        # AccountPE's wording for an amount outside every configured band.
+        # Seen on Togo 2026-09-28: two payments of 103 XOF, refused by
+        # AccountPE with this and by TouchPay with its catch-all "pas
+        # autorise", which the merchant was then told meant a temporary
+        # outage. Retrying never works — the amount has to change.
+        "AMOUNT_NOT_ALLOWED",
+        ("no_matching_interval_rule", "no matching interval rule",
+         "montant minimum", "montant maximum"),
+        "Le montant n'est pas accepte par l'operateur pour ce pays. "
+        "Consultez min_amount et max_amount dans GET /payments/countries.",
+    ),
+    (
         "OPERATOR_UNAVAILABLE",
         # "Vous n'etes pas autorise a effectuer cette operation" reads like a
         # permissions problem and is not one: TouchPay confirmed on 2026-09-02
@@ -127,6 +139,10 @@ _FALLBACK = (
     "PAYMENT_FAILED",
     "Le paiement a echoue. Le client peut reessayer ou utiliser un autre moyen de paiement.",
 )
+
+# Codes that tell the merchant nothing actionable. A more specific reason
+# from an earlier failover leg is preferred over any of these.
+_UNINFORMATIVE = {"PAYMENT_FAILED", "OPERATOR_UNAVAILABLE"}
 
 _MESSAGE_BY_CODE: dict[str, str] = {code: message for code, _, message in _FAILURE_RULES}
 _MESSAGE_BY_CODE[_FALLBACK[0]] = _FALLBACK[1]
@@ -238,9 +254,23 @@ def payment_failure_raw_message(payment) -> Optional[str]:
     """
     touchpay_data = payment.touchpay_data or {}
     direct_data = payment.direct_api_data or {}
-    return (
+    message = (
         touchpay_data.get("message")
         or direct_data.get("error")
         or (direct_data.get("callback") or {}).get("message")
         or (direct_data.get("detail") if isinstance(direct_data.get("detail"), str) else None)
     )
+
+    # A failover keeps only the last provider's wording, and the last word
+    # is often the vaguest. When it classifies to nothing useful but the
+    # provider we tried first said something specific, that is what the
+    # merchant needs: on Togo the first leg said the amount matched no
+    # interval rule, the second said "pas autorise", and the merchant was
+    # told to wait for an outage to pass.
+    if message and classify_failure(message)[0] in _UNINFORMATIVE:
+        trail = ((direct_data.get("raw") or {}).get("failover_trail") or [])
+        for attempt in trail:
+            first = attempt.get("error")
+            if first and classify_failure(first)[0] not in _UNINFORMATIVE:
+                return first
+    return message
