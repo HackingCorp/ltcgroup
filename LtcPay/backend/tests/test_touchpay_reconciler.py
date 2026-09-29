@@ -271,3 +271,52 @@ async def test_a_late_failure_verdict_is_recorded(db_session):
     with _partner_unavailable(), _payin(_verdict("FAILED", failed=True)):
         assert await sweep_once() == 1
     assert await _status_of(db_session, payment.id) == PaymentStatus.FAILED
+
+
+# --------------------------------------------------------------------------
+# The deep pass
+# --------------------------------------------------------------------------
+# TouchPay can sit on PENDING for weeks, so a 48-hour window quietly gives
+# up on money that is still moving. PAY-45199C50ABB04456 was SUCCEED there
+# and EXPIRED here for 17 days, found only by a hand sweep on 2026-09-29:
+# 10 613 XAF collected from the customer and never credited.
+
+from app.services.touchpay_reconciler import DEEP_SWEEP_WINDOW_DAYS
+
+
+async def test_the_fast_pass_still_ignores_old_payments(db_session):
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, age_hours=72)
+    with _check(_verdict("SUCCEED", paid=True)):
+        assert await sweep_once() == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+async def test_the_deep_pass_recovers_what_the_fast_one_aged_out_of(db_session):
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, age_hours=17 * 24)
+    with _check(_verdict("SUCCEED", paid=True)):
+        assert await sweep_once(deep=True) == 1
+    assert await _status_of(db_session, payment.id) == PaymentStatus.COMPLETED
+
+
+async def test_the_deep_pass_leaves_the_recent_window_to_the_fast_one(db_session):
+    """Asking twice about the same payment every six hours is waste."""
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, age_hours=2)
+    with _check(_verdict("SUCCEED", paid=True)):
+        assert await sweep_once(deep=True) == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+async def test_the_deep_pass_stops_at_its_own_horizon(db_session):
+    older = (DEEP_SWEEP_WINDOW_DAYS + 2) * 24
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, age_hours=older)
+    with _check(_verdict("SUCCEED", paid=True)):
+        assert await sweep_once(deep=True) == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED
+
+
+async def test_a_pending_verdict_still_settles_nothing_in_the_deep_pass(db_session):
+    """Five payins have been PENDING at TouchPay for weeks; leave them."""
+    payment = await _payment(db_session, PaymentStatus.EXPIRED, age_hours=20 * 24)
+    with _check(_verdict("PENDING", pending=True)):
+        assert await sweep_once(deep=True) == 0
+    assert await _status_of(db_session, payment.id) == PaymentStatus.EXPIRED

@@ -40,6 +40,15 @@ SWEEP_INTERVAL_SECONDS = 900      # every 15 minutes
 SWEEP_WINDOW_HOURS = 48           # only payments created in the last 48h
 SWEEP_BATCH_LIMIT = 40            # bounded work per sweep
 
+# A second, slower pass over everything the fast one has aged out of.
+# TouchPay can sit on PENDING for weeks — one Congo Airtel payin stayed
+# there 28 days — so a 48-hour window quietly gives up on money that is
+# still moving. PAY-45199C50ABB04456 was SUCCEED at TouchPay and EXPIRED
+# here for 17 days; nothing would ever have looked at it again.
+DEEP_SWEEP_INTERVAL_SECONDS = 6 * 3600
+DEEP_SWEEP_WINDOW_DAYS = 30
+DEEP_SWEEP_BATCH_LIMIT = 60       # biggest amounts first
+
 # Statuses worth re-asking about: still in flight, or abandoned by our own
 # timeout rather than by the operator.
 _UNSETTLED = (PaymentStatus.PROCESSING, PaymentStatus.EXPIRED)
@@ -121,12 +130,24 @@ async def _verdict_for(db, country: str, reference: str, unconfigured: set):
     return verdict
 
 
-async def sweep_once() -> int:
-    """Re-verify one batch of unsettled TouchPay payments. Returns settled count."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=SWEEP_WINDOW_HOURS)
+async def sweep_once(deep: bool = False) -> int:
+    """Re-verify one batch of unsettled TouchPay payments. Returns settled count.
+
+    The fast pass looks at the last 48 hours, oldest first. The deep pass
+    reaches back 30 days and takes the largest amounts first, because what
+    it is looking for is money nobody is going to notice missing.
+    """
+    now = datetime.now(timezone.utc)
+    if deep:
+        cutoff = now - timedelta(days=DEEP_SWEEP_WINDOW_DAYS)
+        recent = now - timedelta(hours=SWEEP_WINDOW_HOURS)
+        limit, order = DEEP_SWEEP_BATCH_LIMIT, Payment.amount.desc()
+    else:
+        cutoff, recent = now - timedelta(hours=SWEEP_WINDOW_HOURS), None
+        limit, order = SWEEP_BATCH_LIMIT, Payment.created_at
 
     async with async_session() as db:
-        rows = (await db.execute(
+        query = (
             select(Payment)
             .where(
                 Payment.provider == PaymentProvider.TOUCHPAY,
@@ -134,9 +155,11 @@ async def sweep_once() -> int:
                 Payment.country.isnot(None),
                 Payment.created_at >= cutoff,
             )
-            .order_by(Payment.created_at)
-            .limit(SWEEP_BATCH_LIMIT)
-        )).scalars().all()
+        )
+        if recent is not None:
+            # Leave the recent window to the fast pass; no point asking twice.
+            query = query.where(Payment.created_at < recent)
+        rows = (await db.execute(query.order_by(order).limit(limit))).scalars().all()
         candidates = [(p.id, p.reference, p.country, p.status) for p in rows]
 
     if not candidates:
@@ -172,6 +195,27 @@ async def sweep_once() -> int:
     if settled:
         logger.info("TouchPay reconciliation: %d payment(s) settled", settled)
     return settled
+
+
+async def deep_reconciliation_loop():
+    """Run the wide pass on its own, slower schedule."""
+    logger.info(
+        "TouchPay deep reconciliation started (every %ss, window %s days)",
+        DEEP_SWEEP_INTERVAL_SECONDS, DEEP_SWEEP_WINDOW_DAYS,
+    )
+    while True:
+        try:
+            settled = await sweep_once(deep=True)
+            if settled:
+                logger.warning(
+                    "TouchPay deep reconciliation: %d payment(s) recovered "
+                    "outside the 48h window", settled,
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.exception("TouchPay deep reconciliation failed: %s", exc)
+        await asyncio.sleep(DEEP_SWEEP_INTERVAL_SECONDS)
 
 
 async def reconciliation_loop():
