@@ -26,7 +26,7 @@ import { formatCurrency } from "@/lib/utils";
 /* ── helpers ───────────────────────────────────────────────── */
 
 type Tab = "payments" | "withdrawals";
-type AdminAction = null | "take-rate" | "payout" | "kyc" | "regen-keys" | "suspend";
+type AdminAction = null | "take-rate" | "payout" | "kyc" | "regen-keys" | "suspend" | "verify";
 
 function paymentStatusTone(s: string): "success" | "warn" | "fail" | "neutral" {
   const upper = s.toUpperCase();
@@ -165,6 +165,26 @@ export default function MerchantDetailPage() {
     } catch { /* ignore */ } finally { setActionLoading(false); }
   };
 
+  // Verification is what authorises collecting real money: the live API key
+  // stays inert and POST /payments is refused until is_verified is true.
+  // The backend has accepted this since 2026-09-03; nothing in the admin
+  // could set it, so 69 merchants sat unverified with no way through.
+  const handleToggleVerify = async () => {
+    setActionLoading(true);
+    try {
+      const nowVerified = !merchant.is_verified;
+      const updated = await merchantsService.update(merchantId, {
+        is_verified: nowVerified,
+        // Leaving a freshly verified merchant in test mode would keep the
+        // live key inert for a different reason, which reads as the same
+        // failure. Verifying takes them out of it; un-verifying puts them back.
+        is_test_mode: !nowVerified,
+      });
+      setMerchant(updated);
+      setAdminAction(null);
+    } catch { /* ignore */ } finally { setActionLoading(false); }
+  };
+
   const handleToggleSuspend = async () => {
     setActionLoading(true);
     try {
@@ -188,12 +208,21 @@ export default function MerchantDetailPage() {
       ]}
       title={merchant.name}
       sub={<>
-        <Pill tone={merchant.is_active ? "success" : "fail"}>{merchant.is_active ? "live" : "suspended"}</Pill>
+        {/* The list says "non verifie / test" while this header said "live".
+            Only a verified merchant out of test mode can collect real money. */}
+        {!merchant.is_active
+          ? <Pill tone="fail">suspendu</Pill>
+          : !merchant.is_verified
+            ? <Pill tone="warn">non verifie</Pill>
+            : merchant.is_test_mode
+              ? <Pill tone="warn">test</Pill>
+              : <Pill tone="success">live</Pill>}
         <span style={{ marginLeft: 8 }}>{merchant.id} · CM · {feeStr}</span>
       </>}
       actions={<>
         <button className="btn btn-ghost btn-sm"><Icon name="external" size={13} /> <T fr="Voir comme marchand" en="View as merchant" /></button>
         <button className="btn btn-ghost btn-sm"><Icon name="message" size={13} /> <T fr="Contacter" en="Contact" /></button>
+        <button className="btn btn-ghost btn-sm" style={{ color: merchant.is_verified ? "var(--warn)" : "var(--success)", borderColor: merchant.is_verified ? "var(--warn)" : "var(--success)" }} onClick={() => setAdminAction("verify")}><Icon name="shield" size={13} /> <T fr={merchant.is_verified ? "Retirer la verification" : "Verifier"} en={merchant.is_verified ? "Unverify" : "Verify"} /></button>
         <button className="btn btn-ghost btn-sm" style={{ color: merchant.is_active ? "var(--rose)" : "var(--success)", borderColor: merchant.is_active ? "var(--rose)" : "var(--success)" }} onClick={() => setAdminAction("suspend")}><T fr={merchant.is_active ? "Suspendre" : "Reactiver"} en={merchant.is_active ? "Suspend" : "Reactivate"} /></button>
       </>}
     >
@@ -342,6 +371,7 @@ export default function MerchantDetailPage() {
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("payout")}><Icon name="bank" size={13} /> <T fr="Compte de reglement" en="Payout account" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("kyc")}><Icon name="shield" size={13} /> <T fr="Forcer re-KYC" en="Force re-KYC" /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => { setRegenResult(null); setAdminAction("regen-keys"); }}><Icon name="refresh" size={13} /> <T fr="Regenerer les cles" en="Regenerate keys" /></button>
+              <button className="btn btn-ghost" style={{ justifyContent: "flex-start" }} onClick={() => setAdminAction("verify")}><Icon name="shield" size={13} /> <T fr={merchant.is_verified ? "Retirer la verification" : "Verifier le marchand"} en={merchant.is_verified ? "Remove verification" : "Verify merchant"} /></button>
               <button className="btn btn-ghost" style={{ justifyContent: "flex-start", color: "var(--rose)", borderColor: "var(--rose-soft)" }} onClick={() => setAdminAction("suspend")}><Icon name="pause" size={13} color="var(--rose)" /> <T fr={merchant.is_active ? "Suspendre compte" : "Reactiver compte"} en={merchant.is_active ? "Suspend account" : "Reactivate account"} /></button>
             </div>
           </div>
@@ -492,6 +522,38 @@ export default function MerchantDetailPage() {
                   <button className="btn btn-primary" onClick={() => { setAdminAction(null); setRegenResult(null); }}><T fr="Fermer" en="Close" /></button>
                 </div>
               </>)}
+            </>)}
+
+            {adminAction === "verify" && (<>
+              <h3 style={{ fontFamily: "var(--display)", fontWeight: 500, fontSize: 17, margin: "0 0 16px" }}>
+                {merchant.is_verified
+                  ? <T fr="Retirer la verification ?" en="Remove verification?" />
+                  : <T fr="Verifier ce marchand ?" en="Verify this merchant?" />}
+              </h3>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>
+                {merchant.is_verified
+                  ? <T fr="Sa cle live redeviendra inerte et ses paiements reels seront refuses. Le compte repassera en mode test."
+                       en="Its live key goes inert again and real payments are refused. The account returns to test mode." />
+                  : <T fr="Sa cle live devient active et il pourra encaisser de l'argent reel. Le compte sort du mode test."
+                       en="Its live key becomes active and it can collect real money. The account leaves test mode." />}
+              </p>
+              <p style={{ fontSize: 12, color: "var(--muted-2)", margin: "0 0 16px" }}>
+                <T fr="Verifiez le RCCM, le NIU et le representant legal avant de confirmer."
+                   en="Check the RCCM, the tax ID and the legal representative before confirming." />
+              </p>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost" onClick={() => setAdminAction(null)} disabled={actionLoading}><T fr="Annuler" en="Cancel" /></button>
+                <button
+                  className="btn btn-primary"
+                  style={merchant.is_verified ? { background: "var(--warn)" } : {}}
+                  onClick={handleToggleVerify}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "..." : merchant.is_verified
+                    ? <T fr="Retirer" en="Remove" />
+                    : <T fr="Verifier" en="Verify" />}
+                </button>
+              </div>
             </>)}
 
             {adminAction === "suspend" && (<>

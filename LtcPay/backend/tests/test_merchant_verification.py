@@ -8,8 +8,10 @@ any signup could take real payments through our operator agency minutes
 after filling in the form.
 """
 import uuid
+from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 from fastapi import HTTPException
 
 from app.core.security import (
@@ -147,3 +149,84 @@ async def test_reading_countries_still_works_for_an_unverified_merchant(client, 
         headers={"X-API-Key": merchant.api_key_test, "X-API-Secret": accounts["secret"]},
     )
     assert response.status_code == 200
+
+
+# --------------------------------------------------------------------------
+# The admin has to be able to flip it
+# --------------------------------------------------------------------------
+# The gate has been enforced since 2026-09-03 and PATCH /merchants/{id} has
+# accepted is_verified since then, but nothing in the admin could send it:
+# 69 merchants sat unverified with no way through, and the detail page
+# still called them "live". Covered here so the endpoint cannot quietly
+# stop accepting the one field the dashboard now depends on.
+
+@pytest.fixture
+def as_admin():
+    """Stand in for a signed-in admin, and clean up after."""
+    from app.api.v1.auth import get_current_admin
+    from app.main import app
+
+    app.dependency_overrides[get_current_admin] = lambda: SimpleNamespace(
+        email="admin@ltcgroup.site", id=uuid.uuid4(),
+    )
+    yield
+    app.dependency_overrides.pop(get_current_admin, None)
+
+
+async def _plain_merchant(db_session, *, verified: bool):
+    merchant = Merchant(
+        name="merchant under review",
+        email=f"review-{uuid.uuid4().hex[:8]}@example.com",
+        api_key_live=generate_api_key_live(),
+        api_key_test=generate_api_key_test(),
+        api_secret_hash=hash_api_secret(generate_api_secret()),
+        is_active=True, is_verified=verified, is_test_mode=not verified,
+    )
+    db_session.add(merchant)
+    await db_session.commit()
+    await db_session.refresh(merchant)
+    return merchant
+
+
+@pytest.mark.asyncio
+async def test_an_admin_can_verify_a_merchant(client, db_session, as_admin):
+    merchant = await _plain_merchant(db_session, verified=False)
+
+    response = await client.patch(
+        f"/api/v1/merchants/{merchant.id}",
+        json={"is_verified": True, "is_test_mode": False},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_verified"] is True
+    assert body["is_test_mode"] is False
+
+
+@pytest.mark.asyncio
+async def test_an_admin_can_take_verification_back(client, db_session, as_admin):
+    merchant = await _plain_merchant(db_session, verified=True)
+
+    response = await client.patch(
+        f"/api/v1/merchants/{merchant.id}",
+        json={"is_verified": False, "is_test_mode": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["is_verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_merchant_cannot_verify_itself(client, db_session):
+    """No admin override in place: the request must not be honoured."""
+    merchant = await _plain_merchant(db_session, verified=False)
+    merchant_id = merchant.id   # read before the request expires the row
+
+    response = await client.patch(
+        f"/api/v1/merchants/{merchant_id}", json={"is_verified": True},
+    )
+    assert response.status_code in (401, 403)
+
+    db_session.expire_all()
+    fresh = (await db_session.execute(
+        select(Merchant).where(Merchant.id == merchant_id)
+    )).scalar_one()
+    assert fresh.is_verified is False
