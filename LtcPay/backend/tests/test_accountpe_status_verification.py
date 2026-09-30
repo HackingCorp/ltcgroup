@@ -208,3 +208,59 @@ async def test_an_unreadable_payload_is_acked_rather_than_500(client):
     response = await client.post("/api/v1/callbacks/accountpe", json={"data": "garbage"})
     # 404 (no payment found) is fine; a 500 is not — AccountPE retries those.
     assert response.status_code != 500
+
+
+# --------------------------------------------------------------------------
+# AccountPE forwards GU's own callback body to our per-request URL. The first
+# one seen (PAY-DD8E77B092954952, 2026-09-30) was a refusal, and it was
+# dropped as an unrecognised shape.
+
+def _gu_callback(client, payment, status, message="refused"):
+    return client.post(
+        f"/api/v1/callbacks/accountpe?token={payment.payment_token}&outcome=success",
+        json={
+            "service_id": "BN_PAIEMENTMARCHAND_MTN",
+            "gu_transaction_id": "1790777245458",
+            "status": status,
+            "partner_transaction_id": payment.reference,
+            "commission": 0.0,
+            "message": message,
+        },
+    )
+
+
+async def test_a_gu_refusal_fails_the_payment_without_asking(client, db_session, payment):
+    check = AsyncMock(return_value={"status": "pending"})
+    with patch(
+        "app.services.accountpe_service.accountpe_service.check_payment_status", new=check,
+    ):
+        response = await _gu_callback(client, payment, "FAILED", "[06] Balance insufficient")
+
+    assert response.status_code == 200
+    assert await _status_of(db_session, payment.id) == PaymentStatus.FAILED
+    check.assert_not_awaited()
+    data = (await db_session.execute(
+        select(Payment.touchpay_data).where(Payment.id == payment.id)
+    )).scalar_one()
+    assert data["message"] == "[06] Balance insufficient"
+
+
+async def test_a_gu_success_is_still_verified_with_accountpe(client, db_session, payment):
+    # Unsigned body on the success URL: exactly what credited 8 252 XAF wrongly.
+    with patch(
+        "app.services.accountpe_service.accountpe_service.check_payment_status",
+        new=AsyncMock(return_value={"status": "failed"}),
+    ):
+        response = await _gu_callback(client, payment, "SUCCEED")
+
+    assert response.status_code == 200
+    assert await _status_of(db_session, payment.id) == PaymentStatus.FAILED
+
+
+async def test_a_gu_callback_without_the_token_is_refused(client, db_session, payment):
+    response = await client.post(
+        "/api/v1/callbacks/accountpe",
+        json={"status": "FAILED", "partner_transaction_id": payment.reference},
+    )
+    assert response.status_code == 401
+    assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING

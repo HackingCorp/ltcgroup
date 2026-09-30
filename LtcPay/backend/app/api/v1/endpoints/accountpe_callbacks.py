@@ -75,6 +75,43 @@ def _extract_attributes(payload: dict) -> dict:
     return {}
 
 
+# AccountPE routes Benin (and possibly more) through the same GU platform as
+# TouchPay, and forwards GU's own callback to our per-request URL unchanged:
+#   {"service_id": "BN_PAIEMENTMARCHAND_MTN", "gu_transaction_id": ...,
+#    "status": "FAILED", "partner_transaction_id": "PAY-...", "message": ...}
+# None of that matched the shapes above, so PAY-DD8E77B092954952 (16 566 XOF,
+# 2026-09-30) was refused within three seconds and the refusal was dropped:
+# the payment sat as pending until our expiry sweep called it EXPIRED.
+_GU_FAILED = {"FAILED", "FAILURE", "ECHEC", "CANCELLED", "CANCELED"}
+
+
+def _gu_callback_attributes(payload: dict) -> dict:
+    """Read a GU-format callback into the handler's attribute dict.
+
+    The body is unsigned — only the ?token= in the URL vouches for it — and
+    that URL is the ?outcome=success one even when the body says FAILED. So
+    only a failure is taken at its word: it cannot credit anyone. Anything
+    else goes without a status, and the verdict comes from asking AccountPE,
+    exactly as for an empty body.
+    """
+    if not isinstance(payload, dict):
+        return {}
+    reference = payload.get("partner_transaction_id")
+    if not isinstance(reference, str) or not reference:
+        return {}
+    attrs: dict = {"transaction_id": reference}
+    if payload.get("gu_transaction_id") is not None:
+        attrs["gu_transaction_id"] = str(payload["gu_transaction_id"])
+    if payload.get("service_id"):
+        attrs["service_id"] = payload["service_id"]
+    message = payload.get("message")
+    if isinstance(message, str) and message.strip():
+        attrs["message"] = message.strip()
+    if str(payload.get("status") or "").strip().upper() in _GU_FAILED:
+        attrs["status"] = 2  # FAILED
+    return attrs
+
+
 @router.post("/accountpe")
 async def accountpe_webhook(
     request: Request,
@@ -101,7 +138,7 @@ async def accountpe_webhook(
         logger.info("AccountPE webhook: ignoring %s event", event)
         return {"status": "ok", "message": f"Ignored {event}"}
 
-    attrs = _extract_attributes(payload)
+    attrs = _extract_attributes(payload) or _gu_callback_attributes(payload)
     transaction_id = attrs.get("transaction_id")
     if not attrs and raw_body:
         # Keep the shape we could not read: this is how the next unknown
@@ -222,7 +259,7 @@ async def accountpe_webhook(
     merged.update({
         "provider": "ACCOUNTPE",
         "accountpe_status": provider_status,
-        "message": f"AccountPE: {status_label.lower()}",
+        "message": attrs.get("message") or f"AccountPE: {status_label.lower()}",
         "accountpe_payload": attrs,
     })
     update_values: dict = {"status": new_status, "touchpay_data": merged}
