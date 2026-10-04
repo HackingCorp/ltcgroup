@@ -274,6 +274,23 @@ async def _find_payment(
     return result.scalar_one_or_none()
 
 
+def _is_stale_failure(payment: Payment, callback: "TouchPayCallbackData") -> bool:
+    from app.services.payment_router import hold_failure_during_initiation
+
+    message = callback.raw.get("message") if isinstance(callback.raw, dict) else None
+    # While PENDING the provider column still holds its creation default,
+    # so it says nothing yet.
+    if payment.status == PaymentStatus.PENDING:
+        return hold_failure_during_initiation(payment.reference, "TOUCHPAY", message)
+    if payment.provider.value != "TOUCHPAY":
+        logger.info(
+            "TouchPay callback: failure for %s ignored, the payin now runs on %s",
+            payment.reference, payment.provider.value,
+        )
+        return True
+    return False
+
+
 async def _process_callback(
     db: AsyncSession,
     callback: TouchPayCallbackData,
@@ -313,6 +330,19 @@ async def _process_callback(
         return {
             "status": "ok",
             "message": "Already processed",
+            "reference": payment.reference,
+            "payment": payment,
+            "new_status": payment.status,
+        }
+
+    # A refusal from a leg the router has left behind, or one that lands
+    # while the initiation is still choosing a provider, is not the
+    # payment's verdict (see payment_router._initiating). Successes are
+    # never held: money that moved always wins.
+    if new_status == PaymentStatus.FAILED and _is_stale_failure(payment, callback):
+        return {
+            "status": "ok",
+            "message": "Failure ignored: initiation decides",
             "reference": payment.reference,
             "payment": payment,
             "new_status": payment.status,

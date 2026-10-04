@@ -112,6 +112,23 @@ def _gu_callback_attributes(payload: dict) -> dict:
     return attrs
 
 
+def _is_stale_failure(payment: Payment, provider_code: str, message: str | None) -> bool:
+    """A refusal that must not settle the payment, see payment_router._initiating."""
+    from app.services.payment_router import hold_failure_during_initiation
+
+    # While PENDING the provider column still holds its creation default
+    # (TOUCHPAY for every mobile payin), so it says nothing yet.
+    if payment.status == PaymentStatus.PENDING:
+        return hold_failure_during_initiation(payment.reference, provider_code, message)
+    if payment.provider.value != provider_code:
+        logger.info(
+            "AccountPE webhook: failure for %s ignored, the payin now runs on %s",
+            payment.reference, payment.provider.value,
+        )
+        return True
+    return False
+
+
 @router.post("/accountpe")
 async def accountpe_webhook(
     request: Request,
@@ -250,6 +267,11 @@ async def accountpe_webhook(
             payment.reference, payment.status.value,
         )
         return {"status": "ok", "message": "Already processed"}
+
+    if new_status == PaymentStatus.FAILED and _is_stale_failure(
+        payment, "ACCOUNTPE", attrs.get("message"),
+    ):
+        return {"status": "ok", "message": "Failure ignored: initiation decides"}
 
     if new_status == PaymentStatus.PROCESSING and payment.status != PaymentStatus.PENDING:
         return {"status": "ok", "message": "No transition"}

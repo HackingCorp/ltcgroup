@@ -95,6 +95,6 @@ def test_a_wrong_length_never_triggers_a_failover():
     import inspect
     from app.services import payment_router
 
-    source = inspect.getsource(payment_router.initiate_mobile_payment)
+    source = inspect.getsource(payment_router._initiate_in_order)
     assert "OperatorMismatchError" in source
     assert "raise  # pre-flight rejections" in source

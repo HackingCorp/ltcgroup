@@ -41,6 +41,38 @@ from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
 
+# Payments whose initiation is running in this process, with the failure
+# verdicts their callbacks brought in meanwhile, keyed by provider.
+#
+# A provider can call back before its own refusal has even reached us. On
+# 2026-10-04 AccountPE refused PAY-26C68CAD7A59484C (115 381 XOF, Moov
+# Togo) and forwarded GU's FAILED callback 0.2 s before its HTTP answer.
+# The callback settled the payment FAILED and the merchant was told so,
+# while the router was handing the payin to TouchPay, which accepted it and
+# pushed the USSD prompt to the customer. A refusal from a leg we are
+# leaving behind says nothing about the leg that is live; only the outcome
+# of the whole initiation does. Uvicorn runs a single worker, so a dict is
+# shared by the request and its callbacks.
+_initiating: dict[str, dict[str, str]] = {}
+
+
+def hold_failure_during_initiation(reference: str, provider_code: str, message: str | None) -> bool:
+    """Keep a FAILED callback aside while its payment is still being initiated.
+
+    Returns True when the verdict was held: the caller must not settle it.
+    The initiation decides instead — FAILED if every provider refused, or
+    if the one that accepted is the one whose refusal was held.
+    """
+    held = _initiating.get(reference)
+    if held is None:
+        return False
+    held[provider_code] = message or f"{provider_code}: FAILED"
+    logger.info(
+        "Failure callback from %s for %s held: initiation still in flight",
+        provider_code, reference,
+    )
+    return True
+
 
 def extract_transaction_ids(response: dict) -> dict:
     """Provider and operator transaction ids from an accepted initiation.
@@ -149,6 +181,32 @@ async def initiate_mobile_payment(
             f"'{operator_code}' dans le pays '{country_code}'."
         )
 
+    _initiating[reference] = {}
+    try:
+        return await _initiate_in_order(
+            db, candidates,
+            payment=payment, reference=reference, amount=amount,
+            phone_number=phone_number, operator_code=operator_code,
+            country_code=country_code, customer_info=customer_info,
+            description=description,
+        )
+    finally:
+        _initiating.pop(reference, None)
+
+
+async def _initiate_in_order(
+    db: AsyncSession,
+    candidates: list,
+    *,
+    payment: Payment,
+    reference: str,
+    amount: int,
+    phone_number: str,
+    operator_code: str,
+    country_code: str,
+    customer_info: dict | None,
+    description: str | None,
+) -> tuple[str, dict]:
     failover_trail: list[dict] = []
     for position, (provider, _op_row) in enumerate(candidates):
         is_last = position == len(candidates) - 1
@@ -208,6 +266,11 @@ async def initiate_mobile_payment(
                 provider.code, reference, exc, candidates[position + 1][0].code,
             )
             continue
+
+        # The provider that accepted may already have called back to refuse.
+        refused = _initiating.get(reference, {}).get(provider.code)
+        if refused:
+            raise TouchPayDirectError(refused)
 
         response = dict(response)
         if failover_trail:

@@ -153,3 +153,47 @@ async def test_the_service_marks_its_timeouts():
                     callback_url="https://pay.ltcgroup.site/cb",
                 )
     assert exc.value.outcome_unknown is True
+
+
+# --------------------------------------------------------------------------
+# Failure callbacks that land while the router is still choosing
+# --------------------------------------------------------------------------
+# PAY-26C68CAD7A59484C (2026-10-04): the first provider's FAILED callback
+# arrived before its HTTP answer, settled the payment, and the second
+# provider then accepted a payin already declared failed to the merchant.
+
+def _failover_dispatch(refuse_accepted_leg=False):
+    async def dispatch(*, provider, reference, **_):
+        if provider.code == "TOUCHPAY":
+            assert payment_router.hold_failure_during_initiation(
+                reference, "TOUCHPAY", "[26] Unable to process payment",
+            )
+            raise TouchPayDirectError("[26] Unable to process payment")
+        if refuse_accepted_leg:
+            payment_router.hold_failure_during_initiation(
+                reference, "ACCOUNTPE", "[06] Balance insufficient",
+            )
+        return {"status": "INITIATED"}
+    return AsyncMock(side_effect=dispatch)
+
+
+async def test_a_refusal_from_the_abandoned_leg_does_not_stop_the_failover():
+    with _route(_failover_dispatch()):
+        provider, response = await _initiate()
+    assert provider == "ACCOUNTPE"
+    assert response["failover_trail"][0]["provider"] == "TOUCHPAY"
+    assert payment_router._initiating == {}
+
+
+async def test_a_refusal_from_the_accepted_leg_fails_the_initiation():
+    with _route(_failover_dispatch(refuse_accepted_leg=True)):
+        with pytest.raises(TouchPayDirectError) as exc:
+            await _initiate()
+    assert "Balance insufficient" in str(exc.value)
+    assert payment_router._initiating == {}
+
+
+def test_nothing_is_held_outside_an_initiation():
+    assert not payment_router.hold_failure_during_initiation(
+        "PAY-NOTINFLIGHT", "TOUCHPAY", "FAILED",
+    )

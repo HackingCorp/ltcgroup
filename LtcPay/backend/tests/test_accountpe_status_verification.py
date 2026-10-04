@@ -264,3 +264,35 @@ async def test_a_gu_callback_without_the_token_is_refused(client, db_session, pa
     )
     assert response.status_code == 401
     assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING
+
+
+# A refusal from the AccountPE leg must not settle a payin that failover has
+# moved to TouchPay. PAY-26C68CAD7A59484C (2026-10-04, 115 381 XOF, Moov
+# Togo) was declared FAILED to the merchant while TouchPay held it live.
+
+async def test_a_gu_refusal_is_ignored_once_the_payin_runs_elsewhere(client, db_session, payment):
+    payment.provider = PaymentProvider.TOUCHPAY
+    await db_session.commit()
+
+    response = await _gu_callback(client, payment, "FAILED", "[26] Unable to process payment")
+
+    assert response.status_code == 200
+    assert await _status_of(db_session, payment.id) == PaymentStatus.PROCESSING
+
+
+async def test_a_gu_refusal_during_initiation_is_held(client, db_session, payment):
+    from app.services import payment_router
+
+    payment.status = PaymentStatus.PENDING
+    await db_session.commit()
+
+    payment_router._initiating[payment.reference] = {}
+    try:
+        response = await _gu_callback(client, payment, "FAILED", "[26] Unable to process payment")
+        held = dict(payment_router._initiating[payment.reference])
+    finally:
+        payment_router._initiating.pop(payment.reference, None)
+
+    assert response.status_code == 200
+    assert await _status_of(db_session, payment.id) == PaymentStatus.PENDING
+    assert held == {"ACCOUNTPE": "[26] Unable to process payment"}
