@@ -34,6 +34,7 @@ class PaymentProvider(str, enum.Enum):
     STRIPE = "STRIPE"
     ACCOUNTPE = "ACCOUNTPE"
     ENKAP = "ENKAP"
+    SEBPAY = "SEBPAY"
 
 
 class MobileMoneyOperator(str, enum.Enum):

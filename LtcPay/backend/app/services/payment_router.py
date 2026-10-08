@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.payment import Payment
 from app.services.accountpe_service import accountpe_service
+from app.services.sebpay_service import sebpay_service
 from app.services.provider_service import ProviderRoutingError, provider_service
 from app.services.touchpay_direct_service import (
     OperatorMismatchError,
@@ -74,6 +75,29 @@ def hold_failure_during_initiation(reference: str, provider_code: str, message: 
     return True
 
 
+async def otp_requirement(
+    db: AsyncSession, country_code: str, operator_code: str, merchant=None,
+):
+    """The operator row whose OTP the payer must provide, or None.
+
+    An OTP is required only when every provider that can take this operator
+    needs one: otherwise a payer without a code is simply routed to a provider
+    that asks for nothing. Returns the first such row (its ussd_code is how
+    the payer obtains the code).
+    """
+    candidates = await provider_service.resolve_mobile_providers(
+        db, country_code, operator_code,
+    )
+    candidates = provider_service.apply_merchant_prefs(
+        candidates, merchant, "MOBILE", country_code,
+    )
+    if candidates and all(
+        op is not None and getattr(op, "otp_required", False) for _, op in candidates
+    ):
+        return candidates[0][1]
+    return None
+
+
 def extract_transaction_ids(response: dict) -> dict:
     """Provider and operator transaction ids from an accepted initiation.
 
@@ -114,6 +138,7 @@ async def _dispatch(
     country_code: str,
     customer_info: dict | None,
     description: str | None,
+    otp_code: str | None = None,
 ) -> dict:
     if provider.code == "TOUCHPAY":
         callback_url = f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
@@ -148,6 +173,20 @@ async def _dispatch(
             callback_url=cb,
             failed_callback_url=failed_cb,
         )
+    if provider.code == "SEBPAY":
+        # Signed webhooks (HMAC of the raw body with our secret key): no
+        # token needed in the URL.
+        return await sebpay_service.initiate_payment(
+            db=db,
+            provider=provider,
+            payment_reference=reference,
+            amount=amount,
+            phone_number=phone_number,
+            operator_code=operator_code,
+            country_code=country_code,
+            callback_url=f"{settings.webhook_base_url}/api/v1/callbacks/sebpay",
+            otp_code=otp_code,
+        )
     raise TouchPayDirectError(f"No integration for provider '{provider.code}'")
 
 
@@ -163,11 +202,15 @@ async def initiate_mobile_payment(
     customer_info: dict | None = None,
     description: str | None = None,
     merchant=None,
+    otp_code: str | None = None,
 ) -> tuple[str, dict]:
     """Initiate via the country's providers in priority order, with failover.
 
     Returns (provider_code_used, provider_response). When a failover
     happened, provider_response["failover_trail"] lists the failed attempts.
+    otp_code is the payer's one-time code, used by providers whose operator
+    row is otp_required and ignored by the others. A provider that needs one
+    and did not get it refuses before any call, so the next one is tried.
     """
     candidates = await provider_service.resolve_mobile_providers(
         db, country_code, operator_code,
@@ -188,7 +231,7 @@ async def initiate_mobile_payment(
             payment=payment, reference=reference, amount=amount,
             phone_number=phone_number, operator_code=operator_code,
             country_code=country_code, customer_info=customer_info,
-            description=description,
+            description=description, otp_code=otp_code,
         )
     finally:
         _initiating.pop(reference, None)
@@ -206,6 +249,7 @@ async def _initiate_in_order(
     country_code: str,
     customer_info: dict | None,
     description: str | None,
+    otp_code: str | None = None,
 ) -> tuple[str, dict]:
     failover_trail: list[dict] = []
     for position, (provider, _op_row) in enumerate(candidates):
@@ -222,6 +266,7 @@ async def _initiate_in_order(
                 country_code=country_code,
                 customer_info=customer_info,
                 description=description,
+                otp_code=otp_code,
             )
         except (OperatorMismatchError, PaymentVelocityError):
             raise  # pre-flight rejections: identical outcome on any provider

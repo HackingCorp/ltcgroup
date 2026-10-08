@@ -1065,6 +1065,7 @@ function OperatorModal({
               >
                 <option value="TOUCHPAY">TOUCHPAY</option>
                 <option value="ACCOUNTPE">ACCOUNTPE</option>
+                <option value="SEBPAY">SEBPAY</option>
               </select>
             )}
           </div>

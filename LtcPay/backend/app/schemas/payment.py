@@ -61,6 +61,10 @@ class PaymentInitiate(BaseModel):
     payment_mode: Optional[PaymentMode] = None  # None = use merchant default
     operator: Optional[str] = Field(None, max_length=20, description="Operator code (e.g. MTN, ORANGE, WAVE)")
     customer_phone: Optional[str] = Field(None, max_length=20)
+    # One-time code some operators require before debiting (SebPay Orange
+    # CI/BF): the payer dials the operator's otp_ussd_code to obtain it.
+    # See GET /payments/countries -> operators[].otp_required.
+    otp_code: Optional[str] = Field(None, max_length=12)
 
     @field_validator("country", mode="before")
     @classmethod
@@ -131,6 +135,10 @@ class PaymentInitiateResponse(BaseModel):
     payment_mode: PaymentMode = PaymentMode.SDK
     country: Optional[str] = None
     payment_url: Optional[str] = None
+    # Direct API only: a link the payer must open to approve the payment
+    # (Wave). When present, redirect the customer to it — nothing is pushed
+    # to their phone.
+    redirect_url: Optional[str] = None
     stripe_client_secret: Optional[str] = None
     created_at: datetime
 

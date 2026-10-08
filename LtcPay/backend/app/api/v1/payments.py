@@ -49,7 +49,9 @@ from app.services.touchpay_direct_service import (
 from app.services.stripe_service import stripe_service, StripeServiceError
 from app.services.country_service import country_service
 from app.services.provider_service import ProviderRoutingError, provider_service
-from app.services.payment_router import initiate_mobile_payment, extract_transaction_ids
+from app.services.payment_router import (
+    initiate_mobile_payment, extract_transaction_ids, otp_requirement,
+)
 from app.services.enkap_service import enkap_service, EnkapError
 from app.services.failure_reasons import classify_failure, extract_operator_reference
 
@@ -370,6 +372,18 @@ async def list_available_countries(
                     if merchant is not None else None
                 ),
             )
+        # Only operators with an OTP row somewhere are worth the routing
+        # query; for the rest the answer is no.
+        otp_codes = {
+            op.operator_code for op in (c.operators or [])
+            if getattr(op, "otp_required", False) and op.is_active
+        }
+        for code in otp_codes:
+            info = by_code.get(code)
+            otp_row = await otp_requirement(db, c.code, code, merchant) if info else None
+            if otp_row is not None:
+                info.otp_required = True
+                info.otp_ussd_code = otp_row.ussd_code or None
         ops = [
             o for o in sorted(by_code.values(), key=lambda o: o.code)
             if (o.available or include_unavailable)
@@ -740,6 +754,33 @@ async def create_payment(
             },
         )
 
+    # An operator that needs the payer's OTP cannot be initiated without it.
+    # Refused before the payment exists, so the merchant just asks the payer
+    # for the code and sends the request again.
+    if (
+        payment_mode == PaymentMode.DIRECT_API
+        and payload.operator
+        and payload.customer_phone
+        and country_code
+        and not (payload.otp_code or "").strip()
+    ):
+        otp_row = await otp_requirement(db, country_code, payload.operator, merchant)
+        if otp_row is not None:
+            from app.services.sebpay_service import otp_ussd_for_amount
+            ussd = otp_ussd_for_amount(otp_row.ussd_code, customer_amount)
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "detail": (
+                        f"{otp_row.operator_name} exige un code OTP : le client compose "
+                        f"{ussd or 'le code USSD de son operateur'} pour l'obtenir, puis "
+                        "renvoyez la requete avec otp_code."
+                    ),
+                    "failure_code": "OTP_REQUIRED",
+                    "otp_ussd_code": ussd or None,
+                },
+            )
+
     payment_token = generate_payment_token(reference, customer_amount)
 
     expires_at = datetime.now(timezone.utc) + timedelta(
@@ -887,6 +928,7 @@ async def create_payment(
                 customer_info=customer_info,
                 description=payload.description,
                 merchant=merchant,
+                otp_code=payload.otp_code,
             )
             await record_initiation_outcome(
                 db, payment,
@@ -990,6 +1032,7 @@ async def create_payment(
         payment_mode=payment.payment_mode,
         country=payment.country,
         payment_url=payment.payment_url,
+        redirect_url=(payment.direct_api_data or {}).get("redirect_url"),
         stripe_client_secret=payment.stripe_client_secret,
         created_at=payment.created_at,
     )

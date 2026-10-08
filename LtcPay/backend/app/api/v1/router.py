@@ -31,6 +31,7 @@ from app.api.v1.endpoints import callbacks
 from app.api.v1.endpoints import stripe_callbacks
 from app.api.v1.endpoints import accountpe_callbacks
 from app.api.v1.endpoints import enkap_callbacks
+from app.api.v1.endpoints import sebpay_callbacks
 from app.api.v1 import admin_providers
 from app.api.v1.endpoints import payments as direct_payments
 from app.api.v1.endpoints import transactions
@@ -138,6 +139,13 @@ api_router.include_router(
     accountpe_callbacks.router,
     prefix="/callbacks",
     tags=["AccountPE Callbacks"],
+)
+
+# SebPay callbacks (HMAC-signed webhooks)
+api_router.include_router(
+    sebpay_callbacks.router,
+    prefix="/callbacks",
+    tags=["SebPay Callbacks"],
 )
 
 # E-nkap callbacks (unsigned wake-up webhooks)

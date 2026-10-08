@@ -118,6 +118,13 @@ class CountryOperator(Base):
     # Used to detect operator/number mismatches before calling the PSP.
     # Empty/null = no prefix knowledge; numbers are never blocked on it.
     phone_prefixes: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    # The payer must first obtain a one-time code from the operator (by
+    # dialling ussd_code) and give it with the payment — SebPay's Orange CI
+    # and Orange BF. Only that provider's row carries it: the same operator
+    # through another provider may need nothing.
+    otp_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+    )
     # What the provider charges us for this operator, in percent — read off
     # the `fees` it returns at initiation. Documentation, never billing.
     provider_fee_rate: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)

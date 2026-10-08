@@ -181,6 +181,10 @@ class PublicOperatorInfo(BaseModel):
     # merchant — provider costs differ per country and operator, so this is
     # not always the merchant's base rate. Null when unauthenticated.
     fee_rate: Optional[float] = None
+    # True when the payer must give a one-time code with the payment
+    # (otp_code on POST /payments). otp_ussd_code is what they dial to get it.
+    otp_required: bool = False
+    otp_ussd_code: Optional[str] = None
 
 
 class PublicCountryInfo(BaseModel):

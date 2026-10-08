@@ -1026,6 +1026,19 @@
                         Demande de paiement envoyee a ce numero. Confirmez avec votre PIN.
                     </div>
                     <div class="field-hint" id="operator-mismatch-hint" style="display: none; color: var(--rose);"></div>
+
+                    <!-- One-time code, for operators that require it (Orange CI/BF via SebPay) -->
+                    <div id="otp-section" style="display: none; margin-top: 14px;">
+                        <div class="pm-section-label">Code OTP</div>
+                        <div class="field-hint" style="margin: 0 0 8px;">
+                            Composez <span class="kbd-pill" id="otp-request-ussd"></span> sur votre telephone
+                            pour recevoir un code, puis saisissez-le ici.
+                        </div>
+                        <div class="ck-input-row">
+                            <input type="text" id="otp-input" inputmode="numeric" autocomplete="one-time-code"
+                                   maxlength="12" placeholder="Code OTP">
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
 
@@ -1081,6 +1094,13 @@
                         a ete envoyee au <strong class="mono" id="otp-phone" style="font-size: 13px;">+{{ country.phone_prefix }} ---</strong>.
                         Composez <span class="kbd-pill" id="otp-ussd"></span> et saisissez votre PIN.
                     </p>
+                    <!-- Wave: the payment is approved in Wave, through this link -->
+                    <div id="wave-redirect" style="display: none; margin: 4px 0 16px;">
+                        <a id="wave-redirect-link" class="pay-btn" href="#" target="_blank" rel="noopener"
+                           style="display: inline-flex; text-decoration: none; justify-content: center;">
+                            <span class="btn-text-label">Ouvrir Wave pour payer</span>
+                        </a>
+                    </div>
                     <div class="mono" style="font-size: 11px; color: var(--muted);">
                         Expire dans <strong id="otp-timer" style="color: var(--ink);">02:59</strong>
                     </div>
@@ -1212,7 +1232,9 @@
         color: "{{ op.color }}",
         logo_url: "{{ op.logo_url }}",
         ussd: "{{ op.ussd_code }}",
-        prefixes: {{ op.phone_prefixes | tojson }}
+        prefixes: {{ op.phone_prefixes | tojson }},
+        otpRequired: {{ 'true' if op.otp_required else 'false' }},
+        otpUssd: {{ (op.otp_ussd or '') | tojson }}
     };
     {% endfor %}
     var stripePublishableKey = "{{ stripe_publishable_key }}";
@@ -1301,6 +1323,15 @@
         if (phoneSection) {
             phoneSection.style.display = (operatorMap[method]) ? 'block' : 'none';
         }
+        var otpSection = $('otp-section');
+        if (otpSection) {
+            var opSel = operatorMap[method];
+            var needsOtp = !!(opSel && opSel.otpRequired);
+            otpSection.style.display = needsOtp ? 'block' : 'none';
+            if (needsOtp) {
+                $('otp-request-ussd').textContent = opSel.otpUssd || 'le code USSD de votre operateur';
+            }
+        }
         if (cardSection) {
             cardSection.style.display = (method === 'card') ? 'block' : 'none';
             if (method === 'card' && !stripeInitialized && stripeEnabled) {
@@ -1353,7 +1384,12 @@
             }
 
             // With number portability the mismatch is informative only
-            btn.disabled = phone.length < 8 || (prefixCheckEnforced && !!mismatch);
+            var otpMissing = false;
+            if (operatorMap[selectedMethod].otpRequired) {
+                var otpEl = $('otp-input');
+                otpMissing = !otpEl || otpEl.value.replace(/\s/g, '').length < 4;
+            }
+            btn.disabled = phone.length < 8 || (prefixCheckEnforced && !!mismatch) || otpMissing;
         } else if (selectedMethod === 'card') {
             btn.disabled = !stripeReady;
         } else {
@@ -1365,6 +1401,10 @@
     var phoneInput = $('phone-input');
     if (phoneInput) {
         phoneInput.addEventListener('input', validatePayBtn);
+    }
+    var otpInput = $('otp-input');
+    if (otpInput) {
+        otpInput.addEventListener('input', validatePayBtn);
     }
 
     // ==================== PAY BUTTON HANDLER ====================
@@ -1399,6 +1439,8 @@
 
         var opInfo = operatorMap[selectedMethod] || {};
         var operator = opInfo.code || selectedMethod.toUpperCase();
+        var otpEl = $('otp-input');
+        var otpCode = (opInfo.otpRequired && otpEl) ? otpEl.value.replace(/\s/g, '') : '';
 
         var btn = $('pay-btn');
         btn.classList.add('loading');
@@ -1409,7 +1451,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 operator: operator,
-                phone: phone
+                phone: phone,
+                otp_code: otpCode || undefined
             })
         })
         .then(function(resp) {
@@ -1424,7 +1467,12 @@
             btn.classList.remove('loading');
             payinSubmitted = true;
 
-            configureOtpScreen(selectedMethod, rawPhone);
+            configureOtpScreen(selectedMethod, rawPhone, data.redirect_url);
+            if (data.redirect_url) {
+                // May be blocked as a popup after an async call: the button
+                // on the confirm screen stays as the sure way to open it.
+                try { window.open(data.redirect_url, '_blank', 'noopener'); } catch (e) {}
+            }
 
             // Show confirm step
             showStep('confirm-momo');
@@ -1437,14 +1485,16 @@
         })
         .catch(function(err) {
             btn.classList.remove('loading');
-            btn.disabled = false;
+            // A one-time code is spent or wrong once refused: ask for a new one.
+            if (opInfo.otpRequired && otpEl) otpEl.value = '';
+            validatePayBtn();
             showStatus(err.message, 'error');
         });
     }
 
     // Fills the confirm screen (operator name, colors, phone, USSD code) for a
     // given operator key ("orange"/"mtn") and national phone number.
-    function configureOtpScreen(methodKey, nationalPhone) {
+    function configureOtpScreen(methodKey, nationalPhone, redirectUrl) {
         var opData = operatorMap[methodKey] || {};
         var glyphEl = $('otp-glyph');
         glyphEl.style.background = 'linear-gradient(135deg, ' + (opData.color || 'var(--primary)') + ', ' + (opData.color || '#555') + ')';
@@ -1457,11 +1507,22 @@
         if (nationalPhone) {
             $('otp-phone').textContent = '+' + countryPrefix + ' ' + nationalPhone;
         }
-        if (opData.ussd) {
+        // An OTP operator's ussd is how the code was obtained, not how to
+        // confirm; Wave is confirmed in its app through the link.
+        if (opData.ussd && !opData.otpRequired && !redirectUrl) {
             $('otp-ussd').textContent = opData.ussd;
             $('otp-ussd').style.display = '';
         } else {
             $('otp-ussd').style.display = 'none';
+        }
+        var wave = $('wave-redirect');
+        if (wave) {
+            if (redirectUrl) {
+                $('wave-redirect-link').href = redirectUrl;
+                wave.style.display = 'block';
+            } else {
+                wave.style.display = 'none';
+            }
         }
     }
 
@@ -1769,7 +1830,7 @@
         if (resumePhone.indexOf(countryPrefix) === 0) {
             resumePhone = resumePhone.slice(countryPrefix.length);
         }
-        configureOtpScreen("{{ (payment.operator or '')|lower }}", resumePhone);
+        configureOtpScreen("{{ (payment.operator or '')|lower }}", resumePhone, {{ redirect_url | tojson }});
         payinSubmitted = true;
         showStep('confirm-momo');
         startPolling();

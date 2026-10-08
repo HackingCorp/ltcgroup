@@ -28,7 +28,7 @@ from app.models.provider import CountryProvider, ProviderConfig, ProviderGroup
 logger = logging.getLogger(__name__)
 
 # Config keys whose values are stored Fernet-encrypted.
-_SENSITIVE_CONFIG_KEYS = {"api_key", "webhook_secret", "password", "secret", "consumer_key", "consumer_secret"}
+_SENSITIVE_CONFIG_KEYS = {"api_key", "webhook_secret", "password", "secret", "secret_key", "consumer_key", "consumer_secret"}
 
 # Currencies each provider can actually settle, overridable per provider via
 # config["currencies"]. Providers absent from this map take the country's own

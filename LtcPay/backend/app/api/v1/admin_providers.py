@@ -320,6 +320,125 @@ async def list_provider_operators(
     ]
 
 
+# ── SebPay operator sync ─────────────────────────────────────────
+# SebPay identifies operators by its own code ("mtn", "MTN" in Cameroon,
+# "togocom"), stored as service_code on SEBPAY operator rows. Its catalogue
+# also says which operators need a payer OTP (Orange CI/BF) and which USSD
+# gives it: both land on the row (otp_required, ussd_code), and the checkout
+# and the merchant API ask the payer for the code.
+
+@router.post("/sebpay/sync-operators")
+async def sync_sebpay_operators(
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create/update SEBPAY operator rows from SebPay's GET /operators.
+
+    Only countries we already have are touched. New rows start active when
+    SebPay can collect on them; existing rows keep the admin's is_active,
+    except that an operator SebPay has disabled is deactivated. The OTP flag
+    and its USSD always follow SebPay. Never creates country links: routing
+    SebPay in a country stays an explicit choice (PUT /SEBPAY/countries/{cc}).
+    """
+    from app.services.sebpay_service import SebPayError, sebpay_service, to_operator_code
+
+    provider = await _get_provider_or_404(db, "SEBPAY")
+    try:
+        catalogue = await sebpay_service.list_operators(provider)
+    except SebPayError as exc:
+        raise HTTPException(status_code=502, detail=f"SebPay: {exc}")
+
+    countries = {
+        c.code: c for c in (await db.execute(select(SupportedCountry))).scalars().all()
+    }
+    existing_ops = (await db.execute(select(CountryOperator))).scalars().all()
+    sebpay_rows = {
+        (op.country_code, op.operator_code): op
+        for op in existing_ops if op.provider_code == "SEBPAY"
+    }
+    # Another provider's row for the same operator lends its display
+    # settings (colour, prefixes, limits) so both rows behave alike.
+    siblings = {
+        (op.country_code, op.operator_code): op
+        for op in existing_ops if op.provider_code != "SEBPAY"
+    }
+
+    created, updated = [], []
+    otp_operators: list[str] = []
+    unsupported_countries: set[str] = set()
+
+    for item in catalogue:
+        country = item.get("country") if isinstance(item.get("country"), dict) else {}
+        cc = str(country.get("country_code") or "").upper()
+        sebpay_code = str(item.get("code") or "").strip()
+        if not cc or not sebpay_code:
+            continue
+        if cc not in countries:
+            unsupported_countries.add(cc)
+            continue
+
+        operator_code = to_operator_code(sebpay_code)
+        collectable = bool(item.get("is_active")) and bool(item.get("payin_enabled", True))
+        otp_required = bool(item.get("otp_required"))
+        otp_ussd = str(item.get("ussd_code") or "")[:20] if otp_required else ""
+        label = f"{cc}/{operator_code} ({sebpay_code})"
+        if otp_required:
+            otp_operators.append(f"{label}: {otp_ussd or 'USSD inconnu'}")
+
+        row = sebpay_rows.get((cc, operator_code))
+        if row is None:
+            sibling = siblings.get((cc, operator_code))
+            row = CountryOperator(
+                country_code=cc,
+                provider_code="SEBPAY",
+                operator_code=operator_code,
+                operator_name=(sibling.operator_name if sibling else None) or str(item.get("name") or operator_code)[:100],
+                service_code=sebpay_code,
+                color=sibling.color if sibling else "#000000",
+                logo_url=(sibling.logo_url if sibling else "") or str(item.get("logo_url") or "")[:500],
+                min_amount=sibling.min_amount if sibling else countries[cc].min_amount,
+                max_amount=sibling.max_amount if sibling else countries[cc].max_amount,
+                # For an OTP operator this is the code that gives the OTP.
+                ussd_code=otp_ussd or (sibling.ussd_code if sibling else "") or "",
+                phone_prefixes=list(sibling.phone_prefixes or []) if sibling else [],
+                otp_required=otp_required,
+                is_active=collectable,
+            )
+            db.add(row)
+            sebpay_rows[(cc, operator_code)] = row
+            created.append(label)
+            continue
+
+        changed = False
+        if row.service_code != sebpay_code:
+            row.service_code = sebpay_code
+            changed = True
+        if row.otp_required != otp_required:
+            row.otp_required = otp_required
+            changed = True
+        if otp_required and otp_ussd and row.ussd_code != otp_ussd:
+            row.ussd_code = otp_ussd
+            changed = True
+        if row.is_active and not collectable:
+            row.is_active = False
+            changed = True
+        if changed:
+            updated.append(label)
+
+    await db.commit()
+
+    logger.info(
+        "Admin %s synced SebPay operators: %d created, %d updated, %d with OTP",
+        admin.email, len(created), len(updated), len(otp_operators),
+    )
+    return {
+        "created": created,
+        "updated": updated,
+        "countries_not_configured": sorted(unsupported_countries),
+        "otp_operators": sorted(otp_operators),
+    }
+
+
 # ── TouchPay partner API ─────────────────────────────────────────
 # Three endpoints TouchPay documents but that had no caller here: the agency
 # float, a payin status lookup, and outbound cash-in. The float matters most

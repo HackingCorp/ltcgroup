@@ -67,11 +67,26 @@ export const providersService = {
     });
   },
 
+  async syncSebPayOperators(): Promise<SebPaySyncResult> {
+    const r = await api.post<SebPaySyncResult>("/admin/providers/sebpay/sync-operators");
+    return r.data;
+  },
+
   async getTouchPayBalances(): Promise<TouchPayBalances> {
     const r = await api.get<TouchPayBalances>("/admin/providers/touchpay/balances");
     return r.data;
   },
 };
+
+/** Outcome of importing SebPay's operator catalogue into country_operators. */
+export interface SebPaySyncResult {
+  created: string[];
+  updated: string[];
+  /** Countries SebPay serves that LtcPay has not configured. */
+  countries_not_configured: string[];
+  /** Operators that need the payer's OTP, with the USSD that gives it. */
+  otp_operators: string[];
+}
 
 /** The TouchPay float per country. `amount` is null when it could not be
  *  read — never render that as a zero, which reads as "agency empty". */

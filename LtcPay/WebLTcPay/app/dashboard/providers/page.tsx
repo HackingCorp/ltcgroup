@@ -9,6 +9,7 @@ import {
   providersService,
   type Provider,
   type MerchantProviderPrefs,
+  type SebPaySyncResult,
 } from "@/services/providers.service";
 import { countriesService, type Country } from "@/services/countries.service";
 import { merchantsService } from "@/services/merchants.service";
@@ -39,6 +40,11 @@ export default function ProvidersPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  // SebPay credentials + operator sync
+  const [sebPublicKey, setSebPublicKey] = useState("");
+  const [sebSecretKey, setSebSecretKey] = useState("");
+  const [sebSync, setSebSync] = useState<SebPaySyncResult | null>(null);
 
   // Merchant prefs editor state
   const [merchants, setMerchants] = useState<{ id: string; name: string }[]>([]);
@@ -141,6 +147,23 @@ export default function ProvidersPage() {
     );
   }
 
+  async function saveSebPayKeys() {
+    const config: Record<string, string> = {};
+    if (sebPublicKey.trim()) config.public_key = sebPublicKey.trim();
+    if (sebSecretKey.trim()) config.secret_key = sebSecretKey.trim();
+    if (!Object.keys(config).length) return;
+    await run("seb-keys", async () => {
+      await providersService.update("SEBPAY", { config });
+      setSebPublicKey("");
+      setSebSecretKey("");
+    });
+  }
+
+  async function syncSebPay() {
+    setSebSync(null);
+    await run("seb-sync", async () => setSebSync(await providersService.syncSebPayOperators()));
+  }
+
   async function loadPrefs(id: string) {
     setSelMerchant(id);
     setPrefsMsg("");
@@ -231,6 +254,60 @@ export default function ProvidersPage() {
                 <T fr="Activer" en="Enable" />
               )}
             </button>
+            {p.code === "SEBPAY" && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                <input
+                  className="input"
+                  placeholder={p.config_keys.includes("public_key") ? "pk_… (enregistrée)" : "pk_live_…"}
+                  value={sebPublicKey}
+                  onChange={(e) => setSebPublicKey(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={p.config_keys.includes("secret_key") ? "sk_… (enregistrée)" : "sk_live_…"}
+                  value={sebSecretKey}
+                  onChange={(e) => setSebSecretKey(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy !== null || (!sebPublicKey.trim() && !sebSecretKey.trim())}
+                    onClick={saveSebPayKeys}
+                  >
+                    <T fr="Enregistrer les clés" en="Save keys" />
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy !== null || !p.config_keys.includes("secret_key")}
+                    onClick={syncSebPay}
+                  >
+                    <T fr="Synchroniser les opérateurs" en="Sync operators" />
+                  </button>
+                </div>
+                {sebSync && (
+                  <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>
+                    <T fr="Créés" en="Created" /> : {sebSync.created.length} ·{" "}
+                    <T fr="mis à jour" en="updated" /> : {sebSync.updated.length}
+                    {sebSync.otp_operators.length > 0 && (
+                      <div>
+                        <T fr="Avec code OTP payeur" en="With payer OTP" /> :{" "}
+                        {sebSync.otp_operators.join(", ")}
+                      </div>
+                    )}
+                    {sebSync.countries_not_configured.length > 0 && (
+                      <div>
+                        <T fr="Pays SebPay absents de LtcPay" en="SebPay countries missing in LtcPay" /> :{" "}
+                        {sebSync.countries_not_configured.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>

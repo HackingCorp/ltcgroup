@@ -85,6 +85,7 @@ async def seed_payment_providers():
         # Routed on the CARD rail, but its hosted page collects cards AND
         # Mobile Money across 10 countries — the customer picks both there.
         ("ENKAP", "E-nkap (carte + Mobile Money)", ProviderGroup.CARD, False),
+        ("SEBPAY", "SebPay", ProviderGroup.MOBILE, False),
     ]
     async with async_session() as db:
         existing = {
@@ -127,6 +128,9 @@ async def lifespan(app: FastAPI):
         logger.warning("Provider seed skipped: %s", exc)
     from app.services.enkap_reconciler import reconciliation_loop
     from app.services.payment_expirer import expiry_loop
+    from app.services.sebpay_reconciler import (
+        reconciliation_loop as sebpay_reconciliation_loop,
+    )
     from app.services.touchpay_reconciler import (
         deep_reconciliation_loop as touchpay_deep_reconciliation_loop,
         reconciliation_loop as touchpay_reconciliation_loop,
@@ -135,6 +139,7 @@ async def lifespan(app: FastAPI):
         _asyncio.create_task(reconciliation_loop()),
         _asyncio.create_task(touchpay_reconciliation_loop()),
         _asyncio.create_task(touchpay_deep_reconciliation_loop()),
+        _asyncio.create_task(sebpay_reconciliation_loop()),
         _asyncio.create_task(expiry_loop()),
     ]
     yield
@@ -312,6 +317,15 @@ async def payment_page(reference: str, request: Request):
                     continue
                 by_code[op.operator_code] = op
             operators = sorted(by_code.values(), key=lambda o: o.operator_code)
+            # Operators whose every provider needs the payer's OTP (SebPay
+            # Orange CI/BF): the page asks for it, with the USSD that gives it.
+            from app.services.payment_router import otp_requirement
+            from app.services.sebpay_service import otp_ussd_for_amount
+            otp_by_code = {}
+            for code in {o.operator_code for o in raw_operators if getattr(o, "otp_required", False) and o.is_active}:
+                otp_row = await otp_requirement(db2, country.code, code)
+                if otp_row is not None:
+                    otp_by_code[code] = otp_ussd_for_amount(otp_row.ussd_code, payment.amount)
             country_context = {
                 "code": country.code,
                 "phone_prefix": country.phone_prefix,
@@ -329,6 +343,8 @@ async def payment_page(reference: str, request: Request):
                         "ussd_code": op.ussd_code,
                         "phone_prefixes": list(op.phone_prefixes or []),
                         "is_active": bool(op.is_active),
+                        "otp_required": op.operator_code in otp_by_code,
+                        "otp_ussd": otp_by_code.get(op.operator_code, ""),
                     }
                     for op in operators
                 ],
@@ -363,6 +379,8 @@ async def payment_page(reference: str, request: Request):
             "stripe_enabled": stripe_enabled,
             "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY if stripe_enabled else "",
             "stripe_client_secret": payment.stripe_client_secret or "",
+            # Wave via SebPay: reopening the page must give the link back.
+            "redirect_url": (payment.direct_api_data or {}).get("redirect_url") or "",
             "country": country_context,
         },
     )
@@ -694,6 +712,7 @@ async def submit_payment(reference: str, request: Request):
 
     operator_str = body.get("operator", "").upper()
     phone = body.get("phone", "").strip()
+    otp_code = str(body.get("otp_code") or "").strip() or None
 
     if not operator_str or not phone:
         raise HTTPException(status_code=400, detail="operator and phone are required")
@@ -761,6 +780,22 @@ async def submit_payment(reference: str, request: Request):
                 await db.commit()
                 await db.refresh(payment)
 
+        if not otp_code:
+            from app.services.payment_router import otp_requirement
+            from app.services.sebpay_service import otp_ussd_for_amount
+            otp_row = await otp_requirement(db, country_code, operator_str, merchant_row)
+            if otp_row is not None:
+                ussd = otp_ussd_for_amount(otp_row.ussd_code, payment.amount)
+                # The payment stays PENDING: the customer gets the code and
+                # submits again.
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Code OTP requis : composez {ussd} pour l'obtenir, puis saisissez-le."
+                        if ussd else "Code OTP requis : saisissez le code recu de votre operateur."
+                    ),
+                )
+
         try:
             provider_used, direct_response = await initiate_mobile_payment(
                 db=db,
@@ -773,6 +808,7 @@ async def submit_payment(reference: str, request: Request):
                 customer_info=payment.customer_info,
                 description=payment.description,
                 merchant=merchant_row,
+                otp_code=otp_code,
             )
         except ProviderRoutingError as exc:
             logger.warning("No provider on submit for %s: %s", reference, exc)
@@ -833,7 +869,12 @@ async def submit_payment(reference: str, request: Request):
         )
         await db.commit()
 
-    return {"status": "ok", "message": "Payment initiated, awaiting confirmation"}
+    return {
+        "status": "ok",
+        "message": "Payment initiated, awaiting confirmation",
+        # Wave: the customer approves by opening this link, not on a USSD prompt.
+        "redirect_url": (direct_response or {}).get("redirect_url"),
+    }
 
 
 # Customer-facing messages for TouchPay/operator failure codes
