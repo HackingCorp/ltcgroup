@@ -244,7 +244,8 @@ def test_operator_codes_map_to_ours():
     assert to_operator_code("mtn") == "MTN"
     assert to_operator_code("MTN") == "MTN"
     assert to_operator_code("togocom") == "TMONEY"
-    assert to_operator_code("EZY PESA") == "EZYPESA"
+    assert to_operator_code("EZY PESA") == "EZY_PESA"
+    assert to_operator_code("HALO PESA") == "HALO_PESA"
     assert to_operator_code("AFRIMONEY") == "AFRIMONEY"
 
 

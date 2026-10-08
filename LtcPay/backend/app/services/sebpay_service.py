@@ -64,7 +64,8 @@ STATUS_REJECTED = "rejected"
 STATUS_PENDING = "pending"
 
 # SebPay operator code -> our operator_code, where they differ. Anything
-# else is upper-cased with spaces and dashes removed ("EZY PESA" -> EZYPESA).
+# else is upper-cased with spaces and dashes turned into underscores
+# ("EZY PESA" -> EZY_PESA), the form the other providers' rows already use.
 _OPERATOR_CODE_MAP = {
     "togocom": "TMONEY",
     "wligdicash": "LIGDICASH",
@@ -95,7 +96,7 @@ def to_operator_code(sebpay_code: str) -> str:
     mapped = _OPERATOR_CODE_MAP.get(code.lower())
     if mapped:
         return mapped
-    return code.upper().replace(" ", "").replace("-", "").replace("_", "")
+    return "_".join(code.upper().replace("-", " ").split())
 
 
 def otp_ussd_for_amount(ussd_code: str, amount) -> str:
