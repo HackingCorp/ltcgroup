@@ -96,8 +96,8 @@ function IntroSection() {
         title="Introduction"
         desc={
           <T
-            fr="Bienvenue dans la documentation de l'API Nkap Pay. Cette API vous permet d'accepter des paiements Mobile Money (MTN, Orange Money) et par carte bancaire (Visa, Mastercard) en Afrique Centrale."
-            en="Welcome to the Nkap Pay API documentation. This API lets you accept Mobile Money payments (MTN, Orange Money) and bank card payments (Visa, Mastercard) in Central Africa."
+            fr="Bienvenue dans la documentation de l'API Nkap Pay. Cette API vous permet d'accepter des paiements Mobile Money (MTN, Orange Money, Moov, Airtel, Wave, M-Pesa et d'autres selon le pays) et par carte bancaire (Visa, Mastercard) en Afrique centrale, de l'Ouest et de l'Est. La liste à jour des pays et opérateurs est donnée par GET /payments/countries."
+            en="Welcome to the Nkap Pay API documentation. This API lets you accept Mobile Money payments (MTN, Orange Money, Moov, Airtel, Wave, M-Pesa and others depending on the country) and bank card payments (Visa, Mastercard) across Central, West and East Africa. The current list of countries and operators is returned by GET /payments/countries."
           />
         }
       />
@@ -107,10 +107,15 @@ function IntroSection() {
 
       <H2><T fr="Devises supportées" en="Supported currencies" /></H2>
       <FieldTable fields={[
-        { name: "XAF", type: "Franc CFA (CEMAC)", desc: "Cameroun, Gabon, Congo" },
-        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Côte d'Ivoire, Mali" },
+        { name: "XAF", type: "Franc CFA (CEMAC)", desc: "Cameroun, Congo, Gabon, Tchad" },
+        { name: "XOF", type: "Franc CFA (UEMOA)", desc: "Bénin, Burkina Faso, Côte d'Ivoire, Mali, Niger, Sénégal, Togo" },
         { name: "CDF", type: "Franc congolais", desc: "RD Congo" },
         { name: "GNF", type: "Franc guinéen", desc: "Guinée" },
+        { name: "GHS", type: "Cedi", desc: "Ghana" },
+        { name: "KES", type: "Shilling kényan", desc: "Kenya" },
+        { name: "NGN", type: "Naira", desc: "Nigeria" },
+        { name: "RWF", type: "Franc rwandais", desc: "Rwanda" },
+        { name: "TZS", type: "Shilling tanzanien", desc: "Tanzanie" },
         { name: "UGX", type: "Shilling ougandais", desc: "Ouganda" },
         { name: "EUR / USD", type: "Carte via Stripe", desc: "Uniquement quand Stripe traite le paiement carte. Le fournisseur carte par défaut au Cameroun est E-nkap, qui n'encaisse qu'en XAF : un paiement carte en EUR y est rejeté en 400." },
       ]} />
@@ -123,7 +128,7 @@ function IntroSection() {
 
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
-        { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money via TouchPay (SDK ou Direct API). Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
+        { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money (SDK ou Direct API). Le fournisseur est choisi automatiquement par pays, avec bascule sur un fournisseur de secours. Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
         { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant." },
       ]} />
 
@@ -160,7 +165,7 @@ function ScopeSection() {
       <FieldTable fields={[
         { name: "Créer un paiement", type: "POST /payments", desc: "Mobile Money (SDK, Direct API) et canal hébergé carte + Mobile Money." },
         { name: "Suivre un paiement", type: "GET /payments/{reference}", desc: "Statut, motif d'échec normalisé, référence opérateur. Re-vérifié en direct chez le fournisseur à chaque appel pour les paiements hébergés." },
-        { name: "Lister les paiements", type: "GET /payments", desc: "Filtres par statut et par date, pagination." },
+        { name: "Lister les paiements", type: "GET /payments", desc: "Filtre par statut, pagination (pas de filtre par date)." },
         { name: "Pays et opérateurs", type: "GET /payments/countries", desc: "Devise, limites, opérateurs actifs, préfixes téléphoniques." },
         { name: "Votre configuration", type: "GET /payments/me", desc: "Taux de frais par méthode, porteur des frais, mode par défaut." },
         { name: "Grille de frais", type: "GET /payments/fees", desc: "Pourcentage exact facturé par pays et par opérateur — les frais Mobile Money ne sont pas uniformes." },
@@ -404,7 +409,7 @@ function CreatePaymentSection() {
         { name: "customer_info.phone", type: "string", desc: "Téléphone du client (format E.164). Max 20 car." },
         { name: "callback_url", type: "string", desc: "URL webhook spécifique à ce paiement (remplace le défaut marchand). Max 500 car." },
         { name: "return_url", type: "string", desc: "URL de redirection après paiement. Max 500 car." },
-        { name: "metadata", type: "object", desc: "Données personnalisées JSON (retournées dans les webhooks)." },
+        { name: "metadata", type: "object", desc: "Données personnalisées JSON, conservées avec le paiement. Elles ne sont PAS renvoyées dans le webhook : pour retrouver votre commande, utilisez merchant_reference." },
       ]} />
 
       <H2><T fr="Exemple (mode SDK)" en="Example (SDK mode)" /></H2>
@@ -503,10 +508,40 @@ function CreatePaymentSection() {
   }'`}</CodeBlock>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14, marginTop: 12 }}>
         <T
-          fr="Le client reçoit une notification push sur son app MTN/Orange. Pollez GET /api/v1/payments/{reference} toutes les 3-5 secondes pour suivre le statut."
-          en="The customer receives a push notification on their MTN/Orange app. Poll GET /api/v1/payments/{reference} every 3-5 seconds to track status."
+          fr="Dans le cas général, le client reçoit une demande de confirmation (USSD ou notification) sur son téléphone. Deux opérateurs font exception : (1) certains exigent un code OTP que le client obtient d'abord en composant un code USSD — c'est indiqué par otp_required = true dans GET /payments/countries, et vous devez envoyer otp_code ; (2) Wave renvoie redirect_url, un lien que le client doit ouvrir pour valider — rien n'arrive sur son téléphone. Pollez ensuite GET /api/v1/payments/{reference} toutes les 3-5 secondes pour suivre le statut."
+          en="In the general case the customer gets a confirmation request (USSD or notification) on their phone. Two exceptions: (1) some operators require an OTP the customer first obtains by dialling a USSD code — flagged by otp_required = true in GET /payments/countries, and you must send otp_code; (2) Wave returns redirect_url, a link the customer must open to approve — nothing reaches their phone. Then poll GET /api/v1/payments/{reference} every 3-5 seconds to track status."
         />
       </p>
+
+      <H2><T fr="Exemple (Direct API avec code OTP)" en="Example (Direct API with an OTP)" /></H2>
+      <CodeBlock lang="curl">{`# 1. Sans otp_code, un opérateur qui l'exige est refusé AVANT toute création :
+# HTTP 400
+# {
+#   "detail": "Orange Money exige un code OTP : le client compose #144*82# pour l'obtenir, puis renvoyez la requete avec otp_code.",
+#   "failure_code": "OTP_REQUIRED",
+#   "otp_ussd_code": "#144*82#"
+# }
+
+# 2. Le client compose le code USSD, reçoit son OTP, vous renvoyez la requête :
+curl -X POST ${BASE_URL}/api/v1/payments \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..." \\
+  -d '{
+    "amount": 5000,
+    "currency": "XOF",
+    "country": "CI",
+    "payment_mode": "DIRECT_API",
+    "operator": "ORANGE",
+    "customer_phone": "2250700000000",
+    "otp_code": "123456"
+  }'`}</CodeBlock>
+      <InfoBox>
+        <T
+          fr="Un OTP ne sert qu'une fois et expire en quelques minutes. Si le paiement est refusé, demandez un nouveau code au client avant de réessayer. Pour l'Orange Burkina, otp_ussd_code contient le mot « montant » : remplacez-le par le montant à payer avant de l'afficher."
+          en="An OTP works once and expires within minutes. If the payment is refused, ask the customer for a new code before retrying. For Orange Burkina, otp_ussd_code contains the word “montant”: replace it with the amount to pay before showing it."
+        />
+      </InfoBox>
 
       <H2><T fr="Exemple (Carte bancaire)" en="Example (Bank card)" /></H2>
       <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
@@ -525,8 +560,8 @@ function CreatePaymentSection() {
   }'`}</CodeBlock>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14, marginTop: 12 }}>
         <T
-          fr="Le paiement par carte est traité via Stripe. Le client saisit ses informations de carte sur la page de checkout sécurisée."
-          en="Card payment is processed via Stripe. The customer enters their card details on the secure checkout page."
+          fr="Le fournisseur carte dépend du pays : au Cameroun c'est E-nkap (payment_mode REDIRECT, payment_url = page hébergée du fournisseur), ailleurs Stripe (payment_mode STRIPE). Lisez payment_mode dans la réponse avant de choisir comment ouvrir le paiement."
+          en="The card provider depends on the country: in Cameroon it is E-nkap (payment_mode REDIRECT, payment_url = the provider's hosted page), elsewhere Stripe (payment_mode STRIPE). Read payment_mode from the response before deciding how to open the payment."
         />
       </p>
     </>
@@ -579,6 +614,7 @@ function GetPaymentSection() {
         { name: "method", type: "string|null", desc: "MOBILE_MONEY ou BANK_CARD." },
         { name: "status", type: "string", desc: "Statut actuel du paiement." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page de paiement hébergée, ex: carte via E-nkap)." },
+        { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 du paiement (ex: CM)." },
         { name: "provider", type: "string|null", desc: "Fournisseur ayant traité le paiement : TOUCHPAY, ACCOUNTPE ou SEBPAY (Mobile Money), STRIPE ou ENKAP (carte). Le choix du fournisseur est automatique par pays, avec bascule sur un fournisseur secondaire en cas de panne — transparent pour votre intégration." },
         { name: "operator", type: "string|null", desc: "Code operateur Mobile Money (ex: MTN, ORANGE, WAVE)." },
         { name: "operator_transaction_id", type: "string|null", desc: "ID de transaction côté opérateur." },
@@ -747,7 +783,9 @@ function CountriesSection() {
         "ussd_code": "*126#",
         "phone_prefixes": ["67", "650", "651", "652", "653", "654"],
         "available": true,
-        "fee_rate": 2.0
+        "fee_rate": 2.0,
+        "otp_required": false,
+        "otp_ussd_code": null
       },
       {
         "code": "ORANGE",
@@ -759,9 +797,12 @@ function CountriesSection() {
         "ussd_code": "#150*50#",
         "phone_prefixes": ["69", "655", "656", "657", "658", "659"],
         "available": true,
-        "fee_rate": 2.0
+        "fee_rate": 2.0,
+        "otp_required": false,
+        "otp_ussd_code": null
       }
-    ]
+    ],
+    "enforce_phone_prefix_check": true
   }
 ]`}</CodeBlock>
 
@@ -788,9 +829,11 @@ function CountriesSection() {
         { name: "logo_url", type: "string", desc: "URL du logo (peut etre vide)." },
         { name: "min_amount", type: "integer", desc: "Montant minimum par transaction pour cet operateur. Toujours renseigne : cette limite prime sur celle du pays." },
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction pour cet operateur, frais compris lorsque le client les supporte. Un paiement hors limites est rejete en 400." },
-        { name: "ussd_code", type: "string", desc: "Code USSD pour verifier le solde." },
+        { name: "ussd_code", type: "string", desc: "Code USSD de l'operateur (indicatif, peut etre vide). Pour obtenir un OTP, utilisez otp_ussd_code." },
         { name: "phone_prefixes", type: "string[]", desc: "Prefixes de numeros nationaux appartenant a cet operateur (ex: [\"69\", \"655\"]). Utilisez-les pour preselectionner l'operateur ou avertir le client d'une incoherence numero/operateur avant soumission. Si le numero appartient de facon averee a un autre operateur du meme pays, l'API rejette le paiement en 400 avant tout appel a l'operateur. Une liste vide = plages inconnues, aucun blocage." },
         { name: "fee_rate", type: "number", desc: "Pourcentage facturé sur cet opérateur pour le marchand authentifié — null sans authentification. Les frais Mobile Money varient par pays et par opérateur : fiez-vous à ce champ plutôt qu'à fee_rates.MOBILE_MONEY." },
+        { name: "otp_required", type: "boolean", desc: "true si le client doit fournir un code a usage unique avec le paiement : envoyez-le dans otp_code (Direct API). Sans lui, POST /payments repond 400 OTP_REQUIRED. Sur la page de checkout Nkap Pay, le champ est demande automatiquement." },
+        { name: "otp_ussd_code", type: "string|null", desc: "Code USSD que le client compose pour recevoir son OTP (ex: #144*82#). Null si otp_required = false. Peut contenir le mot « montant » a remplacer par le montant a payer." },
         { name: "available", type: "boolean", desc: "false si l'operateur est temporairement desactive par la plateforme (panne, maintenance). Les operateurs indisponibles n'apparaissent qu'avec include_unavailable=true. Un paiement soumis sur un operateur indisponible est rejete en 400." },
       ]} />
 
@@ -815,8 +858,8 @@ function PaymentModesSection() {
         title="Payment modes"
         desc={
           <T
-            fr="Nkap Pay supporte trois modes d'intégration pour s'adapter à tous les cas d'usage."
-            en="Nkap Pay supports three integration modes to fit all use cases."
+            fr="Nkap Pay propose trois façons d'intégrer le paiement. Le mode STRIPE (formulaire carte Stripe) est choisi automatiquement pour la carte dans les pays sans page hébergée."
+            en="Nkap Pay offers three ways to integrate payments. STRIPE mode (Stripe card form) is selected automatically for cards in countries without a hosted page."
           />
         }
       />
@@ -827,7 +870,7 @@ function PaymentModesSection() {
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><T fr="Créez le paiement via l'API" en="Create the payment via the API" /></li>
           <li><T fr="Redirigez le client vers payment_url" en="Redirect customer to payment_url" /></li>
-          <li><T fr="Le client choisit MTN, Orange ou Carte sur la page de checkout" en="Customer chooses MTN, Orange or Card on the checkout page" /></li>
+          <li><T fr="Le client choisit son opérateur ou la carte sur la page de checkout (le code OTP et le lien Wave y sont gérés automatiquement)" en="Customer chooses their operator or card on the checkout page (OTP and Wave link are handled automatically)" /></li>
           <li><T fr="Recevez le résultat via webhook" en="Receive the result via webhook" /></li>
         </ul>
       </div>
@@ -838,7 +881,9 @@ function PaymentModesSection() {
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><T fr="Aucune redirection — purement API" en="No redirect — pure API" /></li>
           <li><T fr="Envoyez country, operator et customer_phone" en="Send country, operator and customer_phone" /></li>
-          <li><T fr="Le client reçoit une notification push sur son app MoMo" en="Customer receives push notification on their MoMo app" /></li>
+          <li><T fr="Le client reçoit une demande de confirmation sur son téléphone" en="Customer receives a confirmation request on their phone" /></li>
+          <li><T fr="Si l'opérateur a otp_required = true, envoyez aussi otp_code" en="If the operator has otp_required = true, also send otp_code" /></li>
+          <li><T fr="Si la réponse contient redirect_url (Wave), envoyez le client vers ce lien" en="If the response contains redirect_url (Wave), send the customer to that link" /></li>
           <li><T fr="Pollez GET /payments/{'{reference}'} pour suivre le statut" en="Poll GET /payments/{'{reference}'} to track status" /></li>
         </ul>
       </div>
@@ -1006,7 +1051,7 @@ function EventsSection() {
         <div>PROCESSING → FAILED <span style={{ color: "var(--muted)" }}>(client a refusé ou timeout)</span></div>
         <div>PENDING → EXPIRED <span style={{ color: "var(--muted)" }}>(session expirée, 30 min par défaut)</span></div>
         <div>PROCESSING → EXPIRED <span style={{ color: "var(--muted)" }}>(sans réponse de l&apos;opérateur, 30 min après expiration)</span></div>
-        <div>PENDING → CANCELLED <span style={{ color: "var(--muted)" }}>(annulé par le client ou le marchand)</span></div>
+        <div>PENDING → CANCELLED <span style={{ color: "var(--muted)" }}>(annulé côté fournisseur)</span></div>
         <div>EXPIRED → COMPLETED <span style={{ color: "var(--muted)" }}>(l&apos;opérateur confirme le débit après expiration)</span></div>
         <div>EXPIRED → FAILED <span style={{ color: "var(--muted)" }}>(verdict tardif de l&apos;opérateur)</span></div>
       </div>
@@ -1044,7 +1089,7 @@ function StatusesSection() {
         { name: "COMPLETED", type: "terminal", desc: "Paiement réussi. Les fonds ont été collectés." },
         { name: "FAILED", type: "terminal", desc: "Paiement échoué (refus opérateur, solde insuffisant, erreur technique)." },
         { name: "EXPIRED", type: "non définitif", desc: "Session de paiement expirée (30 minutes par défaut). Le client n'a pas payé dans les temps. Aucun webhook n'est envoyé pour ce passage, sauf si vous activez « Notifier les expirations » dans Réglages › Webhooks. Un verdict tardif de l'opérateur peut encore faire basculer le paiement en COMPLETED ou FAILED." },
-        { name: "CANCELLED", type: "terminal", desc: "Paiement annulé par le client ou le marchand." },
+        { name: "CANCELLED", type: "terminal", desc: "Paiement annulé côté fournisseur (ex: paiement carte abandonné ou annulé). L'API n'expose pas d'endpoint d'annulation pour le marchand." },
         { name: "REFUNDED", type: "réservé", desc: "Valeur réservée pour le remboursement. Aucun paiement ne prend ce statut aujourd'hui : les remboursements se traitent hors API, en nous contactant. N'attendez pas de webhook REFUNDED." },
       ]} />
 
@@ -1084,14 +1129,14 @@ function ErrorsSection() {
       <FieldTable fields={[
         { name: "200", type: "OK", desc: "Requête réussie." },
         { name: "201", type: "Created", desc: "Ressource créée (ex: nouveau paiement)." },
-        { name: "400", type: "Bad Request", desc: "Paramètres invalides (montant < 100, devise non supportée, etc.)." },
+        { name: "400", type: "Bad Request", desc: "Requête refusée par les règles métier : pays ou opérateur indisponible, montant hors limites de l'opérateur, numéro invalide ou d'un autre opérateur, devise que le fournisseur n'encaisse pas (CURRENCY_NOT_SUPPORTED), code OTP manquant (OTP_REQUIRED)." },
         { name: "401", type: "Unauthorized", desc: "Clés API manquantes ou invalides." },
-        { name: "403", type: "Forbidden", desc: "Accès refusé (ex: paiement d'un autre marchand)." },
-        { name: "404", type: "Not Found", desc: "Ressource introuvable (référence de paiement invalide)." },
-        { name: "422", type: "Validation Error", desc: "Erreur de validation des données (détails dans le corps)." },
+        { name: "403", type: "Forbidden", desc: "Accès refusé (ex: compte marchand non vérifié ou désactivé)." },
+        { name: "404", type: "Not Found", desc: "Ressource introuvable : référence inconnue, ou paiement appartenant à un autre marchand (on ne révèle pas qu'il existe)." },
+        { name: "422", type: "Validation Error", desc: "Format de requête invalide : montant < 100 ou > 5 000 000, code devise inconnu, champ trop long, etc. (détails dans le corps)." },
         { name: "402", type: "Payment Required", desc: "L'opérateur a refusé le paiement pour une raison qui tient au client : solde insuffisant, compte bloqué ou introuvable, numéro d'un autre opérateur. Le fournisseur a répondu normalement — NE RÉESSAYEZ PAS automatiquement, rien ne changera tant que le client n'a pas corrigé la cause. La réponse porte failure_code, un message à afficher dans detail, et operator_reference quand l'opérateur en fournit une." },
         { name: "429", type: "Rate Limited", desc: "Réessayez plus tard : quota d'API dépassé, ou paiement refusé par un garde-fou de fréquence (DUPLICATE_PAYMENT, TOO_MANY_ATTEMPTS). L'en-tête Retry-After donne le délai exact en secondes." },
-        { name: "502", type: "Bad Gateway", desc: "Panne réelle du fournisseur (TouchPay, E-nkap ou Stripe indisponible ou en erreur interne). C'est le seul cas où un nouvel essai a du sens. Un refus lié au client renvoie 402, jamais 502." },
+        { name: "502", type: "Bad Gateway", desc: "Panne réelle du fournisseur (TouchPay, AccountPE, SebPay, E-nkap ou Stripe indisponible ou en erreur interne). C'est le seul cas où un nouvel essai a du sens. Un refus lié au client renvoie 402, jamais 502." },
         { name: "500", type: "Server Error", desc: "Erreur interne du serveur." },
       ]} />
 
@@ -1113,6 +1158,19 @@ function ErrorsSection() {
           en="operator_reference is the operator's own transaction reference. It is the only identifier Orange or MTN support can act on if your customer says they were debited. Keep it."
         />
       </InfoBox>
+
+      <H2><T fr="Code OTP manquant (400)" en="OTP missing (400)" /></H2>
+      <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
+        <T
+          fr="Certains opérateurs (otp_required = true dans GET /payments/countries) exigent un code à usage unique avant tout débit. Sans otp_code, la requête est refusée AVANT la création du paiement : rien n'est envoyé au client. Affichez otp_ussd_code au client, récupérez le code qu'il reçoit, puis renvoyez la même requête avec otp_code."
+          en="Some operators (otp_required = true in GET /payments/countries) require a one-time code before any debit. Without otp_code the request is refused BEFORE the payment is created: nothing reaches the customer. Show otp_ussd_code to the customer, collect the code they receive, then send the same request again with otp_code."
+        />
+      </p>
+      <CodeBlock lang="json">{`{
+  "detail": "Orange Money exige un code OTP : le client compose #144*82# pour l'obtenir, puis renvoyez la requete avec otp_code.",
+  "failure_code": "OTP_REQUIRED",
+  "otp_ussd_code": "#144*82#"
+}`}</CodeBlock>
 
       <H2><T fr="Devise non supportee (400)" en="Currency not supported (400)" /></H2>
       <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
@@ -1169,7 +1227,7 @@ function ErrorsSection() {
         { name: "BALANCE_OR_LIMIT", type: "client", desc: "MTN Congo renvoie trois causes possibles dans un seul message : solde insuffisant, limite de bénéficiaires atteinte, ou opération non autorisée sur le compte. Nous ne pouvons pas les distinguer, donc failure_reason les énonce toutes plutôt que d'en affirmer une. Le client vérifie son solde, puis contacte MTN si le solde est suffisant." },
         { name: "DUPLICATE_PAYMENT", type: "client", desc: "Une opération identique (même numéro, même opérateur, même montant) a été envoyée il y a moins de 5 minutes. L'opérateur refuse jusqu'à la fin de cette fenêtre, même si le paiement précédent a déjà échoué. Le refus arrive en HTTP 429 : failure_reason indique le temps restant exact et rappelle la raison de l'échec précédent." },
         { name: "WRONG_OPERATOR", type: "client", desc: "Le numéro n'appartient pas à l'opérateur sélectionné (ex: numéro Orange avec MTN MoMo sélectionné)." },
-        { name: "INVALID_PHONE", type: "client", desc: "Numéro de téléphone invalide : le nombre de chiffres ne correspond pas au pays. La longueur n'est pas la même partout — 9 au Cameroun, au Gabon et au Congo, 10 en Côte d'Ivoire, 8 au Bénin, au Mali et au Togo. Lisez phone_digits dans GET /payments/countries plutôt que de coder une longueur en dur ; le numéro est rejeté en 400 avant tout appel à l'opérateur." },
+        { name: "INVALID_PHONE", type: "client", desc: "Numéro de téléphone invalide : le nombre de chiffres ne correspond pas au pays. La longueur n'est pas la même partout — 9 au Cameroun, au Gabon et au Congo, 10 au Bénin, en Côte d'Ivoire et au Nigeria, 8 au Burkina, au Mali, au Niger, au Tchad et au Togo. Lisez phone_digits dans GET /payments/countries plutôt que de coder une longueur en dur ; le numéro est rejeté en 400 avant tout appel à l'opérateur." },
         { name: "TOO_MANY_ATTEMPTS", type: "client", desc: "Trop de tentatives de paiement pour ce numéro (5 par 30 minutes). Le refus arrive en HTTP 429 avec le délai restant exact dans l'en-tête Retry-After. Les tentatives bloquées par DUPLICATE_PAYMENT ne sont pas comptées." },
         { name: "AMOUNT_NOT_ALLOWED", type: "client", desc: "Le montant est hors du barème accepté par l'opérateur pour ce pays. Réessayer à l'identique ne passera jamais : proposez un montant dans la plage donnée par min_amount et max_amount dans GET /payments/countries. Vu au Togo le 28/09/2026 sur deux paiements de 103 XOF, refusés par les deux fournisseurs." },
         { name: "METHOD_NOT_SUPPORTED", type: "plateforme", desc: "Le fournisseur ne dessert pas cet opérateur dans ce pays. Contrairement à OPERATOR_UNAVAILABLE, réessayer ne changera rien tant que la configuration n'a pas évolué : proposez un autre opérateur à votre client, et signalez-nous le cas. Renvoyé en 502." },
