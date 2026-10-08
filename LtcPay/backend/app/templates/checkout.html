@@ -1084,9 +1084,10 @@
                     <div class="mono" style="font-size: 11px; color: var(--muted);">
                         Expire dans <strong id="otp-timer" style="color: var(--ink);">02:59</strong>
                     </div>
-                    <div style="display: flex; gap: 8px; margin-top: 28px;">
-                        <button class="btn btn-ghost" onclick="goToSelect()">&#8592; Annuler</button>
-                    </div>
+                    <p style="color: var(--muted); font-size: 12px; margin-top: 28px; max-width: 320px; line-height: 1.5;">
+                        La demande est deja chez votre operateur : ne relancez pas le paiement,
+                        validez-la sur votre telephone. Cette page se mettra a jour toute seule.
+                    </p>
                 </div>
             </div>
 
@@ -1169,9 +1170,14 @@
                     </div>
                     <h3>Paiement echoue</h3>
                     <p id="error-message">Le paiement a echoue. Veuillez reessayer.</p>
+                    {% if payment.return_url %}
                     <div style="display: flex; gap: 8px; margin-top: 12px;">
-                        <button class="btn btn-primary" onclick="goToSelect()">Reessayer</button>
+                        <button class="btn btn-primary" onclick="goReturn('FAILED')">Retour vers le marchand</button>
                     </div>
+                    {% endif %}
+                    <p style="color: var(--muted); font-size: 12px; margin-top: 16px; max-width: 320px; line-height: 1.5;">
+                        Pour reessayer, relancez le paiement depuis le site du marchand.
+                    </p>
                 </div>
             </div>
 
@@ -1362,8 +1368,14 @@
     }
 
     // ==================== PAY BUTTON HANDLER ====================
+    // Set once a mobile-money payin has reached the operator. From then on
+    // the only way forward is the operator's verdict: the form never comes
+    // back, so a second "Payer" cannot be sent (PAY-1E4B651FA12145AF,
+    // 2026-10-08: four re-submits while Airtel was waiting for the PIN).
+    var payinSubmitted = false;
+
     window.handlePay = function() {
-        if (!selectedMethod) return;
+        if (!selectedMethod || payinSubmitted) return;
 
         if (operatorMap[selectedMethod]) {
             submitMobileMoneyPayment();
@@ -1410,6 +1422,7 @@
         })
         .then(function(data) {
             btn.classList.remove('loading');
+            payinSubmitted = true;
 
             configureOtpScreen(selectedMethod, rawPhone);
 
@@ -1673,6 +1686,7 @@
 
     // ==================== NAVIGATION ====================
     window.goToSelect = function() {
+        if (payinSubmitted) return;
         if (pollingInterval) {
             clearInterval(pollingInterval);
             pollingInterval = null;
@@ -1691,10 +1705,10 @@
         validatePayBtn();
     };
 
-    window.goReturn = function() {
+    window.goReturn = function(status) {
         if (returnUrl) {
             var sep = returnUrl.indexOf('?') >= 0 ? '&' : '?';
-            window.location.href = returnUrl + sep + 'reference=' + paymentRef + '&status=COMPLETED';
+            window.location.href = returnUrl + sep + 'reference=' + paymentRef + '&status=' + (status || 'COMPLETED');
         }
     };
 
@@ -1756,6 +1770,7 @@
             resumePhone = resumePhone.slice(countryPrefix.length);
         }
         configureOtpScreen("{{ (payment.operator or '')|lower }}", resumePhone);
+        payinSubmitted = true;
         showStep('confirm-momo');
         startPolling();
         {% endif %}
