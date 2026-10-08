@@ -346,16 +346,21 @@ async def list_available_countries(
             merchant, floors.get((country_code, operator_code)),
         ))
 
+    routes = await country_service.routable_providers(db)
+
     result = []
     for c in countries:
         # The same operator may exist once per provider (e.g. MTN via
         # TouchPay and via AccountPE). Merchants see one entry per operator:
-        # available if ANY provider serves it; display fields from the
-        # first active row.
+        # available if ANY provider routed in the country serves it; display
+        # fields from the first such row.
         by_code: dict[str, PublicOperatorInfo] = {}
         for op in (c.operators or []):
+            if not country_service.is_offered(op, routes):
+                continue  # a provider not routed here: no operator at all
+            routable = country_service.is_routable(op, routes)
             existing = by_code.get(op.operator_code)
-            if existing is not None and (existing.available or not op.is_active):
+            if existing is not None and (existing.available or not routable):
                 continue
             by_code[op.operator_code] = PublicOperatorInfo(
                 code=op.operator_code,
@@ -366,7 +371,7 @@ async def list_available_countries(
                 max_amount=op.max_amount,
                 ussd_code=op.ussd_code,
                 phone_prefixes=list(op.phone_prefixes or []),
-                available=bool(op.is_active),
+                available=routable,
                 fee_rate=(
                     _billed_rate(c.code, op.operator_code)
                     if merchant is not None else None
@@ -376,7 +381,7 @@ async def list_available_countries(
         # query; for the rest the answer is no.
         otp_codes = {
             op.operator_code for op in (c.operators or [])
-            if getattr(op, "otp_required", False) and op.is_active
+            if getattr(op, "otp_required", False) and country_service.is_routable(op, routes)
         }
         for code in otp_codes:
             info = by_code.get(code)

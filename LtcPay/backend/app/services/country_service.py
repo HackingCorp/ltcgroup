@@ -21,6 +21,54 @@ logger = logging.getLogger(__name__)
 
 class CountryService:
 
+    async def routable_providers(
+        self, db: AsyncSession, country_code: str | None = None,
+    ) -> dict[str, set[str]]:
+        """Providers that can take a payment, per country.
+
+        A provider counts when it is active globally and its link to the
+        country is active. An operator row of any other provider describes
+        a route that does not exist yet — SebPay's whole catalogue is seeded
+        before SebPay is linked anywhere — and must not show the operator as
+        available. Countries absent from the result have no links at all
+        (fresh installs): callers then fall back to the rows' own is_active.
+        """
+        from app.models.provider import CountryProvider, ProviderConfig
+
+        query = (
+            select(CountryProvider.country_code, CountryProvider.provider_code,
+                   CountryProvider.is_active, ProviderConfig.is_active)
+            .join(ProviderConfig, CountryProvider.provider_code == ProviderConfig.code)
+        )
+        if country_code:
+            query = query.where(CountryProvider.country_code == country_code.upper())
+        routes: dict[str, set[str]] = {}
+        for cc, provider_code, link_active, provider_active in (await db.execute(query)).all():
+            providers = routes.setdefault(cc, set())
+            if link_active and provider_active:
+                providers.add(provider_code)
+        return routes
+
+    @staticmethod
+    def is_offered(op: CountryOperator, routes: dict[str, set[str]]) -> bool:
+        """A row of a provider routed in its country, active or not.
+
+        What a checkout may show, greyed out when inactive. A row of an
+        unrouted provider is not a disabled operator, it is no operator.
+        """
+        providers = routes.get(op.country_code)
+        return providers is None or op.provider_code in providers
+
+    @staticmethod
+    def is_routable(op: CountryOperator, routes: dict[str, set[str]]) -> bool:
+        """An active operator row whose provider can actually take it."""
+        if not op.is_active:
+            return False
+        providers = routes.get(op.country_code)
+        if providers is None:
+            return True  # country without provider links: legacy behaviour
+        return op.provider_code in providers
+
     async def get_country(
         self, db: AsyncSession, code: str,
     ) -> SupportedCountry:
@@ -209,15 +257,16 @@ class CountryService:
             return False
 
         # The same operator may exist once per provider — any active row
-        # makes the operator available.
+        # whose provider is routed in this country makes it available.
         result = await db.execute(
             select(CountryOperator).where(
                 CountryOperator.country_code == country_code.upper(),
                 CountryOperator.operator_code == operator_code.upper(),
                 CountryOperator.is_active == True,  # noqa: E712
-            ).limit(1)
+            )
         )
-        return result.scalars().first() is not None
+        routes = await self.routable_providers(db, country_code)
+        return any(self.is_routable(op, routes) for op in result.scalars().all())
 
     async def detect_country_by_phone(
         self, db: AsyncSession, phone: str,

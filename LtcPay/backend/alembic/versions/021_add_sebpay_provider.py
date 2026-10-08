@@ -24,8 +24,9 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        INSERT INTO payment_providers (code, name, provider_group, is_active, config)
-        VALUES ('SEBPAY', 'SebPay', 'MOBILE', false, '{}')
+        INSERT INTO payment_providers
+            (code, name, provider_group, is_active, config, created_at, updated_at)
+        VALUES ('SEBPAY', 'SebPay', 'MOBILE', false, '{}', now(), now())
         ON CONFLICT (code) DO NOTHING
         """
     )

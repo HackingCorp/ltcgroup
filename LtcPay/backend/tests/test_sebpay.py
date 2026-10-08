@@ -542,3 +542,47 @@ async def test_checkout_gets_the_wave_link_back(client, db_session, demo_merchan
         # Reopening the page must give the link back.
         page = await client.get(f"/pay/{payment.reference}")
     assert "https://pay.wave.com/c/y" in page.text
+
+
+# --------------------------------------------------------------------------
+# Seeded catalogue, not yet routed
+# --------------------------------------------------------------------------
+# Migration 022 seeds every SebPay operator before SebPay is linked to any
+# country. Those rows describe routes that do not exist: they must not show
+# up on the checkout or in the API, not even greyed out.
+
+async def test_unrouted_provider_rows_expose_nothing(
+    client, db_session, demo_merchant, auth_headers, provider,
+):
+    from app.models.provider import CountryProvider
+    from tests.conftest import TestSessionLocal
+
+    listing = (await client.get("/api/v1/payments/countries?include_unavailable=true")).json()
+    cm = next(c for c in listing if c["code"] == "CM")
+    assert "WAVE" not in {o["code"] for o in cm["operators"]}
+    assert {"MTN", "ORANGE"} <= {o["code"] for o in cm["operators"]}
+
+    payment = await _pending_payment(db_session, demo_merchant)
+    with patch("app.main.async_session", TestSessionLocal):
+        page = await client.get(f"/pay/{payment.reference}")
+        refused = await client.post(f"/pay/{payment.reference}/submit", json={
+            "operator": "WAVE", "phone": "23768" + str(uuid.uuid4().int)[:7],
+        })
+    assert 'data-operator-code="WAVE"' not in page.text
+    assert refused.status_code == 400
+
+    created = await client.post("/api/v1/payments", headers=auth_headers, json={
+        "amount": 5000, "currency": "XAF", "country": "CM",
+        "payment_mode": "DIRECT_API", "operator": "WAVE",
+        "customer_phone": "23768" + str(uuid.uuid4().int)[:7],
+    })
+    assert created.status_code == 400
+
+    # Linking SebPay to the country is what brings Wave in.
+    db_session.add(CountryProvider(
+        country_code="CM", provider_code="SEBPAY", priority=2, is_active=True,
+    ))
+    await db_session.commit()
+    listing = (await client.get("/api/v1/payments/countries")).json()
+    cm = next(c for c in listing if c["code"] == "CM")
+    assert "WAVE" in {o["code"] for o in cm["operators"]}

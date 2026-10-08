@@ -309,11 +309,21 @@ async def payment_page(reference: str, request: Request):
             # The same operator exists once per provider (TouchPay,
             # AccountPE, ...) — show ONE button per operator_code, counted
             # available if any provider row is active.
-            raw_operators = await country_service.get_operators(db2, country_code)
+            # Only rows whose provider is routed here count: SebPay's seeded
+            # catalogue must not light up, or even grey out, buttons nobody
+            # can serve.
+            routes = await country_service.routable_providers(db2, country_code)
+            raw_operators = [
+                op for op in await country_service.get_operators(db2, country_code)
+                if country_service.is_offered(op, routes)
+            ]
+            routable = {
+                id(op) for op in raw_operators if country_service.is_routable(op, routes)
+            }
             by_code = {}
             for op in raw_operators:
                 existing = by_code.get(op.operator_code)
-                if existing is not None and (existing.is_active or not op.is_active):
+                if existing is not None and (id(existing) in routable or id(op) not in routable):
                     continue
                 by_code[op.operator_code] = op
             operators = sorted(by_code.values(), key=lambda o: o.operator_code)
@@ -322,7 +332,7 @@ async def payment_page(reference: str, request: Request):
             from app.services.payment_router import otp_requirement
             from app.services.sebpay_service import otp_ussd_for_amount
             otp_by_code = {}
-            for code in {o.operator_code for o in raw_operators if getattr(o, "otp_required", False) and o.is_active}:
+            for code in {o.operator_code for o in raw_operators if getattr(o, "otp_required", False) and id(o) in routable}:
                 otp_row = await otp_requirement(db2, country.code, code)
                 if otp_row is not None:
                     otp_by_code[code] = otp_ussd_for_amount(otp_row.ussd_code, payment.amount)
@@ -342,7 +352,7 @@ async def payment_page(reference: str, request: Request):
                         "logo_url": op.logo_url or "",
                         "ussd_code": op.ussd_code,
                         "phone_prefixes": list(op.phone_prefixes or []),
-                        "is_active": bool(op.is_active),
+                        "is_active": id(op) in routable,
                         "otp_required": op.operator_code in otp_by_code,
                         "otp_ussd": otp_by_code.get(op.operator_code, ""),
                     }
@@ -743,7 +753,10 @@ async def submit_payment(reference: str, request: Request):
 
         # Validate operator against country
         operators = await country_service.get_active_operators(db, country_code)
-        valid_ops = {op.operator_code for op in operators}
+        routes = await country_service.routable_providers(db, country_code)
+        valid_ops = {
+            op.operator_code for op in operators if country_service.is_routable(op, routes)
+        }
         if operator_str not in valid_ops:
             raise HTTPException(
                 status_code=400,
