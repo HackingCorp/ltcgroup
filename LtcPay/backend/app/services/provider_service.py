@@ -159,6 +159,31 @@ class ProviderService:
         )
         return [provider for _, provider in result.all()]
 
+    async def hosted_card_provider(
+        self, db: AsyncSession, country_code: str | None, merchant=None,
+    ) -> ProviderConfig | None:
+        """The hosted-page provider (E-nkap) card payments go to, or None.
+
+        Same order as card routing: E-nkap without its keys is skipped, and
+        Stripe ranked first means no hosted page. E-nkap's page also collects
+        Mobile Money in the countries it covers, which is how a country with
+        no push provider (Chad) still takes Mobile Money.
+        """
+        if not country_code:
+            return None
+        candidates = self.apply_merchant_prefs(
+            await self.resolve_card_providers(db, country_code), merchant, "CARD", country_code,
+        )
+        for provider in candidates:
+            if provider.code == "ENKAP":
+                cfg = self.decrypted_config(provider)
+                if cfg.get("consumer_key") and cfg.get("consumer_secret"):
+                    return provider
+                continue
+            if provider.code == "STRIPE":
+                return None
+        return None
+
     @staticmethod
     def apply_merchant_prefs(candidates, merchant, group: str, country_code: str | None):
         """Reorder provider candidates according to a merchant's preferences.

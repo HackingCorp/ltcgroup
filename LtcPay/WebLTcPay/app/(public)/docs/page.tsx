@@ -129,7 +129,7 @@ function IntroSection() {
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
         { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money (SDK ou Direct API). Le fournisseur est choisi automatiquement par pays, avec bascule sur un fournisseur de secours. Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
-        { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant." },
+        { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant. Au Tchad, le Mobile Money ne passe QUE par ce canal : envoyez payment_method BANK_CARD (une demande Direct API y est refusée en 400)." },
       ]} />
 
       <H2><T fr="Flux de paiement" en="Payment flow" /></H2>

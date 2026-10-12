@@ -362,6 +362,20 @@ async def payment_page(reference: str, request: Request):
     except Exception as exc:
         logger.warning("Failed to load country context for %s: %s", country_code, exc)
 
+    # The card tab leads to E-nkap's hosted page where it is the country's
+    # card provider; that page also takes the country's Mobile Money, so it
+    # is labelled as such — and is the only way to pay where no push
+    # provider serves Mobile Money (Chad).
+    card_hosted = False
+    try:
+        from app.services.provider_service import provider_service
+        async with async_session() as db3:
+            card_hosted = await provider_service.hosted_card_provider(
+                db3, country_context["code"], payment.merchant,
+            ) is not None
+    except Exception as exc:
+        logger.warning("Failed to resolve card provider for %s: %s", reference, exc)
+
     # Per-method totals: cards carry the card rate (5% floor). Displayed
     # dynamically on the page; the stored payment keeps its creation pricing.
     def _fmt(v):
@@ -387,6 +401,7 @@ async def payment_page(reference: str, request: Request):
             "payment_mode": payment.payment_mode.value,
             "payment_method": payment_method,
             "stripe_enabled": stripe_enabled,
+            "card_hosted": card_hosted,
             "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY if stripe_enabled else "",
             "stripe_client_secret": payment.stripe_client_secret or "",
             # Wave via SebPay: reopening the page must give the link back.

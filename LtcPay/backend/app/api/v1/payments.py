@@ -99,6 +99,22 @@ _OPERATOR_FLOOR = func.coalesce(
 )
 
 
+async def _hosted_page_hint(db: AsyncSession, country_code: str | None, merchant) -> str:
+    """How to still take Mobile Money where no push provider serves it.
+
+    Chad's Mobile Money goes through E-nkap's hosted page since 2026-10-12
+    (SebPay's partner added ~10% on top of the amount). A merchant whose
+    Direct API request is refused there needs to be told what to send.
+    """
+    if await provider_service.hosted_card_provider(db, country_code, merchant) is None:
+        return ""
+    return (
+        " Dans ce pays, le Mobile Money passe par la page de paiement hebergee : "
+        "envoyez payment_method BANK_CARD et redirigez le client vers payment_url, "
+        "il y choisira son operateur."
+    )
+
+
 async def merchant_negotiated_rate(
     db: AsyncSession, merchant, country_code: str | None, operator_code: str | None,
 ) -> Decimal | None:
@@ -672,7 +688,8 @@ async def create_payment(
                 ):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"L'operateur '{payload.operator}' n'est pas disponible pour le pays '{country_code}'.",
+                        detail=f"L'operateur '{payload.operator}' n'est pas disponible pour le pays '{country_code}'."
+                               + await _hosted_page_hint(db, country_code, merchant),
                     )
 
     reference = _generate_reference()
@@ -945,6 +962,7 @@ async def create_payment(
                 },
             )
         except ProviderRoutingError as exc:
+            exc = ProviderRoutingError(str(exc) + await _hosted_page_hint(db, country_code, merchant))
             logger.warning("No provider for %s: %s", reference, exc)
             await record_initiation_outcome(
                 db, payment, status_if_pending=PaymentStatus.FAILED,

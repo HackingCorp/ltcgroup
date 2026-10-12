@@ -864,8 +864,11 @@
 <body>
 
 {# ====== Determine which methods to show ====== #}
-{% set show_momo = (payment_method != "BANK_CARD") %}
-{% set show_card = (stripe_enabled and payment_method != "MOBILE_MONEY") %}
+{% set has_momo_ops = (country.operators | length) > 0 %}
+{% set show_momo = (payment_method != "BANK_CARD" and has_momo_ops) %}
+{# Hosted page (E-nkap): card AND Mobile Money, so it stays offered on a
+   Mobile Money payment when no operator can be pushed to (Chad). #}
+{% set show_card = ((stripe_enabled or card_hosted) and (payment_method != "MOBILE_MONEY" or (card_hosted and not has_momo_ops))) %}
 
 <div class="checkout-stage">
     <div class="ck-card">
@@ -992,13 +995,18 @@
 
                 <!-- Card method -->
                 {% if show_card %}
-                <div class="pm-section-label">Carte bancaire</div>
+                <div class="pm-section-label">{% if card_hosted %}{% if has_momo_ops %}Carte bancaire ou autre Mobile Money{% else %}Mobile Money ou carte bancaire{% endif %}{% else %}Carte bancaire{% endif %}</div>
                 <div class="pm-list" id="card-methods">
                     <div class="pm-item" data-method="card" onclick="selectMethod('card')">
-                        <div class="pm-logo" style="background: var(--ink);">VS</div>
+                        <div class="pm-logo" style="background: var(--ink);">{% if card_hosted %}&#x1F512;{% else %}VS{% endif %}</div>
                         <div class="pm-label">
+                            {% if card_hosted %}
+                            <strong>{% if has_momo_ops %}Visa &middot; Mastercard ou Mobile Money{% else %}Mobile Money, Visa &middot; Mastercard{% endif %}</strong>
+                            <small>Page de paiement sécurisée — vous choisirez votre moyen de paiement</small>
+                            {% else %}
                             <strong>Visa &middot; Mastercard</strong>
                             <small>3-D Secure</small>
+                            {% endif %}
                         </div>
                         <div class="pm-meta">
                             <span class="pm-fee">5%</span>
