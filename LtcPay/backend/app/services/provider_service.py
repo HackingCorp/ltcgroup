@@ -196,6 +196,37 @@ class ProviderService:
                 return None
         return None
 
+    async def mobile_is_hosted(
+        self, db: AsyncSession, country_code: str | None, merchant=None,
+    ) -> bool:
+        """Whether this country's Mobile Money is taken on a hosted page.
+
+        True when every operator that can be paid goes first to a hosted
+        provider (E-nkap), or when none can be pushed to but a hosted card
+        page exists. The customer then picks operator and number on that
+        page: neither the merchant's app nor our checkout should ask for
+        them.
+        """
+        if not country_code:
+            return False
+        cc = country_code.upper()
+        codes = (await db.execute(
+            select(CountryOperator.operator_code).where(
+                CountryOperator.country_code == cc,
+                CountryOperator.is_active == True,  # noqa: E712
+            ).distinct()
+        )).scalars().all()
+        firsts = []
+        for code in codes:
+            cands = self.apply_merchant_prefs(
+                await self.resolve_mobile_providers(db, cc, code), merchant, "MOBILE", cc,
+            )
+            if cands:
+                firsts.append(cands[0][0].code)
+        if firsts:
+            return all(code in HOSTED_MOBILE_PROVIDERS for code in firsts)
+        return await self.hosted_card_provider(db, cc, merchant) is not None
+
     @staticmethod
     def apply_merchant_prefs(candidates, merchant, group: str, country_code: str | None):
         """Reorder provider candidates according to a merchant's preferences.

@@ -520,6 +520,25 @@ function CreatePaymentSection() {
         />
       </InfoBox>
 
+      <H2><T fr="Pays à page de paiement hébergée (hosted_payment_page = true)" en="Countries with a hosted payment page (hosted_payment_page = true)" /></H2>
+      <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14 }}>
+        <T
+          fr="Dans certains pays (aujourd'hui le Tchad), le fournisseur par défaut du Mobile Money est E-nkap, qui fait tout sur sa propre page : choix de l'opérateur, saisie du numéro, validation. GET /payments/countries le signale par hosted_payment_page = true. Pour ces pays : (1) ne proposez PAS le choix de l'opérateur et ne demandez PAS le numéro de téléphone dans votre site ou votre app — le client le ferait deux fois ; (2) créez le paiement avec payment_method BANK_CARD et le country, sans operator ni customer_phone ; (3) ouvrez payment_url au client (redirection web, navigateur ou WebView dans une app mobile) ; (4) suivez le statut par webhook ou GET /payments/{reference}. Relisez hosted_payment_page régulièrement : il change si un fournisseur « push » est ajouté ou retiré dans le pays."
+          en="In some countries (Chad today) the default Mobile Money provider is E-nkap, which does everything on its own page: operator choice, number entry, approval. GET /payments/countries flags it with hosted_payment_page = true. For those countries: (1) do NOT offer an operator choice nor ask for the phone number in your site or app — the customer would do it twice; (2) create the payment with payment_method BANK_CARD and the country, without operator or customer_phone; (3) open payment_url for the customer (web redirect, browser or WebView in a mobile app); (4) track the status by webhook or GET /payments/{reference}. Re-read hosted_payment_page regularly: it changes when a push provider is added to or removed from the country."
+        />
+      </p>
+      <CodeBlock lang="curl">{`curl -X POST ${BASE_URL}/api/v1/payments \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: ltcpay_live_..." \\
+  -H "X-API-Secret: ltcpay_secret_..." \\
+  -d '{
+    "amount": 10000,
+    "currency": "XAF",
+    "country": "TD",
+    "payment_method": "BANK_CARD"
+  }'
+# -> payment_mode: "REDIRECT", payment_url: page E-nkap à ouvrir au client`}</CodeBlock>
+
       <H2><T fr="Exemple (Direct API avec code OTP)" en="Example (Direct API with an OTP)" /></H2>
       <CodeBlock lang="curl">{`# 1. Sans otp_code, un opérateur qui l'exige est refusé AVANT toute création :
 # HTTP 400
@@ -809,7 +828,8 @@ function CountriesSection() {
         "otp_ussd_code": null
       }
     ],
-    "enforce_phone_prefix_check": true
+    "enforce_phone_prefix_check": true,
+    "hosted_payment_page": false
   }
 ]`}</CodeBlock>
 
@@ -825,6 +845,7 @@ function CountriesSection() {
         { name: "min_amount", type: "integer", desc: "Montant minimum par transaction." },
         { name: "max_amount", type: "integer", desc: "Montant maximum par transaction." },
         { name: "enforce_phone_prefix_check", type: "boolean", desc: "False = les phone_prefixes des opérateurs sont indicatifs (portabilité des numéros) : l'API ne rejette pas un paiement sur un préfixe qui ne correspond pas. True = un numéro appartenant visiblement à un autre opérateur est refusé avant l'appel au fournisseur." },
+        { name: "hosted_payment_page", type: "boolean", desc: "true quand le Mobile Money de ce pays se paie sur la page hébergée du fournisseur (E-nkap, ex: Tchad). Dans ce cas, n'affichez NI le choix de l'opérateur NI le champ du numéro de téléphone : le client choisit son opérateur et saisit son numéro sur cette page. Créez le paiement avec payment_method BANK_CARD et country, puis ouvrez payment_url. Voir « Pays à page de paiement hébergée » dans Create payment." },
         { name: "operators", type: "array", desc: "Liste des operateurs disponibles pour ce pays (tous les operateurs, y compris desactives, avec include_unavailable=true)." },
       ]} />
 

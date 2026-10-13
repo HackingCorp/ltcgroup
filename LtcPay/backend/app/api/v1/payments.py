@@ -420,6 +420,7 @@ async def list_available_countries(
             min_amount=c.min_amount,
             max_amount=c.max_amount,
             enforce_phone_prefix_check=bool(getattr(c, "enforce_phone_prefix_check", True)),
+            hosted_payment_page=await provider_service.mobile_is_hosted(db, c.code, merchant),
             operators=ops,
         ))
     return result

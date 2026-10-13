@@ -373,6 +373,13 @@ async def payment_page(reference: str, request: Request):
             card_hosted = await provider_service.hosted_card_provider(
                 db3, country_context["code"], payment.merchant,
             ) is not None
+            # Where Mobile Money itself goes to the hosted page, asking for an
+            # operator and a number here would only make the customer type
+            # them twice: the page asks for both.
+            if card_hosted and await provider_service.mobile_is_hosted(
+                db3, country_context["code"], payment.merchant,
+            ):
+                country_context["operators"] = []
     except Exception as exc:
         logger.warning("Failed to resolve card provider for %s: %s", reference, exc)
 

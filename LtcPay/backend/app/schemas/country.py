@@ -200,6 +200,10 @@ class PublicCountryInfo(BaseModel):
     # False = operator phone_prefixes are UI hints only (number portability):
     # the API will not reject a payment on a prefix mismatch in this country.
     enforce_phone_prefix_check: bool = True
+    # True when Mobile Money here is paid on the provider's hosted page
+    # (E-nkap): don't ask for operator or phone, create the payment with
+    # payment_method BANK_CARD and open payment_url.
+    hosted_payment_page: bool = False
     operators: list[PublicOperatorInfo] = []
 
 

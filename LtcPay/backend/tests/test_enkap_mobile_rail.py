@@ -89,3 +89,35 @@ async def test_a_non_xaf_payment_is_refused_before_calling_enkap(db_session):
                 "PAY-X", 5000, "2250700000000", "CM", None, None,
             )
     create.assert_not_awaited()
+
+
+async def test_a_hosted_country_says_so_and_the_checkout_asks_nothing(
+    client, db_session, demo_merchant, enkap_mobile,
+):
+    import uuid
+    from app.models.payment import Payment, PaymentStatus
+    from tests.conftest import TestSessionLocal
+
+    cm = lambda: next(c for c in listing if c["code"] == "CM")  # noqa: E731
+    listing = (await client.get("/api/v1/payments/countries")).json()
+    assert cm()["hosted_payment_page"] is False      # TouchPay pushes first
+
+    link = (await db_session.execute(select(CountryProvider).where(
+        CountryProvider.country_code == "CM", CountryProvider.provider_code == "TOUCHPAY"))).scalar_one()
+    link.is_active = False
+    await db_session.commit()
+    listing = (await client.get("/api/v1/payments/countries")).json()
+    assert cm()["hosted_payment_page"] is True
+
+    payment = Payment(
+        merchant_id=demo_merchant.id, reference=f"PAY-{uuid.uuid4().hex[:16].upper()}",
+        payment_token=uuid.uuid4().hex, amount=Decimal("5000.00"), currency="XAF",
+        country="CM", status=PaymentStatus.PENDING,
+    )
+    db_session.add(payment)
+    await db_session.commit()
+    with patch("app.main.async_session", TestSessionLocal):
+        page = await client.get(f"/pay/{payment.reference}")
+    assert 'id="momo-methods"' not in page.text      # no operator buttons
+    assert 'id="phone-input"' not in page.text       # no phone field
+    assert "Mobile Money ou carte bancaire" in page.text
