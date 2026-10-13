@@ -1096,17 +1096,21 @@
                     <div class="otp-glyph" id="otp-glyph" style="background: linear-gradient(135deg, var(--orange-money), #ff8a3a);">
                         &#x1F4F1;
                     </div>
-                    <h3>Confirmez sur votre telephone</h3>
-                    <p>
+                    <h3 id="confirm-title">Confirmez sur votre telephone</h3>
+                    <p id="confirm-redirect-text" style="display: none;">
+                        Le paiement se termine sur la page sécurisée de notre partenaire, où vous
+                        choisirez votre opérateur. Si elle ne s'est pas ouverte, utilisez le bouton ci-dessous.
+                    </p>
+                    <p id="confirm-push-text">
                         Une notification <strong id="otp-operator-name">Mobile Money</strong>
                         a ete envoyee au <strong class="mono" id="otp-phone" style="font-size: 13px;">+{{ country.phone_prefix }} ---</strong>.
                         Composez <span class="kbd-pill" id="otp-ussd"></span> et saisissez votre PIN.
                     </p>
-                    <!-- Wave: the payment is approved in Wave, through this link -->
+                    <!-- Hosted page (Wave via SebPay, E-nkap): approved through this link -->
                     <div id="wave-redirect" style="display: none; margin: 4px 0 16px;">
                         <a id="wave-redirect-link" class="pay-btn" href="#" target="_blank" rel="noopener"
                            style="display: inline-flex; text-decoration: none; justify-content: center;">
-                            <span class="btn-text-label">Ouvrir Wave pour payer</span>
+                            <span class="btn-text-label">Ouvrir la page de paiement</span>
                         </a>
                     </div>
                     <div class="mono" style="font-size: 11px; color: var(--muted);">
@@ -1523,6 +1527,8 @@
         } else {
             $('otp-ussd').style.display = 'none';
         }
+        // Hosted page (Wave via SebPay, E-nkap): nothing reaches the phone,
+        // the customer finishes on the provider's page.
         var wave = $('wave-redirect');
         if (wave) {
             if (redirectUrl) {
@@ -1531,6 +1537,16 @@
             } else {
                 wave.style.display = 'none';
             }
+        }
+        if ($('confirm-push-text')) {
+            $('confirm-push-text').style.display = redirectUrl ? 'none' : '';
+            $('confirm-redirect-text').style.display = redirectUrl ? '' : 'none';
+        }
+        var title = $('confirm-title');
+        if (title) {
+            title.textContent = redirectUrl
+                ? 'Finalisez le paiement sur la page sécurisée'
+                : 'Confirmez sur votre telephone';
         }
     }
 

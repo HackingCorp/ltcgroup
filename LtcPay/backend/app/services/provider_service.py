@@ -18,7 +18,7 @@ push notifications to the customer for the same inevitable outcome).
 """
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import decrypt_value
@@ -39,6 +39,14 @@ _PROVIDER_CURRENCIES = {
     "ENKAP": {"XAF"},
     "STRIPE": {"XAF", "XOF", "EUR", "USD"},
 }
+
+
+# Providers that also serve the Mobile Money rail although their group is
+# CARD, through a hosted page instead of a push to the phone: the
+# initiation returns a redirect_url the customer must open. They are always
+# tried after every push provider of the country, whatever their link
+# priority — the priority of their link ranks them on the card rail.
+HOSTED_MOBILE_PROVIDERS = {"ENKAP"}
 
 
 class ProviderRoutingError(Exception):
@@ -109,11 +117,15 @@ class ProviderService:
                 CountryProvider.country_code == cc,
                 CountryProvider.is_active == True,  # noqa: E712
                 ProviderConfig.is_active == True,  # noqa: E712
-                ProviderConfig.provider_group == ProviderGroup.MOBILE,
+                or_(
+                    ProviderConfig.provider_group == ProviderGroup.MOBILE,
+                    ProviderConfig.code.in_(HOSTED_MOBILE_PROVIDERS),
+                ),
             )
             .order_by(CountryProvider.priority)
         )
-        links = result.all()
+        # Push providers by priority, then hosted pages (stable sort).
+        links = sorted(result.all(), key=lambda row: row[1].code in HOSTED_MOBILE_PROVIDERS)
         if not links:
             return []
 

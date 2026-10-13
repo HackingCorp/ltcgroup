@@ -128,8 +128,8 @@ function IntroSection() {
 
       <H2><T fr="Méthodes de paiement" en="Payment methods" /></H2>
       <FieldTable fields={[
-        { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money (SDK ou Direct API). Le fournisseur est choisi automatiquement par pays, avec bascule sur un fournisseur de secours. Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
-        { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant. Au Tchad, le Mobile Money ne passe QUE par ce canal : envoyez payment_method BANK_CARD (une demande Direct API y est refusée en 400)." },
+        { name: "MOBILE_MONEY", type: "Dynamic", desc: "Mobile Money (SDK ou Direct API). Le fournisseur est choisi automatiquement par pays, avec bascule sur un fournisseur de secours. Selon le fournisseur retenu, le client confirme sur son téléphone OU sur une page web du fournisseur (redirect_url) — prévoyez toujours les deux cas, même dans une app mobile. Les operateurs et limites dependent du pays. Consultez GET /payments/countries." },
+        { name: "BANK_CARD", type: "Carte + Mobile Money", desc: "Page de paiement hébergée du fournisseur, ouverte via payment_url. Chez E-nkap (défaut au Cameroun) le client y choisit lui-même sa carte Visa/Mastercard OU son portefeuille Mobile Money, dans l'un des 10 pays couverts (Bénin, Burkina Faso, Cameroun, Centrafrique, Côte d'Ivoire, Gabon, Mali, Sénégal, Tchad, Togo). Le nom BANK_CARD est historique : il désigne le canal hébergé, pas seulement la carte. Chez Stripe, carte uniquement. Pas de limite de montant." },
       ]} />
 
       <H2><T fr="Flux de paiement" en="Payment flow" /></H2>
@@ -444,7 +444,7 @@ function CreatePaymentSection() {
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page hebergee du fournisseur carte)." },
         { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 (ex: CM)." },
         { name: "payment_url", type: "string", desc: "URL vers laquelle envoyer le client : page de checkout LtcPay en mode SDK, page hébergée du fournisseur en mode REDIRECT. Non utilisée en DIRECT_API (le client répond sur son téléphone)." },
-        { name: "redirect_url", type: "string|null", desc: "DIRECT_API uniquement : lien que le client doit ouvrir pour valider le paiement (Wave). Quand il est présent, redirigez le client vers ce lien — aucune demande n'arrive sur son téléphone." },
+        { name: "redirect_url", type: "string|null", desc: "DIRECT_API : page de paiement du fournisseur que le client DOIT ouvrir pour payer. Elle est renseignée quand le fournisseur retenu automatiquement fonctionne par page web (Wave, E-nkap — y compris en secours d'un fournisseur en panne) : rien n'arrive alors sur le téléphone du client. Testez sa présence à chaque paiement et ouvrez-la, y compris depuis une app mobile (navigateur ou WebView). Null quand la confirmation se fait sur le téléphone." },
         { name: "stripe_client_secret", type: "string|null", desc: "Client secret Stripe, renseigné uniquement en payment_mode STRIPE. Null partout ailleurs — notamment en REDIRECT, où c'est le fournisseur qui héberge le formulaire." },
         { name: "created_at", type: "datetime", desc: "Date de création ISO 8601." },
       ]} />
@@ -508,10 +508,17 @@ function CreatePaymentSection() {
   }'`}</CodeBlock>
       <p style={{ color: "var(--ink-3)", lineHeight: 1.6, fontSize: 14, marginTop: 12 }}>
         <T
-          fr="Dans le cas général, le client reçoit une demande de confirmation (USSD ou notification) sur son téléphone. Deux opérateurs font exception : (1) certains exigent un code OTP que le client obtient d'abord en composant un code USSD — c'est indiqué par otp_required = true dans GET /payments/countries, et vous devez envoyer otp_code ; (2) Wave renvoie redirect_url, un lien que le client doit ouvrir pour valider — rien n'arrive sur son téléphone. Pollez ensuite GET /api/v1/payments/{reference} toutes les 3-5 secondes pour suivre le statut."
-          en="In the general case the customer gets a confirmation request (USSD or notification) on their phone. Two exceptions: (1) some operators require an OTP the customer first obtains by dialling a USSD code — flagged by otp_required = true in GET /payments/countries, and you must send otp_code; (2) Wave returns redirect_url, a link the customer must open to approve — nothing reaches their phone. Then poll GET /api/v1/payments/{reference} every 3-5 seconds to track status."
+          fr="Dans le cas général, le client reçoit une demande de confirmation (USSD ou notification) sur son téléphone. Deux opérateurs font exception : (1) certains exigent un code OTP que le client obtient d'abord en composant un code USSD — c'est indiqué par otp_required = true dans GET /payments/countries, et vous devez envoyer otp_code ; (2) selon le fournisseur retenu automatiquement (Wave, E-nkap…), la réponse peut contenir redirect_url : le paiement se termine alors sur une page web du fournisseur et rien n'arrive sur le téléphone. Pollez ensuite GET /api/v1/payments/{reference} toutes les 3-5 secondes pour suivre le statut."
+          en="In the general case the customer gets a confirmation request (USSD or notification) on their phone. Two exceptions: (1) some operators require an OTP the customer first obtains by dialling a USSD code — flagged by otp_required = true in GET /payments/countries, and you must send otp_code; (2) depending on the provider picked automatically (Wave, E-nkap…), the response may contain redirect_url: the payment then completes on the provider's web page and nothing reaches the phone. Then poll GET /api/v1/payments/{reference} every 3-5 seconds to track status."
         />
       </p>
+
+      <InfoBox>
+        <T
+          fr="Direct API ne veut pas dire « jamais de page web ». Le fournisseur est choisi automatiquement par pays et peut changer (bascule en cas de panne, nouveau fournisseur) : certains font payer le client sur leur propre page. Votre intégration — y compris une app mobile — doit donc toujours vérifier redirect_url dans la réponse et, s'il est présent, ouvrir cette page au client (navigateur ou WebView), puis suivre le statut comme d'habitude. Une intégration qui l'ignore laissera ces paiements expirer."
+          en="Direct API does not mean “never a web page”. The provider is picked automatically per country and can change (failover during an outage, new provider): some of them take the payment on their own page. Your integration — mobile apps included — must therefore always check redirect_url in the response and, when present, open that page for the customer (browser or WebView), then track the status as usual. An integration that ignores it will let those payments expire."
+        />
+      </InfoBox>
 
       <H2><T fr="Exemple (Direct API avec code OTP)" en="Example (Direct API with an OTP)" /></H2>
       <CodeBlock lang="curl">{`# 1. Sans otp_code, un opérateur qui l'exige est refusé AVANT toute création :
@@ -615,7 +622,7 @@ function GetPaymentSection() {
         { name: "status", type: "string", desc: "Statut actuel du paiement." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page de paiement hébergée, ex: carte via E-nkap)." },
         { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 du paiement (ex: CM)." },
-        { name: "provider", type: "string|null", desc: "Fournisseur ayant traité le paiement : TOUCHPAY, ACCOUNTPE ou SEBPAY (Mobile Money), STRIPE ou ENKAP (carte). Le choix du fournisseur est automatique par pays, avec bascule sur un fournisseur secondaire en cas de panne — transparent pour votre intégration." },
+        { name: "provider", type: "string|null", desc: "Fournisseur ayant traité le paiement : TOUCHPAY, ACCOUNTPE, SEBPAY ou ENKAP (Mobile Money), STRIPE ou ENKAP (carte). Le choix du fournisseur est automatique par pays, avec bascule sur un fournisseur secondaire en cas de panne — transparent pour votre intégration." },
         { name: "operator", type: "string|null", desc: "Code operateur Mobile Money (ex: MTN, ORANGE, WAVE)." },
         { name: "operator_transaction_id", type: "string|null", desc: "ID de transaction côté opérateur." },
         { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
@@ -879,11 +886,11 @@ function PaymentModesSection() {
       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, fontSize: 13, lineHeight: 1.8, marginBottom: 24 }}>
         <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Recommandé pour les apps mobiles" en="Recommended for mobile apps" /></p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <li><T fr="Aucune redirection — purement API" en="No redirect — pure API" /></li>
+          <li><T fr="En général sans redirection — mais prévoyez toujours redirect_url (voir ci-dessous)" en="Usually no redirect — but always handle redirect_url (see below)" /></li>
           <li><T fr="Envoyez country, operator et customer_phone" en="Send country, operator and customer_phone" /></li>
           <li><T fr="Le client reçoit une demande de confirmation sur son téléphone" en="Customer receives a confirmation request on their phone" /></li>
           <li><T fr="Si l'opérateur a otp_required = true, envoyez aussi otp_code" en="If the operator has otp_required = true, also send otp_code" /></li>
-          <li><T fr="Si la réponse contient redirect_url (Wave), envoyez le client vers ce lien" en="If the response contains redirect_url (Wave), send the customer to that link" /></li>
+          <li><T fr="Si la réponse contient redirect_url (Wave, E-nkap…), ouvrez cette page au client, même depuis une app mobile (navigateur ou WebView) : c'est là qu'il paie" en="If the response contains redirect_url (Wave, E-nkap…), open that page for the customer, even from a mobile app (browser or WebView): that is where they pay" /></li>
           <li><T fr="Pollez GET /payments/{'{reference}'} pour suivre le statut" en="Poll GET /payments/{'{reference}'} to track status" /></li>
         </ul>
       </div>

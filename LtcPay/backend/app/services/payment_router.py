@@ -187,7 +187,63 @@ async def _dispatch(
             callback_url=f"{settings.webhook_base_url}/api/v1/callbacks/sebpay",
             otp_code=otp_code,
         )
+    if provider.code == "ENKAP":
+        return await _dispatch_enkap(
+            db, provider, payment, reference, amount, phone_number,
+            country_code, customer_info, description,
+        )
     raise TouchPayDirectError(f"No integration for provider '{provider.code}'")
+
+
+async def _dispatch_enkap(
+    db: AsyncSession,
+    provider,
+    payment: Payment,
+    reference: str,
+    amount: int,
+    phone_number: str,
+    country_code: str,
+    customer_info: dict | None,
+    description: str | None,
+) -> dict:
+    """Mobile Money through E-nkap's hosted page.
+
+    Nothing is pushed to the phone: the customer opens redirect_url and
+    picks their operator there. The order is XAF-only, so any other
+    currency is refused before calling E-nkap and the router moves on.
+    Settlement is E-nkap's usual path (webhook wake-up + status check, and
+    the reconciliation sweep), keyed on the txid returned here.
+    """
+    from app.services.country_service import country_service
+    from app.services.enkap_service import EnkapError, enkap_service
+
+    currency = (payment.currency or "XAF").upper()
+    if currency != "XAF":
+        raise EnkapError(f"E-nkap n'encaisse qu'en XAF, pas en {currency}")
+    country = await country_service.get_active_country(db, country_code)
+    info = customer_info or {}
+    order = await enkap_service.create_order(
+        provider,
+        payment_reference=reference,
+        amount=amount,
+        currency="XAF",
+        customer_name=info.get("name"),
+        customer_email=info.get("email"),
+        customer_phone=phone_number,
+        description=description,
+        # Our status page: E-nkap redirects to returnUrl even on failure.
+        return_url=f"{settings.webhook_base_url}/pay/{reference}/return",
+        notification_url=f"{settings.webhook_base_url}/api/v1/callbacks/enkap",
+        country_phone_prefix=country.phone_prefix,
+    )
+    return {
+        "status": "pending",
+        "transactionId": order["txid"],
+        "txid": order["txid"],
+        "redirect_url": order["redirect_url"],
+        "hosted_page": True,
+        "raw": order["raw"],
+    }
 
 
 async def initiate_mobile_payment(
