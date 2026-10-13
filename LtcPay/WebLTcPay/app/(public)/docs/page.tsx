@@ -117,7 +117,7 @@ function IntroSection() {
         { name: "RWF", type: "Franc rwandais", desc: "Rwanda" },
         { name: "TZS", type: "Shilling tanzanien", desc: "Tanzanie" },
         { name: "UGX", type: "Shilling ougandais", desc: "Ouganda" },
-        { name: "EUR / USD", type: "Carte via Stripe", desc: "Uniquement quand Stripe traite le paiement carte. Le fournisseur carte par défaut au Cameroun est E-nkap, qui n'encaisse qu'en XAF : un paiement carte en EUR y est rejeté en 400." },
+        { name: "EUR / USD", type: "Carte via Stripe", desc: "Uniquement quand Stripe traite le paiement carte. Le fournisseur carte par défaut au Cameroun est E-nkap, qui n'encaisse qu'en XAF ou XOF : un paiement carte en EUR y est rejeté en 400." },
       ]} />
       <InfoBox>
         <T
@@ -395,7 +395,7 @@ function CreatePaymentSection() {
         { name: "amount", type: "decimal", desc: "Montant en unité entière. 5000 = 5 000 F CFA. Min: 100, max: 5 000 000 (toutes methodes). Sous ce plafond, les limites dependent du pays et de l'operateur ; la carte bancaire n'a pas de limite par operateur.", required: true },
         { name: "display_amount", type: "number", desc: "Optionnel. Montant equivalent dans votre devise de facturation, affiche a titre indicatif sur le checkout sous le total reel. Jamais debite, jamais recalcule. A fournir avec display_currency." },
         { name: "display_currency", type: "string", desc: "Optionnel. Code ISO 4217 du montant indicatif (ex: EUR, USD). A fournir avec display_amount." },
-        { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. Doit etre une devise que le fournisseur choisi sait encaisser : la devise du pays pour le Mobile Money, XAF pour la carte via E-nkap, XAF/XOF/EUR/USD pour Stripe. LtcPay ne convertit rien — convertissez avant l'envoi. Sinon : 400 CURRENCY_NOT_SUPPORTED." },
+        { name: "currency", type: "string", desc: "Optionnel. Auto-detecte depuis le pays si omis. Doit etre une devise que le fournisseur choisi sait encaisser : la devise du pays pour le Mobile Money, XAF ou XOF via E-nkap, XAF/XOF/EUR/USD pour Stripe. LtcPay ne convertit rien — convertissez avant l'envoi. Sinon : 400 CURRENCY_NOT_SUPPORTED." },
         { name: "merchant_reference", type: "string", desc: "Votre ID de commande interne. Retourné dans les webhooks. Max 255 car." },
         { name: "description", type: "string", desc: "Affiché au client sur la page de checkout. Max 500 car." },
         { name: "payment_method", type: "string", desc: "MOBILE_MONEY ou BANK_CARD. Omettez pour laisser le client choisir." },
@@ -921,7 +921,7 @@ function PaymentModesSection() {
         <p style={{ margin: "0 0 8px", fontWeight: 500 }}><T fr="Page hébergée en intégration API pure — recommandé web et mobile" en="Hosted page as a pure API integration — recommended for web and mobile" /></p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li><T fr="Envoyez payment_method: BANK_CARD et country dans la requête" en='Send payment_method: "BANK_CARD" and country in the request' /></li>
-          <li><T fr="Sur la page E-nkap, le client choisit lui-même carte OU Mobile Money, et son pays parmi les 10 couverts. Vous n'avez rien à envoyer pour ça : ni operator, ni customer_phone, ni la devise du pays du client — vous créez toujours la commande en XAF." en="On the E-nkap page the customer picks card OR Mobile Money themselves, and their country among the 10 covered. You send nothing for this: no operator, no customer_phone, no local currency — you always create the order in XAF." /></li>
+          <li><T fr="Sur la page E-nkap, le client choisit lui-même carte OU Mobile Money, et son pays parmi les 10 couverts. Vous n'avez rien à envoyer pour ça : ni operator, ni customer_phone, ni la devise du pays du client — vous créez la commande en XAF ou en XOF (parité fixe 1:1), et E-nkap encaisse le client dans sa propre devise." en="On the E-nkap page the customer picks card OR Mobile Money themselves, and their country among the 10 covered. You send nothing for this: no operator, no customer_phone, no local currency — you create the order in XAF or XOF (fixed 1:1 parity), and E-nkap charges the customer in their own currency." /></li>
           <li><T fr="La réponse contient payment_mode: REDIRECT et payment_url = la page de paiement sécurisée du fournisseur carte (pas la page Nkap Pay)" en="Response contains payment_mode: REDIRECT and payment_url = the card provider's secure payment page (not the Nkap Pay page)" /></li>
           <li><T fr="Ouvrez payment_url dans une WebView (app mobile) ou une redirection (web)" en="Open payment_url in a WebView (mobile app) or a redirect (web)" /></li>
           <li><T fr="3-D Secure géré automatiquement pour la carte — l'étape navigateur est imposée par la sécurité carte, mais votre intégration reste 100% API" en="3-D Secure handled automatically for cards — the browser step is mandated by card security, but your integration stays 100% API" /></li>
@@ -1203,14 +1203,14 @@ function ErrorsSection() {
       <H2><T fr="Devise non supportee (400)" en="Currency not supported (400)" /></H2>
       <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
         <T
-          fr="LtcPay n'effectue aucune conversion de devise : le montant est encaisse tel quel. Chaque fournisseur n'accepte donc que les devises qu'il sait reellement traiter — la devise du pays pour le Mobile Money, XAF uniquement pour la carte via E-nkap. Si vous facturez dans une autre devise, convertissez le montant avant d'appeler l'API. La reponse liste les devises acceptees."
-          en="LtcPay performs no currency conversion: the amount is collected as sent. Each provider therefore only accepts the currencies it can actually settle — the country currency for Mobile Money, XAF only for cards via E-nkap. If you price in another currency, convert before calling the API. The response lists the accepted currencies."
+          fr="LtcPay n'effectue aucune conversion de devise : le montant est encaisse tel quel. Chaque fournisseur n'accepte donc que les devises qu'il sait reellement traiter — la devise du pays pour le Mobile Money, XAF ou XOF via E-nkap (parité fixe 1:1). Si vous facturez dans une autre devise, convertissez le montant avant d'appeler l'API. La reponse liste les devises acceptees."
+          en="LtcPay performs no currency conversion: the amount is collected as sent. Each provider therefore only accepts the currencies it can actually settle — the country currency for Mobile Money, XAF or XOF via E-nkap (fixed 1:1 parity). If you price in another currency, convert before calling the API. The response lists the accepted currencies."
         />
       </p>
       <CodeBlock lang="json">{`{
-  "detail": "Le fournisseur ENKAP n'accepte que XAF pour le pays 'CM'. Convertissez le montant en XAF avant l'envoi : LtcPay n'effectue aucune conversion de devise.",
+  "detail": "Le fournisseur ENKAP n'accepte que XAF, XOF pour le pays 'CM'. Convertissez le montant en XAF avant l'envoi : LtcPay n'effectue aucune conversion de devise.",
   "failure_code": "CURRENCY_NOT_SUPPORTED",
-  "supported_currencies": ["XAF"]
+  "supported_currencies": ["XAF", "XOF"]
 }`}</CodeBlock>
 
       <H2><T fr="Afficher votre devise au client" en="Showing your own currency" /></H2>

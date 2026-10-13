@@ -43,12 +43,14 @@ def _provider(**config):
 
 class TestSupportedCurrencies:
 
-    def test_enkap_only_settles_xaf(self):
-        assert provider_service.supported_currencies("ENKAP", "XAF") == {"XAF"}
+    def test_enkap_settles_xaf_and_its_1_to_1_peer_xof(self):
+        # Orders go out in XAF; XOF is at a fixed parity with it and E-nkap
+        # charges the customer in their own currency.
+        assert provider_service.supported_currencies("ENKAP", "XAF") == {"XAF", "XOF"}
 
-    def test_enkap_stays_xaf_only_in_a_non_xaf_country(self):
+    def test_the_country_currency_does_not_widen_enkap(self):
         """The country's currency must not widen what the provider accepts."""
-        assert provider_service.supported_currencies("ENKAP", "XOF") == {"XAF"}
+        assert provider_service.supported_currencies("ENKAP", "GNF") == {"XAF", "XOF"}
 
     def test_stripe_is_multi_currency(self):
         assert provider_service.supported_currencies("STRIPE", "XAF") == {
@@ -65,9 +67,9 @@ class TestSupportedCurrencies:
 
     def test_config_override_wins_over_the_default(self):
         allowed = provider_service.supported_currencies(
-            "ENKAP", "XAF", _provider(currencies=["XAF", "XOF"]),
+            "ENKAP", "XAF", _provider(currencies=["XAF"]),
         )
-        assert allowed == {"XAF", "XOF"}
+        assert allowed == {"XAF"}
 
     def test_override_is_case_insensitive(self):
         allowed = provider_service.supported_currencies(
@@ -79,12 +81,12 @@ class TestSupportedCurrencies:
         allowed = provider_service.supported_currencies(
             "ENKAP", "XAF", _provider(currencies=[]),
         )
-        assert allowed == {"XAF"}
+        assert allowed == {"XAF", "XOF"}
 
     def test_provider_without_config_uses_the_default(self):
         assert provider_service.supported_currencies(
             "ENKAP", "XAF", SimpleNamespace(config=None),
-        ) == {"XAF"}
+        ) == {"XAF", "XOF"}
 
 
 class TestRejectionContract:

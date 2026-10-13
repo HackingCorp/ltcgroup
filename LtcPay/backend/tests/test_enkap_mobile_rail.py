@@ -77,7 +77,7 @@ async def test_hosted_only_country_collects_through_the_page(client, auth_header
     assert create.await_args.kwargs["return_url"].endswith("/return")
 
 
-async def test_a_non_xaf_payment_is_refused_before_calling_enkap(db_session):
+async def test_a_currency_other_than_xaf_or_xof_is_refused_before_calling_enkap(db_session):
     from app.services.enkap_service import EnkapError
     from app.services.payment_router import _dispatch_enkap
 
@@ -85,7 +85,7 @@ async def test_a_non_xaf_payment_is_refused_before_calling_enkap(db_session):
     with patch("app.services.enkap_service.enkap_service.create_order", new=create):
         with pytest.raises(EnkapError):
             await _dispatch_enkap(
-                db_session, SimpleNamespace(code="ENKAP"), SimpleNamespace(currency="XOF"),
+                db_session, SimpleNamespace(code="ENKAP"), SimpleNamespace(currency="CDF"),
                 "PAY-X", 5000, "2250700000000", "CM", None, None,
             )
     create.assert_not_awaited()
@@ -151,4 +151,26 @@ async def test_admin_sees_and_toggles_hosted_mobile_money(client, db_session, en
 
     # A push provider cannot be toggled this way, nor a country without rows.
     assert (await client.put("/api/v1/admin/providers/TOUCHPAY/countries/CM/mobile", json={"is_active": False})).status_code == 400
-    assert (await client.put("/api/v1/admin/providers/ENKAP/countries/CI/mobile", json={"is_active": True})).status_code == 400
+    assert (await client.put("/api/v1/admin/providers/ENKAP/countries/CI/mobile", json={"is_active": True})).status_code == 400  # no rows
+
+
+async def test_an_xof_payment_goes_through_as_an_xaf_order(db_session):
+    from app.services.enkap_service import enkap_service
+
+    sent = {}
+
+    async def fake_request(method, config, path, json_payload=None, **kw):
+        sent.update(json_payload)
+        return SimpleNamespace(status_code=200, text="", json=lambda: {
+            "orderTransactionId": "ENK-XOF", "redirectUrl": "https://enkap.test/x"})
+
+    provider = SimpleNamespace(code="ENKAP", config={"consumer_key": "k", "consumer_secret": "s"})
+    with patch.object(enkap_service, "_request_with_fallbacks", new=fake_request):
+        order = await enkap_service.create_order(
+            provider, payment_reference="PAY-XOF", amount=5000, currency="XOF",
+            customer_name=None, customer_email=None, customer_phone="2250700000000",
+            description=None, return_url="https://r", notification_url="https://n",
+            country_phone_prefix="225",
+        )
+    assert order["txid"] == "ENK-XOF"
+    assert sent["currency"] == "XAF" and sent["totalAmount"] == 5000   # 1:1 parity

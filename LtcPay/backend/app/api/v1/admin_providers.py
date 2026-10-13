@@ -259,8 +259,8 @@ async def set_hosted_mobile(
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Aucune ligne opérateur {provider.code} pour {cc}. E-nkap n'encaisse le Mobile "
-                "Money qu'en XAF : ajoutez ses opérateurs dans Pays & Opérateurs si le pays est en XAF."
+                f"Aucune ligne opérateur {provider.code} pour {cc}. E-nkap couvre BJ BF CM CF CI GA "
+                "ML SN TD TG (XAF et XOF) : ajoutez ses opérateurs dans Pays & Opérateurs."
             ),
         )
     for r in rows:

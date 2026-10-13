@@ -36,7 +36,10 @@ _SENSITIVE_CONFIG_KEYS = {"api_key", "webhook_secret", "password", "secret", "se
 # with no currency field at all, so a "EUR" label would not convert anything —
 # it would quietly collect that many XAF.
 _PROVIDER_CURRENCIES = {
-    "ENKAP": {"XAF"},
+    # Orders are created in XAF; XOF is at a fixed 1:1 parity with it (both
+    # 655.957 per euro), and E-nkap settles the customer in their own
+    # currency on its side — so an XOF amount is sent unchanged as XAF.
+    "ENKAP": {"XAF", "XOF"},
     "STRIPE": {"XAF", "XOF", "EUR", "USD"},
 }
 

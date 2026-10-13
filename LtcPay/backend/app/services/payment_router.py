@@ -209,8 +209,9 @@ async def _dispatch_enkap(
     """Mobile Money through E-nkap's hosted page.
 
     Nothing is pushed to the phone: the customer opens redirect_url and
-    picks their operator there. The order is XAF-only, so any other
-    currency is refused before calling E-nkap and the router moves on.
+    picks their operator there. The order is created in XAF; XOF payments
+    go through unchanged thanks to the fixed 1:1 parity, any other currency
+    is refused before calling E-nkap and the router moves on.
     Settlement is E-nkap's usual path (webhook wake-up + status check, and
     the reconciliation sweep), keyed on the txid returned here.
     """
@@ -218,8 +219,8 @@ async def _dispatch_enkap(
     from app.services.enkap_service import EnkapError, enkap_service
 
     currency = (payment.currency or "XAF").upper()
-    if currency != "XAF":
-        raise EnkapError(f"E-nkap n'encaisse qu'en XAF, pas en {currency}")
+    if currency not in ("XAF", "XOF"):
+        raise EnkapError(f"E-nkap n'encaisse qu'en XAF ou XOF, pas en {currency}")
     country = await country_service.get_active_country(db, country_code)
     info = customer_info or {}
     order = await enkap_service.create_order(

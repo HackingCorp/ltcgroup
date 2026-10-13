@@ -219,6 +219,13 @@ class EnkapService:
         merchant_reference: str | None = None,
     ) -> dict:
         """Create an E-nkap payment order. Returns {txid, redirect_url, raw}."""
+        # Always an XAF order. XOF has a fixed 1:1 parity with XAF, so the
+        # same figure is the same value; E-nkap charges the customer in
+        # their own currency on its page. Anything else is a caller bug.
+        currency = (currency or "XAF").upper()
+        if currency not in ("XAF", "XOF"):
+            raise EnkapError(f"E-nkap n'encaisse qu'en XAF ou XOF, pas en {currency}")
+        currency = "XAF"
         config = provider_service.decrypted_config(provider)
         now = datetime.now(timezone.utc)
 
