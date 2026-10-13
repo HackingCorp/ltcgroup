@@ -20,7 +20,7 @@ from app.core.encryption import encrypt_value
 from app.models.admin_user import AdminUser
 from app.models.country import CountryOperator, SupportedCountry
 from app.models.provider import CountryProvider, ProviderConfig
-from app.services.provider_service import _SENSITIVE_CONFIG_KEYS
+from app.services.provider_service import HOSTED_MOBILE_PROVIDERS, _SENSITIVE_CONFIG_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,11 @@ class CountryLinkInfo(BaseModel):
     country_code: str
     priority: int
     is_active: bool
+    # Hosted providers only (E-nkap): its Mobile Money operator rows in the
+    # country. They, not the link, decide whether it serves Mobile Money —
+    # the link is shared with the card rail.
+    mobile_rows_active: int | None = None
+    mobile_rows_total: int | None = None
 
 
 class ProviderInfo(BaseModel):
@@ -42,6 +47,13 @@ class ProviderInfo(BaseModel):
     is_active: bool
     config_keys: list[str]
     countries: list[CountryLinkInfo]
+    # Also serves Mobile Money through its hosted page, after the push
+    # providers (provider_service.HOSTED_MOBILE_PROVIDERS).
+    mobile_hosted: bool = False
+
+
+class MobileToggle(BaseModel):
+    is_active: bool
 
 
 class ProviderUpdate(BaseModel):
@@ -69,22 +81,45 @@ async def _get_provider_or_404(db: AsyncSession, code: str) -> ProviderConfig:
     return provider
 
 
-def _provider_info(provider: ProviderConfig, links: list[CountryProvider]) -> ProviderInfo:
+def _provider_info(
+    provider: ProviderConfig,
+    links: list[CountryProvider],
+    mobile_counts: dict[str, tuple[int, int]] | None = None,
+) -> ProviderInfo:
+    hosted = provider.code in HOSTED_MOBILE_PROVIDERS
+    counts = mobile_counts or {}
     return ProviderInfo(
         code=provider.code,
         name=provider.name,
         provider_group=provider.provider_group.value,
         is_active=provider.is_active,
         config_keys=sorted((provider.config or {}).keys()),
+        mobile_hosted=hosted,
         countries=[
             CountryLinkInfo(
                 country_code=link.country_code,
                 priority=link.priority,
                 is_active=link.is_active,
+                mobile_rows_active=counts.get(link.country_code, (0, 0))[0] if hosted else None,
+                mobile_rows_total=counts.get(link.country_code, (0, 0))[1] if hosted else None,
             )
             for link in sorted(links, key=lambda l: (l.country_code, l.priority))
         ],
     )
+
+
+async def _hosted_mobile_counts(db: AsyncSession) -> dict[str, dict[str, tuple[int, int]]]:
+    """(active, total) Mobile Money rows per hosted provider and country."""
+    out: dict[str, dict[str, list[int]]] = {}
+    rows = (await db.execute(
+        select(CountryOperator).where(CountryOperator.provider_code.in_(HOSTED_MOBILE_PROVIDERS))
+    )).scalars().all()
+    for r in rows:
+        c = out.setdefault(r.provider_code, {}).setdefault(r.country_code, [0, 0])
+        c[1] += 1
+        if r.is_active:
+            c[0] += 1
+    return {p: {cc: (a, t) for cc, (a, t) in d.items()} for p, d in out.items()}
 
 
 # ── Endpoints ────────────────────────────────────────────────────
@@ -100,7 +135,8 @@ async def list_providers(
     by_provider: dict[str, list[CountryProvider]] = {}
     for link in links:
         by_provider.setdefault(link.provider_code, []).append(link)
-    return [_provider_info(p, by_provider.get(p.code, [])) for p in providers]
+    counts = await _hosted_mobile_counts(db)
+    return [_provider_info(p, by_provider.get(p.code, []), counts.get(p.code)) for p in providers]
 
 
 @router.patch("/{code}", response_model=ProviderInfo)
@@ -193,6 +229,48 @@ async def set_country_link(
     return CountryLinkInfo(
         country_code=cc, priority=link.priority, is_active=link.is_active,
     )
+
+
+@router.put("/{code}/countries/{country_code}/mobile")
+async def set_hosted_mobile(
+    code: str,
+    country_code: str,
+    payload: MobileToggle,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Turn a hosted provider's Mobile Money on or off in one country.
+
+    Toggles its operator rows there, leaving the country link — and so its
+    card-rail role — untouched. It is always tried after the push
+    providers; there is no priority to set.
+    """
+    provider = await _get_provider_or_404(db, code)
+    if provider.code not in HOSTED_MOBILE_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"{provider.code} n'est pas un fournisseur à page hébergée")
+    cc = country_code.upper()
+    rows = (await db.execute(
+        select(CountryOperator).where(
+            CountryOperator.country_code == cc,
+            CountryOperator.provider_code == provider.code,
+        )
+    )).scalars().all()
+    if not rows:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Aucune ligne opérateur {provider.code} pour {cc}. E-nkap n'encaisse le Mobile "
+                "Money qu'en XAF : ajoutez ses opérateurs dans Pays & Opérateurs si le pays est en XAF."
+            ),
+        )
+    for r in rows:
+        r.is_active = payload.is_active
+    await db.commit()
+    logger.info(
+        "Admin %s set %s Mobile Money in %s %s (%d rows)",
+        admin.email, provider.code, cc, "ON" if payload.is_active else "OFF", len(rows),
+    )
+    return {"country_code": cc, "is_active": payload.is_active, "rows": len(rows)}
 
 
 @router.delete("/{code}/countries/{country_code}", status_code=status.HTTP_204_NO_CONTENT)

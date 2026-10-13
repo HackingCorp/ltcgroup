@@ -321,7 +321,7 @@ export default function ProvidersPage() {
           <thead>
             <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 11, textTransform: "uppercase" }}>
               <th style={cellStyle}><T fr="Pays" en="Country" /></th>
-              <th style={cellStyle}><T fr="Mobile Money (push)" en="Mobile Money (push)" /></th>
+              <th style={cellStyle}><T fr="Mobile Money" en="Mobile Money" /></th>
               <th style={cellStyle}><T fr="Page hébergée" en="Hosted page" /></th>
             </tr>
           </thead>
@@ -336,13 +336,23 @@ export default function ProvidersPage() {
                 </td>
                 {(["MOBILE", "CARD"] as const).map((group) => {
                   const list = byCountry[c.code]?.[group] ?? [];
+                  // Hosted providers (E-nkap) also serve Mobile Money, always
+                  // after the push providers, through their operator rows here.
+                  const hostedMobile =
+                    group === "MOBILE"
+                      ? providers
+                          .filter((p) => p.mobile_hosted)
+                          .map((p) => ({ p, link: linkOf(p, c.code) }))
+                          .filter(({ link }) => link && (link.mobile_rows_total ?? 0) > 0)
+                      : [];
+                  const pushActive = list.some((p) => p.is_active && linkOf(p, c.code)?.is_active);
                   const candidates = providers.filter(
                     (p) => p.provider_group === group && !list.some((x) => x.code === p.code),
                   );
                   return (
                     <td key={group} style={cellStyle}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {list.length === 0 && (
+                        {list.length === 0 && hostedMobile.length === 0 && (
                           <span style={{ color: "var(--muted)", fontSize: 12 }}>
                             {group === "CARD" ? (
                               <T fr="— (Stripe global par défaut)" en="— (global Stripe fallback)" />
@@ -379,6 +389,34 @@ export default function ProvidersPage() {
                                   <T fr="Désactiver ici" en="Disable here" />
                                 ) : (
                                   <T fr="Réactiver" en="Enable" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {hostedMobile.map(({ p, link }) => {
+                          const on = p.is_active && link!.is_active && (link!.mobile_rows_active ?? 0) > 0;
+                          return (
+                            <div key={`hosted-${p.code}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <Pill tone={!on ? "neutral" : pushActive ? "info" : "success"}>
+                                {p.code}
+                                {pushActive ? " · dernier recours" : " · défaut"}
+                                {" · page hébergée"}
+                              </Pill>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ fontSize: 11, color: (link!.mobile_rows_active ?? 0) > 0 ? "var(--rose)" : "var(--green, green)" }}
+                                disabled={busy !== null}
+                                onClick={() =>
+                                  run(`hm-${c.code}-${p.code}`, () =>
+                                    providersService.setHostedMobile(p.code, c.code, (link!.mobile_rows_active ?? 0) === 0),
+                                  )
+                                }
+                              >
+                                {(link!.mobile_rows_active ?? 0) > 0 ? (
+                                  <T fr="Désactiver en Mobile Money" en="Disable for Mobile Money" />
+                                ) : (
+                                  <T fr="Activer en Mobile Money" en="Enable for Mobile Money" />
                                 )}
                               </button>
                             </div>

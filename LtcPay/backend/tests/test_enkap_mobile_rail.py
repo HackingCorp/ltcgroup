@@ -121,3 +121,34 @@ async def test_a_hosted_country_says_so_and_the_checkout_asks_nothing(
     assert 'id="momo-methods"' not in page.text      # no operator buttons
     assert 'id="phone-input"' not in page.text       # no phone field
     assert "Mobile Money ou carte bancaire" in page.text
+
+
+@pytest.fixture
+def as_admin():
+    from app.api.v1.auth import get_current_admin
+    from app.main import app
+
+    app.dependency_overrides[get_current_admin] = lambda: SimpleNamespace(email="admin@ltcgroup.site")
+    yield
+    app.dependency_overrides.pop(get_current_admin, None)
+
+
+async def test_admin_sees_and_toggles_hosted_mobile_money(client, db_session, enkap_mobile, as_admin):
+    providers = (await client.get("/api/v1/admin/providers")).json()
+    enkap = next(p for p in providers if p["code"] == "ENKAP")
+    cm = next(l for l in enkap["countries"] if l["country_code"] == "CM")
+    assert enkap["mobile_hosted"] is True
+    assert (cm["mobile_rows_active"], cm["mobile_rows_total"]) == (2, 2)
+
+    r = await client.put("/api/v1/admin/providers/ENKAP/countries/CM/mobile", json={"is_active": False})
+    assert r.status_code == 200, r.text
+    assert await provider_service.resolve_mobile_providers(db_session, "CM", "MTN") and \
+        [p.code for p, _ in await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")] == ["TOUCHPAY"]
+    # The card-rail link is untouched.
+    link = (await db_session.execute(select(CountryProvider).where(
+        CountryProvider.country_code == "CM", CountryProvider.provider_code == "ENKAP"))).scalar_one()
+    assert link.is_active is True
+
+    # A push provider cannot be toggled this way, nor a country without rows.
+    assert (await client.put("/api/v1/admin/providers/TOUCHPAY/countries/CM/mobile", json={"is_active": False})).status_code == 400
+    assert (await client.put("/api/v1/admin/providers/ENKAP/countries/CI/mobile", json={"is_active": True})).status_code == 400

@@ -4,6 +4,9 @@ export interface CountryLink {
   country_code: string;
   priority: number;
   is_active: boolean;
+  /** Hosted providers only (E-nkap): its Mobile Money operator rows there. */
+  mobile_rows_active?: number | null;
+  mobile_rows_total?: number | null;
 }
 
 export interface Provider {
@@ -13,6 +16,8 @@ export interface Provider {
   is_active: boolean;
   config_keys: string[];
   countries: CountryLink[];
+  /** Also serves Mobile Money through its hosted page, after push providers. */
+  mobile_hosted?: boolean;
 }
 
 export interface ProviderUpdateData {
@@ -45,6 +50,13 @@ export const providersService = {
       { priority, is_active: isActive },
     );
     return r.data;
+  },
+
+  /** Hosted provider's Mobile Money in one country (its operator rows). */
+  async setHostedMobile(code: string, countryCode: string, isActive: boolean): Promise<void> {
+    await api.put(`/admin/providers/${code}/countries/${countryCode}/mobile`, {
+      is_active: isActive,
+    });
   },
 
   async removeCountryLink(code: string, countryCode: string): Promise<void> {
