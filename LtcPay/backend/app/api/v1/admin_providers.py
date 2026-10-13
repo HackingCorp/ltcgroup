@@ -20,7 +20,9 @@ from app.core.encryption import encrypt_value
 from app.models.admin_user import AdminUser
 from app.models.country import CountryOperator, SupportedCountry
 from app.models.provider import CountryProvider, ProviderConfig
-from app.services.provider_service import HOSTED_MOBILE_PROVIDERS, _SENSITIVE_CONFIG_KEYS
+from app.services.provider_service import (
+    HOSTED_DEFAULT_KEY, HOSTED_MOBILE_PROVIDERS, _SENSITIVE_CONFIG_KEYS, hosted_is_default,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +49,18 @@ class ProviderInfo(BaseModel):
     is_active: bool
     config_keys: list[str]
     countries: list[CountryLinkInfo]
-    # Also serves Mobile Money through its hosted page, after the push
-    # providers (provider_service.HOSTED_MOBILE_PROVIDERS).
+    # Also serves Mobile Money through its hosted page
+    # (provider_service.HOSTED_MOBILE_PROVIDERS), linked to the country or not.
     mobile_hosted: bool = False
+    # Per country where it has Mobile Money rows: active/total rows and
+    # whether it is the country's default Mobile Money provider.
+    mobile_countries: dict[str, dict] = {}
 
 
 class MobileToggle(BaseModel):
-    is_active: bool
+    is_active: bool | None = None
+    # True: tried before the push providers; False: after them.
+    default: bool | None = None
 
 
 class ProviderUpdate(BaseModel):
@@ -95,6 +102,10 @@ def _provider_info(
         is_active=provider.is_active,
         config_keys=sorted((provider.config or {}).keys()),
         mobile_hosted=hosted,
+        mobile_countries={
+            cc: {"active": a, "total": t, "default": hosted_is_default(provider, cc)}
+            for cc, (a, t) in counts.items()
+        } if hosted else {},
         countries=[
             CountryLinkInfo(
                 country_code=link.country_code,
@@ -221,6 +232,7 @@ async def set_country_link(
         link.priority = payload.priority
         link.is_active = payload.is_active
 
+
     await db.commit()
     logger.info(
         "Admin %s set %s/%s priority=%s active=%s",
@@ -239,11 +251,12 @@ async def set_hosted_mobile(
     admin: AdminUser = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Turn a hosted provider's Mobile Money on or off in one country.
+    """A hosted provider's Mobile Money in one country.
 
-    Toggles its operator rows there, leaving the country link — and so its
-    card-rail role — untouched. It is always tried after the push
-    providers; there is no priority to set.
+    is_active toggles its operator rows there; default makes it the
+    country's default Mobile Money provider (tried before the push ones) or
+    puts it back after them. The country link — its card-rail role — is
+    never touched.
     """
     provider = await _get_provider_or_404(db, code)
     if provider.code not in HOSTED_MOBILE_PROVIDERS:
@@ -263,14 +276,31 @@ async def set_hosted_mobile(
                 "ML SN TD TG (XAF et XOF) : ajoutez ses opérateurs dans Pays & Opérateurs."
             ),
         )
-    for r in rows:
-        r.is_active = payload.is_active
+    if payload.is_active is not None:
+        for r in rows:
+            r.is_active = payload.is_active
+    if payload.default is not None:
+        config = dict(provider.config or {})
+        countries = {str(c).upper() for c in (config.get(HOSTED_DEFAULT_KEY) or [])}
+        if payload.default:
+            countries.add(cc)
+            for r in rows:  # a default that collects nothing makes no sense
+                r.is_active = True
+        else:
+            countries.discard(cc)
+        config[HOSTED_DEFAULT_KEY] = sorted(countries)
+        provider.config = config
     await db.commit()
     logger.info(
-        "Admin %s set %s Mobile Money in %s %s (%d rows)",
-        admin.email, provider.code, cc, "ON" if payload.is_active else "OFF", len(rows),
+        "Admin %s set %s Mobile Money in %s: active=%s default=%s (%d rows)",
+        admin.email, provider.code, cc, payload.is_active, payload.default, len(rows),
     )
-    return {"country_code": cc, "is_active": payload.is_active, "rows": len(rows)}
+    return {
+        "country_code": cc,
+        "is_active": any(r.is_active for r in rows),
+        "default": hosted_is_default(provider, cc),
+        "rows": len(rows),
+    }
 
 
 @router.delete("/{code}/countries/{country_code}", status_code=status.HTTP_204_NO_CONTENT)

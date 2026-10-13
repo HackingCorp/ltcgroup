@@ -34,6 +34,7 @@ class CountryService:
         (fresh installs): callers then fall back to the rows' own is_active.
         """
         from app.models.provider import CountryProvider, ProviderConfig
+        from app.services.provider_service import HOSTED_MOBILE_PROVIDERS
 
         query = (
             select(CountryProvider.country_code, CountryProvider.provider_code,
@@ -43,10 +44,22 @@ class CountryService:
         if country_code:
             query = query.where(CountryProvider.country_code == country_code.upper())
         routes: dict[str, set[str]] = {}
+        linked: dict[str, set[str]] = {}
         for cc, provider_code, link_active, provider_active in (await db.execute(query)).all():
             providers = routes.setdefault(cc, set())
+            linked.setdefault(cc, set()).add(provider_code)
             if link_active and provider_active:
                 providers.add(provider_code)
+        # Hosted providers serve Mobile Money without a link (their rows
+        # decide); only a link turned off excludes them from a country.
+        hosted_on = set((await db.execute(
+            select(ProviderConfig.code).where(
+                ProviderConfig.code.in_(HOSTED_MOBILE_PROVIDERS),
+                ProviderConfig.is_active == True,  # noqa: E712
+            )
+        )).scalars().all())
+        for cc, providers in routes.items():
+            providers.update(hosted_on - linked.get(cc, set()))
         return routes
 
     @staticmethod

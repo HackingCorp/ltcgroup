@@ -49,7 +49,20 @@ _PROVIDER_CURRENCIES = {
 # initiation returns a redirect_url the customer must open. They are always
 # tried after every push provider of the country, whatever their link
 # priority — the priority of their link ranks them on the card rail.
+# Their Mobile Money is switched by their operator rows alone: a country
+# link is not needed (it would also make them the country's card provider),
+# but a link turned off still turns them off in that country.
 HOSTED_MOBILE_PROVIDERS = {"ENKAP"}
+# A hosted provider can instead be made the country's DEFAULT Mobile Money
+# provider: the countries are listed under this key of its config, and it
+# is then tried before the push providers.
+HOSTED_DEFAULT_KEY = "mobile_default_countries"
+
+
+def hosted_is_default(provider, country_code: str) -> bool:
+    return country_code.upper() in [
+        str(c).upper() for c in ((provider.config or {}).get(HOSTED_DEFAULT_KEY) or [])
+    ]
 
 
 class ProviderRoutingError(Exception):
@@ -127,8 +140,31 @@ class ProviderService:
             )
             .order_by(CountryProvider.priority)
         )
-        # Push providers by priority, then hosted pages (stable sort).
-        links = sorted(result.all(), key=lambda row: row[1].code in HOSTED_MOBILE_PROVIDERS)
+        # Push providers by priority, hosted pages after them — or before
+        # them where an admin made the hosted page the country's default.
+        def rank(row):
+            provider = row[1]
+            if provider.code not in HOSTED_MOBILE_PROVIDERS:
+                return 1
+            return 0 if hosted_is_default(provider, cc) else 2
+        links = sorted(result.all(), key=rank)
+        # Hosted providers with no link at all in this country still serve
+        # Mobile Money through their operator rows.
+        linked_codes = set((await db.execute(
+            select(CountryProvider.provider_code).where(CountryProvider.country_code == cc)
+        )).scalars().all())
+        unlinked = (await db.execute(
+            select(ProviderConfig).where(
+                ProviderConfig.code.in_(HOSTED_MOBILE_PROVIDERS - linked_codes),
+                ProviderConfig.is_active == True,  # noqa: E712
+                select(CountryOperator.id).where(
+                    CountryOperator.country_code == cc,
+                    CountryOperator.provider_code == ProviderConfig.code,
+                    CountryOperator.is_active == True,  # noqa: E712
+                ).exists(),
+            ).order_by(ProviderConfig.code)
+        )).scalars().all()
+        links = sorted(list(links) + [(None, p) for p in unlinked], key=rank)
         if not links:
             return []
 

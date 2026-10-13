@@ -120,6 +120,15 @@ export default function ProvidersPage() {
 
   async function setDefault(cc: string, group: "MOBILE" | "CARD", code: string) {
     await run(`def-${cc}-${code}`, async () => {
+      // A push provider made default takes over from a hosted page (E-nkap)
+      // that was the country's default Mobile Money provider.
+      if (group === "MOBILE") {
+        for (const hp of providers) {
+          if (hp.mobile_hosted && hp.mobile_countries?.[cc]?.default) {
+            await providersService.setHostedMobile(hp.code, cc, { default: false });
+          }
+        }
+      }
       const siblings = byCountry[cc]?.[group] ?? [];
       await providersService.setCountryLink(code, cc, 1, true);
       let prio = 2;
@@ -336,16 +345,74 @@ export default function ProvidersPage() {
                 </td>
                 {(["MOBILE", "CARD"] as const).map((group) => {
                   const list = byCountry[c.code]?.[group] ?? [];
-                  // Hosted providers (E-nkap) also serve Mobile Money, always
-                  // after the push providers, through their operator rows here.
+                  // Hosted providers (E-nkap) also serve Mobile Money, through
+                  // their operator rows — linked to the country or not — either
+                  // as the country's default or after the push providers.
                   const hostedMobile =
                     group === "MOBILE"
                       ? providers
-                          .filter((p) => p.mobile_hosted)
-                          .map((p) => ({ p, link: linkOf(p, c.code) }))
-                          .filter(({ link }) => link && (link.mobile_rows_total ?? 0) > 0)
+                          .filter((p) => p.mobile_hosted && (p.mobile_countries?.[c.code]?.total ?? 0) > 0)
+                          .map((p) => ({ p, link: linkOf(p, c.code), mc: p.mobile_countries![c.code] }))
                       : [];
+                  const hostedDefault = hostedMobile.some(({ mc }) => mc.default && mc.active > 0);
                   const pushActive = list.some((p) => p.is_active && linkOf(p, c.code)?.is_active);
+                  const renderHosted = ({ p, link, mc }: (typeof hostedMobile)[number]) => {
+                    const on = p.is_active && (link ? link.is_active : true) && mc.active > 0;
+                    const label = mc.default ? " · défaut" : pushActive ? " · dernier recours" : " · seul fournisseur";
+                    return (
+                      <div key={`hosted-${p.code}`} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <Pill tone={!on ? "neutral" : mc.default || !pushActive ? "success" : "info"}>
+                          {p.code}
+                          {label}
+                          {" · page hébergée"}
+                        </Pill>
+                        {on && !mc.default && pushActive && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11 }}
+                            disabled={busy !== null}
+                            onClick={() =>
+                              run(`hd-${c.code}-${p.code}`, () =>
+                                providersService.setHostedMobile(p.code, c.code, { default: true }),
+                              )
+                            }
+                          >
+                            <T fr="Définir par défaut" en="Set default" />
+                          </button>
+                        )}
+                        {mc.default && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11 }}
+                            disabled={busy !== null}
+                            onClick={() =>
+                              run(`hd-${c.code}-${p.code}`, () =>
+                                providersService.setHostedMobile(p.code, c.code, { default: false }),
+                              )
+                            }
+                          >
+                            <T fr="Mettre en dernier recours" en="Make last resort" />
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11, color: mc.active > 0 ? "var(--rose)" : "var(--green, green)" }}
+                          disabled={busy !== null}
+                          onClick={() =>
+                            run(`hm-${c.code}-${p.code}`, () =>
+                              providersService.setHostedMobile(p.code, c.code, { is_active: mc.active === 0 }),
+                            )
+                          }
+                        >
+                          {mc.active > 0 ? (
+                            <T fr="Désactiver en Mobile Money" en="Disable for Mobile Money" />
+                          ) : (
+                            <T fr="Activer en Mobile Money" en="Enable for Mobile Money" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  };
                   const candidates = providers.filter(
                     (p) => p.provider_group === group && !list.some((x) => x.code === p.code),
                   );
@@ -361,8 +428,10 @@ export default function ProvidersPage() {
                             )}
                           </span>
                         )}
-                        {list.map((p, i) => {
+                        {hostedMobile.filter(({ mc }) => mc.default).map(renderHosted)}
+                        {list.map((p, idx) => {
                           const link = linkOf(p, c.code)!;
+                          const i = idx + (hostedDefault && group === "MOBILE" ? 1 : 0);
                           return (
                             <div key={p.code} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <Pill tone={!p.is_active || !link.is_active ? "neutral" : i === 0 ? "success" : "info"}>
@@ -394,34 +463,7 @@ export default function ProvidersPage() {
                             </div>
                           );
                         })}
-                        {hostedMobile.map(({ p, link }) => {
-                          const on = p.is_active && link!.is_active && (link!.mobile_rows_active ?? 0) > 0;
-                          return (
-                            <div key={`hosted-${p.code}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <Pill tone={!on ? "neutral" : pushActive ? "info" : "success"}>
-                                {p.code}
-                                {pushActive ? " · dernier recours" : " · défaut"}
-                                {" · page hébergée"}
-                              </Pill>
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                style={{ fontSize: 11, color: (link!.mobile_rows_active ?? 0) > 0 ? "var(--rose)" : "var(--green, green)" }}
-                                disabled={busy !== null}
-                                onClick={() =>
-                                  run(`hm-${c.code}-${p.code}`, () =>
-                                    providersService.setHostedMobile(p.code, c.code, (link!.mobile_rows_active ?? 0) === 0),
-                                  )
-                                }
-                              >
-                                {(link!.mobile_rows_active ?? 0) > 0 ? (
-                                  <T fr="Désactiver en Mobile Money" en="Disable for Mobile Money" />
-                                ) : (
-                                  <T fr="Activer en Mobile Money" en="Enable for Mobile Money" />
-                                )}
-                              </button>
-                            </div>
-                          );
-                        })}
+                        {hostedMobile.filter(({ mc }) => !mc.default).map(renderHosted)}
                         {candidates.length > 0 && (
                           <select
                             defaultValue=""

@@ -174,3 +174,39 @@ async def test_an_xof_payment_goes_through_as_an_xaf_order(db_session):
         )
     assert order["txid"] == "ENK-XOF"
     assert sent["currency"] == "XAF" and sent["totalAmount"] == 5000   # 1:1 parity
+
+
+async def test_hosted_mobile_needs_no_country_link(db_session, enkap_mobile):
+    # Its rows alone make it a Mobile Money provider; a link would also make
+    # it the country's card provider.
+    link = (await db_session.execute(select(CountryProvider).where(
+        CountryProvider.country_code == "CM", CountryProvider.provider_code == "ENKAP"))).scalar_one()
+    await db_session.delete(link)
+    await db_session.commit()
+    cands = await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")
+    assert [p.code for p, _ in cands] == ["TOUCHPAY", "ENKAP"]
+
+    # ...but a link turned off still turns it off in that country.
+    db_session.add(CountryProvider(country_code="CM", provider_code="ENKAP", priority=1, is_active=False))
+    await db_session.commit()
+    cands = await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")
+    assert [p.code for p, _ in cands] == ["TOUCHPAY"]
+
+
+async def test_admin_can_make_the_hosted_page_the_default(client, db_session, enkap_mobile, as_admin):
+    r = await client.put("/api/v1/admin/providers/ENKAP/countries/CM/mobile", json={"default": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["default"] is True
+    db_session.expire_all()
+    cands = await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")
+    assert [p.code for p, _ in cands] == ["ENKAP", "TOUCHPAY"]
+    assert await provider_service.mobile_is_hosted(db_session, "CM") is True
+
+    listing = (await client.get("/api/v1/admin/providers")).json()
+    enkap = next(p for p in listing if p["code"] == "ENKAP")
+    assert enkap["mobile_countries"]["CM"] == {"active": 2, "total": 2, "default": True}
+
+    await client.put("/api/v1/admin/providers/ENKAP/countries/CM/mobile", json={"default": False})
+    db_session.expire_all()
+    cands = await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")
+    assert [p.code for p, _ in cands] == ["TOUCHPAY", "ENKAP"]
