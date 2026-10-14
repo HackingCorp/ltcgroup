@@ -252,3 +252,15 @@ async def test_bank_card_xof_without_any_country_is_refused(client, auth_headers
     assert "country" in response.json()["detail"]
     from app.models.payment import Payment
     assert (await db_session.execute(select(Payment))).scalars().first() is None
+
+
+async def test_a_stripe_card_payment_keeps_the_country_sent(client, auth_headers, db_session):
+    from app.services.stripe_service import StripeService
+    from unittest.mock import PropertyMock
+    with patch.object(StripeService, "is_configured", new_callable=PropertyMock, return_value=True), \
+         patch("app.api.v1.payments.stripe_service.create_payment_intent",
+               new=AsyncMock(return_value={"id": "pi_1", "client_secret": "cs_1"})):
+        response = await client.post("/api/v1/payments", headers=auth_headers, json={
+            "amount": 5000, "currency": "XAF", "country": "CM", "payment_method": "BANK_CARD",
+        })
+    assert response.json().get("country") == "CM", response.text

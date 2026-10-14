@@ -672,6 +672,12 @@ async def create_payment(
         country_code = payload.country.upper()
         country_obj = await country_service.get_active_country(db, country_code)
 
+    if provider == PaymentProvider.STRIPE and payload.country:
+        # Keep the country the merchant sent: it was dropped for Stripe
+        # payments, so the record of a card payment that fell back to Stripe
+        # (Sino Sourcing, Mali, 2026-10-14) read as if none had been sent.
+        country_code = payload.country.upper()
+
     if provider == PaymentProvider.TOUCHPAY:
         if payload.country:
             country_code = payload.country.upper()
