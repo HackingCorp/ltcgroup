@@ -605,6 +605,29 @@ async def create_payment(
     #   the mobile routing at initiation time.
     provider = PaymentProvider.TOUCHPAY
     if payload.payment_method == PaymentMethod.BANK_CARD:
+        # The hosted channel is chosen per country: without one, read it off
+        # the customer's number. An XAF/XOF payment with no country at all is
+        # refused — the only card provider left would be the global Stripe
+        # fallback, which does not take these currencies (2026-10-14: three
+        # Sino Sourcing payments created FAILED that way).
+        if not payload.country:
+            phone = payload.customer_phone or (
+                payload.customer_info.phone if payload.customer_info else None
+            )
+            detected = (
+                await country_service.detect_country_by_phone(db, phone) if phone else None
+            )
+            if detected:
+                payload.country = detected.code
+            elif (payload.currency or "").upper() in ("XAF", "XOF"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "Le champ country est requis pour un paiement BANK_CARD en "
+                        f"{payload.currency.upper()} : il determine la page de paiement "
+                        "hebergee du pays (ex: country: \"CI\")."
+                    ),
+                )
         card_candidates = await provider_service.resolve_card_providers(
             db, payload.country,
         )

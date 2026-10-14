@@ -210,3 +210,45 @@ async def test_admin_can_make_the_hosted_page_the_default(client, db_session, en
     db_session.expire_all()
     cands = await provider_service.resolve_mobile_providers(db_session, "CM", "MTN")
     assert [p.code for p, _ in cands] == ["TOUCHPAY", "ENKAP"]
+
+
+async def _unlink_enkap(db_session):
+    link = (await db_session.execute(select(CountryProvider).where(
+        CountryProvider.country_code == "CM", CountryProvider.provider_code == "ENKAP"))).scalar_one()
+    await db_session.delete(link)
+    await db_session.commit()
+
+
+async def test_bank_card_reaches_an_unlinked_hosted_page(client, auth_headers, db_session, enkap_mobile):
+    """2026-10-14: E-nkap served Côte d'Ivoire's Mobile Money without a link,
+    the country said hosted_payment_page, and BANK_CARD fell to Stripe."""
+    await _unlink_enkap(db_session)
+    with patch("app.services.enkap_service.enkap_service.create_order", new=AsyncMock(return_value=ORDER)):
+        response = await client.post("/api/v1/payments", headers=auth_headers, json={
+            "amount": 5000, "currency": "XAF", "country": "CM", "payment_method": "BANK_CARD",
+        })
+    assert response.status_code == 201, response.text
+    assert response.json()["payment_mode"] == "REDIRECT"
+    assert response.json()["payment_url"] == ORDER["redirect_url"]
+
+
+async def test_bank_card_without_country_reads_it_off_the_phone(client, auth_headers, db_session, enkap_mobile):
+    with patch("app.services.enkap_service.enkap_service.create_order", new=AsyncMock(return_value=ORDER)):
+        response = await client.post("/api/v1/payments", headers=auth_headers, json={
+            "amount": 5000, "currency": "XAF", "payment_method": "BANK_CARD",
+            "customer_info": {"name": "A", "phone": "237670000000"},
+        })
+    assert response.status_code == 201, response.text
+    assert response.json()["country"] == "CM"
+    assert response.json()["payment_mode"] == "REDIRECT"
+
+
+async def test_bank_card_xof_without_any_country_is_refused(client, auth_headers, db_session, enkap_mobile):
+    response = await client.post("/api/v1/payments", headers=auth_headers, json={
+        "amount": 5000, "currency": "XOF", "payment_method": "BANK_CARD",
+        "customer_info": {"name": "A", "email": "a@example.com"},
+    })
+    assert response.status_code == 400
+    assert "country" in response.json()["detail"]
+    from app.models.payment import Payment
+    assert (await db_session.execute(select(Payment))).scalars().first() is None

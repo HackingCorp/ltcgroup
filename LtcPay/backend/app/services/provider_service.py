@@ -194,21 +194,44 @@ class ProviderService:
 
         Without a country (legacy card payments), returns an empty list —
         the caller falls back to the historical Stripe behavior.
+
+        A hosted provider (E-nkap) serving the country's Mobile Money through
+        its operator rows, without a country link, comes after the linked
+        ones: its page is the "hosted channel" the country advertises with
+        hosted_payment_page, and BANK_CARD is how merchants reach it. Without
+        this, such a country fell through to the global Stripe fallback —
+        2026-10-14, three XOF payments refused by Stripe.
         """
         if not country_code:
             return []
+        cc = country_code.upper()
         result = await db.execute(
             select(CountryProvider, ProviderConfig)
             .join(ProviderConfig, CountryProvider.provider_code == ProviderConfig.code)
             .where(
-                CountryProvider.country_code == country_code.upper(),
+                CountryProvider.country_code == cc,
                 CountryProvider.is_active == True,  # noqa: E712
                 ProviderConfig.is_active == True,  # noqa: E712
                 ProviderConfig.provider_group == ProviderGroup.CARD,
             )
             .order_by(CountryProvider.priority)
         )
-        return [provider for _, provider in result.all()]
+        providers = [provider for _, provider in result.all()]
+        linked_codes = set((await db.execute(
+            select(CountryProvider.provider_code).where(CountryProvider.country_code == cc)
+        )).scalars().all())
+        unlinked_hosted = (await db.execute(
+            select(ProviderConfig).where(
+                ProviderConfig.code.in_(HOSTED_MOBILE_PROVIDERS - linked_codes),
+                ProviderConfig.is_active == True,  # noqa: E712
+                select(CountryOperator.id).where(
+                    CountryOperator.country_code == cc,
+                    CountryOperator.provider_code == ProviderConfig.code,
+                    CountryOperator.is_active == True,  # noqa: E712
+                ).exists(),
+            ).order_by(ProviderConfig.code)
+        )).scalars().all()
+        return providers + list(unlinked_hosted)
 
     async def hosted_card_provider(
         self, db: AsyncSession, country_code: str | None, merchant=None,
