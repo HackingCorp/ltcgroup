@@ -9,7 +9,7 @@ import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -141,8 +141,11 @@ async def login_merchant(
     db: AsyncSession = Depends(get_db),
 ):
     """Login merchant to the portal. Rate limit: 10 attempts per minute per IP."""
-    result = await db.execute(select(Merchant).where(Merchant.email == data.email))
-    merchant = result.scalar_one_or_none()
+    # Case-insensitive, like the admin login (phone keyboards capitalise).
+    result = await db.execute(
+        select(Merchant).where(func.lower(Merchant.email) == data.email.strip().lower())
+    )
+    merchant = result.scalars().first()
 
     if not merchant or not merchant.password_hash:
         raise HTTPException(status_code=401, detail="Invalid email or password")

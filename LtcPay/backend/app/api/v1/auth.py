@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -88,8 +88,13 @@ async def get_current_admin(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(AdminUser).where(AdminUser.email == data.email))
-    user = result.scalar_one_or_none()
+    # Emails are matched without regard to case or surrounding spaces: phone
+    # keyboards capitalise the first letter, and "Lontsi05@..." was refused
+    # with a 401 while the account is stored as "lontsi05@..." (2026-10-15).
+    result = await db.execute(
+        select(AdminUser).where(func.lower(AdminUser.email) == data.email.strip().lower())
+    )
+    user = result.scalars().first()
 
     if not user or not await verify_password_async(data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
