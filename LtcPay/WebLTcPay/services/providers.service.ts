@@ -7,6 +7,8 @@ export interface CountryLink {
   /** Hosted providers only (E-nkap): its Mobile Money operator rows there. */
   mobile_rows_active?: number | null;
   mobile_rows_total?: number | null;
+  /** Active operator rows this provider has in the country (0 = never routed to). */
+  active_operators?: number;
 }
 
 export interface Provider {

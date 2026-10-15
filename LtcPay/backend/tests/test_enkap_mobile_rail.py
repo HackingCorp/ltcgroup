@@ -264,3 +264,15 @@ async def test_a_stripe_card_payment_keeps_the_country_sent(client, auth_headers
             "amount": 5000, "currency": "XAF", "country": "CM", "payment_method": "BANK_CARD",
         })
     assert response.json().get("country") == "CM", response.text
+
+
+async def test_admin_listing_counts_active_operators_per_link(client, db_session, enkap_mobile, as_admin):
+    """A linked provider with no active operator is never routed to: the
+    screen must be able to say so (DR Congo, 2026-10-15)."""
+    for r in (await db_session.execute(select(CountryOperator).where(
+        CountryOperator.country_code == "CM", CountryOperator.provider_code == "TOUCHPAY"))).scalars().all():
+        r.is_active = False
+    await db_session.commit()
+    listing = (await client.get("/api/v1/admin/providers")).json()
+    tp_cm = next(l for p in listing if p["code"] == "TOUCHPAY" for l in p["countries"] if l["country_code"] == "CM")
+    assert tp_cm["is_active"] is True and tp_cm["active_operators"] == 0

@@ -432,12 +432,25 @@ export default function ProvidersPage() {
                         {list.map((p, idx) => {
                           const link = linkOf(p, c.code)!;
                           const i = idx + (hostedDefault && group === "MOBILE" ? 1 : 0);
+                          // Linked and on, but no active operator row here: the
+                          // router skips it whatever its rank.
+                          const noOperators =
+                            group === "MOBILE" && p.is_active && link.is_active && (link.active_operators ?? 1) === 0;
                           return (
-                            <div key={p.code} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <Pill tone={!p.is_active || !link.is_active ? "neutral" : i === 0 ? "success" : "info"}>
+                            <div key={p.code} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                              <Pill tone={!p.is_active || !link.is_active || noOperators ? "neutral" : i === 0 ? "success" : "info"}>
                                 {p.code}
                                 {i === 0 ? " · défaut" : ` · secours ${i}`}
                               </Pill>
+                              {noOperators && (
+                                <a
+                                  href="/dashboard/countries"
+                                  style={{ fontSize: 11, color: "var(--rose)", fontWeight: 500 }}
+                                  title="Aucune ligne opérateur active pour ce fournisseur dans ce pays : le routage le saute. Activez ses opérateurs dans Pays & Opérateurs."
+                                >
+                                  ⚠ <T fr="aucun opérateur actif — jamais utilisé" en="no active operator — never used" />
+                                </a>
+                              )}
                               {i !== 0 && link.is_active && p.is_active && (
                                 <button
                                   className="btn btn-ghost btn-sm"

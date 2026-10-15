@@ -40,6 +40,11 @@ class CountryLinkInfo(BaseModel):
     # the link is shared with the card rail.
     mobile_rows_active: int | None = None
     mobile_rows_total: int | None = None
+    # Active operator rows this provider has in the country. A link with
+    # none is never routed to, whatever its priority: the router needs a
+    # row for the operator (CD on 2026-10-15: AccountPE "default" with all
+    # its rows off, every payment went to TouchPay).
+    active_operators: int = 0
 
 
 class ProviderInfo(BaseModel):
@@ -92,6 +97,7 @@ def _provider_info(
     provider: ProviderConfig,
     links: list[CountryProvider],
     mobile_counts: dict[str, tuple[int, int]] | None = None,
+    active_ops: dict[str, int] | None = None,
 ) -> ProviderInfo:
     hosted = provider.code in HOSTED_MOBILE_PROVIDERS
     counts = mobile_counts or {}
@@ -113,6 +119,7 @@ def _provider_info(
                 is_active=link.is_active,
                 mobile_rows_active=counts.get(link.country_code, (0, 0))[0] if hosted else None,
                 mobile_rows_total=counts.get(link.country_code, (0, 0))[1] if hosted else None,
+                active_operators=(active_ops or {}).get(link.country_code, 0),
             )
             for link in sorted(links, key=lambda l: (l.country_code, l.priority))
         ],
@@ -147,7 +154,16 @@ async def list_providers(
     for link in links:
         by_provider.setdefault(link.provider_code, []).append(link)
     counts = await _hosted_mobile_counts(db)
-    return [_provider_info(p, by_provider.get(p.code, []), counts.get(p.code)) for p in providers]
+    active_ops: dict[str, dict[str, int]] = {}
+    for r in (await db.execute(
+        select(CountryOperator).where(CountryOperator.is_active == True)  # noqa: E712
+    )).scalars().all():
+        per = active_ops.setdefault(r.provider_code, {})
+        per[r.country_code] = per.get(r.country_code, 0) + 1
+    return [
+        _provider_info(p, by_provider.get(p.code, []), counts.get(p.code), active_ops.get(p.code))
+        for p in providers
+    ]
 
 
 @router.patch("/{code}", response_model=ProviderInfo)
