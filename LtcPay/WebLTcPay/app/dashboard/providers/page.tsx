@@ -45,6 +45,8 @@ export default function ProvidersPage() {
   const [sebPublicKey, setSebPublicKey] = useState("");
   const [sebSecretKey, setSebSecretKey] = useState("");
   const [sebSync, setSebSync] = useState<SebPaySyncResult | null>(null);
+  // AccountPE webhook signing secret ("Webhook Hash" of the SwychrConnect profile)
+  const [apWebhookHash, setApWebhookHash] = useState("");
 
   // Merchant prefs editor state
   const [merchants, setMerchants] = useState<{ id: string; name: string }[]>([]);
@@ -168,6 +170,15 @@ export default function ProvidersPage() {
     });
   }
 
+  async function saveAccountPEWebhookHash() {
+    const value = apWebhookHash.trim();
+    if (!value) return;
+    await run("ap-hash", async () => {
+      await providersService.update("ACCOUNTPE", { config: { webhook_secret: value } });
+      setApWebhookHash("");
+    });
+  }
+
   async function syncSebPay() {
     setSebSync(null);
     await run("seb-sync", async () => setSebSync(await providersService.syncSebPayOperators()));
@@ -263,6 +274,32 @@ export default function ProvidersPage() {
                 <T fr="Activer" en="Enable" />
               )}
             </button>
+            {p.code === "ACCOUNTPE" && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={p.config_keys.includes("webhook_secret") ? "Webhook Hash (enregistré)" : "Webhook Hash"}
+                  value={apWebhookHash}
+                  onChange={(e) => setApWebhookHash(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={busy !== null || !apWebhookHash.trim()}
+                  onClick={saveAccountPEWebhookHash}
+                >
+                  <T fr="Enregistrer le Webhook Hash" en="Save Webhook Hash" />
+                </button>
+                <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.4 }}>
+                  <T
+                    fr="À copier depuis le profil SwychrConnect d'AccountPE (Profile Settings › Webhook Hash). Sans lui, les confirmations AccountPE sont rejetées."
+                    en="Copy it from AccountPE's SwychrConnect profile (Profile Settings › Webhook Hash). Without it, AccountPE confirmations are rejected."
+                  />
+                </div>
+              </div>
+            )}
             {p.code === "SEBPAY" && (
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                 <input

@@ -235,6 +235,19 @@ async def accountpe_webhook(
             "AccountPE webhook: body carried no status for %s, provider says %r",
             transaction_id, raw_status,
         )
+    return await settle_from_accountpe(db, payment, attrs, raw_status, "webhook")
+
+
+async def settle_from_accountpe(
+    db: AsyncSession, payment: Payment, attrs: dict, raw_status, source: str = "webhook",
+) -> dict:
+    """Apply an AccountPE status to a payment. Idempotent.
+
+    Shared by the webhook and the reconciliation sweep, so the two can
+    never reach different verdicts. raw_status is AccountPE's numeric code
+    or its label ("successful", "failed", ...).
+    """
+    transaction_id = payment.reference
     try:
         provider_status = int(raw_status)
     except (TypeError, ValueError):

@@ -131,6 +131,9 @@ async def lifespan(app: FastAPI):
     from app.services.sebpay_reconciler import (
         reconciliation_loop as sebpay_reconciliation_loop,
     )
+    from app.services.accountpe_reconciler import (
+        reconciliation_loop as accountpe_reconciliation_loop,
+    )
     from app.services.touchpay_reconciler import (
         deep_reconciliation_loop as touchpay_deep_reconciliation_loop,
         reconciliation_loop as touchpay_reconciliation_loop,
@@ -140,6 +143,7 @@ async def lifespan(app: FastAPI):
         _asyncio.create_task(touchpay_reconciliation_loop()),
         _asyncio.create_task(touchpay_deep_reconciliation_loop()),
         _asyncio.create_task(sebpay_reconciliation_loop()),
+        _asyncio.create_task(accountpe_reconciliation_loop()),
         _asyncio.create_task(expiry_loop()),
     ]
     yield
