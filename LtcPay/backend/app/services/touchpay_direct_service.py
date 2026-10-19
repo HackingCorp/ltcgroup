@@ -151,7 +151,26 @@ def friendly_initiation_error(exc: "TouchPayDirectError") -> str:
         return "Ce compte Mobile Money est bloque. Contactez votre operateur."
     if "introuvable" in raw or "not found" in raw:
         return "Compte Mobile Money introuvable pour ce numero. Verifiez le numero saisi."
+    if _looks_technical(str(exc)):
+        # A provider's internal error is no message for a customer: on
+        # 2026-10-19 the checkout showed SebPay's partner's whole JSON
+        # validation dump ("Sebpay-KP checkout failed. Status: 422 - {...}").
+        # It stays in the logs and in direct_api_data for support.
+        return (
+            "Ce moyen de paiement est momentanement indisponible. Reessayez plus tard "
+            "ou choisissez un autre operateur."
+        )
     return f"Le paiement n'a pas pu etre initie : {exc}"
+
+
+def _looks_technical(message: str) -> bool:
+    """Whether a provider error is internal plumbing rather than a sentence."""
+    lowered = message.lower()
+    markers = (
+        "{", "status:", "exception", "stacktrace", "traceback", "http ",
+        "failed to initiate", "validation_error", "must not be null", "checkout failed",
+    )
+    return len(message) > 180 or any(m in lowered for m in markers)
 
 
 def duplicate_retry_after(exc: "TouchPayDirectError") -> int | None:
