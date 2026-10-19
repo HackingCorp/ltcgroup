@@ -136,6 +136,7 @@ class AccountPEService:
         description: str | None = None,
         callback_url: str | None = None,
         failed_callback_url: str | None = None,
+        otp_code: str | None = None,
     ) -> dict:
         """Create an AccountPE payin request. Returns the parsed response data.
 
@@ -167,6 +168,19 @@ class AccountPEService:
                 f"Operator '{operator_code}' not available via AccountPE for '{country_code}'"
             )
         payment_method = op.service_code or operator_code.upper()
+
+        # Orange in CI/SN/BF: AccountPE wants the payer's Orange Money OTP as
+        # om_otp ("400 om_otp is required for network ORANGE payins in
+        # CI/SN/BF", its Direct API doc). Without it, refuse here — nothing
+        # is live yet, so the router can still try a provider that needs none.
+        otp_code = "".join(c for c in (otp_code or "") if c.isalnum())
+        if getattr(op, "otp_required", False) and not otp_code:
+            from app.services.sebpay_service import otp_ussd_for_amount
+            ussd = otp_ussd_for_amount(op.ussd_code, amount)
+            raise AccountPEError(
+                f"Code OTP requis pour {op.operator_name}"
+                + (f" : composez {ussd} pour l'obtenir." if ussd else ".")
+            )
 
         # Same pre-flight guards as the TouchPay direct path: reject numbers
         # that provably belong to another operator, and rate-limit attempts.
@@ -200,6 +214,8 @@ class AccountPEService:
         }
         if customer_email:
             payload["email"] = customer_email
+        if otp_code:
+            payload["om_otp"] = otp_code
         if callback_url:
             payload["callback_url"] = callback_url
         if failed_callback_url:

@@ -77,13 +77,20 @@ def hold_failure_during_initiation(reference: str, provider_code: str, message: 
 
 async def otp_requirement(
     db: AsyncSession, country_code: str, operator_code: str, merchant=None,
+    strict: bool = True,
 ):
     """The operator row whose OTP the payer must provide, or None.
 
-    An OTP is required only when every provider that can take this operator
-    needs one: otherwise a payer without a code is simply routed to a provider
-    that asks for nothing. Returns the first such row (its ussd_code is how
-    the payer obtains the code).
+    strict (refusing a request that has no OTP): required only when every
+    provider that can take this operator needs one — otherwise a payer
+    without a code is simply routed to a provider that asks for nothing.
+
+    not strict (deciding whether to ASK for it, checkout and country
+    listing): required as soon as the default provider needs one. Senegal,
+    2026-10-17: AccountPE, first for Orange, demands om_otp; never asking
+    meant it was skipped on every payment and SebPay, behind it, expired.
+
+    Returns the first such row (its ussd_code is how the payer gets the code).
     """
     candidates = await provider_service.resolve_mobile_providers(
         db, country_code, operator_code,
@@ -91,9 +98,12 @@ async def otp_requirement(
     candidates = provider_service.apply_merchant_prefs(
         candidates, merchant, "MOBILE", country_code,
     )
-    if candidates and all(
-        op is not None and getattr(op, "otp_required", False) for _, op in candidates
-    ):
+    if not candidates:
+        return None
+    if not strict:
+        first = candidates[0][1]
+        return first if first is not None and getattr(first, "otp_required", False) else None
+    if all(op is not None and getattr(op, "otp_required", False) for _, op in candidates):
         return candidates[0][1]
     return None
 
@@ -172,6 +182,7 @@ async def _dispatch(
             description=description,
             callback_url=cb,
             failed_callback_url=failed_cb,
+            otp_code=otp_code,
         )
     if provider.code == "SEBPAY":
         # Signed webhooks (HMAC of the raw body with our secret key): no

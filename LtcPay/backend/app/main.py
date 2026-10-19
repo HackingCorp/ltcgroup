@@ -337,7 +337,7 @@ async def payment_page(reference: str, request: Request):
             from app.services.sebpay_service import otp_ussd_for_amount
             otp_by_code = {}
             for code in {o.operator_code for o in raw_operators if getattr(o, "otp_required", False) and id(o) in routable}:
-                otp_row = await otp_requirement(db2, country.code, code)
+                otp_row = await otp_requirement(db2, country.code, code, strict=False)
                 if otp_row is not None:
                     otp_by_code[code] = otp_ussd_for_amount(otp_row.ussd_code, payment.amount)
             country_context = {

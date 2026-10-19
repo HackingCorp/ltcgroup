@@ -401,7 +401,7 @@ async def list_available_countries(
         }
         for code in otp_codes:
             info = by_code.get(code)
-            otp_row = await otp_requirement(db, c.code, code, merchant) if info else None
+            otp_row = await otp_requirement(db, c.code, code, merchant, strict=False) if info else None
             if otp_row is not None:
                 info.otp_required = True
                 info.otp_ussd_code = otp_row.ussd_code or None
