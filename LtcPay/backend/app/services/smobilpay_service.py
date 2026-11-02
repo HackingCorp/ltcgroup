@@ -31,13 +31,15 @@ A timeout or 5xx on collectstd is an unknown outcome (no failover): the
 quote is consumed and the push may already be on the customer's phone.
 A failed quote, or an unreachable host, means nothing is live.
 
-Account-level config lives in payment_providers.config for code SMOBILPAY:
+Account-level config lives in payment_providers.config for code SMOBILPAY,
+each key falling back to the environment (S3P_KEY, S3P_SECRET,
+S3P_WEBHOOK_SECRET, S3P_URL — the production values live in Dokploy):
   public_key      (plain)
   secret_key      (encrypted)
   webhook_secret  (encrypted)  - shared secret given to Maviance ops; signs
                                  callbacks (HMAC-SHA1 in X-Signature)
-  base_url        (plain)      - default: staging; production URL is issued
-                                 by Maviance at go-live
+  base_url        (plain)      - default: staging; production is
+                                 https://s3pv2cm.smobilpay.com
 """
 import hashlib
 import hmac
@@ -80,9 +82,13 @@ VERIFY_MIN_INTERVAL_SECONDS = 10
 # when several services collect for the same operator (Orange Cameroon has
 # three).
 MERCHANT_MAP: dict[str, tuple[str, str, int]] = {
-    "MTNMOMO": ("CM", "MTN", 0),
-    "CMORANGEMOMO": ("CM", "ORANGE", 0),
-    "CMORANGEOM": ("CM", "ORANGE", 1),
+    # Production (2026-11-02): the "Collections" services.
+    "CMMTNMOMOCC": ("CM", "MTN", 0),
+    "CMORANGEOMCC": ("CM", "ORANGE", 0),
+    # Staging names.
+    "MTNMOMO": ("CM", "MTN", 1),
+    "CMORANGEMOMO": ("CM", "ORANGE", 1),
+    "CMORANGEOM": ("CM", "ORANGE", 2),
     "GABAIRTELMONEY": ("GA", "AIRTEL", 0),
     "GABMOOVMONEY": ("GA", "MOOV", 0),
     "TCDMOOVMONEY": ("TD", "MOOV", 0),
@@ -161,16 +167,43 @@ _tokens: dict[tuple[str, str], tuple[str, float]] = {}
 _last_verify: dict[str, float] = {}
 
 
+def normalize_base_url(url: str) -> str:
+    """API root: /oauth/token hangs off it, the /v2 paths are appended."""
+    url = (url or "").strip().rstrip("/")
+    return url[:-3] if url.endswith("/v2") else url
+
+
+def effective_config(provider: ProviderConfig) -> dict:
+    """Provider config, each missing key taken from the environment."""
+    config = provider_service.decrypted_config(provider)
+    env = {
+        "public_key": settings.S3P_KEY,
+        "secret_key": settings.S3P_SECRET,
+        "webhook_secret": settings.S3P_WEBHOOK_SECRET,
+        "base_url": settings.S3P_URL,
+    }
+    out = dict(config)
+    for key, value in env.items():
+        value = (value or "").strip().strip('"').strip("'")
+        if not out.get(key) and value:
+            out[key] = value
+    out["base_url"] = normalize_base_url(out.get("base_url") or STAGING_BASE_URL)
+    return out
+
+
+def env_config_keys() -> list[str]:
+    """Config keys the environment provides (shown as set on the providers screen)."""
+    pairs = (("public_key", settings.S3P_KEY), ("secret_key", settings.S3P_SECRET),
+             ("webhook_secret", settings.S3P_WEBHOOK_SECRET), ("base_url", settings.S3P_URL))
+    return [key for key, value in pairs if (value or "").strip()]
+
+
 class SmobilpayService:
 
     @staticmethod
     def _config(provider: ProviderConfig) -> tuple[str, str, str]:
-        config = provider_service.decrypted_config(provider)
-        return (
-            config.get("public_key") or "",
-            config.get("secret_key") or "",
-            (config.get("base_url") or STAGING_BASE_URL).rstrip("/"),
-        )
+        config = effective_config(provider)
+        return config.get("public_key") or "", config.get("secret_key") or "", config["base_url"]
 
     async def _token(self, client: httpx.AsyncClient, base_url: str, public_key: str,
                      secret_key: str, force: bool = False) -> str:

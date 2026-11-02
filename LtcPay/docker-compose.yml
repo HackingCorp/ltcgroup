@@ -64,6 +64,11 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Smobilpay (Maviance S3P) — the providers screen can override them
+      S3P_URL: ${S3P_URL:-}
+      S3P_KEY: ${S3P_KEY:-}
+      S3P_SECRET: ${S3P_SECRET:-}
+      S3P_WEBHOOK_SECRET: ${S3P_WEBHOOK_SECRET:-}
       # Database & Redis
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://ltcpay:ltcpay_secret@db:5432/ltcpay}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}

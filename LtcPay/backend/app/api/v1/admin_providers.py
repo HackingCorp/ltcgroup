@@ -94,6 +94,15 @@ async def _get_provider_or_404(db: AsyncSession, code: str) -> ProviderConfig:
     return provider
 
 
+def _config_keys(provider: ProviderConfig) -> list[str]:
+    """Configured keys, counting those Smobilpay takes from the environment."""
+    keys = set((provider.config or {}).keys())
+    if provider.code == "SMOBILPAY":
+        from app.services.smobilpay_service import env_config_keys
+        keys.update(env_config_keys())
+    return sorted(keys)
+
+
 def _provider_info(
     provider: ProviderConfig,
     links: list[CountryProvider],
@@ -107,7 +116,7 @@ def _provider_info(
         name=provider.name,
         provider_group=provider.provider_group.value,
         is_active=provider.is_active,
-        config_keys=sorted((provider.config or {}).keys()),
+        config_keys=_config_keys(provider),
         mobile_hosted=hosted,
         mobile_countries={
             cc: {"active": a, "total": t, "default": hosted_is_default(provider, cc)}
@@ -585,7 +594,7 @@ async def sync_smobilpay_operators(
     Smobilpay in a country stays an explicit choice.
     """
     from app.services.smobilpay_service import (
-        MERCHANT_MAP, SmobilpayError, is_staging, smobilpay_service,
+        MERCHANT_MAP, SmobilpayError, effective_config, is_staging, smobilpay_service,
     )
 
     provider = await _get_provider_or_404(db, "SMOBILPAY")
@@ -678,7 +687,7 @@ async def sync_smobilpay_operators(
     await db.commit()
 
     account = catalogue.get("account") if isinstance(catalogue.get("account"), dict) else {}
-    base_url = provider_service.decrypted_config(provider).get("base_url") or ""
+    base_url = effective_config(provider)["base_url"]
     logger.info(
         "Admin %s synced Smobilpay catalogue: %d created, %d updated, %d deactivated",
         admin.email, len(created), len(updated), len(deactivated),
@@ -690,7 +699,8 @@ async def sync_smobilpay_operators(
         "countries_not_configured": sorted(not_configured),
         "currency_mismatch": currency_mismatch,
         "unmapped": unmapped,
-        "staging": is_staging(base_url) or not base_url,
+        "staging": is_staging(base_url),
+        "base_url": base_url,
         "account": {
             "agent": account.get("agentName"),
             "balance": account.get("balance"),

@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
 
+    # Smobilpay (Maviance S3P). Used when the provider's own config (set on
+    # the providers screen) does not carry the value. S3P_URL may end in /v2.
+    S3P_URL: str = ""
+    S3P_KEY: str = ""
+    S3P_SECRET: str = ""
+    S3P_WEBHOOK_SECRET: str = ""
+
     # Legacy aliases (used by some modules)
     touchpay_api_url: str = "https://touchpay.gutouch.net/touchpayv2/api"
     touchpay_api_key: str = ""

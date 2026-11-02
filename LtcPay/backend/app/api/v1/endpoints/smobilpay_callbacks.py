@@ -33,7 +33,8 @@ from app.models.payment import Payment, PaymentProvider, PaymentStatus
 from app.services.provider_service import provider_service
 from app.services.smobilpay_service import (
     STATUS_ERRORED, STATUS_PENDING, STATUS_REVERSED, STATUS_SUCCESS,
-    amount_covers, error_code_message, smobilpay_service, verify_webhook_signature,
+    amount_covers, effective_config, error_code_message, smobilpay_service,
+    verify_webhook_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,7 +173,7 @@ async def smobilpay_webhook(request: Request, db: AsyncSession = Depends(get_db)
     provider = await provider_service.get_provider(db, "SMOBILPAY")
     if provider is None:
         raise HTTPException(status_code=404, detail="Provider not configured")
-    secret = provider_service.decrypted_config(provider).get("webhook_secret") or ""
+    secret = effective_config(provider).get("webhook_secret") or ""
     signature = request.headers.get("X-Signature") or ""
     if secret and not verify_webhook_signature(raw_body, signature, secret):
         logger.warning(

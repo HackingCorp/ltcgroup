@@ -462,3 +462,50 @@ async def test_sync_builds_rows_from_the_collection_catalogue(client, db_session
     # Display settings come from the TouchPay row of the same operator.
     assert rows["ORANGE"].operator_name == "Orange Money"
     assert rows["ORANGE"].phone_prefixes == ["69", "655", "656", "657", "658", "659"]
+
+
+# --------------------------------------------------------------------------
+# Production config from the environment (Dokploy)
+# --------------------------------------------------------------------------
+
+async def test_keys_and_url_fall_back_to_the_environment(db_session, monkeypatch):
+    from app.core.config import settings
+
+    p = ProviderConfig(code="SMOBILPAY", name="s", provider_group=ProviderGroup.MOBILE,
+                       is_active=True, config={})
+    monkeypatch.setattr(settings, "S3P_URL", '"https://s3pv2cm.smobilpay.com/v2"')
+    monkeypatch.setattr(settings, "S3P_KEY", "env-pub")
+    monkeypatch.setattr(settings, "S3P_SECRET", "env-sec")
+    monkeypatch.setattr(settings, "S3P_WEBHOOK_SECRET", "")
+    cfg = sm.effective_config(p)
+    assert cfg["base_url"] == "https://s3pv2cm.smobilpay.com"  # /v2 and quotes stripped
+    assert (cfg["public_key"], cfg["secret_key"]) == ("env-pub", "env-sec")
+    assert sorted(sm.env_config_keys()) == ["base_url", "public_key", "secret_key"]
+
+    # A value set on the providers screen wins over the environment.
+    p.config = {"public_key": "screen-pub"}
+    assert sm.effective_config(p)["public_key"] == "screen-pub"
+
+
+async def test_production_collection_services_are_recognised(client, db_session, as_admin):
+    db_session.add(ProviderConfig(
+        code="SMOBILPAY", name="Smobilpay", provider_group=ProviderGroup.MOBILE,
+        is_active=False, config={"public_key": "pub", "secret_key": "sec",
+                                 "base_url": "https://s3pv2cm.smobilpay.com/v2"},
+    ))
+    await db_session.commit()
+    catalogue = {
+        "services": [_svc(20056, "CMMTNMOMOCC", "MTN MoMo - Collections"),
+                     _svc(30056, "CMORANGEOMCC", "Orange Money - Collections")],
+        "cashout": [_item(20056, "CMMTNMOMOCC", "S-113-949-CMMTNMOMOCC-20056-900323-1"),
+                    _item(30056, "CMORANGEOMCC", "S-113-949-CMORANGEOMCC-30056-900341-1")],
+        "account": {},
+    }
+    with patch.object(smobilpay_service, "get_catalogue", new=AsyncMock(return_value=catalogue)):
+        body = (await client.post("/api/v1/admin/providers/smobilpay/sync-operators")).json()
+    assert body["unmapped"] == [] and body["staging"] is False
+    rows = {r.operator_code: r.service_code for r in (await db_session.execute(
+        select(CountryOperator).where(CountryOperator.provider_code == "SMOBILPAY")
+    )).scalars().all()}
+    assert rows == {"MTN": "S-113-949-CMMTNMOMOCC-20056-900323-1",
+                    "ORANGE": "S-113-949-CMORANGEOMCC-30056-900341-1"}
