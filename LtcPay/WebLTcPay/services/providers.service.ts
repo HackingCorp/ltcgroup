@@ -90,6 +90,11 @@ export const providersService = {
     return r.data;
   },
 
+  async syncSmobilpayOperators(): Promise<SmobilpaySyncResult> {
+    const r = await api.post<SmobilpaySyncResult>("/admin/providers/smobilpay/sync-operators");
+    return r.data;
+  },
+
   async getTouchPayBalances(): Promise<TouchPayBalances> {
     const r = await api.get<TouchPayBalances>("/admin/providers/touchpay/balances");
     return r.data;
@@ -104,6 +109,22 @@ export interface SebPaySyncResult {
   countries_not_configured: string[];
   /** Operators that need the payer's OTP, with the USSD that gives it. */
   otp_operators: string[];
+}
+
+/** Outcome of importing Smobilpay's collection catalogue into country_operators. */
+export interface SmobilpaySyncResult {
+  created: string[];
+  updated: string[];
+  deactivated: string[];
+  /** Countries Smobilpay collects in that LtcPay has not configured. */
+  countries_not_configured: string[];
+  /** Services whose currency differs from the country's (never routed). */
+  currency_mismatch: string[];
+  /** Collection services LtcPay does not know how to map to an operator. */
+  unmapped: string[];
+  /** Keys point at Maviance's test platform (refused in production). */
+  staging: boolean;
+  account: { agent: string | null; balance: string | null; currency: string | null; limit_remaining: number | null };
 }
 
 /** The TouchPay float per country. `amount` is null when it could not be

@@ -641,7 +641,7 @@ function GetPaymentSection() {
         { name: "status", type: "string", desc: "Statut actuel du paiement." },
         { name: "payment_mode", type: "string", desc: "SDK, DIRECT_API, STRIPE ou REDIRECT (page de paiement hébergée, ex: carte via E-nkap)." },
         { name: "country", type: "string|null", desc: "Code pays ISO 3166-1 alpha-2 du paiement (ex: CM)." },
-        { name: "provider", type: "string|null", desc: "Fournisseur ayant traité le paiement : TOUCHPAY, ACCOUNTPE, SEBPAY ou ENKAP (Mobile Money), STRIPE ou ENKAP (carte). Le choix du fournisseur est automatique par pays, avec bascule sur un fournisseur secondaire en cas de panne — transparent pour votre intégration." },
+        { name: "provider", type: "string|null", desc: "Fournisseur ayant traité le paiement : TOUCHPAY, ACCOUNTPE, SEBPAY, SMOBILPAY ou ENKAP (Mobile Money), STRIPE ou ENKAP (carte). Le choix du fournisseur est automatique par pays, avec bascule sur un fournisseur secondaire en cas de panne — transparent pour votre intégration." },
         { name: "operator", type: "string|null", desc: "Code operateur Mobile Money (ex: MTN, ORANGE, WAVE)." },
         { name: "operator_transaction_id", type: "string|null", desc: "ID de transaction côté opérateur." },
         { name: "stripe_payment_intent_id", type: "string|null", desc: "ID PaymentIntent Stripe (carte)." },
@@ -1164,7 +1164,7 @@ function ErrorsSection() {
         { name: "422", type: "Validation Error", desc: "Format de requête invalide : montant < 100 ou > 5 000 000, code devise inconnu, champ trop long, etc. (détails dans le corps)." },
         { name: "402", type: "Payment Required", desc: "L'opérateur a refusé le paiement pour une raison qui tient au client : solde insuffisant, compte bloqué ou introuvable, numéro d'un autre opérateur. Le fournisseur a répondu normalement — NE RÉESSAYEZ PAS automatiquement, rien ne changera tant que le client n'a pas corrigé la cause. La réponse porte failure_code, un message à afficher dans detail, et operator_reference quand l'opérateur en fournit une." },
         { name: "429", type: "Rate Limited", desc: "Réessayez plus tard : quota d'API dépassé, ou paiement refusé par un garde-fou de fréquence (DUPLICATE_PAYMENT, TOO_MANY_ATTEMPTS). L'en-tête Retry-After donne le délai exact en secondes." },
-        { name: "502", type: "Bad Gateway", desc: "Panne réelle du fournisseur (TouchPay, AccountPE, SebPay, E-nkap ou Stripe indisponible ou en erreur interne). C'est le seul cas où un nouvel essai a du sens. Un refus lié au client renvoie 402, jamais 502." },
+        { name: "502", type: "Bad Gateway", desc: "Panne réelle du fournisseur (TouchPay, AccountPE, SebPay, Smobilpay, E-nkap ou Stripe indisponible ou en erreur interne). C'est le seul cas où un nouvel essai a du sens. Un refus lié au client renvoie 402, jamais 502." },
         { name: "500", type: "Server Error", desc: "Erreur interne du serveur." },
       ]} />
 

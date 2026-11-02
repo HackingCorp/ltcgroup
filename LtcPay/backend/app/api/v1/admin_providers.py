@@ -22,6 +22,7 @@ from app.models.country import CountryOperator, SupportedCountry
 from app.models.provider import CountryProvider, ProviderConfig
 from app.services.provider_service import (
     HOSTED_DEFAULT_KEY, HOSTED_MOBILE_PROVIDERS, _SENSITIVE_CONFIG_KEYS, hosted_is_default,
+    provider_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -560,6 +561,142 @@ async def sync_sebpay_operators(
         "updated": updated,
         "countries_not_configured": sorted(unsupported_countries),
         "otp_operators": sorted(otp_operators),
+    }
+
+
+# ── Smobilpay (Maviance S3P) catalogue sync ──────────────────────
+# What the account can collect comes from GET /v2/cashout (the collection
+# catalogue, despite its name), enriched by GET /v2/service. Each item's
+# payItemId is stored as service_code on a SMOBILPAY operator row. The
+# country comes from the merchant code (smobilpay_service.MERCHANT_MAP):
+# /v2/service labels Chad, CAR and Congo services as Cameroon.
+
+@router.post("/smobilpay/sync-operators")
+async def sync_smobilpay_operators(
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create/update SMOBILPAY operator rows from the account's catalogue.
+
+    Only countries we already have, in their own currency, are touched. New
+    rows start active; existing rows keep the admin's is_active and their
+    payItemId while the catalogue still offers it. A row whose operator left
+    the catalogue is deactivated. Never creates country links: routing
+    Smobilpay in a country stays an explicit choice.
+    """
+    from app.services.smobilpay_service import (
+        MERCHANT_MAP, SmobilpayError, is_staging, smobilpay_service,
+    )
+
+    provider = await _get_provider_or_404(db, "SMOBILPAY")
+    try:
+        catalogue = await smobilpay_service.get_catalogue(provider)
+    except SmobilpayError as exc:
+        raise HTTPException(status_code=502, detail=f"Smobilpay: {exc}")
+
+    services = {
+        str(s.get("serviceid")): s
+        for s in (catalogue.get("services") or []) if isinstance(s, dict)
+    }
+    countries = {
+        c.code: c for c in (await db.execute(select(SupportedCountry))).scalars().all()
+    }
+    existing_ops = (await db.execute(select(CountryOperator))).scalars().all()
+    rows = {
+        (op.country_code, op.operator_code): op
+        for op in existing_ops if op.provider_code == "SMOBILPAY"
+    }
+    siblings = {
+        (op.country_code, op.operator_code): op
+        for op in existing_ops if op.provider_code != "SMOBILPAY"
+    }
+
+    offered: dict[tuple[str, str], list[tuple[int, int, str]]] = {}
+    unmapped: list[str] = []
+    not_configured: set[str] = set()
+    currency_mismatch: list[str] = []
+    for item in catalogue.get("cashout") or []:
+        if not isinstance(item, dict) or not item.get("payItemId"):
+            continue
+        service_id = str(item.get("serviceid") or "")
+        service = services.get(service_id, {})
+        if str(service.get("status") or "Active").lower() != "active":
+            continue
+        merchant = str(item.get("merchant") or service.get("merchant") or "")
+        mapped = MERCHANT_MAP.get(merchant)
+        if mapped is None:
+            unmapped.append(f"{merchant} ({service_id}) {service.get('title') or item.get('name') or ''}".strip())
+            continue
+        cc, operator_code, rank = mapped
+        if cc not in countries:
+            not_configured.add(cc)
+            continue
+        currency = str(item.get("localCur") or service.get("localCur") or "")
+        if currency and currency != countries[cc].currency:
+            currency_mismatch.append(f"{cc}/{operator_code}: {currency} ≠ {countries[cc].currency}")
+            continue
+        try:
+            order = int(service_id)
+        except ValueError:
+            order = 0
+        offered.setdefault((cc, operator_code), []).append((rank, order, str(item["payItemId"])))
+
+    created, updated, deactivated = [], [], []
+    for (cc, operator_code), candidates in offered.items():
+        candidates.sort()
+        best = candidates[0][2]
+        label = f"{cc}/{operator_code}"
+        row = rows.get((cc, operator_code))
+        if row is None:
+            sibling = siblings.get((cc, operator_code))
+            db.add(CountryOperator(
+                country_code=cc,
+                provider_code="SMOBILPAY",
+                operator_code=operator_code,
+                operator_name=(sibling.operator_name if sibling else None) or operator_code,
+                service_code=best,
+                color=sibling.color if sibling else "#000000",
+                logo_url=(sibling.logo_url if sibling else "") or "",
+                min_amount=sibling.min_amount if sibling else countries[cc].min_amount,
+                max_amount=sibling.max_amount if sibling else countries[cc].max_amount,
+                ussd_code=(sibling.ussd_code if sibling else "") or "",
+                phone_prefixes=list(sibling.phone_prefixes or []) if sibling else [],
+                otp_required=False,
+                is_active=True,
+            ))
+            created.append(f"{label} ({best})")
+            continue
+        if row.service_code not in {c[2] for c in candidates}:
+            row.service_code = best
+            updated.append(f"{label} ({best})")
+
+    for key, row in rows.items():
+        if key not in offered and row.is_active:
+            row.is_active = False
+            deactivated.append(f"{key[0]}/{key[1]}")
+
+    await db.commit()
+
+    account = catalogue.get("account") if isinstance(catalogue.get("account"), dict) else {}
+    base_url = provider_service.decrypted_config(provider).get("base_url") or ""
+    logger.info(
+        "Admin %s synced Smobilpay catalogue: %d created, %d updated, %d deactivated",
+        admin.email, len(created), len(updated), len(deactivated),
+    )
+    return {
+        "created": created,
+        "updated": updated,
+        "deactivated": deactivated,
+        "countries_not_configured": sorted(not_configured),
+        "currency_mismatch": currency_mismatch,
+        "unmapped": unmapped,
+        "staging": is_staging(base_url) or not base_url,
+        "account": {
+            "agent": account.get("agentName"),
+            "balance": account.get("balance"),
+            "currency": account.get("currency"),
+            "limit_remaining": account.get("limitRemaining"),
+        },
     }
 
 

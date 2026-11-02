@@ -30,6 +30,7 @@ from app.core.config import settings
 from app.models.payment import Payment
 from app.services.accountpe_service import accountpe_service
 from app.services.sebpay_service import sebpay_service
+from app.services.smobilpay_service import smobilpay_service
 from app.services.provider_service import ProviderRoutingError, provider_service
 from app.services.touchpay_direct_service import (
     OperatorMismatchError,
@@ -197,6 +198,22 @@ async def _dispatch(
             country_code=country_code,
             callback_url=f"{settings.webhook_base_url}/api/v1/callbacks/sebpay",
             otp_code=otp_code,
+        )
+    if provider.code == "SMOBILPAY":
+        # The callback body is unsigned unless Maviance ops set a secret; the
+        # handler re-reads the verdict from verifytx either way.
+        info = customer_info or {}
+        return await smobilpay_service.initiate_payment(
+            db=db,
+            provider=provider,
+            payment_reference=reference,
+            amount=amount,
+            phone_number=phone_number,
+            operator_code=operator_code,
+            country_code=country_code,
+            callback_url=f"{settings.webhook_base_url}/api/v1/callbacks/smobilpay",
+            customer_email=info.get("email"),
+            customer_name=info.get("name"),
         )
     if provider.code == "ENKAP":
         return await _dispatch_enkap(

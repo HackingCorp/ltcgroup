@@ -10,6 +10,7 @@ import {
   type Provider,
   type MerchantProviderPrefs,
   type SebPaySyncResult,
+  type SmobilpaySyncResult,
 } from "@/services/providers.service";
 import { countriesService, type Country } from "@/services/countries.service";
 import { merchantsService } from "@/services/merchants.service";
@@ -45,6 +46,12 @@ export default function ProvidersPage() {
   const [sebPublicKey, setSebPublicKey] = useState("");
   const [sebSecretKey, setSebSecretKey] = useState("");
   const [sebSync, setSebSync] = useState<SebPaySyncResult | null>(null);
+  // Smobilpay (Maviance S3P) credentials + catalogue sync
+  const [smbPublicKey, setSmbPublicKey] = useState("");
+  const [smbSecretKey, setSmbSecretKey] = useState("");
+  const [smbWebhookSecret, setSmbWebhookSecret] = useState("");
+  const [smbBaseUrl, setSmbBaseUrl] = useState("");
+  const [smbSync, setSmbSync] = useState<SmobilpaySyncResult | null>(null);
   // AccountPE webhook signing secret ("Webhook Hash" of the SwychrConnect profile)
   const [apWebhookHash, setApWebhookHash] = useState("");
 
@@ -168,6 +175,27 @@ export default function ProvidersPage() {
       setSebPublicKey("");
       setSebSecretKey("");
     });
+  }
+
+  async function saveSmobilpayConfig() {
+    const config: Record<string, string> = {};
+    if (smbPublicKey.trim()) config.public_key = smbPublicKey.trim();
+    if (smbSecretKey.trim()) config.secret_key = smbSecretKey.trim();
+    if (smbWebhookSecret.trim()) config.webhook_secret = smbWebhookSecret.trim();
+    if (smbBaseUrl.trim()) config.base_url = smbBaseUrl.trim().replace(/\/+$/, "");
+    if (!Object.keys(config).length) return;
+    await run("smb-keys", async () => {
+      await providersService.update("SMOBILPAY", { config });
+      setSmbPublicKey("");
+      setSmbSecretKey("");
+      setSmbWebhookSecret("");
+      setSmbBaseUrl("");
+    });
+  }
+
+  async function syncSmobilpay() {
+    setSmbSync(null);
+    await run("smb-sync", async () => setSmbSync(await providersService.syncSmobilpayOperators()));
   }
 
   async function saveAccountPEWebhookHash() {
@@ -298,6 +326,102 @@ export default function ProvidersPage() {
                     en="Copy it from AccountPE's SwychrConnect profile (Profile Settings › Webhook Hash). Without it, AccountPE confirmations are rejected."
                   />
                 </div>
+              </div>
+            )}
+            {p.code === "SMOBILPAY" && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                <input
+                  className="input"
+                  placeholder={p.config_keys.includes("public_key") ? "Clé publique (enregistrée)" : "Clé publique"}
+                  value={smbPublicKey}
+                  onChange={(e) => setSmbPublicKey(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={p.config_keys.includes("secret_key") ? "Secret (enregistré)" : "Secret"}
+                  value={smbSecretKey}
+                  onChange={(e) => setSmbSecretKey(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={p.config_keys.includes("webhook_secret") ? "Secret webhook (enregistré)" : "Secret webhook (donné à Maviance)"}
+                  value={smbWebhookSecret}
+                  onChange={(e) => setSmbWebhookSecret(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <input
+                  className="input"
+                  placeholder={p.config_keys.includes("base_url") ? "URL API (enregistrée)" : "URL API — vide = environnement de test"}
+                  value={smbBaseUrl}
+                  onChange={(e) => setSmbBaseUrl(e.target.value)}
+                  style={{ fontSize: 12 }}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={
+                      busy !== null ||
+                      (!smbPublicKey.trim() && !smbSecretKey.trim() && !smbWebhookSecret.trim() && !smbBaseUrl.trim())
+                    }
+                    onClick={saveSmobilpayConfig}
+                  >
+                    <T fr="Enregistrer" en="Save" />
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy !== null || !p.config_keys.includes("secret_key")}
+                    onClick={syncSmobilpay}
+                  >
+                    <T fr="Synchroniser le catalogue" en="Sync catalogue" />
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.4 }}>
+                  <T
+                    fr="Webhook à déclarer chez Maviance : https://pay.ltcgroup.site/api/v1/callbacks/smobilpay, avec le même secret. Les clés de test sont refusées en production."
+                    en="Webhook to register with Maviance: https://pay.ltcgroup.site/api/v1/callbacks/smobilpay, with the same secret. Test keys are refused in production."
+                  />
+                </div>
+                {smbSync && (
+                  <div style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>
+                    {smbSync.staging && (
+                      <div style={{ color: "var(--danger, #c0392b)" }}>
+                        <T fr="Environnement de TEST Maviance" en="Maviance TEST environment" />
+                      </div>
+                    )}
+                    {smbSync.account?.agent && (
+                      <div>
+                        {smbSync.account.agent} · <T fr="solde" en="balance" /> {smbSync.account.balance}{" "}
+                        {smbSync.account.currency}
+                      </div>
+                    )}
+                    <T fr="Créés" en="Created" /> : {smbSync.created.join(", ") || "0"} ·{" "}
+                    <T fr="mis à jour" en="updated" /> : {smbSync.updated.length} ·{" "}
+                    <T fr="désactivés" en="deactivated" /> : {smbSync.deactivated.length}
+                    {smbSync.countries_not_configured.length > 0 && (
+                      <div>
+                        <T fr="Pays Smobilpay absents de LtcPay" en="Smobilpay countries missing in LtcPay" /> :{" "}
+                        {smbSync.countries_not_configured.join(", ")}
+                      </div>
+                    )}
+                    {smbSync.currency_mismatch.length > 0 && (
+                      <div>
+                        <T fr="Devise différente (ignorés)" en="Currency mismatch (skipped)" /> :{" "}
+                        {smbSync.currency_mismatch.join(", ")}
+                      </div>
+                    )}
+                    {smbSync.unmapped.length > 0 && (
+                      <div>
+                        <T fr="Services non reconnus" en="Unrecognised services" /> : {smbSync.unmapped.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {p.code === "SEBPAY" && (
