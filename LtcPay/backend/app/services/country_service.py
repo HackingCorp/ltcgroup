@@ -180,7 +180,17 @@ class CountryService:
         evidence (it matches another operator's configured prefixes). Numbers
         in unconfigured ranges pass through, so incomplete prefix data can
         never block legitimate payments.
+
+        An operator with no prefixes at all is a wallet that lives on any
+        number — Wave, opened on an Orange or Moov SIM. Matching the number
+        to its SIM operator then proves nothing: Mali, 12 Wave attempts out
+        of 12 were refused as "belongs to Orange Money" up to 2026-11-02.
         """
+        selected = selected_operator_code.upper()
+        if not any(
+            op.phone_prefixes for op in operators if op.operator_code == selected
+        ):
+            return None
         detected = cls.detect_operator_by_prefix(operators, national_phone)
         if detected is None:
             return None

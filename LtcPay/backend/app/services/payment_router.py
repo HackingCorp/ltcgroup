@@ -356,6 +356,9 @@ async def _initiate_in_order(
         except (OperatorMismatchError, PaymentVelocityError):
             raise  # pre-flight rejections: identical outcome on any provider
         except TouchPayDirectError as exc:
+            # Which leg this came from: an unknown outcome must stay with the
+            # provider that may hold the payin, so its sweep can settle it.
+            exc.provider_code = provider.code
             # An operator reference in the error means the operator opened a
             # transaction before refusing. Every provider fronts the same
             # operator, so the next one is bounced for "operation similaire"

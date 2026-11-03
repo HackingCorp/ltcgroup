@@ -868,31 +868,46 @@ async def submit_payment(reference: str, request: Request):
                 headers={"Retry-After": str(exc.retry_after)},
             )
         except TouchPayDirectError as exc:
-            customer_caused = is_customer_error(exc)
-            logger.log(
-                logging.INFO if customer_caused else logging.ERROR,
-                "Direct API submit %s for %s: %s",
-                "rejected" if customer_caused else "failed", reference, exc,
-            )
-            if not customer_caused:
-                record_payment_failure(reference)
-            # Blocked by the 5-minute duplicate window: the payment stays
-            # PENDING so the customer can simply retry once it elapses.
-            retry_after = duplicate_retry_after(exc)
-            if retry_after:
-                raise HTTPException(
-                    status_code=429,
-                    detail=friendly_initiation_error(exc),
-                    headers={"Retry-After": str(retry_after)},
+            unknown_at = getattr(exc, "provider_code", None) if getattr(exc, "outcome_unknown", False) else None
+            if unknown_at:
+                # No answer is not a refusal: the prompt may be on the phone.
+                # Recorded PROCESSING on that provider (below), so its sweep
+                # settles it; the page waits like for any other payment.
+                logger.warning(
+                    "Direct API submit for %s: no answer from %s (%s) — left PROCESSING",
+                    reference, unknown_at, exc,
                 )
-            # Same reasoning as the merchant API: an operator that answered
-            # "insufficient balance" is not a bad gateway. The checkout shows
-            # the message either way, but the status code is what the page's
-            # fetch — and anything proxying it — reacts to.
-            raise HTTPException(
-                status_code=402 if customer_caused else 502,
-                detail=friendly_initiation_error(exc),
-            )
+                provider_used = unknown_at
+                direct_response = {
+                    "outcome_unknown": True, "provider": unknown_at,
+                    "error": str(exc), "raw": exc.raw_response,
+                }
+            else:
+                customer_caused = is_customer_error(exc)
+                logger.log(
+                    logging.INFO if customer_caused else logging.ERROR,
+                    "Direct API submit %s for %s: %s",
+                    "rejected" if customer_caused else "failed", reference, exc,
+                )
+                if not customer_caused:
+                    record_payment_failure(reference)
+                # Blocked by the 5-minute duplicate window: the payment stays
+                # PENDING so the customer can simply retry once it elapses.
+                retry_after = duplicate_retry_after(exc)
+                if retry_after:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=friendly_initiation_error(exc),
+                        headers={"Retry-After": str(retry_after)},
+                    )
+                # Same reasoning as the merchant API: an operator that answered
+                # "insufficient balance" is not a bad gateway. The checkout shows
+                # the message either way, but the status code is what the page's
+                # fetch — and anything proxying it — reacts to.
+                raise HTTPException(
+                    status_code=402 if customer_caused else 502,
+                    detail=friendly_initiation_error(exc),
+                )
 
         # Update payment with operator, phone, country and PROCESSING status
         customer_info = payment.customer_info or {}

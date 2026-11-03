@@ -1024,52 +1024,76 @@ async def create_payment(
                 headers={"Retry-After": str(exc.retry_after)},
             )
         except TouchPayDirectError as exc:
-            customer_caused = is_customer_error(exc)
-            logger.log(
-                logging.INFO if customer_caused else logging.ERROR,
-                "Direct API initiation %s for %s: %s",
-                "rejected" if customer_caused else "failed", reference, exc,
-            )
-            # Keep the operator's own reference reachable: it is what Orange
-            # support needs, and it would otherwise stay buried in the blob.
-            await record_initiation_outcome(
-                db, payment, status_if_pending=PaymentStatus.FAILED,
-                values={
-                    "direct_api_data": {"error": str(exc), "raw": exc.raw_response},
-                    "operator_transaction_id": extract_operator_reference(str(exc)),
-                },
-            )
-            if not customer_caused:
-                record_payment_failure(reference)
-            # Blocked by the 5-minute duplicate window: the merchant should
-            # back off and retry, not treat it as a gateway outage.
-            retry_after = duplicate_retry_after(exc)
-            if retry_after:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=friendly_initiation_error(exc),
-                    headers={"Retry-After": str(retry_after)},
+            unknown_at = getattr(exc, "provider_code", None) if getattr(exc, "outcome_unknown", False) else None
+            if unknown_at:
+                # No answer is not a refusal. FAILED is final: a confirmation
+                # arriving later would be ignored and the money buried (Mali,
+                # 2026-11-02: two AccountPE timeouts written FAILED, provider
+                # column left on TOUCHPAY so no sweep ever looked). The payment
+                # stays PROCESSING on the provider that may hold it; its sweep
+                # settles it, or our expiry closes it.
+                logger.warning(
+                    "Direct API initiation for %s: no answer from %s (%s) — left PROCESSING",
+                    reference, unknown_at, exc,
                 )
-            # 502 says the provider is broken. When it answered perfectly and
-            # the answer was "this customer has no money", that is wrong twice
-            # over: the merchant reads an outage where there is none, and most
-            # HTTP clients retry 5xx automatically — re-sending a payin the
-            # operator already refused, straight into its duplicate window.
-            failure_code, _ = classify_failure(str(exc))
-            # JSONResponse rather than HTTPException so failure_code sits
-            # beside detail instead of nested inside it: detail stays the
-            # plain string every existing integration already reads.
-            return JSONResponse(
-                status_code=(
-                    status.HTTP_402_PAYMENT_REQUIRED if customer_caused
-                    else status.HTTP_502_BAD_GATEWAY
-                ),
-                content={
-                    "detail": friendly_initiation_error(exc),
-                    "failure_code": failure_code,
-                    "operator_reference": extract_operator_reference(str(exc)),
-                },
-            )
+                await record_initiation_outcome(
+                    db, payment, status_if_pending=PaymentStatus.PROCESSING,
+                    values={
+                        "provider": PaymentProvider(unknown_at),
+                        "direct_api_data": {
+                            "outcome_unknown": True, "provider": unknown_at,
+                            "error": str(exc), "raw": exc.raw_response,
+                        },
+                    },
+                )
+                await db.refresh(payment)
+            else:
+                customer_caused = is_customer_error(exc)
+                logger.log(
+                    logging.INFO if customer_caused else logging.ERROR,
+                    "Direct API initiation %s for %s: %s",
+                    "rejected" if customer_caused else "failed", reference, exc,
+                )
+                # Keep the operator's own reference reachable: it is what Orange
+                # support needs, and it would otherwise stay buried in the blob.
+                await record_initiation_outcome(
+                    db, payment, status_if_pending=PaymentStatus.FAILED,
+                    values={
+                        "direct_api_data": {"error": str(exc), "raw": exc.raw_response},
+                        "operator_transaction_id": extract_operator_reference(str(exc)),
+                    },
+                )
+                if not customer_caused:
+                    record_payment_failure(reference)
+                # Blocked by the 5-minute duplicate window: the merchant should
+                # back off and retry, not treat it as a gateway outage.
+                retry_after = duplicate_retry_after(exc)
+                if retry_after:
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=friendly_initiation_error(exc),
+                        headers={"Retry-After": str(retry_after)},
+                    )
+                # 502 says the provider is broken. When it answered perfectly and
+                # the answer was "this customer has no money", that is wrong twice
+                # over: the merchant reads an outage where there is none, and most
+                # HTTP clients retry 5xx automatically — re-sending a payin the
+                # operator already refused, straight into its duplicate window.
+                failure_code, _ = classify_failure(str(exc))
+                # JSONResponse rather than HTTPException so failure_code sits
+                # beside detail instead of nested inside it: detail stays the
+                # plain string every existing integration already reads.
+                return JSONResponse(
+                    status_code=(
+                        status.HTTP_402_PAYMENT_REQUIRED if customer_caused
+                        else status.HTTP_502_BAD_GATEWAY
+                    ),
+                    content={
+                        "detail": friendly_initiation_error(exc),
+                        "failure_code": failure_code,
+                        "operator_reference": extract_operator_reference(str(exc)),
+                    },
+                )
 
     return PaymentInitiateResponse(
         payment_id=payment.id,
