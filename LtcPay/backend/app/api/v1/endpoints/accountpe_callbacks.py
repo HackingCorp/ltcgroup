@@ -18,6 +18,7 @@ Status codes (data.data.attributes.status):
 import asyncio
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select, update
@@ -238,6 +239,35 @@ async def accountpe_webhook(
     return await settle_from_accountpe(db, payment, attrs, raw_status, "webhook")
 
 
+# Before this, the amount sent to AccountPE was truncated to a whole number
+# (763 for 763.13 GHS). Payins created earlier legitimately report that.
+_AMOUNT_TRUNCATION_FIXED_AT = datetime(2026, 11, 6, 12, 0, tzinfo=timezone.utc)
+
+
+def amount_paid_matches(payment: Payment, reported) -> bool:
+    """Whether AccountPE collected the amount we asked for.
+
+    There was no check at all: AccountPE's word "successful" credited the
+    merchant the full payment amount whatever was collected.
+    """
+    if reported in (None, ""):
+        return True  # nothing to compare against; the status check vouches
+    try:
+        got = Decimal(str(reported))
+        expected = Decimal(str(payment.amount))
+    except (InvalidOperation, ValueError, TypeError):
+        return False
+    if got >= expected - Decimal("0.01"):
+        return True
+    created = payment.created_at
+    if created is not None and created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return (
+        created is not None and created < _AMOUNT_TRUNCATION_FIXED_AT
+        and got == expected.to_integral_value(rounding="ROUND_DOWN")
+    )
+
+
 async def settle_from_accountpe(
     db: AsyncSession, payment: Payment, attrs: dict, raw_status, source: str = "webhook",
 ) -> dict:
@@ -280,6 +310,18 @@ async def settle_from_accountpe(
             payment.reference, payment.status.value,
         )
         return {"status": "ok", "message": "Already processed"}
+
+    if new_status == PaymentStatus.COMPLETED and not amount_paid_matches(
+        payment, attrs.get("amount"),
+    ):
+        # Never credit a merchant for more than was collected.
+        logger.error(
+            "AccountPE %s: amount mismatch for %s — AccountPE says %s %s, payment is %s %s. "
+            "Left untouched for manual review.",
+            source, payment.reference, attrs.get("amount"), attrs.get("currency_code"),
+            payment.amount, payment.currency,
+        )
+        return {"status": "ok", "message": "Amount mismatch: left for manual review"}
 
     if new_status == PaymentStatus.FAILED and _is_stale_failure(
         payment, "ACCOUNTPE", attrs.get("message"),

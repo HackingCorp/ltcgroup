@@ -23,6 +23,7 @@ Raises:
                              attempts when a failover happened.
 """
 import logging
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,7 +144,7 @@ async def _dispatch(
     provider,
     payment: Payment,
     reference: str,
-    amount: int,
+    amount: int | Decimal,
     phone_number: str,
     operator_code: str,
     country_code: str,
@@ -151,6 +152,19 @@ async def _dispatch(
     description: str | None,
     otp_code: str | None = None,
 ) -> dict:
+    # amount is the exact payment amount. Currencies with minor units (GHS,
+    # KES, NGN, TZS) carry decimals; int() used to be applied upstream and
+    # silently dropped them: PAY-BBDC394E435A4B89 asked AccountPE for 763 GHS
+    # instead of 763.13 and the merchant was credited the 0.13 nobody paid.
+    # AccountPE takes decimals; the others only take whole amounts and must
+    # refuse a fractional one rather than collect less.
+    exact = Decimal(str(amount))
+    if provider.code != "ACCOUNTPE":
+        if exact != exact.to_integral_value():
+            raise TouchPayDirectError(
+                f"{provider.code} n'accepte que des montants entiers ({exact})"
+            )
+        amount = int(exact)
     if provider.code == "TOUCHPAY":
         callback_url = f"{settings.webhook_base_url}/api/v1/callbacks/touchpay-direct"
         return await touchpay_direct_service.initiate_payment(
@@ -280,7 +294,7 @@ async def initiate_mobile_payment(
     *,
     payment: Payment,
     reference: str,
-    amount: int,
+    amount: int | Decimal,
     phone_number: str,
     operator_code: str,
     country_code: str,
@@ -328,7 +342,7 @@ async def _initiate_in_order(
     *,
     payment: Payment,
     reference: str,
-    amount: int,
+    amount: int | Decimal,
     phone_number: str,
     operator_code: str,
     country_code: str,

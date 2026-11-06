@@ -22,6 +22,7 @@ Account-level config lives in payment_providers.config for code ACCOUNTPE:
 import hashlib
 import hmac
 import logging
+from decimal import Decimal
 import time
 from typing import Any
 
@@ -55,6 +56,13 @@ class AccountPEError(TouchPayDirectError):
     """AccountPE API error. Subclasses TouchPayDirectError so the existing
     initiation error handling (customer-error classification, friendly
     messages, HTTP mapping) applies unchanged."""
+
+
+def wire_amount(amount):
+    """The amount as AccountPE takes it: whole amounts as integers, the
+    others to the cent (GHS, KES, NGN and TZS have minor units)."""
+    exact = Decimal(str(amount)).quantize(Decimal("0.01"))
+    return int(exact) if exact == exact.to_integral_value() else float(exact)
 
 
 class AccountPEService:
@@ -127,7 +135,7 @@ class AccountPEService:
         db: AsyncSession,
         provider: ProviderConfig,
         payment_reference: str,
-        amount: int,
+        amount,
         phone_number: str,
         operator_code: str,
         country_code: str,
@@ -205,7 +213,7 @@ class AccountPEService:
             "country_code": country_code.upper(),
             "name": customer_name or "Client",
             "transaction_id": payment_reference,
-            "amount": amount,
+            "amount": wire_amount(amount),
             "mobile": normalized_phone,
             "payment_method": payment_method,
             "description": description or payment_reference,

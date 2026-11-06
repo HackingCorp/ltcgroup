@@ -845,7 +845,7 @@ async def submit_payment(reference: str, request: Request):
                 db=db,
                 payment=payment,
                 reference=reference,
-                amount=int(payment.amount),
+                amount=payment.amount,
                 phone_number=phone,
                 operator_code=operator_str,
                 country_code=country_code,

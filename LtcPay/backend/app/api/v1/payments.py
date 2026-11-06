@@ -973,7 +973,7 @@ async def create_payment(
                 db=db,
                 payment=payment,
                 reference=reference,
-                amount=int(customer_amount),
+                amount=customer_amount,
                 phone_number=payload.customer_phone,
                 operator_code=payload.operator,
                 country_code=country_code,
