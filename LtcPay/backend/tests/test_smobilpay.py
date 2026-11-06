@@ -509,3 +509,54 @@ async def test_production_collection_services_are_recognised(client, db_session,
     )).scalars().all()}
     assert rows == {"MTN": "S-113-949-CMMTNMOMOCC-20056-900323-1",
                     "ORANGE": "S-113-949-CMORANGEOMCC-30056-900341-1"}
+
+
+async def test_the_five_services_opened_2026_11_07_are_mapped(client, db_session, as_admin):
+    """Gabon Moov/Airtel, Chad Moov, CAR Orange and Congo MTN collection
+    opened on the production account on 2026-11-07 — the first time Congo
+    and CAR could be collected through Smobilpay at all."""
+    from app.models.country import SupportedCountry
+
+    db_session.add(ProviderConfig(
+        code="SMOBILPAY", name="Smobilpay", provider_group=ProviderGroup.MOBILE,
+        is_active=False, config={"public_key": "pub", "secret_key": "sec",
+                                 "base_url": "https://s3pv2cm.smobilpay.com/v2"},
+    ))
+    for code, prefix, digits in (("GA", "241", 8), ("TD", "235", 8), ("CF", "236", 8), ("CG", "242", 9)):
+        db_session.add(SupportedCountry(
+            code=code, name=code, currency="XAF",
+            phone_prefix=prefix, phone_digits=digits, phone_pattern="",
+            flag_emoji="", default_city="", min_amount=100, max_amount=500_000,
+            tp_agency_code="", tp_login="", tp_password="", tp_secret="",
+            tp_merchant_id="", tp_secure_code="", tp_merchant_website="", is_active=False,
+        ))
+    await db_session.commit()
+    items = [
+        _svc(202411, "GABMOOVMONEY", "Moov Gabon - Collections", country="GAB"),
+        _svc(202413, "GABAIRTELMONEY", "(074, 077) Airtel Money Cashout Gabon", country="GAB"),
+        _svc(600006, "TCDMOOVMONEY", "Moov Tchad - Collections"),
+        _svc(60009, "RCAOM", "Orange Money Cashout RCA"),
+        _svc(70011, "CGMTNCONGO", "MTN MoMo Congo Cashout from Cash Collection"),
+    ]
+    catalogue = {
+        "services": items,
+        "cashout": [
+            _item(202411, "GABMOOVMONEY", "S-113-949-GABMOOVMONEY-202411-901161-1"),
+            _item(202413, "GABAIRTELMONEY", "S-113-949-GABAIRTELMONEY-202413-901191-1"),
+            _item(600006, "TCDMOOVMONEY", "S-113-949-TCDMOOVMONEY-600006-901220-1"),
+            _item(60009, "RCAOM", "S-113-949-RCAOM-60009-901250-1"),
+            _item(70011, "CGMTNCONGO", "S-113-949-CGMTNCONGO-70011-901580-1"),
+        ],
+        "account": {},
+    }
+    with patch.object(smobilpay_service, "get_catalogue", new=AsyncMock(return_value=catalogue)):
+        body = (await client.post("/api/v1/admin/providers/smobilpay/sync-operators")).json()
+    assert body["unmapped"] == []
+    rows = {(r.country_code, r.operator_code): r.service_code for r in (await db_session.execute(
+        select(CountryOperator).where(CountryOperator.provider_code == "SMOBILPAY")
+    )).scalars().all()}
+    assert rows[("GA", "MOOV")] == "S-113-949-GABMOOVMONEY-202411-901161-1"
+    assert rows[("GA", "AIRTEL")] == "S-113-949-GABAIRTELMONEY-202413-901191-1"
+    assert rows[("TD", "MOOV")] == "S-113-949-TCDMOOVMONEY-600006-901220-1"
+    assert rows[("CF", "ORANGE")] == "S-113-949-RCAOM-60009-901250-1"
+    assert rows[("CG", "MTN")] == "S-113-949-CGMTNCONGO-70011-901580-1"

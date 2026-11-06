@@ -94,6 +94,7 @@ MERCHANT_MAP: dict[str, tuple[str, str, int]] = {
     "TCDMOOVMONEY": ("TD", "MOOV", 0),
     "TCDAIRTELMONEY": ("TD", "AIRTEL", 0),
     "CGMTNMOMO": ("CG", "MTN", 0),
+    "CGMTNCONGO": ("CG", "MTN", 0),  # production collection merchant (2026-11-07)
     "CGAIRTELMONEY": ("CG", "AIRTEL", 0),
     "RCAOM": ("CF", "ORANGE", 0),
     "MTNCI": ("CI", "MTN", 0),
