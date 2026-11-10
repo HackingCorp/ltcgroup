@@ -47,6 +47,20 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         "Aucun compte Mobile Money trouve pour ce numero. Verifiez le numero saisi.",
     ),
     (
+        # AccountPE's "Unauthorized: Inactive agent" shares the word
+        # "unauthorized" with the payer-declined case below but means the
+        # opposite: our own AccountPE merchant agent was deactivated on
+        # their side. Matched first so it cannot fall into NOT_AUTHORIZED,
+        # which told merchants their customer refused to confirm — and
+        # logged at INFO as a customer error, hiding a platform outage.
+        # Seen repeatedly 2026-11-05 18:51-21:09.
+        "PROVIDER_ACCOUNT_INACTIVE",
+        ("inactive agent",),
+        "Le prestataire de paiement est temporairement indisponible pour ce "
+        "moyen de paiement. Reessayez dans quelques minutes ou utilisez un "
+        "autre moyen de paiement.",
+    ),
+    (
         "NOT_AUTHORIZED",
         ("unauthorized", "declined"),
         "Le client n'a pas autorise le paiement (demande de confirmation refusee ou non validee).",

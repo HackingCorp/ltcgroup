@@ -54,6 +54,25 @@ class TestTheCustomerIsNotAnOutage:
         means their own service is down, not that the payer did anything."""
         assert _status_for(message) == 502
 
+    def test_an_inactive_agent_is_our_account_not_the_payer(self):
+        """"Unauthorized: Inactive agent" (TouchPay, 2026-11-10 04:27 UTC
+        onward, agency LTCGR11789; also seen worded identically from
+        AccountPE on 2026-11-05) shares the word "unauthorized" with "[27]
+        Unauthorized" above but means the opposite: our own merchant agent
+        was deactivated on the provider's side. Classifying it as
+        NOT_AUTHORIZED told merchants their customer had refused to confirm,
+        logged it as a customer error hiding a platform outage, and — worse
+        — stopped the failover to the next provider, which may still work."""
+        raw = (
+            '{"status": 401, "detailMessage": "Unauthorized: Inactive agent", '
+            '"stackTrace": [], "suppressedExceptions": []}'
+        )
+        assert _status_for(raw) == 502
+        code, _ = classify_failure(raw)
+        assert code == "PROVIDER_ACCOUNT_INACTIVE"
+        # The payer-declined case must still answer 402, unaffected.
+        assert _status_for("[27] Unauthorized") == 402
+
     def test_the_insufficient_balance_case_that_prompted_this(self):
         """PAY-7767974C93B1481F, 12:57 UTC on 2026-09-21: Orange said the
         balance was too low and the merchant was told 502."""
