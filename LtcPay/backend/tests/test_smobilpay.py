@@ -29,8 +29,9 @@ from app.models.merchant import Merchant, generate_api_key_live, generate_api_ke
 from app.models.payment import Payment, PaymentProvider, PaymentStatus
 from app.models.provider import ProviderConfig, ProviderGroup
 from app.services import smobilpay_service as sm
+from app.services.failure_reasons import classify_failure
 from app.services.smobilpay_service import (
-    SmobilpayError, smobilpay_service, verify_webhook_signature,
+    SmobilpayError, error_code_message, smobilpay_service, verify_webhook_signature,
 )
 
 BASE = "https://s3p.test"
@@ -560,3 +561,15 @@ async def test_the_five_services_opened_2026_11_07_are_mapped(client, db_session
     assert rows[("TD", "MOOV")] == "S-113-949-TCDMOOVMONEY-600006-901220-1"
     assert rows[("CF", "ORANGE")] == "S-113-949-RCAOM-60009-901250-1"
     assert rows[("CG", "MTN")] == "S-113-949-CGMTNCONGO-70011-901580-1"
+
+
+def test_703108_is_low_balance_not_the_generic_fallback():
+    """PAY-075A116C5DA74E61 (11/11/2026, 476 962 XAF): errorCode 703108 was
+    unmapped, so the merchant's webhook carried PAYMENT_FAILED instead of the
+    customer's actual low balance (the same cause E-nkap codes as 703108,
+    see ltcpay-enkap-outcome-codes)."""
+    message = error_code_message(703108)
+    assert "703108" in message
+    code, text = classify_failure(message)
+    assert code == "INSUFFICIENT_FUNDS"
+    assert "insuffisant" in text.lower()

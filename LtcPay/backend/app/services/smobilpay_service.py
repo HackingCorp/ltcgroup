@@ -102,8 +102,17 @@ MERCHANT_MAP: dict[str, tuple[str, str, int]] = {
 
 # Payment errors (errorCode on verifytx / callbacks) worded so that
 # failure_reasons classifies them like the other providers' messages.
+#
+# 703108 is the same family as E-nkap's own code for this (Orange: customer
+# has low balance, see ltcpay-enkap-outcome-codes) but was missing here:
+# PAY-075A116C5DA74E61 (11/11/2026, 476 962 XAF) came back unmapped as the
+# generic "Smobilpay: paiement refuse (code 703108)", which classify_failure
+# does not recognise, so the merchant webhook carried PAYMENT_FAILED instead
+# of INSUFFICIENT_FUNDS — the customer's low balance never reached Sino
+# Sourcing.
 ERROR_MESSAGES = {
     "703107": "Solde insuffisant sur le compte Mobile Money (703107)",
+    "703108": "Solde insuffisant sur le compte Mobile Money (703108)",
     "703202": "Paiement refuse par le client - declined (703202)",
     "703201": "Paiement non confirme par le client dans le delai (703201)",
     "703203": "Code PIN ou OTP incorrect (703203)",
