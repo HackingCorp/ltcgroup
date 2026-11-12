@@ -100,8 +100,14 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         # failover inutile, alerte opérateur faussée, et le client invité à
         # « réessayer ou changer de moyen de paiement » au lieu de saisir son
         # code. Vu 2 fois le 23/09/2026 sur les premiers paiements RDC.
+        #
+        # "did not enter their pin": nouvelle formulation TouchPay vue le
+        # 12/11/2026 sur Airtel RDC (gateway TJ1OW) — "Transaction failed -
+        # User did not enter their pin.", differente du "didn't enter the
+        # pin" deja couvert. PAY-EBB41AE2C82F440B, 177 565 XAF.
         ("[60]", "not confirmed", "non confirme", "does not confirm",
-         "enter the pin", "enter pin", "saisir le code", "saisi le code"),
+         "enter the pin", "enter pin", "did not enter their pin",
+         "saisir le code", "saisi le code"),
         "Vous n'avez pas confirme le paiement a temps sur votre telephone. Relancez le paiement et validez la demande de confirmation.",
     ),
     (

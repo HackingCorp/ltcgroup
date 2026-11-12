@@ -162,6 +162,19 @@ class TestMessagesFromTheNewlyOpenedCountries:
         code, _ = classify_failure(self.RDC_PIN)
         assert code != "REJECTED_BY_OPERATOR"
 
+    def test_a_second_wording_of_the_same_pin_skip_is_still_caught(self):
+        """TouchPay rewords this per-gateway: "didn't enter the pin" above,
+        "did not enter their pin" on PAY-EBB41AE2C82F440B (12/11/2026, Airtel
+        RDC, same TJ1OW gateway, 177 565 XAF). Fell through to PAYMENT_FAILED
+        until this wording was added alongside the first."""
+        message = (
+            "Payment ID: TJ1OW-P2026111204464802WRFK ended FAILED. "
+            "Reason: Transaction failed - User did not enter their pin."
+        )
+        code, _ = classify_failure(message)
+        assert code == "CONFIRMATION_TIMEOUT"
+        assert _status_for(message) == 402
+
     def test_an_unsupported_method_is_neither_the_payer_nor_an_outage(self):
         """AccountPE on Moov Ivory Coast, 2026-09-22. Retrying changes
         nothing until the configuration does, so the customer must not be
