@@ -4,7 +4,14 @@ AccountPE (Swychr) webhook receiver.
 Two delivery paths land here:
   1. Account-level webhook ("payment_link_status_updated"), signed with
      HMAC-SHA256 over "{timestamp}.{raw_body}" (X-Webhook-Timestamp /
-     X-Webhook-Signature headers). This is the trusted channel.
+     X-Webhook-Signature-V2 headers). This is the trusted channel.
+
+     Until 2026-11-15 this read the legacy X-Webhook-Signature header
+     instead, which AccountPE's docs (app.swychrconnect.com/gateway/
+     webhook_doc) say signs only the event name "payment_link_status_updated"
+     — never the body. Every delivery was compared against the wrong value,
+     so every webhook failed verification and fell back to the unsigned
+     per-request path or the reconciliation sweep.
   2. Per-request callback_url / failed_callback_url set at initiation.
      Those deliveries are unsigned, so they are only accepted when the
      ?token= query parameter matches the payment's payment_token (the URL
@@ -187,7 +194,7 @@ async def accountpe_webhook(
 
     # --- Authenticate the delivery ---
     timestamp = request.headers.get("X-Webhook-Timestamp")
-    signature = request.headers.get("X-Webhook-Signature")
+    signature = request.headers.get("X-Webhook-Signature-V2")
     authenticated = False
 
     if timestamp and signature:
