@@ -175,6 +175,21 @@ class TestMessagesFromTheNewlyOpenedCountries:
         assert code == "CONFIRMATION_TIMEOUT"
         assert _status_for(message) == 402
 
+    def test_a_third_wording_the_ussd_push_went_unanswered(self):
+        """Same TJ1OW gateway, third wording, 14/11/2026 on M-Pesa DRC:
+        "didn't receive the input of the customer on USSD Push" — the
+        customer never answered the push at all, as opposed to answering
+        without the pin. Seen 3 times in one day (PAY-01EB975E05AD470C,
+        PAY-397793F1CB0F4441, PAY-30EB86D3CB504351)."""
+        message = (
+            "Payment ID: TJ1OW-P20261114043044XF4FKI ended FAILED. Reason: "
+            "The payment gateway didn't receive the input of the customer "
+            "on USSD Push"
+        )
+        code, _ = classify_failure(message)
+        assert code == "CONFIRMATION_TIMEOUT"
+        assert _status_for(message) == 402
+
     def test_an_unsupported_method_is_neither_the_payer_nor_an_outage(self):
         """AccountPE on Moov Ivory Coast, 2026-09-22. Retrying changes
         nothing until the configuration does, so the customer must not be

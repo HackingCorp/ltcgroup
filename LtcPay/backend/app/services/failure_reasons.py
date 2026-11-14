@@ -105,9 +105,14 @@ _FAILURE_RULES: list[tuple[str, tuple[str, ...], str]] = [
         # 12/11/2026 sur Airtel RDC (gateway TJ1OW) — "Transaction failed -
         # User did not enter their pin.", differente du "didn't enter the
         # pin" deja couvert. PAY-EBB41AE2C82F440B, 177 565 XAF.
+        #
+        # "didn't receive the input of the customer on USSD Push": meme
+        # gateway TJ1OW, troisieme formulation vue le 14/11/2026 sur M-Pesa
+        # RDC — le client n'a pas repondu a la demande USSD. 3 occurrences
+        # en une journee (PAY-01EB975E05AD470C et al.).
         ("[60]", "not confirmed", "non confirme", "does not confirm",
          "enter the pin", "enter pin", "did not enter their pin",
-         "saisir le code", "saisi le code"),
+         "receive the input", "saisir le code", "saisi le code"),
         "Vous n'avez pas confirme le paiement a temps sur votre telephone. Relancez le paiement et validez la demande de confirmation.",
     ),
     (
