@@ -15,7 +15,16 @@ from app.core.cache import cache
 logger = logging.getLogger(__name__)
 
 # Max payin initiations per phone number within the window
-PHONE_MAX_ATTEMPTS = 5
+#
+# Raised from 5 to 15 on 2026-11-16: 994940004 (RDC) made 3 legitimate
+# retries on the same payment in under 2 minutes — SebPay refused the
+# amount as below its minimum, AccountPE then refused with its generic
+# "pas autorise" — and was locked out for 28 minutes on a payment that was
+# never going to succeed as entered. The 2026-08-06 enumeration spam this
+# guards against was dozens of distinct references in minutes; 15/30min
+# still catches that pattern while giving a genuinely struggling customer
+# room to retry after two different providers' refusals.
+PHONE_MAX_ATTEMPTS = 15
 PHONE_WINDOW_SECONDS = 30 * 60
 
 # Failure-spike alerting: log an ERROR (picked up by Sentry) when more than
