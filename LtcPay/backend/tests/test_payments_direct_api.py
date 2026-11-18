@@ -136,6 +136,48 @@ class TestCreatePaymentDirectAPI:
         assert response.status_code == 502
         assert "failed" in response.json()["detail"].lower()
 
+    @pytest.mark.asyncio
+    async def test_a_confirmed_rejection_records_the_provider_that_answered(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ):
+        """`provider` is seeded TOUCHPAY at creation, before routing even
+        runs. On a confirmed rejection — not an unknown-outcome one — the
+        column must be corrected to whichever provider actually answered,
+        or every failure from any other provider misreads as a TouchPay
+        failure forever (2026-11-18: a Smobilpay regex refusal on a
+        Centrafrique Orange number showed up in the DB as TouchPay)."""
+        from sqlalchemy import select
+
+        from app.models.payment import Payment, PaymentProvider
+        from app.services.touchpay_direct_service import TouchPayDirectError
+
+        exc = TouchPayDirectError("[27] Unauthorized")
+        exc.provider_code = "SMOBILPAY"
+
+        with patch(
+            "app.api.v1.payments.initiate_mobile_payment",
+            AsyncMock(side_effect=exc),
+        ):
+            response = await client.post(
+                "/api/v1/payments",
+                headers=auth_headers,
+                json={
+                    "amount": 5000,
+                    "currency": "XAF",
+                    "payment_mode": "DIRECT_API",
+                    "operator": "ORANGE",
+                    "customer_phone": "237690000000",
+                },
+            )
+
+        assert response.status_code == 402
+        result = await db_session.execute(
+            select(Payment).order_by(Payment.created_at.desc())
+        )
+        payment = result.scalars().first()
+        assert payment.status.value == "FAILED"
+        assert payment.provider == PaymentProvider.SMOBILPAY
+
 
 # ---------------------------------------------------------------------------
 # Schema validation for Direct API

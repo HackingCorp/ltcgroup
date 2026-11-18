@@ -1056,12 +1056,23 @@ async def create_payment(
                 )
                 # Keep the operator's own reference reachable: it is what Orange
                 # support needs, and it would otherwise stay buried in the blob.
+                # Also record which provider actually answered: `provider` is
+                # seeded TOUCHPAY at creation (payment_router.py always sets
+                # exc.provider_code on the attempt that raised), and without
+                # this a confirmed rejection from any other provider keeps
+                # reading as TOUCHPAY forever — the column never corrects
+                # itself (2026-11-18: Smobilpay's own regex refusal on a
+                # Centrafrique Orange number showed up as a TouchPay failure).
+                confirmed_provider = getattr(exc, "provider_code", None)
+                values = {
+                    "direct_api_data": {"error": str(exc), "raw": exc.raw_response},
+                    "operator_transaction_id": extract_operator_reference(str(exc)),
+                }
+                if confirmed_provider:
+                    values["provider"] = PaymentProvider(confirmed_provider)
                 await record_initiation_outcome(
                     db, payment, status_if_pending=PaymentStatus.FAILED,
-                    values={
-                        "direct_api_data": {"error": str(exc), "raw": exc.raw_response},
-                        "operator_transaction_id": extract_operator_reference(str(exc)),
-                    },
+                    values=values,
                 )
                 if not customer_caused:
                     record_payment_failure(reference)
