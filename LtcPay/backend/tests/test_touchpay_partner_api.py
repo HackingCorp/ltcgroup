@@ -99,6 +99,23 @@ async def test_no_readable_status_returns_none_rather_than_a_guess():
     assert await _service(response={"message": "ok"}).check_status(None, "GA", "PAY-1") is None
 
 
+async def test_a_success_envelope_contradicted_by_its_own_message_is_not_paid():
+    """PAY-1E4B651FA12145AF (2026-11-19, CD/Airtel): check_status answered
+    status="success" while its own message read "...ended FAILED. Reason:
+    ... User didn't enter the pin." The reconciler trusted the envelope
+    alone and marked a refused payin COMPLETED."""
+    response = {
+        "status": "success",
+        "message": (
+            "Payment ID: TJ1OW-P20261008064405GUFXDD ended FAILED. "
+            "Reason: Transaction ID is invalid - User didn't enter the pin."
+        ),
+    }
+    verdict = await _service(response=response).check_status(None, "CD", "PAY-1")
+    assert not verdict["is_paid"]
+    assert verdict["is_failed"]
+
+
 async def test_the_reference_sent_is_our_own():
     capture = []
     await _service(response={"status": "FAILED"}, capture=capture).check_status(None, "GA", "PAY-42")

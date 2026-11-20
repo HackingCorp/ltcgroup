@@ -51,6 +51,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.country_service import country_service
+from app.services.failure_reasons import message_says_operator_failed
 
 logger = logging.getLogger(__name__)
 
@@ -179,10 +180,12 @@ class TouchPayPartnerService:
             return None
 
         label = str(raw_status).strip().upper()
+        message = data.get("message") or (data.get("data") or {}).get("message")
+        contradicted = label in STATUS_SUCCESS and message_says_operator_failed(message)
         return {
             "status": label,
-            "is_paid": label in STATUS_SUCCESS,
-            "is_failed": label in STATUS_FAILED,
+            "is_paid": label in STATUS_SUCCESS and not contradicted,
+            "is_failed": label in STATUS_FAILED or contradicted,
             "is_pending": label in STATUS_PENDING or label in STATUS_UNKNOWN,
             "raw": data,
         }

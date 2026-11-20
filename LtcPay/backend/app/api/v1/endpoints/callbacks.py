@@ -40,7 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.velocity import record_payment_failure
-from app.models.payment import Payment, PaymentStatus
+from app.models.payment import Payment, PaymentProvider, PaymentStatus
 from app.services.failure_reasons import extract_operator_reference
 
 logger = logging.getLogger(__name__)
@@ -312,6 +312,28 @@ async def _process_callback(
     new_status = _map_touchpay_status(callback.status)
 
     terminal_states = (PaymentStatus.COMPLETED, PaymentStatus.FAILED, PaymentStatus.CANCELLED)
+
+    # A reference this callback names but that TouchPay was never asked to
+    # process is not ours to settle, success or failure alike. The provider
+    # column is only meaningful once routing has actually run (still PENDING
+    # right after creation it says nothing — see _is_stale_failure below).
+    # 2026-11-19, PAY-075A116C5DA74E61: a validly signed TouchPay callback
+    # named a Smobilpay payment TouchPay had never touched, and this
+    # function's own "success always wins" rule (below) overturned its real
+    # ERRORED verdict to COMPLETED.
+    if payment.status != PaymentStatus.PENDING and payment.provider != PaymentProvider.TOUCHPAY:
+        logger.error(
+            "TouchPay callback: %s is a %s payment, not TouchPay's to settle "
+            "(command=%s, callback status=%s) — ignored",
+            payment.reference, payment.provider.value, callback.command_number, callback.status,
+        )
+        return {
+            "status": "ok",
+            "message": "Ignored: payment belongs to another provider",
+            "reference": payment.reference,
+            "payment": payment,
+            "new_status": payment.status,
+        }
     # A success verdict always wins, even over a FAILED we wrote ourselves:
     # only the operator knows whether money moved, and every status but
     # COMPLETED is at best our own inference. PAY-4DB3A75B530848C8 was

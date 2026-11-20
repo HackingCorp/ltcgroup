@@ -606,3 +606,61 @@ class TestTouchPayDirectError:
         assert str(err) == "Simple error"
         assert err.status_code is None
         assert err.raw_response == {}
+
+
+class TestCheckTransactionStatus:
+    """GET /{agency}/transaction/{reference} — the reconciliation fallback.
+
+    PAY-1E4B651FA12145AF (2026-11-19, CD/Airtel): this endpoint answered
+    status="success" while its own message read "...ended FAILED. Reason:
+    ... User didn't enter the pin." The reconciler trusted the envelope
+    alone and marked a refused payin COMPLETED.
+    """
+
+    CREDS = {
+        "agency_code": "AG", "login": "l", "password": "p",
+        "direct_api_url": "https://x/apidist/sec/touchpayapi",
+    }
+
+    def _service(self):
+        service = TouchPayDirectService()
+
+        async def fake_creds(db, country_code):
+            return self.CREDS
+
+        import app.services.touchpay_direct_service as mod
+        service_country_patch = patch.object(
+            mod.country_service, "get_decrypted_credentials", new=fake_creds,
+        )
+        return service, service_country_patch
+
+    async def _status_for(self, body: dict):
+        service, creds_patch = self._service()
+        response = MagicMock(status_code=200)
+        response.json.return_value = body
+        with creds_patch, patch(
+            "httpx.AsyncClient.get", new=AsyncMock(return_value=response),
+        ):
+            return await service.check_transaction_status(None, "CD", "PAY-1")
+
+    @pytest.mark.asyncio
+    async def test_a_plain_success_is_paid(self):
+        verdict = await self._status_for({"status": "success"})
+        assert verdict["is_paid"] and not verdict["is_failed"]
+
+    @pytest.mark.asyncio
+    async def test_a_success_envelope_contradicted_by_its_own_message_is_not_paid(self):
+        verdict = await self._status_for({
+            "status": "success",
+            "message": (
+                "Payment ID: TJ1OW-P20261008064405GUFXDD ended FAILED. "
+                "Reason: Transaction ID is invalid - User didn't enter the pin."
+            ),
+        })
+        assert not verdict["is_paid"]
+        assert verdict["is_failed"]
+
+    @pytest.mark.asyncio
+    async def test_a_failed_status_is_unaffected_by_a_missing_message(self):
+        verdict = await self._status_for({"status": "FAILED"})
+        assert verdict["is_failed"] and not verdict["is_paid"]

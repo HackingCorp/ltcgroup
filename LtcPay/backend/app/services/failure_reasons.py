@@ -250,6 +250,20 @@ def classify_enkap_code(code) -> Optional[tuple[str, str]]:
     return failure_code, _MESSAGE_BY_CODE[failure_code]
 
 
+def message_says_operator_failed(raw_message: Optional[str]) -> bool:
+    """True when a TJ1OW wrapper message states the payin itself ended FAILED.
+
+    Some TouchPay status lookups wrap a confirmed operator failure inside an
+    envelope whose own top-level "status" field says something else entirely
+    (2026-11-19, PAY-1E4B651FA12145AF: the payin status endpoint answered
+    status="success" for a transaction whose own message read "...ended
+    FAILED. Reason: ... User didn't enter the pin." — the reconciler trusted
+    the envelope and marked a refused payment COMPLETED). A caller deriving
+    is_paid from the envelope's status alone must check this first.
+    """
+    return "ended failed" in (raw_message or "").lower()
+
+
 def extract_operator_reference(raw_message: Optional[str]) -> Optional[str]:
     """Pull the operator's own transaction reference out of a raw message.
 

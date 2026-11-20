@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.merchant import Merchant
-from app.models.payment import Payment, PaymentStatus
+from app.models.payment import Payment, PaymentProvider, PaymentStatus
 
 
 @pytest.mark.asyncio
@@ -166,6 +166,31 @@ async def test_a_failure_callback_does_not_reopen_a_failed_payment(
 
     fresh = await _status_after(client, db_session, pid, {
         "status": "failed", "transaction_id": ref,
+    })
+    assert fresh.status == PaymentStatus.FAILED
+    assert fresh.completed_at is None
+
+
+@pytest.mark.asyncio
+async def test_a_success_callback_does_not_overturn_another_providers_payment(
+    client: AsyncClient, db_session: AsyncSession, demo_payment: Payment
+):
+    """A reference collision is not a late success.
+
+    PAY-075A116C5DA74E61 (2026-11-19): a validly signed TouchPay "success"
+    callback named a Smobilpay payment TouchPay had never been asked to
+    process (ERRORED there, code 703108 — insufficient funds). Only the
+    provider that actually ran the payin gets to overturn it."""
+    demo_payment.status = PaymentStatus.FAILED
+    demo_payment.provider = PaymentProvider.SMOBILPAY
+    db_session.add(demo_payment)
+    await db_session.commit()
+    pid, ref = demo_payment.id, demo_payment.reference
+
+    fresh = await _status_after(client, db_session, pid, {
+        "status": "success",
+        "transaction_id": ref,
+        "operator_id": "1788972353730",
     })
     assert fresh.status == PaymentStatus.FAILED
     assert fresh.completed_at is None
